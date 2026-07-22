@@ -1,0 +1,14 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif,
+    'Apple Color Emoji',
+    'Segoe UI Emoji';
+  /* Prevents iOS Safari from auto-bumping font size on rotation. */
+  -webkit-text-size-adjust: 100%;
+}
