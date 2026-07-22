@@ -17,11 +17,27 @@ function Pages() {
   return useRoutes(normalizedRoutes)
 }
 
+// Without this, an already-open tab only checks for a new service worker on its
+// next navigation/registration — so a deployed update goes undetected until the
+// user manually reloads. Polling registration.update() surfaces the "new version
+// available" prompt on its own; the user still has to click Reload to apply it
+// (per CLAUDE.md: never swap content out from under them silently).
+const UPDATE_CHECK_INTERVAL_MS = 60_000
+
 function UpdatePrompt() {
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW()
+  } = useRegisterSW({
+    onRegisteredSW(_swScriptUrl, registration) {
+      if (!registration) {
+        return
+      }
+      setInterval(() => {
+        void registration.update()
+      }, UPDATE_CHECK_INTERVAL_MS)
+    },
+  })
 
   if (!needRefresh) {
     return null
