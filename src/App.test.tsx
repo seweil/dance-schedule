@@ -5,7 +5,7 @@ import { App } from './App'
 describe('App', () => {
   it('renders the home page generated from content/index.md', () => {
     render(<App />)
-    expect(screen.getByRole('heading', { name: /welcome to t1/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /welcome to dance schedule/i })).toBeInTheDocument()
   })
 
   it('renders the nav generated from content/ file structure', () => {

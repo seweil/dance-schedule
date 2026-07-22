@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "T1 App",
-  "short_name": "T1",
+  "name": "Dance Schedule",
+  "short_name": "Dance Schedule",
   "description": "TODO: one-line description of what this app does.",
   "start_url": "/",
   "scope": "/",

@@ -2,7 +2,7 @@ import { test, expect, devices } from '@playwright/test'
 
 test('renders the home page generated from content/index.md', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: /welcome to t1/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome to dance schedule/i })).toBeVisible()
 })
 
 test('nav links to a page generated from a content file', async ({ page }) => {
@@ -44,7 +44,7 @@ test('app shell still renders when offline after the SW takes control', async ({
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: /welcome to t1/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome to dance schedule/i })).toBeVisible()
   await context.setOffline(false)
 })
 

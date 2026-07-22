@@ -1,4 +1,4 @@
-# Welcome to T1
+# Welcome to Dance Schedule
 
 This is the home page. It's rendered from `content/index.md` — pages and the
 navigation menu are generated automatically from the markdown files in `content/`.
