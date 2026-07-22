@@ -45,7 +45,7 @@ does. Always verify PWA behavior (offline mode, install prompt, update flow) aga
 ```
 content/
   index.md                    # → route "/"
-  installation.md             # → route "/installation"
+  2 installation.md           # → route "/installation" (nav-sorted 2nd)
 src/
   components/     # reusable UI components (incl. ZoomableImage, Nav)
   pages/          # hand-written non-content routes (e.g. a 404), if any
@@ -67,11 +67,18 @@ is no hand-written route for a content page and no frontmatter. `content/` is a 
 list of files (no subfolders) — each file's name becomes its route/nav label, one
 level deep.
 
+- **Naming**: content filenames are kebab-case (`getting-started.md`, not
+  `Getting Started.md`) and may start with a sort-order number followed by a single
+  space — `2 installation.md`. That `"<digits> "` prefix controls nav order only; it
+  and the extension are stripped to produce both the route and the title-cased label
+  (`2 installation.md` → route `/installation`, label "Installation"). Files with no
+  prefix sort after prefixed ones, in filesystem order.
 - **Routing**: `vite-plugin-pages` (configured in `vite.config.ts`) scans `content/`
-  and turns each file into a route — `content/index.md` → `/`,
-  `content/installation.md` → `/installation`. This works identically in `pnpm dev`
-  (HMR on file add/remove/rename) and in `pnpm build` (statically resolved) — no
-  custom watch code.
+  and turns each file into a route; `src/lib/buildNavTree.ts`'s `normalizeRoutes`
+  then strips the order prefix from each route's path before it's registered
+  (`App.tsx`), so the live route always matches the clean nav href — never the raw
+  filename. This works identically in `pnpm dev` (HMR on file add/remove/rename) and
+  in `pnpm build` (statically resolved) — no custom watch code.
 - **Compilation**: `@mdx-js/rollup` compiles each `.md` into a React component
   (`format: 'md'` keeps JSX-in-content disabled — authors write plain markdown only).
 - **Images**: write standard `![alt](./relative.png)` — `rehype-mdx-import-media`
@@ -83,9 +90,9 @@ level deep.
   global `MDXProvider` override in `App.tsx` — content authors don't add any markup
   for this, it's automatic.
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
-  routes `vite-plugin-pages` generates — title = Title-cased filename, order =
-  alphabetical. Naming/ordering logic is still basic and expected to be revisited
-  (e.g. numeric filename prefixes like `01-intro.md` if manual ordering is needed).
+  routes `vite-plugin-pages` generates — title = Title-cased filename (after
+  stripping the order prefix), order = the numeric prefix (see Naming above), Home
+  always first.
 
 ## Code conventions
 

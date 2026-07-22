@@ -5,11 +5,16 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
 import { Nav } from './components/Nav'
 import { ZoomableImage } from './components/ZoomableImage'
+import { normalizeRoutes } from './lib/buildNavTree'
 
 const mdxComponents = { img: ZoomableImage }
 
+// Registered routes must match the clean hrefs buildNavTree computes for the nav
+// (order prefixes like "2 " are stripped from the URL, not just the label).
+const normalizedRoutes = normalizeRoutes(routes)
+
 function Pages() {
-  return useRoutes(routes)
+  return useRoutes(normalizedRoutes)
 }
 
 function UpdatePrompt() {
