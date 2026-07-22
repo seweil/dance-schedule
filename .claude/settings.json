@@ -1,0 +1,26 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowMachLookup": ["com.apple.coresimulator.*"],
+      "allowLocalBinding": true
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-project-scope.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking project scope..."
+          }
+        ]
+      }
+    ]
+  }
+}
