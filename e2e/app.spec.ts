@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, devices } from '@playwright/test'
 
 test('renders the home page generated from content/index.md', async ({ page }) => {
   await page.goto('/')
@@ -46,4 +46,22 @@ test('app shell still renders when offline after the SW takes control', async ({
   await page.reload()
   await expect(page.getByRole('heading', { name: /welcome to t1/i })).toBeVisible()
   await context.setOffline(false)
+})
+
+test.describe('mobile viewport', () => {
+  test.use({ ...devices['iPhone 13'] })
+
+  test('renders content and nav without horizontal overflow on a small screen', async ({
+    page,
+  }) => {
+    await page.goto('/installation')
+    await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /home/i })).toBeVisible()
+
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }))
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
+  })
 })
