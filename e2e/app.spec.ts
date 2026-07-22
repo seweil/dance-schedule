@@ -5,16 +5,14 @@ test('renders the home page generated from content/index.md', async ({ page }) =
   await expect(page.getByRole('heading', { name: /welcome to t1/i })).toBeVisible()
 })
 
-test('nav links to a page generated from a nested content file', async ({ page }) => {
+test('nav links to a page generated from a content file', async ({ page }) => {
   await page.goto('/')
-  // "Getting Started" has no content/getting-started/index.md, so it's a group
-  // heading (plain text), not a link — only its child page "Installation" is.
   await page.getByRole('link', { name: /installation/i }).click()
   await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
 })
 
 test('clicking an embedded markdown image opens the full-screen lightbox', async ({ page }) => {
-  await page.goto('/getting-started/installation')
+  await page.goto('/installation')
   await page.getByAltText(/screenshot of the app/i).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')

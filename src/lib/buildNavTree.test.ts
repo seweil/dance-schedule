@@ -15,18 +15,17 @@ describe('buildNavTree', () => {
     expect(item).toMatchObject({ label: 'Getting Started', href: '/getting-started' })
   })
 
-  it('builds nested hrefs from parent + child segments', () => {
-    const [section] = buildNavTree([
-      {
-        path: 'getting-started',
-        children: [{ path: 'installation', element: createElement('div') }],
-      },
+  it('maps a flat list of routes straight to nav items', () => {
+    const items = buildNavTree([
+      { path: '/', element: createElement('div') },
+      { path: 'installation', element: createElement('div') },
+      { path: 'about', element: createElement('div') },
     ])
 
-    expect(section?.href).toBeNull()
-    expect(section?.children[0]).toMatchObject({
-      label: 'Installation',
-      href: '/getting-started/installation',
-    })
+    expect(items).toEqual([
+      { label: 'Home', href: '/' },
+      { label: 'Installation', href: '/installation' },
+      { label: 'About', href: '/about' },
+    ])
   })
 })

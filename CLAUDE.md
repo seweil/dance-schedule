@@ -45,8 +45,7 @@ does. Always verify PWA behavior (offline mode, install prompt, update flow) aga
 ```
 content/
   index.md                    # → route "/"
-  getting-started/
-    installation.md           # → route "/getting-started/installation"
+  installation.md             # → route "/installation"
 src/
   components/     # reusable UI components (incl. ZoomableImage, Nav)
   pages/          # hand-written non-content routes (e.g. a 404), if any
@@ -64,13 +63,15 @@ e2e/
 ## Content pipeline
 
 Pages and the nav menu are generated from plain markdown files in `content/` — there
-is no hand-written route for a content page and no frontmatter.
+is no hand-written route for a content page and no frontmatter. `content/` is a flat
+list of files (no subfolders) — each file's name becomes its route/nav label, one
+level deep.
 
 - **Routing**: `vite-plugin-pages` (configured in `vite.config.ts`) scans `content/`
-  and turns file paths into routes — `content/index.md` → `/`,
-  `content/getting-started/installation.md` → `/getting-started/installation`. This
-  works identically in `pnpm dev` (HMR on file add/remove/rename) and in
-  `pnpm build` (statically resolved) — no custom watch code.
+  and turns each file into a route — `content/index.md` → `/`,
+  `content/installation.md` → `/installation`. This works identically in `pnpm dev`
+  (HMR on file add/remove/rename) and in `pnpm build` (statically resolved) — no
+  custom watch code.
 - **Compilation**: `@mdx-js/rollup` compiles each `.md` into a React component
   (`format: 'md'` keeps JSX-in-content disabled — authors write plain markdown only).
 - **Images**: write standard `![alt](./relative.png)` — `rehype-mdx-import-media`
@@ -81,13 +82,10 @@ is no hand-written route for a content page and no frontmatter.
   `src/components/ZoomableImage.tsx` (a `yet-another-react-lightbox` wrapper) via a
   global `MDXProvider` override in `App.tsx` — content authors don't add any markup
   for this, it's automatic.
-- **Nav menu**: `src/lib/buildNavTree.ts` derives the menu straight from the routes
-  `vite-plugin-pages` generates — title = Title-cased path segment, grouping = folder
-  structure, order = alphabetical (no explicit ordering field exists yet; revisit via
-  numeric filename prefixes like `01-intro.md` if manual ordering is needed).
-- A folder with no direct page (e.g. `content/getting-started/` with no
-  `index.md`/`getting-started.md`) renders as a non-clickable group heading in the
-  nav — this is expected, not a bug.
+- **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
+  routes `vite-plugin-pages` generates — title = Title-cased filename, order =
+  alphabetical. Naming/ordering logic is still basic and expected to be revisited
+  (e.g. numeric filename prefixes like `01-intro.md` if manual ordering is needed).
 
 ## Code conventions
 

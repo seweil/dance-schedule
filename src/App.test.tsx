@@ -12,6 +12,6 @@ describe('App', () => {
     render(<App />)
     expect(screen.getByRole('navigation', { name: /site navigation/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument()
-    expect(screen.getByText(/getting started/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /installation/i })).toBeInTheDocument()
   })
 })
