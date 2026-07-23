@@ -49,7 +49,11 @@ test('app shell still renders when offline after the SW takes control', async ({
 })
 
 test.describe('mobile viewport', () => {
-  test.use({ ...devices['iPhone 13'] })
+  // Playwright forbids setting defaultBrowserType inside a describe block (it would
+  // force a new worker), so pick the viewport/UA/touch fields out of the preset
+  // rather than spreading it whole — this project only runs the chromium project.
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 13']
+  test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch })
 
   test('renders content and nav without horizontal overflow on a small screen', async ({
     page,
