@@ -11,4 +11,9 @@
     'Segoe UI Emoji';
   /* Prevents iOS Safari from auto-bumping font size on rotation. */
   -webkit-text-size-adjust: 100%;
+
+  --color-text: #1a1a1a;
+  --color-accent: #2454ff;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
 }

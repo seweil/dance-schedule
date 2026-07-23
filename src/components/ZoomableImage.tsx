@@ -1,6 +1,7 @@
 import { useState, type ImgHTMLAttributes } from 'react'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
+import styles from './ZoomableImage.module.css'
 
 type ZoomableImageProps = ImgHTMLAttributes<HTMLImageElement>
 
@@ -18,7 +19,7 @@ export function ZoomableImage({ src, alt = '', ...rest }: ZoomableImageProps) {
         alt={alt}
         {...rest}
         onClick={() => setOpen(true)}
-        style={{ cursor: 'zoom-in' }}
+        className={styles.zoomable}
       />
       <Lightbox open={open} close={() => setOpen(false)} slides={[{ src, alt }]} />
     </>

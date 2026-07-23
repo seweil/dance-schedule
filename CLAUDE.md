@@ -104,6 +104,17 @@ level deep.
 - Avoid premature abstraction — three similar call sites is fine; don't build a
   generic system until a fourth appears.
 
+## Styling
+
+- **CSS Modules** is the styling technology for components — built into Vite, no
+  extra dependency, zero runtime cost. Each component that needs styles gets a
+  colocated `ComponentName.module.css` next to `ComponentName.tsx`, imported as
+  `import styles from './ComponentName.module.css'` and applied via
+  `className={styles.foo}`.
+- `src/index.css` is reserved for truly global concerns only: the font stack,
+  resets, and shared CSS custom-property tokens (colors, spacing). Don't add
+  component-specific rules there.
+
 ## PWA-specific guidance
 
 - **Manifest** (`public/manifest.webmanifest`): keep `name`, `short_name`, `theme_color`,
