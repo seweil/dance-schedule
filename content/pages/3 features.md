@@ -11,4 +11,4 @@ out of the box:
 
 Here's a placeholder icon representing the feature set:
 
-![A placeholder feature icon](./features.png)
+![A placeholder feature icon](./assets/features.png)

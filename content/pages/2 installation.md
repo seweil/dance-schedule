@@ -7,4 +7,4 @@ Follow these steps to get set up.
 
 Here's a screenshot — click it to view full-screen:
 
-![A screenshot of the app](./screenshot.png)
+![A screenshot of the app](./assets/screenshot.png)

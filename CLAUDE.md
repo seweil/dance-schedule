@@ -19,7 +19,7 @@ Lighthouse PWA criteria.
   Playwright for E2E and PWA-behavior tests (offline mode, service worker, install flow)
 - **Linting/formatting:** ESLint + Prettier
 - **Content/routing:** pages and the nav menu are generated from markdown files in
-  `content/` — see "Content pipeline" below
+  `content/pages/` — see "Content pipeline" below
 
 ## Commands
 
@@ -44,8 +44,10 @@ does. Always verify PWA behavior (offline mode, install prompt, update flow) aga
 
 ```
 content/
-  index.md                    # → route "/"
-  2 installation.md           # → route "/installation" (nav-sorted 2nd)
+  pages/
+    index.md                  # → route "/"
+    2 installation.md         # → route "/installation" (nav-sorted 2nd)
+    assets/                   # images referenced by the markdown files above
 src/
   components/     # reusable UI components (incl. ZoomableImage, Nav)
   pages/          # hand-written non-content routes (e.g. a 404), if any
@@ -62,10 +64,12 @@ e2e/
 
 ## Content pipeline
 
-Pages and the nav menu are generated from plain markdown files in `content/` — there
-is no hand-written route for a content page and no frontmatter. `content/` is a flat
-list of files (no subfolders) — each file's name becomes its route/nav label, one
-level deep.
+Pages and the nav menu are generated from plain markdown files in `content/pages/` —
+there is no hand-written route for a content page and no frontmatter. `content/pages/`
+is a flat list of files (no further subfolders for `.md` files) — each file's name
+becomes its route/nav label, one level deep. `content/pages/assets/` holds the images
+those files reference; it isn't scanned for routes since `vite-plugin-pages` only
+picks up the `.md` extension.
 
 - **Naming**: content filenames are kebab-case (`getting-started.md`, not
   `Getting Started.md`) and may start with a sort-order number followed by a single
@@ -73,18 +77,19 @@ level deep.
   and the extension are stripped to produce both the route and the title-cased label
   (`2 installation.md` → route `/installation`, label "Installation"). Files with no
   prefix sort after prefixed ones, in filesystem order.
-- **Routing**: `vite-plugin-pages` (configured in `vite.config.ts`) scans `content/`
-  and turns each file into a route; `src/lib/buildNavTree.ts`'s `normalizeRoutes`
-  then strips the order prefix from each route's path before it's registered
-  (`App.tsx`), so the live route always matches the clean nav href — never the raw
-  filename. This works identically in `pnpm dev` (HMR on file add/remove/rename) and
-  in `pnpm build` (statically resolved) — no custom watch code.
+- **Routing**: `vite-plugin-pages` (configured in `vite.config.ts`) scans
+  `content/pages/` and turns each `.md` file into a route; `src/lib/buildNavTree.ts`'s
+  `normalizeRoutes` then strips the order prefix from each route's path before it's
+  registered (`App.tsx`), so the live route always matches the clean nav href — never
+  the raw filename. This works identically in `pnpm dev` (HMR on file add/remove/rename)
+  and in `pnpm build` (statically resolved) — no custom watch code.
 - **Compilation**: `@mdx-js/rollup` compiles each `.md` into a React component
   (`format: 'md'` keeps JSX-in-content disabled — authors write plain markdown only).
-- **Images**: write standard `![alt](./relative.png)` — `rehype-mdx-import-media`
+- **Images**: write standard `![alt](./assets/relative.png)` — `rehype-mdx-import-media`
   rewrites relative paths into real Vite asset imports so they're hashed/optimized in
-  the build (required for the PWA precache to work correctly). Colocate an image next
-  to the markdown file that uses it.
+  the build (required for the PWA precache to work correctly). All content images live
+  in `content/pages/assets/`, referenced with a `./assets/` prefix from each markdown
+  file.
 - **Image zoom**: every rendered `<img>` is automatically replaced with
   `src/components/ZoomableImage.tsx` (a `yet-another-react-lightbox` wrapper) via a
   global `MDXProvider` override in `App.tsx` — content authors don't add any markup

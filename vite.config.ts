@@ -24,7 +24,7 @@ export default defineConfig({
       }),
     },
     Pages({
-      dirs: [{ dir: 'content', baseRoute: '' }],
+      dirs: [{ dir: 'content/pages', baseRoute: '' }],
       extensions: ['md'],
       resolver: 'react',
     }),
