@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -7,7 +8,17 @@ import rehypeMdxImportMedia from 'rehype-mdx-import-media'
 import { schedulePlugin } from './vite-plugin-schedule'
 import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
 
+// Baked in at build time (never re-evaluated client-side) so the debug page can
+// show which build is running — the short commit hash doubles as a build number
+// since this project has no CI-assigned incrementing build counter.
+const BUILD_NUMBER = execSync('git rev-parse --short HEAD').toString().trim()
+const BUILD_TIME = new Date().toISOString()
+
 export default defineConfig({
+  define: {
+    __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+  },
   plugins: [
     // Must run before vite-plugin-pages resolves .md files as route modules.
     {

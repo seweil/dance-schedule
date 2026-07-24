@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { BrowserRouter, useRoutes, type RouteObject } from 'react-router-dom'
+import { BrowserRouter, Navigate, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
@@ -18,6 +18,7 @@ const normalizedRoutes = normalizeRoutes(routes)
 // ~react-pages' own routes (src/components/Nav.tsx), so a route added only here is
 // reachable but never appears in the nav — debug tooling only, not a real page.
 const debugRoutes: RouteObject[] = [
+  { path: '/debug', element: <Navigate to="/debug/dance-schedule" replace /> },
   { path: '/debug/dance-schedule', element: <RawDanceScheduleDebugPage /> },
 ]
 
