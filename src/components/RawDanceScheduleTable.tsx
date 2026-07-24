@@ -1,35 +1,35 @@
-import type { DetailedSession } from '../types/detailedSchedule'
-import { groupDetailedSessionsByDate } from '../lib/groupDetailedSessionsByDate'
-import styles from './DetailedScheduleTable.module.css'
+import type { DanceSession } from '../types/danceSchedule'
+import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
+import styles from './RawDanceScheduleTable.module.css'
 
 // Session date/time values are wall-clock values from the spreadsheet, not real
-// instants (see buildDetailedSchedule.ts) — pinned to UTC so they display exactly
+// instants (see buildDanceSchedule.ts) — pinned to UTC so they display exactly
 // as entered, same reasoning as ScheduleList.tsx.
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' })
 const timeFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
 
-function formatTimeRange(session: DetailedSession): string {
+function formatTimeRange(session: DanceSession): string {
   return `${timeFormatter.format(session.startTime)} – ${timeFormatter.format(session.endTime)}`
 }
 
-function formatDetails(session: DetailedSession): string {
+function formatDetails(session: DanceSession): string {
   if (session.kind === 'freeform') {
     return `(freeform) ${session.description}`
   }
   return `${session.eventType} - ${session.callers.join(' & ')}`
 }
 
-// Dense, desktop-only debug view of the parsed detailed schedule — one table per
-// date, mirroring formatDetailedScheduleMarkdown.ts's dump so both stay consistent.
+// Dense, desktop-only debug view of the parsed dance schedule — one table per
+// date, mirroring formatDanceScheduleMarkdown.ts's dump so both stay consistent.
 // Not styled or tested for mobile; this is a debug tool, not the eventual page.
-export function DetailedScheduleTable({ sessions }: { sessions: DetailedSession[] }) {
+export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }) {
   if (sessions.length === 0) {
     return <p>No sessions parsed.</p>
   }
 
   return (
     <>
-      {groupDetailedSessionsByDate(sessions).map((group) => (
+      {groupDanceSessionsByDate(sessions).map((group) => (
         <section key={group.date.toISOString()}>
           <h2>{dateFormatter.format(group.date)}</h2>
           <table className={styles.table}>

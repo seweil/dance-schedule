@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildDetailedSchedule } from './buildDetailedSchedule'
-import type { DetailedSessionData, StructuredSessionData } from '../types/detailedSchedule'
+import { buildDanceSchedule } from './buildDanceSchedule'
+import type { DanceSessionData, StructuredSessionData } from '../types/danceSchedule'
 
 function makeStructured(overrides: Partial<StructuredSessionData> = {}): StructuredSessionData {
   return {
@@ -16,9 +16,9 @@ function makeStructured(overrides: Partial<StructuredSessionData> = {}): Structu
   }
 }
 
-describe('buildDetailedSchedule', () => {
+describe('buildDanceSchedule', () => {
   it('converts a structured session, preserving levels/callers/gca', () => {
-    const [session] = buildDetailedSchedule([makeStructured({ gca: 'Tim Stephens' })])
+    const [session] = buildDanceSchedule([makeStructured({ gca: 'Tim Stephens' })])
     expect(session).toEqual({
       kind: 'structured',
       date: new Date('2026-07-02T00:00:00.000Z'),
@@ -33,7 +33,7 @@ describe('buildDetailedSchedule', () => {
   })
 
   it('converts a freeform session', () => {
-    const data: DetailedSessionData = {
+    const data: DanceSessionData = {
       kind: 'freeform',
       date: '2026-07-04T00:00:00.000Z',
       startTime: '2026-07-04T22:00:00.000Z',
@@ -41,7 +41,7 @@ describe('buildDetailedSchedule', () => {
       room: 'Hemon',
       description: 'Country Western Dance - until 1am',
     }
-    const [session] = buildDetailedSchedule([data])
+    const [session] = buildDanceSchedule([data])
     expect(session).toEqual({
       kind: 'freeform',
       date: new Date('2026-07-04T00:00:00.000Z'),
@@ -56,7 +56,7 @@ describe('buildDetailedSchedule', () => {
     const later = makeStructured({ startTime: '2026-07-03T18:00:00.000Z', eventType: 'Later' })
     const earlier = makeStructured({ startTime: '2026-07-02T12:30:00.000Z', eventType: 'Earlier' })
 
-    const result = buildDetailedSchedule([later, earlier])
+    const result = buildDanceSchedule([later, earlier])
 
     expect(result.map((s) => (s.kind === 'structured' ? s.eventType : null))).toEqual([
       'Earlier',
@@ -65,6 +65,6 @@ describe('buildDetailedSchedule', () => {
   })
 
   it('returns an empty array for empty input', () => {
-    expect(buildDetailedSchedule([])).toEqual([])
+    expect(buildDanceSchedule([])).toEqual([])
   })
 })

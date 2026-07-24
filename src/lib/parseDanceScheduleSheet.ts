@@ -1,14 +1,14 @@
 import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
-import { LEVEL_CODES, type LevelCode, type DetailedSessionData } from '../types/detailedSchedule'
+import { LEVEL_CODES, type LevelCode, type DanceSessionData } from '../types/danceSchedule'
 
 const WEEKDAY_PREFIX = /^\w+day\s+/i
 const LEVEL_SEPARATOR = /[&/]/
 const GCA_PREFIX = /^GCA:\s*/i
 const FREEFORM_PREFIX = '* '
 
-export interface ParseDetailedScheduleSheetResult {
-  sessions: DetailedSessionData[]
+export interface ParseDanceScheduleSheetResult {
+  sessions: DanceSessionData[]
   errors: string[]
 }
 
@@ -38,7 +38,7 @@ function columnLetter(colIndex: number): string {
 function parseCell(
   cellText: string,
   context: { date: Date; startTime: Date; endTime: Date; room: string },
-): DetailedSessionData {
+): DanceSessionData {
   const trimmed = cellText.trim()
   const base = {
     date: context.date.toISOString(),
@@ -115,20 +115,20 @@ function parseCell(
 }
 
 /**
- * Parses one sheet of the detailed-schedule grid: row 0 is room-name headers, each
+ * Parses one sheet of the dance-schedule grid: row 0 is room-name headers, each
  * following row is [timeRange, ...cells] with one cell per room (null/empty if that
  * room/time has nothing scheduled). Returns parsed sessions and any errors — doesn't
  * throw, so a caller can aggregate errors across every sheet in the file before
- * failing the build with the complete list. See parseDetailedScheduleSheet.test.ts
+ * failing the build with the complete list. See parseDanceScheduleSheet.test.ts
  * for the exact cell formats supported (drawn from real spreadsheet examples).
  */
-export function parseDetailedScheduleSheet(
+export function parseDanceScheduleSheet(
   sheetName: string,
   rows: unknown[][],
   referenceDate?: Date,
-): ParseDetailedScheduleSheetResult {
+): ParseDanceScheduleSheetResult {
   const [headerRow, ...dataRows] = rows
-  const sessions: DetailedSessionData[] = []
+  const sessions: DanceSessionData[] = []
   const errors: string[] = []
 
   if (!headerRow) {

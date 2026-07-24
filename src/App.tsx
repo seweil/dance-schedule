@@ -5,7 +5,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
 import { Nav } from './components/Nav'
 import { ZoomableImage } from './components/ZoomableImage'
-import { DetailedScheduleDebugPage } from './components/DetailedScheduleDebugPage'
+import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
 import { normalizeRoutes } from './lib/buildNavTree'
 
 const mdxComponents = { img: ZoomableImage }
@@ -18,7 +18,7 @@ const normalizedRoutes = normalizeRoutes(routes)
 // ~react-pages' own routes (src/components/Nav.tsx), so a route added only here is
 // reachable but never appears in the nav — debug tooling only, not a real page.
 const debugRoutes: RouteObject[] = [
-  { path: '/debug/detailed-schedule', element: <DetailedScheduleDebugPage /> },
+  { path: '/debug/dance-schedule', element: <RawDanceScheduleDebugPage /> },
 ]
 
 function Pages() {

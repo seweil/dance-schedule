@@ -1,9 +1,9 @@
-# Detailed schedule (data model, parsing, storage)
+# Dance schedule (data model, parsing, storage)
 
 ## Context
 
 The simple schedule page (`docs/design/schedule-page.md`) shows a flat
-list of events grouped by date. The user wants a much richer "Detailed
+list of events grouped by date. The user wants a much richer "Dance
 Schedule" — a **new page/tab**, existing alongside the simple schedule
 (which is untouched by this work) — modeled on a real multi-day dance
 convention: multiple rooms running in parallel, skill-level tracks,
@@ -11,7 +11,7 @@ named callers, and standalone one-off events.
 
 The user provided both a reference PDF (`scratch/Dance Schedule.pdf`,
 kept for context) and the **actual real source spreadsheet**
-(originally `scratch/Dance-Schedule.xlsx`, now `data/detailed-schedule.xlsx`)
+(originally `scratch/Dance-Schedule.xlsx`, now `data/dance-schedule.xlsx`)
 for a real convention (Montreal Mix 2026). This phase covers **only the
 data model, parsing, and storage** for that source file — no page,
 route, nav/tab integration, or rendering yet; that's deliberately a
@@ -81,7 +81,7 @@ date. Reused unchanged from the simple schedule's parser.
 two sessions. The level-portion (text before the first `:`) is split on
 `/[&/]/` to support **both** real separators (`"C1 & C2"` and
 `"A1/A2"`), each piece validated against a fixed `LEVEL_CODES` list
-(`src/types/detailedSchedule.ts`) — an unrecognized code fails the
+(`src/types/danceSchedule.ts`) — an unrecognized code fails the
 build. `LEVEL_CODES` includes `MS`/`Advanced` preemptively (present in
 the convention's printed legend but not in this 3-day excerpt's actual
 data) alongside everything actually observed, including the informal
@@ -110,7 +110,7 @@ attempted). Anything else that doesn't match `"Level : Type - Caller(s)
 [GCA: Name]"` **fails the build** — consistent with this project's
 fail-loud philosophy for spreadsheet data (`docs/design/schedule-page.md`).
 The 2 real non-conforming cells found got the `"* "` prefix added
-directly (`data/detailed-schedule.xlsx`), rather than having the parser
+directly (`data/dance-schedule.xlsx`), rather than having the parser
 guess at an unstated pattern.
 
 ### Time format: reused, extended to accept bare `a`/`p`
@@ -128,13 +128,13 @@ non-technical spreadsheet maintainer can find and fix a problem in
 Excel. Each error names the sheet tab, the literal Excel cell address
 (e.g. `F3`, computed from the row/column index) *and* the human-readable
 time-slot and room labels, so it's findable either via Excel's Name Box
-or by eye. `parseDetailedScheduleSheet` (`src/lib/`) doesn't throw
+or by eye. `parseDanceScheduleSheet` (`src/lib/`) doesn't throw
 per-cell — it returns `{ sessions, errors }`, letting
-`vite-plugin-detailed-schedule.ts` aggregate errors across all 3 sheets
+`vite-plugin-dance-schedule.ts` aggregate errors across all 3 sheets
 into **one** thrown error listing everything at once:
 
 ```
-Failed to parse data/detailed-schedule.xlsx — 1 error(s):
+Failed to parse data/dance-schedule.xlsx — 1 error(s):
 
   Sheet "Thursday July 2", cell F2 (time "12:30p-1:30p", room "Hemon"):
     Unrecognized level code "C5" in "C5 : Dancing - Vic Ceder"
@@ -145,39 +145,39 @@ corrupting one real cell and confirming the build/parse failure showed
 this precise format, then restoring the real file.)
 
 ### Where the code lives
-- `src/types/detailedSchedule.ts` — `LEVEL_CODES`/`LevelCode`, the
+- `src/types/danceSchedule.ts` — `LEVEL_CODES`/`LevelCode`, the
   `StructuredSessionData`/`FreeformSessionData` discriminated union
-  (`DetailedSessionData`) crossing the virtual-module boundary as ISO
-  strings, and the Date-object `DetailedSession` equivalent.
-- `src/lib/parseDetailedScheduleSheet.ts` (+ colocated test, using real
+  (`DanceSessionData`) crossing the virtual-module boundary as ISO
+  strings, and the Date-object `DanceSession` equivalent.
+- `src/lib/parseDanceScheduleSheet.ts` (+ colocated test, using real
   examples from the actual cell catalog) — the pure matrix-walking
   parser for one sheet.
-- `src/lib/buildDetailedSchedule.ts` (+ test) — converts ISO-string data
+- `src/lib/buildDanceSchedule.ts` (+ test) — converts ISO-string data
   to Date objects, sorted chronologically; mirrors `buildSchedule.ts`'s
   pattern exactly.
-- `vite-plugin-detailed-schedule.ts` — resolves `virtual:detailed-schedule`
-  (typed via `src/types/virtual-detailed-schedule.d.ts`) by reading
+- `vite-plugin-dance-schedule.ts` — resolves `virtual:dance-schedule`
+  (typed via `src/types/virtual-dance-schedule.d.ts`) by reading
   **every sheet** via `read-excel-file`'s default export (`readExcelFile`,
   not the schema-based `readSheet` — this file's matrix shape doesn't
   fit the row-per-object schema model the simple schedule uses) and
-  calling `parseDetailedScheduleSheet` per sheet. Mirrors
+  calling `parseDanceScheduleSheet` per sheet. Mirrors
   `vite-plugin-schedule.ts`'s build-time-only, dev-file-watching
   structure. Registered in `vite.config.ts` alongside `schedulePlugin()`.
 
 **Verified end-to-end** (not just unit tests): the real
-`data/detailed-schedule.xlsx` parses all **151** real session cells with
+`data/dance-schedule.xlsx` parses all **151** real session cells with
 **zero errors**; spot-checked the trickiest real cases directly
 (multi-level via `&`, multi-level via `/`, co-callers with no GCA, both
 `"* "`-prefixed freeform cells, and correct date resolution for all 3
 days) against the actual parsed output.
 
 ### Debug dump: auto-generated at build time, committed to the repo
-**Why:** `src/lib/formatDetailedScheduleMarkdown.ts` (+ test) produces a
+**Why:** `src/lib/formatDanceScheduleMarkdown.ts` (+ test) produces a
 normalized, human-readable markdown dump of the parsed interpretation —
 one table per date (Time/Room/Level(s)/Details/GCA), grouped via a new
-`src/lib/groupDetailedSessionsByDate.ts` (mirrors `groupEventsByDate.ts`).
-`vite-plugin-detailed-schedule.ts` writes this to
-`data/detailed-schedule-dump.md` every time it successfully parses the
+`src/lib/groupDanceSessionsByDate.ts` (mirrors `groupEventsByDate.ts`).
+`vite-plugin-dance-schedule.ts` writes this to
+`data/dance-schedule-dump.md` every time it successfully parses the
 source file (in the same `load()` hook, right after computing sessions),
 so it's always in sync. It's committed to the repo (not gitignored) so a
 change to the source spreadsheet shows up as a reviewable diff in PRs —
@@ -185,24 +185,26 @@ letting anyone eyeball whether the interpretation changed as expected
 without needing to open Excel or run the app.
 
 ### Debug page: included in production, not linked from nav
-**Why:** `src/components/DetailedScheduleTable.tsx` (presentational,
+**Why:** `src/components/RawDanceScheduleTable.tsx` (presentational,
 testable with fixture data, dense/desktop-only styling — no responsive
-breakpoints) + `DetailedScheduleDebugPage.tsx` (thin wiring, imports
-`virtual:detailed-schedule`) render at `/debug/detailed-schedule`. The
-route is added directly in `App.tsx`'s `useRoutes` call, **not** through
-`~react-pages`/`src/pages/` — `Nav`/`buildNavTree` derive the menu
-straight from `~react-pages`'s own routes (`src/components/Nav.tsx`), so
-a route added only in `App.tsx` is reachable by URL but never appears in
-the nav, with no conditional/env-based route exclusion needed. Simpler
-than gating the route out of production entirely, at the cost of
-shipping the debug page's code and the detailed-schedule data in the
-main bundle (confirmed: this route isn't code-split the way
-`~react-pages`-derived routes are, since it's a plain object merged into
-the same route array rather than going through `vite-plugin-pages`'
-per-page chunking).
+breakpoints) + `RawDanceScheduleDebugPage.tsx` (thin wiring, imports
+`virtual:dance-schedule`) render at `/debug/dance-schedule`. The "Raw"
+prefix on this component pair distinguishes them as an unformatted/
+unfiltered dump, consistent with the project's "Event" vs. "Dance" vs.
+"Raw" naming (see `CLAUDE.md`). The route is added directly in
+`App.tsx`'s `useRoutes` call, **not** through `~react-pages`/
+`src/pages/` — `Nav`/`buildNavTree` derive the menu straight from
+`~react-pages`'s own routes (`src/components/Nav.tsx`), so a route added
+only in `App.tsx` is reachable by URL but never appears in the nav, with
+no conditional/env-based route exclusion needed. Simpler than gating the
+route out of production entirely, at the cost of shipping the debug
+page's code and the dance-schedule data in the main bundle (confirmed:
+this route isn't code-split the way `~react-pages`-derived routes are,
+since it's a plain object merged into the same route array rather than
+going through `vite-plugin-pages`' per-page chunking).
 
 ## Open questions
 
-(none yet — rendering of the *real* detailed schedule page is still a
+(none yet — rendering of the *real* dance schedule page is still a
 deliberately separate, later phase; the debug page above is tooling, not
 that page)

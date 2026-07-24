@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { parseDetailedScheduleSheet } from './parseDetailedScheduleSheet'
+import { parseDanceScheduleSheet } from './parseDanceScheduleSheet'
 
 // Fixed so "July 2"-style sheet-name dates resolve deterministically via year inference.
 const REFERENCE_DATE = new Date(Date.UTC(2026, 6, 1)) // July 1, 2026
 
 function parseOneCell(cellText: string, header: string[] = ['Time', 'Ballroom Centre']) {
   const rows = [header, ['12:30p-1:30p', cellText]]
-  return parseDetailedScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+  return parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
 }
 
-describe('parseDetailedScheduleSheet', () => {
+describe('parseDanceScheduleSheet', () => {
   it('derives the date from the sheet name, stripping the weekday', () => {
     const { sessions, errors } = parseOneCell('SSD : Dancing - Ted Lizotte')
     expect(errors).toEqual([])
@@ -93,7 +93,7 @@ describe('parseDetailedScheduleSheet', () => {
       ['Time', 'Ballroom Centre', 'Ballroom East'],
       ['12:30p-1:30p', null, 'SSD : Dancing - Ted Lizotte'],
     ]
-    const { sessions, errors } = parseDetailedScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
     expect(errors).toEqual([])
     expect(sessions).toHaveLength(1)
   })
@@ -128,7 +128,7 @@ describe('parseDetailedScheduleSheet', () => {
       ['Time', 'Ballroom Centre'],
       ['not a time', 'SSD : Dancing - Ted Lizotte'],
     ]
-    const { sessions, errors } = parseDetailedScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
     expect(sessions).toEqual([])
     expect(errors).toHaveLength(1)
     expect(errors[0]).toMatch(/Sheet "Thursday July 2", row 2/)
@@ -139,7 +139,7 @@ describe('parseDetailedScheduleSheet', () => {
       ['Time', 'Ballroom Centre', 'Ballroom East'],
       ['12:30p-1:30p', 'C5 : Dancing - Vic Ceder', 'Country Western Dance - until 1am'],
     ]
-    const { errors } = parseDetailedScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
     expect(errors).toHaveLength(2)
   })
 })

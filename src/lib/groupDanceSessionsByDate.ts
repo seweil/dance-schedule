@@ -1,19 +1,19 @@
-import type { DetailedSession } from '../types/detailedSchedule'
+import type { DanceSession } from '../types/danceSchedule'
 
-export interface DetailedSessionDateGroup {
+export interface DanceSessionDateGroup {
   date: Date
-  sessions: DetailedSession[]
+  sessions: DanceSession[]
 }
 
 // Groups sessions by calendar date, mirroring groupEventsByDate.ts's pattern.
 // Assumes sessions are already chronologically sorted (true of
-// buildDetailedSchedule's output), so consecutive same-date sessions land in the
+// buildDanceSchedule's output), so consecutive same-date sessions land in the
 // same group and groups come out in date order without needing to re-sort here.
-export function groupDetailedSessionsByDate(
-  sessions: DetailedSession[],
-): DetailedSessionDateGroup[] {
-  const groups: DetailedSessionDateGroup[] = []
-  let currentGroup: DetailedSessionDateGroup | undefined
+export function groupDanceSessionsByDate(
+  sessions: DanceSession[],
+): DanceSessionDateGroup[] {
+  const groups: DanceSessionDateGroup[] = []
+  let currentGroup: DanceSessionDateGroup | undefined
 
   for (const session of sessions) {
     if (!currentGroup || currentGroup.date.getTime() !== session.date.getTime()) {

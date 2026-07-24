@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { groupDetailedSessionsByDate } from './groupDetailedSessionsByDate'
-import type { StructuredSession } from '../types/detailedSchedule'
+import { groupDanceSessionsByDate } from './groupDanceSessionsByDate'
+import type { StructuredSession } from '../types/danceSchedule'
 
 function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSession {
   return {
@@ -16,14 +16,14 @@ function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSess
   }
 }
 
-describe('groupDetailedSessionsByDate', () => {
+describe('groupDanceSessionsByDate', () => {
   it('groups consecutive same-date sessions into one group', () => {
     const sessions = [
       makeSession({ eventType: 'Morning class' }),
       makeSession({ eventType: 'Afternoon class' }),
     ]
 
-    const groups = groupDetailedSessionsByDate(sessions)
+    const groups = groupDanceSessionsByDate(sessions)
 
     expect(groups).toHaveLength(1)
     expect(groups[0]?.date).toEqual(new Date('2026-07-02T00:00:00.000Z'))
@@ -35,7 +35,7 @@ describe('groupDetailedSessionsByDate', () => {
     const day2 = makeSession({ date: new Date('2026-07-03T00:00:00.000Z') })
     const day3 = makeSession({ date: new Date('2026-07-04T00:00:00.000Z') })
 
-    const groups = groupDetailedSessionsByDate([day1, day2, day3])
+    const groups = groupDanceSessionsByDate([day1, day2, day3])
 
     expect(groups.map((group) => group.date.toISOString())).toEqual([
       '2026-07-02T00:00:00.000Z',
@@ -45,6 +45,6 @@ describe('groupDetailedSessionsByDate', () => {
   })
 
   it('returns an empty array for empty input', () => {
-    expect(groupDetailedSessionsByDate([])).toEqual([])
+    expect(groupDanceSessionsByDate([])).toEqual([])
   })
 })

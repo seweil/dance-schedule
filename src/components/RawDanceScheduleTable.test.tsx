@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { DetailedScheduleTable } from './DetailedScheduleTable'
-import type { DetailedSession, StructuredSession } from '../types/detailedSchedule'
+import { RawDanceScheduleTable } from './RawDanceScheduleTable'
+import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 // Mirrors ScheduleList.test.tsx's approach: mock the CSS module so this test is
 // about rendering behavior, not styling.
-vi.mock('./DetailedScheduleTable.module.css', () => ({
+vi.mock('./RawDanceScheduleTable.module.css', () => ({
   default: new Proxy({}, { get: (_target, prop) => prop }) as Record<string, string>,
 }))
 
@@ -23,9 +23,9 @@ function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSess
   }
 }
 
-describe('DetailedScheduleTable', () => {
+describe('RawDanceScheduleTable', () => {
   it('renders a date heading and a table row per session', () => {
-    render(<DetailedScheduleTable sessions={[makeSession()]} />)
+    render(<RawDanceScheduleTable sessions={[makeSession()]} />)
 
     expect(screen.getByRole('heading', { name: /Thursday, July 2, 2026/ })).toBeInTheDocument()
     expect(screen.getByText('Kafka/Lamartine')).toBeInTheDocument()
@@ -34,13 +34,13 @@ describe('DetailedScheduleTable', () => {
   })
 
   it('renders the GCA column when present', () => {
-    render(<DetailedScheduleTable sessions={[makeSession({ gca: 'Tim Stephens' })]} />)
+    render(<RawDanceScheduleTable sessions={[makeSession({ gca: 'Tim Stephens' })]} />)
     expect(screen.getByText('Tim Stephens')).toBeInTheDocument()
   })
 
   it('renders multiple co-primary callers joined by "&"', () => {
     render(
-      <DetailedScheduleTable
+      <RawDanceScheduleTable
         sessions={[makeSession({ eventType: 'Leather Tip', callers: ['Michael Kellogg', 'Terri Sherrer'] })]}
       />,
     )
@@ -48,7 +48,7 @@ describe('DetailedScheduleTable', () => {
   })
 
   it('renders a freeform session distinctly, with no levels or GCA', () => {
-    const freeform: DetailedSession = {
+    const freeform: DanceSession = {
       kind: 'freeform',
       date: new Date('2026-07-04T00:00:00.000Z'),
       startTime: new Date('2026-07-04T21:00:00.000Z'),
@@ -56,13 +56,13 @@ describe('DetailedScheduleTable', () => {
       room: 'Drummond Ballroom',
       description: 'Country Western Dance - until 1am',
     }
-    render(<DetailedScheduleTable sessions={[freeform]} />)
+    render(<RawDanceScheduleTable sessions={[freeform]} />)
     expect(screen.getByText('(freeform) Country Western Dance - until 1am')).toBeInTheDocument()
   })
 
   it('renders a separate section per distinct date', () => {
     render(
-      <DetailedScheduleTable
+      <RawDanceScheduleTable
         sessions={[
           makeSession({ date: new Date('2026-07-02T00:00:00.000Z') }),
           makeSession({
@@ -77,7 +77,7 @@ describe('DetailedScheduleTable', () => {
   })
 
   it('renders an explicit empty-state message when there are no sessions', () => {
-    render(<DetailedScheduleTable sessions={[]} />)
+    render(<RawDanceScheduleTable sessions={[]} />)
     expect(screen.getByText(/no sessions parsed/i)).toBeInTheDocument()
   })
 })

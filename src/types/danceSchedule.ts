@@ -40,10 +40,10 @@ export interface FreeformSessionData extends SessionBase {
   description: string
 }
 
-// Shape crossing the virtual:detailed-schedule module boundary — dates as ISO
+// Shape crossing the virtual:dance-schedule module boundary — dates as ISO
 // strings, same reasoning as ScheduleEventData (Date objects can't survive being
 // embedded in generated JS source via JSON.stringify).
-export type DetailedSessionData = StructuredSessionData | FreeformSessionData
+export type DanceSessionData = StructuredSessionData | FreeformSessionData
 
 interface SessionBaseResolved {
   date: Date
@@ -65,5 +65,5 @@ export interface FreeformSession extends SessionBaseResolved {
   description: string
 }
 
-// App-facing shape (Date objects), produced by buildDetailedSchedule().
-export type DetailedSession = StructuredSession | FreeformSession
+// App-facing shape (Date objects), produced by buildDanceSchedule().
+export type DanceSession = StructuredSession | FreeformSession

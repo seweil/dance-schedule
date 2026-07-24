@@ -1,6 +1,6 @@
-import type { DetailedSession, DetailedSessionData } from '../types/detailedSchedule'
+import type { DanceSession, DanceSessionData } from '../types/danceSchedule'
 
-function toDetailedSession(data: DetailedSessionData): DetailedSession {
+function toDanceSession(data: DanceSessionData): DanceSession {
   const base = {
     date: new Date(data.date),
     startTime: new Date(data.startTime),
@@ -22,11 +22,11 @@ function toDetailedSession(data: DetailedSessionData): DetailedSession {
   }
 }
 
-// Converts the virtual:detailed-schedule module's raw (ISO-string) data into the
+// Converts the virtual:dance-schedule module's raw (ISO-string) data into the
 // Date-object shape the app renders, sorted chronologically ascending — mirrors
 // buildSchedule.ts's pattern exactly.
-export function buildDetailedSchedule(data: DetailedSessionData[]): DetailedSession[] {
+export function buildDanceSchedule(data: DanceSessionData[]): DanceSession[] {
   return data
-    .map(toDetailedSession)
+    .map(toDanceSession)
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
 }
