@@ -48,6 +48,12 @@ test('app shell still renders when offline after the SW takes control', async ({
   await context.setOffline(false)
 })
 
+test('desktop nav shows the flat link list with no kebab toggle', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: /installation/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /menu/i })).not.toBeVisible()
+})
+
 test.describe('mobile viewport', () => {
   // Playwright forbids setting defaultBrowserType inside a describe block (it would
   // force a new worker), so pick the viewport/UA/touch fields out of the preset
@@ -60,6 +66,7 @@ test.describe('mobile viewport', () => {
   }) => {
     await page.goto('/installation')
     await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
+    await page.getByRole('button', { name: /menu/i }).click()
     await expect(page.getByRole('link', { name: /home/i })).toBeVisible()
 
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({
@@ -67,5 +74,25 @@ test.describe('mobile viewport', () => {
       clientWidth: document.documentElement.clientWidth,
     }))
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
+  })
+
+  test('kebab menu hides the link list until toggled, and closes after navigating', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    const toggle = page.getByRole('button', { name: /menu/i })
+    const homeLink = page.getByRole('link', { name: /home/i })
+
+    await expect(toggle).toBeVisible()
+    await expect(homeLink).not.toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.getByRole('link', { name: /installation/i })).toBeVisible()
+
+    await page.getByRole('link', { name: /installation/i }).click()
+    await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
 })
