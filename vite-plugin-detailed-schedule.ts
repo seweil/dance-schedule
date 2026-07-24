@@ -1,12 +1,16 @@
 import path from 'node:path'
+import fs from 'node:fs/promises'
 import type { Plugin } from 'vite'
 import readExcelFile from 'read-excel-file/node'
 import { parseDetailedScheduleSheet } from './src/lib/parseDetailedScheduleSheet'
+import { buildDetailedSchedule } from './src/lib/buildDetailedSchedule'
+import { formatDetailedScheduleMarkdown } from './src/lib/formatDetailedScheduleMarkdown'
 import type { DetailedSessionData } from './src/types/detailedSchedule'
 
 export const DETAILED_SCHEDULE_VIRTUAL_MODULE_ID = 'virtual:detailed-schedule'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + DETAILED_SCHEDULE_VIRTUAL_MODULE_ID
 const DETAILED_SCHEDULE_FILE_RELATIVE_PATH = 'data/detailed-schedule.xlsx'
+const DETAILED_SCHEDULE_DUMP_RELATIVE_PATH = 'data/detailed-schedule-dump.md'
 
 async function loadDetailedScheduleData(detailedScheduleFile: string): Promise<DetailedSessionData[]> {
   // Reads every sheet (one per day) via the default export — this file's matrix
@@ -39,11 +43,13 @@ async function loadDetailedScheduleData(detailedScheduleFile: string): Promise<D
 // read every sheet in the file rather than a single schema-mapped one.
 export function detailedSchedulePlugin(): Plugin {
   let detailedScheduleFile = path.resolve(process.cwd(), DETAILED_SCHEDULE_FILE_RELATIVE_PATH)
+  let detailedScheduleDumpFile = path.resolve(process.cwd(), DETAILED_SCHEDULE_DUMP_RELATIVE_PATH)
 
   return {
     name: 'detailed-schedule',
     configResolved(config) {
       detailedScheduleFile = path.resolve(config.root, DETAILED_SCHEDULE_FILE_RELATIVE_PATH)
+      detailedScheduleDumpFile = path.resolve(config.root, DETAILED_SCHEDULE_DUMP_RELATIVE_PATH)
     },
     resolveId(id) {
       if (id === DETAILED_SCHEDULE_VIRTUAL_MODULE_ID) {
@@ -54,6 +60,13 @@ export function detailedSchedulePlugin(): Plugin {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
         this.addWatchFile(detailedScheduleFile)
         const sessions = await loadDetailedScheduleData(detailedScheduleFile)
+
+        // Debug output: a normalized, human-readable dump of how the spreadsheet was
+        // interpreted, regenerated on every parse so it's always in sync — committed
+        // to the repo so a spreadsheet change shows up as a reviewable diff.
+        const markdown = formatDetailedScheduleMarkdown(buildDetailedSchedule(sessions))
+        await fs.writeFile(detailedScheduleDumpFile, markdown + '\n')
+
         return `export default ${JSON.stringify(sessions)}`
       }
     },

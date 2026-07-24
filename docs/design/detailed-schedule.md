@@ -35,6 +35,10 @@ separate, later phase.
 - [x] Error message format, so a spreadsheet maintainer can find and fix
       a problem in Excel — see Decisions
 - [x] Where the parsing/storage code lives — see Decisions
+- [x] Debug output: when/where to generate a normalized dump of the
+      parsed interpretation — see Decisions
+- [x] Debug page: production inclusion and nav visibility — see
+      Decisions
 
 ## Decisions
 
@@ -167,6 +171,38 @@ this precise format, then restoring the real file.)
 `"* "`-prefixed freeform cells, and correct date resolution for all 3
 days) against the actual parsed output.
 
+### Debug dump: auto-generated at build time, committed to the repo
+**Why:** `src/lib/formatDetailedScheduleMarkdown.ts` (+ test) produces a
+normalized, human-readable markdown dump of the parsed interpretation —
+one table per date (Time/Room/Level(s)/Details/GCA), grouped via a new
+`src/lib/groupDetailedSessionsByDate.ts` (mirrors `groupEventsByDate.ts`).
+`vite-plugin-detailed-schedule.ts` writes this to
+`data/detailed-schedule-dump.md` every time it successfully parses the
+source file (in the same `load()` hook, right after computing sessions),
+so it's always in sync. It's committed to the repo (not gitignored) so a
+change to the source spreadsheet shows up as a reviewable diff in PRs —
+letting anyone eyeball whether the interpretation changed as expected
+without needing to open Excel or run the app.
+
+### Debug page: included in production, not linked from nav
+**Why:** `src/components/DetailedScheduleTable.tsx` (presentational,
+testable with fixture data, dense/desktop-only styling — no responsive
+breakpoints) + `DetailedScheduleDebugPage.tsx` (thin wiring, imports
+`virtual:detailed-schedule`) render at `/debug/detailed-schedule`. The
+route is added directly in `App.tsx`'s `useRoutes` call, **not** through
+`~react-pages`/`src/pages/` — `Nav`/`buildNavTree` derive the menu
+straight from `~react-pages`'s own routes (`src/components/Nav.tsx`), so
+a route added only in `App.tsx` is reachable by URL but never appears in
+the nav, with no conditional/env-based route exclusion needed. Simpler
+than gating the route out of production entirely, at the cost of
+shipping the debug page's code and the detailed-schedule data in the
+main bundle (confirmed: this route isn't code-split the way
+`~react-pages`-derived routes are, since it's a plain object merged into
+the same route array rather than going through `vite-plugin-pages`'
+per-page chunking).
+
 ## Open questions
 
-(none yet — rendering is a deliberately separate, later phase)
+(none yet — rendering of the *real* detailed schedule page is still a
+deliberately separate, later phase; the debug page above is tooling, not
+that page)

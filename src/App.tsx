@@ -1,10 +1,11 @@
 import { Suspense } from 'react'
-import { BrowserRouter, useRoutes } from 'react-router-dom'
+import { BrowserRouter, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
 import { Nav } from './components/Nav'
 import { ZoomableImage } from './components/ZoomableImage'
+import { DetailedScheduleDebugPage } from './components/DetailedScheduleDebugPage'
 import { normalizeRoutes } from './lib/buildNavTree'
 
 const mdxComponents = { img: ZoomableImage }
@@ -13,8 +14,15 @@ const mdxComponents = { img: ZoomableImage }
 // (order prefixes like "2 " are stripped from the URL, not just the label).
 const normalizedRoutes = normalizeRoutes(routes)
 
+// Hand-added outside ~react-pages on purpose: Nav derives its menu straight from
+// ~react-pages' own routes (src/components/Nav.tsx), so a route added only here is
+// reachable but never appears in the nav — debug tooling only, not a real page.
+const debugRoutes: RouteObject[] = [
+  { path: '/debug/detailed-schedule', element: <DetailedScheduleDebugPage /> },
+]
+
 function Pages() {
-  return useRoutes(normalizedRoutes)
+  return useRoutes([...normalizedRoutes, ...debugRoutes])
 }
 
 // Without this, an already-open tab only checks for a new service worker on its
