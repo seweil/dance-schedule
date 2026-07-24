@@ -9,6 +9,11 @@ _TODO: one or two sentences on what this app does and who it's for._
 A TypeScript Progressive Web App (PWA) — installable, works offline, and passes
 Lighthouse PWA criteria.
 
+Significant architectural decisions are recorded in `docs/design/<topic>.md`
+as living design docs — see `docs/design/README.md` for the convention
+(context, sub-problems checklist, decisions with rationale, open questions).
+Check there for the reasoning behind a past decision before re-deriving it.
+
 ## Stack
 
 - **Language:** TypeScript (strict mode)
@@ -43,6 +48,10 @@ does. Always verify PWA behavior (offline mode, install prompt, update flow) aga
 ## Project structure
 
 ```
+docs/
+  design/
+    README.md                 # design-doc convention (see "Project overview" above)
+    <topic>.md                # one living design doc per architectural topic
 content/
   pages/
     index.md                  # → route "/"
