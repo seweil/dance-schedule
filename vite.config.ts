@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import Pages from 'vite-plugin-pages'
 import mdx from '@mdx-js/rollup'
 import rehypeMdxImportMedia from 'rehype-mdx-import-media'
+import { schedulePlugin } from './vite-plugin-schedule'
 
 export default defineConfig({
   plugins: [
@@ -24,10 +25,16 @@ export default defineConfig({
       }),
     },
     Pages({
-      dirs: [{ dir: 'content/pages', baseRoute: '' }],
-      extensions: ['md'],
+      // content/pages/ only has .md files and src/pages/ only has .tsx files today, so
+      // sharing one extensions list across both dirs doesn't cross-contaminate either.
+      dirs: [
+        { dir: 'content/pages', baseRoute: '' },
+        { dir: 'src/pages', baseRoute: '' },
+      ],
+      extensions: ['md', 'tsx'],
       resolver: 'react',
     }),
+    schedulePlugin(),
     react(),
     VitePWA({
       strategies: 'generateSW',

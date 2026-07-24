@@ -39,6 +39,7 @@
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
     "prettier": "^3.9.6",
+    "read-excel-file": "^9.3.4",
     "rehype-mdx-import-media": "^1.4.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",

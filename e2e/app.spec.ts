@@ -54,6 +54,32 @@ test('desktop nav shows the flat link list with no kebab toggle', async ({ page 
   await expect(page.getByRole('button', { name: /menu/i })).not.toBeVisible()
 })
 
+test('nav links to the schedule page, which renders events', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: /schedule/i }).click()
+  await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
+  // Asserts structurally (at least one event renders) rather than exact event content,
+  // since data/event-schedule.xlsx is live hand-authored content, not a test fixture —
+  // coupling assertions to its exact contents would make this brittle to content edits.
+  await expect(page.getByRole('listitem').first()).toBeVisible()
+})
+
+test('app shell still renders the schedule page when offline after the SW takes control', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/schedule')
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.reload()
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
+
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
+  await expect(page.getByRole('listitem').first()).toBeVisible()
+  await context.setOffline(false)
+})
+
 test.describe('mobile viewport', () => {
   // Playwright forbids setting defaultBrowserType inside a describe block (it would
   // force a new worker), so pick the viewport/UA/touch fields out of the preset
@@ -94,5 +120,19 @@ test.describe('mobile viewport', () => {
     await page.getByRole('link', { name: /installation/i }).click()
     await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
     await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  test('schedule reflows to a single column without horizontal overflow on a small screen', async ({
+    page,
+  }) => {
+    await page.goto('/schedule')
+    await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
+    await expect(page.getByRole('listitem').first()).toBeVisible()
+
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }))
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
   })
 })

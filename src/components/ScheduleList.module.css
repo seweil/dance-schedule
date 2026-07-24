@@ -1,0 +1,36 @@
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: var(--space-md);
+}
+
+.date {
+  margin: 0 0 var(--space-sm) 0;
+  font-weight: bold;
+}
+
+.time,
+.location {
+  margin: 0 0 var(--space-sm) 0;
+  color: var(--color-text);
+}
+
+.description {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .list {
+    display: flex;
+    flex-direction: column;
+  }
+}

@@ -69,10 +69,15 @@ SheetJS's latest releases), and has a Node-only entry point
 declarative `schema` option maps columns to typed fields (including `Date`)
 and returns both parsed rows and a list of per-row errors in one step,
 covering most of the schema-validation and date-parsing sub-problems too.
-Confirmed it supports the future multi-sheet need: `readSheetNames(file)`
-enumerates sheets, then `readXlsxFile(file, { sheet, schema })` parses one
-sheet at a time (not an all-sheets-at-once call, but each sheet can have
-its own schema, which fits "future sheets may differ").
+Confirmed it supports the future multi-sheet need — via `readSheet(file, {
+sheet, schema })`, parsing one named/indexed sheet at a time (each can have
+its own schema, which fits "future sheets may differ"). **Implementation-
+time correction:** the originally-assumed `readSheetNames(file)` helper for
+enumerating sheet names doesn't exist in the installed version (9.3.4) — it
+was removed; per that version's changelog, "use the default exported
+function instead" (`readExcelFile(file)`, no schema, returns all sheets as
+`[{ sheet, data }]`) to discover sheet names when multi-sheet support is
+actually implemented.
 
 ### Parsing step location: custom Vite plugin + virtual module
 **Why:** Matches this repo's existing pattern for content routes (`~react-pages`
