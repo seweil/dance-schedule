@@ -1,4 +1,6 @@
-const TIME_PATTERN = /^(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?$/i
+// The "m" is optional so bare "12:30p"/"9:00a" (no trailing "m" at all) parse the
+// same as "12:30pm"/"9:00am" — a real format used in some source spreadsheets.
+const TIME_PATTERN = /^(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?m?\.?)?$/i
 const RANGE_SEPARATOR = /\s*(?:-|–|—|\bto\b)\s*/i
 
 interface ParsedTimeOfDay {

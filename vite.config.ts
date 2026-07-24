@@ -5,6 +5,7 @@ import Pages from 'vite-plugin-pages'
 import mdx from '@mdx-js/rollup'
 import rehypeMdxImportMedia from 'rehype-mdx-import-media'
 import { schedulePlugin } from './vite-plugin-schedule'
+import { detailedSchedulePlugin } from './vite-plugin-detailed-schedule'
 
 export default defineConfig({
   plugins: [
@@ -35,6 +36,7 @@ export default defineConfig({
       resolver: 'react',
     }),
     schedulePlugin(),
+    detailedSchedulePlugin(),
     react(),
     VitePWA({
       strategies: 'generateSW',

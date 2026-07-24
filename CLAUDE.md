@@ -58,7 +58,10 @@ content/
     2 installation.md         # → route "/installation" (nav-sorted 2nd)
     assets/                   # images referenced by the markdown files above
 data/
-  event-schedule.xlsx  # schedule source data — see "Schedule data pipeline" below
+  event-schedule.xlsx     # schedule source data — see "Schedule data pipeline" below
+  detailed-schedule.xlsx  # multi-day/multi-room convention schedule source data —
+                          # see docs/design/detailed-schedule.md (parsing/storage only
+                          # so far — no page renders this yet)
 src/
   components/     # reusable UI components (incl. ZoomableImage, Nav)
   pages/          # hand-written routes, auto-routed like content pages (e.g.
