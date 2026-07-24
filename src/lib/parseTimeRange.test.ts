@@ -46,6 +46,16 @@ describe('parseTimeRange', () => {
     })
   })
 
+  describe('meridiem inference for an end time missing AM/PM', () => {
+    it('infers PM when copying the start meridiem keeps end after start', () => {
+      expectRange(parseTimeRange('6:00pm - 7:30', DATE), '18:00', '19:30')
+    })
+
+    it('flips to PM when copying the start meridiem would put end at/before start', () => {
+      expectRange(parseTimeRange('11:00am - 9', DATE), '11:00', '21:00')
+    })
+  })
+
   it('throws for a range with no recognizable separator', () => {
     expect(() => parseTimeRange('not a range', DATE)).toThrow()
   })
@@ -60,5 +70,15 @@ describe('parseTimeRange', () => {
 
   it('throws for an invalid minutes value', () => {
     expect(() => parseTimeRange('6:75pm - 7:30pm', DATE)).toThrow()
+  })
+
+  describe('start-before-end sanity check', () => {
+    it('throws when both times explicitly specify AM/PM but end is not after start', () => {
+      expect(() => parseTimeRange('7:00pm - 6:00pm', DATE)).toThrow()
+    })
+
+    it('throws for a 24-hour range that would cross midnight', () => {
+      expect(() => parseTimeRange('19:00 - 6:00', DATE)).toThrow()
+    })
   })
 })

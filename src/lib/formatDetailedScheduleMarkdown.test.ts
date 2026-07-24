@@ -84,6 +84,27 @@ describe('formatDetailedScheduleMarkdown', () => {
     )
   })
 
+  it('collapses an embedded newline in a description so it stays on one table row', () => {
+    const sessions: DetailedSession[] = [
+      {
+        kind: 'freeform',
+        date: new Date('2026-07-04T00:00:00.000Z'),
+        startTime: new Date('2026-07-04T21:00:00.000Z'),
+        endTime: new Date('2026-07-04T21:30:00.000Z'),
+        room: 'Drummond Ballroom',
+        description: 'Line one\nLine two',
+      },
+    ]
+
+    const markdown = formatDetailedScheduleMarkdown(sessions)
+    const tableLines = markdown.split('\n').filter((line) => line.startsWith('|'))
+
+    // Exactly 3 pipe-prefixed lines: the header, the separator, and one data row —
+    // if the newline weren't collapsed, the row would split into two lines instead.
+    expect(tableLines).toHaveLength(3)
+    expect(markdown).toContain('*(freeform)* Line one Line two')
+  })
+
   it('creates a separate section per distinct date', () => {
     const sessions: DetailedSession[] = [
       {

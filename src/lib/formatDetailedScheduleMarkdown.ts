@@ -27,7 +27,9 @@ function formatGca(session: DetailedSession): string {
 }
 
 function escapeCell(value: string): string {
-  return value.replace(/\|/g, '\\|')
+  // A raw newline (e.g. from a multi-line freeform description) would otherwise
+  // break the generated table row across multiple physical lines.
+  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
 }
 
 function formatSection(group: { date: Date; sessions: DetailedSession[] }): string {
