@@ -1,4 +1,5 @@
 import type { ScheduleEvent } from '../types/schedule'
+import { groupEventsByDate } from '../lib/groupEventsByDate'
 import styles from './ScheduleList.module.css'
 
 // Event date/time values are wall-clock values as entered in the spreadsheet, encoded
@@ -20,15 +21,21 @@ export function ScheduleList({ events }: { events: ScheduleEvent[] }) {
   }
 
   return (
-    <ul className={styles.list}>
-      {events.map((event) => (
-        <li key={event.startTime.toISOString()} className={styles.card}>
-          <p className={styles.date}>{dateFormatter.format(event.date)}</p>
-          <p className={styles.time}>{formatTimeRange(event.startTime, event.endTime)}</p>
-          <p className={styles.location}>{event.location}</p>
-          <p className={styles.description}>{event.description}</p>
-        </li>
+    <>
+      {groupEventsByDate(events).map((group) => (
+        <section key={group.date.toISOString()} className={styles.section}>
+          <h2 className={styles.dateHeading}>{dateFormatter.format(group.date)}</h2>
+          <ul className={styles.list}>
+            {group.events.map((event) => (
+              <li key={event.startTime.toISOString()} className={styles.card}>
+                <p className={styles.time}>{formatTimeRange(event.startTime, event.endTime)}</p>
+                <p className={styles.location}>{event.location}</p>
+                <p className={styles.description}>{event.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </>
   )
 }

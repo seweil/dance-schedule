@@ -80,6 +80,29 @@ test('app shell still renders the schedule page when offline after the SW takes 
   await context.setOffline(false)
 })
 
+test('schedule cards lay out as columns without horizontal overflow on a narrow landscape window', async ({
+  page,
+}) => {
+  // A narrow-but-wider-than-tall window (e.g. a small resized desktop browser) still
+  // matches `orientation: landscape` — this is deliberately narrow to catch the same
+  // overflow risk a fixed-width column floor would reintroduce.
+  await page.setViewportSize({ width: 500, height: 300 })
+  await page.goto('/schedule')
+  const firstCard = page.getByRole('listitem').first()
+  await expect(firstCard).toBeVisible()
+
+  expect(await page.evaluate(() => window.matchMedia('(orientation: landscape)').matches)).toBe(
+    true,
+  )
+  expect(await firstCard.evaluate((el) => getComputedStyle(el).display)).toBe('grid')
+
+  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }))
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
+})
+
 test.describe('mobile viewport', () => {
   // Playwright forbids setting defaultBrowserType inside a describe block (it would
   // force a new worker), so pick the viewport/UA/touch fields out of the preset

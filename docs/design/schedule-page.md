@@ -285,31 +285,40 @@ from the precache — mirroring the pattern already used for the home page.
 This is folded into the overall test-plan sub-problem in Rendering below,
 not a separate implementation task.
 
-### Layout design: one reflowing card list, no JS-driven switch
-**Why:** A single DOM structure — a list of event cards (date, time,
-location, description) — that CSS alone reflows between a stacked mobile
-layout and a denser desktop layout resolves both the visual design and
-the CSS-vs-JS mechanics question at once: since there's only one DOM
-shape, not two (e.g. not a real `<table>` on desktop vs. cards on
-mobile), pure CSS media queries are sufficient — no `matchMedia`/resize
-listener, no conditional rendering of two variants, no duplicated markup.
-This matches the precedent already set by `Nav.module.css` (CSS-only
-responsive behavior, no JS-driven layout logic). A calendar-grid view and
-a real desktop `<table>` were both considered and rejected for now: the
-former is significant added complexity for a first version given events
-don't recur, and the latter would have forced the CSS-only-vs-JS-switch
-question the other way.
+### Layout design: date-grouped sections, always full-width single-column cards
+**Why (superseded from an earlier version of this decision — see below):**
+after seeing the initial implementation rendered, two refinements were
+made: (1) the date was repeated on every card, which read as redundant
+once several events shared a day — it's now a section-break `<h2>` heading
+per calendar date (via a new `groupEventsByDate()` in `src/lib/`), with
+that date's cards underneath and no date field on the card itself; (2) the
+initial version gave desktop/landscape a multi-column card grid
+(`grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))`), which is
+now removed entirely in favor of always-full-width, single-column cards at
+every viewport size — not a "denser desktop layout" as originally
+designed, a deliberately simpler one.
 
-### Breakpoint strategy: duplicate the `640px` literal, don't extract a token
-**Why:** This is only the second consumer of this breakpoint (after
-`Nav.module.css`). `CLAUDE.md`'s own stated heuristic is "three similar
-call sites is fine; don't build a generic system until a fourth appears"
-— and a shared breakpoint can't even be a plain CSS custom property
-anyway (custom properties resolve after `@media` conditions are
-evaluated, per `Nav`'s design history), so "extracting" it would mean
-adding a PostCSS plugin (e.g. `postcss-custom-media`), a new dependency,
-to save one duplicated literal. Reconsider only once a third component
-needs the same breakpoint.
+This is still a single DOM structure with no JS-driven layout switch — CSS
+alone still fully determines presentation, that part of the original
+reasoning still holds (no `matchMedia`/resize listener, no conditional
+rendering of two variants, no duplicated markup; still not a real
+`<table>` or a calendar-grid view, both still rejected as too much
+complexity for events that don't recur). What changed is that there's no
+longer any *responsive* behavior to speak of in `ScheduleList.module.css`
+at all — full width is now the only state, at any size — see the
+Breakpoint strategy update below.
+
+### Breakpoint strategy: `ScheduleList` no longer uses a breakpoint at all
+**Why (superseded):** the original decision was to duplicate `Nav`'s
+`640px` breakpoint literal rather than extract a shared token, on the
+reasoning that this was only the second consumer. With the full-width-
+always layout change above, `ScheduleList.module.css` no longer has any
+column-count (or other) behavior that varies by viewport size, so it
+doesn't consume the `640px` breakpoint — or any breakpoint — at all
+anymore. `Nav.module.css` remains the only consumer of `640px` today; the
+"reconsider extracting a shared token once a third component needs it"
+guidance from the original decision still stands, just with the count
+reset to one.
 
 ### Empty/edge states: show all events (no past-event filtering); explicit empty message
 **Why:** All events render in chronological order regardless of whether

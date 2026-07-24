@@ -1,21 +1,29 @@
+.section {
+  margin-bottom: var(--space-md);
+}
+
+.dateHeading {
+  margin: 0 0 var(--space-sm) 0;
+}
+
 .list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-md);
+  display: flex;
+  flex-direction: column;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .card {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
 }
 
-.date {
-  margin: 0 0 var(--space-sm) 0;
-  font-weight: bold;
+.card:not(:first-child) {
+  border-top: 1px solid #ddd;
+}
+
+.card:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .time,
@@ -28,9 +36,32 @@
   margin: 0;
 }
 
-@media (max-width: 640px) {
+@media (orientation: landscape) {
+  /* The list itself owns the column tracks, and each card spans all of them via
+     subgrid, so time/location/description line up across every card in the section
+     — a single .card { display: grid } per card would size its own columns
+     independently and not align with its siblings. */
   .list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    /* auto (not a fixed minmax floor) lets these shrink on a narrow-but-landscape
+       window (e.g. a small resized desktop browser) instead of forcing overflow. */
+    grid-template-columns: auto auto 1fr;
+    /* Row gap is 0 — rows sit flush against each other, separated only by the
+       border-top divider, not a gap; column gap still separates the three fields. */
+    gap: 0 var(--space-md);
+  }
+
+  .card {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: baseline;
+  }
+
+  .time,
+  .location,
+  .description {
+    margin: 0;
+    min-width: 0;
   }
 }
