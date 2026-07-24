@@ -5,7 +5,7 @@ function toDanceSession(data: DanceSessionData): DanceSession {
     date: new Date(data.date),
     startTime: new Date(data.startTime),
     endTime: new Date(data.endTime),
-    room: data.room,
+    location: data.location,
   }
 
   if (data.kind === 'freeform') {

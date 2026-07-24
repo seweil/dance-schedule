@@ -15,7 +15,7 @@ function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSess
     date: new Date('2026-07-02T00:00:00.000Z'),
     startTime: new Date('2026-07-02T12:30:00.000Z'),
     endTime: new Date('2026-07-02T13:30:00.000Z'),
-    room: 'Kafka/Lamartine',
+    location: { kind: 'located', rooms: ['Kafka/Lamartine'] },
     levels: ['C1', 'C2'],
     eventType: 'Dancing',
     callers: ['Vic Ceder'],
@@ -53,7 +53,7 @@ describe('RawDanceScheduleTable', () => {
       date: new Date('2026-07-04T00:00:00.000Z'),
       startTime: new Date('2026-07-04T21:00:00.000Z'),
       endTime: new Date('2026-07-04T21:30:00.000Z'),
-      room: 'Drummond Ballroom',
+      location: { kind: 'located', rooms: ['Drummond Ballroom'] },
       description: 'Country Western Dance - until 1am',
     }
     render(<RawDanceScheduleTable sessions={[freeform]} />)
@@ -74,6 +74,22 @@ describe('RawDanceScheduleTable', () => {
     )
     expect(screen.getByRole('heading', { name: /Thursday, July 2, 2026/ })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Friday, July 3, 2026/ })).toBeInTheDocument()
+  })
+
+  it('renders a placeholder for a roomless session instead of a blank cell', () => {
+    render(<RawDanceScheduleTable sessions={[makeSession({ location: { kind: 'roomless' } })]} />)
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+
+  it("renders a multi-room session's rooms joined by \", \"", () => {
+    render(
+      <RawDanceScheduleTable
+        sessions={[
+          makeSession({ location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom East'] } }),
+        ]}
+      />,
+    )
+    expect(screen.getByText('Ballroom Centre, Ballroom East')).toBeInTheDocument()
   })
 
   it('renders an explicit empty-state message when there are no sessions', () => {

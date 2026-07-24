@@ -18,11 +18,18 @@ export const LEVEL_CODES = [
 ] as const
 export type LevelCode = (typeof LEVEL_CODES)[number]
 
+// A session either occupies one or more named rooms (the common case is exactly one),
+// or has no room at all (e.g. a lunch break) — see docs/design/dance-schedule.md for
+// the "ROOMS:"/ditto-mark authoring conventions that produce each variant.
+export type SessionLocation =
+  | { kind: 'located'; rooms: string[] }
+  | { kind: 'roomless' }
+
 interface SessionBase {
   date: string
   startTime: string
   endTime: string
-  room: string
+  location: SessionLocation
 }
 
 // A cell that parsed as "Level(s) : Type - Caller(s) [GCA: Name]".
@@ -49,7 +56,7 @@ interface SessionBaseResolved {
   date: Date
   startTime: Date
   endTime: Date
-  room: string
+  location: SessionLocation
 }
 
 export interface StructuredSession extends SessionBaseResolved {

@@ -19,6 +19,10 @@ function formatDetails(session: DanceSession): string {
   return `${session.eventType} - ${session.callers.join(' & ')}`
 }
 
+function formatRoom(session: DanceSession): string {
+  return session.location.kind === 'roomless' ? '—' : session.location.rooms.join(', ')
+}
+
 // Dense, desktop-only debug view of the parsed dance schedule — one table per
 // date, mirroring formatDanceScheduleMarkdown.ts's dump so both stay consistent.
 // Not styled or tested for mobile; this is a debug tool, not the eventual page.
@@ -44,9 +48,9 @@ export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }
             </thead>
             <tbody>
               {group.sessions.map((session) => (
-                <tr key={`${session.room}-${session.startTime.toISOString()}`}>
+                <tr key={`${formatRoom(session)}-${session.startTime.toISOString()}`}>
                   <td>{formatTimeRange(session)}</td>
-                  <td>{session.room}</td>
+                  <td>{formatRoom(session)}</td>
                   <td>{session.kind === 'structured' ? session.levels.join(', ') : ''}</td>
                   <td>{formatDetails(session)}</td>
                   <td>{session.kind === 'structured' ? (session.gca ?? '') : ''}</td>

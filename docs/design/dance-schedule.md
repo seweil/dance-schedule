@@ -39,6 +39,12 @@ separate, later phase.
       parsed interpretation — see Decisions
 - [x] Debug page: production inclusion and nav visibility — see
       Decisions
+- [x] How to model a session that spans more than one room — see
+      Decisions
+- [x] How to model a session with no room at all (e.g. a lunch break) —
+      see Decisions
+- [x] Authoring convention for the above, given the parsing library has
+      no merged-cell support — see Decisions
 
 ## Decisions
 
@@ -148,7 +154,9 @@ this precise format, then restoring the real file.)
 - `src/types/danceSchedule.ts` — `LEVEL_CODES`/`LevelCode`, the
   `StructuredSessionData`/`FreeformSessionData` discriminated union
   (`DanceSessionData`) crossing the virtual-module boundary as ISO
-  strings, and the Date-object `DanceSession` equivalent.
+  strings, and the Date-object `DanceSession` equivalent. Each session's
+  `location: SessionLocation` (below) replaced an earlier single
+  `room: string` field.
 - `src/lib/parseDanceScheduleSheet.ts` (+ colocated test, using real
   examples from the actual cell catalog) — the pure matrix-walking
   parser for one sheet.
@@ -165,8 +173,9 @@ this precise format, then restoring the real file.)
   structure. Registered in `vite.config.ts` alongside `schedulePlugin()`.
 
 **Verified end-to-end** (not just unit tests): the real
-`data/dance-schedule.xlsx` parses all **151** real session cells with
-**zero errors**; spot-checked the trickiest real cases directly
+`data/dance-schedule.xlsx` parses all real session cells with
+**zero errors** (151 originally, now 153 after the two lunch-break rows
+described below); spot-checked the trickiest real cases directly
 (multi-level via `&`, multi-level via `/`, co-callers with no GCA, both
 `"* "`-prefixed freeform cells, and correct date resolution for all 3
 days) against the actual parsed output.
@@ -203,8 +212,105 @@ this route isn't code-split the way `~react-pages`-derived routes are,
 since it's a plain object merged into the same route array rather than
 going through `vite-plugin-pages`' per-page chunking).
 
+### Room-spanning and roomless sessions: a `location` field, not `room: string`
+**Why:** Before the real display page is built (see the deferred
+rendering phase below), two more shapes needed to be representable: a
+single session spanning 2+ rooms (e.g. an all-attendee event in a
+combined space) and a session with **no** room at all (e.g. a lunch
+break). `room: string` was replaced with a discriminated
+`location: SessionLocation`:
+
+```ts
+export type SessionLocation =
+  | { kind: 'located'; rooms: string[] }  // 1+ rooms; length 1 is the normal case
+  | { kind: 'roomless' }                   // no room at all
+```
+
+Every existing real session still resolves to `{ kind: 'located', rooms:
+[<its one room>] }` by default — no behavior change for the 151
+already-real sessions.
+
+### Authoring convention: a `ROOMS:` text line, not merged Excel cells
+**Why:** Checked whether `read-excel-file` (already parsing this data)
+exposes merged-cell information — it doesn't; its return type is a bare
+`(CellValue|null)[][]` matrix with no merge/span metadata anywhere in its
+API, and this is architecturally out of scope for the library, not a
+version gap. Switching to a library that does support merges (e.g.
+`exceljs`) would mean replacing the foundation the whole pipeline is
+built on, for this feature alone. Instead, a session's room(s) are
+declared with a `ROOMS:` line inside the cell text, mirroring the
+existing `GCA:` line convention exactly:
+
+```
+SSD : Combined Dance - Vic Ceder
+ROOMS: Ballroom Centre, Ballroom East
+```
+
+entered once, in **one** of the spanned rooms' cells for that row; the
+other spanned rooms' cells for that row are left blank. `ROOMS: NONE` is
+a distinct sentinel meaning no room at all (not "every room") — used for
+a lunch break or similar:
+
+```
+* Lunch Break
+ROOMS: NONE
+```
+
+Validation: every room named must exist in that sheet's header row
+(typo protection); the list must include the cell's own room (no
+implicit "plus wherever it's typed" behavior); every *other* named
+room's cell in that row must be genuinely blank, or it's a fail-loud
+content collision. Adjacency of the named rooms (whether they end up as
+neighboring grid columns) is **not** validated here — that's a rendering
+concern for the deferred display phase, not a parsing concern.
+
+`GCA:` and `ROOMS:` are now both **generic trailing metadata lines**,
+popped off the end of the cell text (in either order, at most one of
+each) before the remaining "main content" is parsed as freeform or
+structured — previously `GCA:` was structured-only; a roomless lunch
+break is freeform + `ROOMS:`, so the extraction had to generalize to
+both cell kinds.
+
+### Ditto mark (`"`): spatial shorthand for the common contiguous-room case
+**Why:** Typing `ROOMS: A, B` is more ceremony than a spreadsheet author
+should need for the common case of two rooms that are already next to
+each other as grid columns. A cell whose entire trimmed content is a
+single `"` means "this room belongs to the same session as the content
+cell immediately to its left in this row" — the familiar paper "ditto"
+convention. The parser resolves a full ditto chain (however many `"`
+cells follow a content cell) back to that content cell's room list, with
+no `ROOMS:` line needed. Kept strictly horizontal/left-neighbor for now
+(not a "repeat the cell above" convention — a different, unrelated idea
+and out of scope here). A dangling ditto (nothing valid to its left, or
+a blank cell breaking the chain) and a cell with **both** an explicit
+`ROOMS:` line and ditto cells pointing at it both fail the build loudly
+— the latter is deliberately ambiguous (pick one mechanism, not both).
+
+### Real example data added to the actual spreadsheet, not just fixtures
+**Why:** Rather than only covering these new shapes with synthetic test
+fixtures, two real edits went into `data/dance-schedule.xlsx` itself, so
+the whole pipeline (including the real 151+ session build) exercises
+them end-to-end:
+- Friday July 3's "All Callers Dance" (10:15–11:00 AM), previously only
+  in the `Ballroom Centre` column, now also spans `Ballroom East` via a
+  ditto mark in that (previously blank) cell — a real, plausible edit,
+  and probably how an actual spreadsheet author would do it.
+- A `"* Lunch Break\nROOMS: NONE"` row was appended to both Friday
+  (`12:00p-1:30p`) and Saturday (`12:00p-2:00p`), in the natural gaps
+  already visible in the schedule between the late-morning and early-
+  afternoon session blocks.
+
+Verified via a `data/dance-schedule-dump.md` diff after rebuilding:
+exactly these three changes appeared, nothing else shifted.
+
 ## Open questions
 
-(none yet — rendering of the *real* dance schedule page is still a
-deliberately separate, later phase; the debug page above is tooling, not
-that page)
+- Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't
+  validated at parse time — deferred to whenever the real display page
+  renders a column-spanning block (see below); revisit if that phase
+  needs a stronger guarantee.
+- Rendering of the *real* dance schedule page (room-column × time-row
+  grid, date selector, skill-level range filter, GCA show/hide) is still
+  a deliberately separate, later phase — already discussed and designed
+  in outline, to be finalized once this data-model phase is stable. The
+  debug page in this doc is tooling, not that page.

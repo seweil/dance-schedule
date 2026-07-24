@@ -10,7 +10,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-02T00:00:00.000Z'),
         startTime: new Date('2026-07-02T12:30:00.000Z'),
         endTime: new Date('2026-07-02T13:30:00.000Z'),
-        room: 'Kafka/Lamartine',
+        location: { kind: 'located', rooms: ['Kafka/Lamartine'] },
         levels: ['C1', 'C2'],
         eventType: 'Dancing',
         callers: ['Vic Ceder'],
@@ -35,7 +35,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-02T00:00:00.000Z'),
         startTime: new Date('2026-07-02T12:30:00.000Z'),
         endTime: new Date('2026-07-02T13:30:00.000Z'),
-        room: 'Hemon',
+        location: { kind: 'located', rooms: ['Hemon'] },
         levels: ['Plus'],
         eventType: 'Dancing',
         callers: ['Kris Jensen'],
@@ -55,7 +55,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-02T00:00:00.000Z'),
         startTime: new Date('2026-07-02T19:00:00.000Z'),
         endTime: new Date('2026-07-02T20:00:00.000Z'),
-        room: 'Ballroom West',
+        location: { kind: 'located', rooms: ['Ballroom West'] },
         levels: ['SSD'],
         eventType: 'Leather Tip',
         callers: ['Michael Kellogg', 'Terri Sherrer'],
@@ -74,7 +74,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-04T00:00:00.000Z'),
         startTime: new Date('2026-07-04T21:00:00.000Z'),
         endTime: new Date('2026-07-04T21:30:00.000Z'),
-        room: 'Drummond Ballroom',
+        location: { kind: 'located', rooms: ['Drummond Ballroom'] },
         description: 'Country Western Dance - until 1am',
       },
     ]
@@ -91,7 +91,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-04T00:00:00.000Z'),
         startTime: new Date('2026-07-04T21:00:00.000Z'),
         endTime: new Date('2026-07-04T21:30:00.000Z'),
-        room: 'Drummond Ballroom',
+        location: { kind: 'located', rooms: ['Drummond Ballroom'] },
         description: 'Line one\nLine two',
       },
     ]
@@ -105,6 +105,42 @@ describe('formatDanceScheduleMarkdown', () => {
     expect(markdown).toContain('*(freeform)* Line one Line two')
   })
 
+  it('renders a roomless session with a placeholder instead of a blank Room cell', () => {
+    const sessions: DanceSession[] = [
+      {
+        kind: 'freeform',
+        date: new Date('2026-07-03T00:00:00.000Z'),
+        startTime: new Date('2026-07-03T17:00:00.000Z'),
+        endTime: new Date('2026-07-03T18:30:00.000Z'),
+        location: { kind: 'roomless' },
+        description: 'Lunch Break',
+      },
+    ]
+
+    expect(formatDanceScheduleMarkdown(sessions)).toContain(
+      '| 5:00 PM – 6:30 PM | — |  | *(freeform)* Lunch Break |  |',
+    )
+  })
+
+  it('renders a multi-room session\'s rooms joined by ", "', () => {
+    const sessions: DanceSession[] = [
+      {
+        kind: 'structured',
+        date: new Date('2026-07-03T00:00:00.000Z'),
+        startTime: new Date('2026-07-03T10:15:00.000Z'),
+        endTime: new Date('2026-07-03T11:00:00.000Z'),
+        location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom East'] },
+        levels: ['SSD'],
+        eventType: 'All Callers Dance',
+        callers: ['All Callers'],
+      },
+    ]
+
+    expect(formatDanceScheduleMarkdown(sessions)).toContain(
+      '| 10:15 AM – 11:00 AM | Ballroom Centre, Ballroom East | SSD | All Callers Dance - All Callers |  |',
+    )
+  })
+
   it('creates a separate section per distinct date', () => {
     const sessions: DanceSession[] = [
       {
@@ -112,7 +148,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-02T00:00:00.000Z'),
         startTime: new Date('2026-07-02T12:00:00.000Z'),
         endTime: new Date('2026-07-02T13:00:00.000Z'),
-        room: 'Hemon',
+        location: { kind: 'located', rooms: ['Hemon'] },
         description: 'Day one',
       },
       {
@@ -120,7 +156,7 @@ describe('formatDanceScheduleMarkdown', () => {
         date: new Date('2026-07-03T00:00:00.000Z'),
         startTime: new Date('2026-07-03T12:00:00.000Z'),
         endTime: new Date('2026-07-03T13:00:00.000Z'),
-        room: 'Hemon',
+        location: { kind: 'located', rooms: ['Hemon'] },
         description: 'Day two',
       },
     ]

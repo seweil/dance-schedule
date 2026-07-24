@@ -26,6 +26,10 @@ function formatGca(session: DanceSession): string {
   return session.kind === 'structured' ? (session.gca ?? '') : ''
 }
 
+function formatRoom(session: DanceSession): string {
+  return session.location.kind === 'roomless' ? '—' : session.location.rooms.join(', ')
+}
+
 function escapeCell(value: string): string {
   // A raw newline (e.g. from a multi-line freeform description) would otherwise
   // break the generated table row across multiple physical lines.
@@ -36,7 +40,7 @@ function formatSection(group: { date: Date; sessions: DanceSession[] }): string 
   const rows = group.sessions.map((session) =>
     [
       formatTimeRange(session),
-      session.room,
+      formatRoom(session),
       formatLevels(session),
       formatDetails(session),
       formatGca(session),

@@ -23,13 +23,13 @@ describe('parseDanceScheduleSheet', () => {
     expect(sessions[0]?.endTime).toBe('2026-07-02T13:30:00.000Z')
   })
 
-  it('parses a simple session with no GCA line', () => {
+  it('parses a simple session with no GCA line, defaulting to its own room', () => {
     const { sessions, errors } = parseOneCell('SSD : Dancing - Ted Lizotte')
     expect(errors).toEqual([])
     expect(sessions).toEqual([
       expect.objectContaining({
         kind: 'structured',
-        room: 'Ballroom Centre',
+        location: { kind: 'located', rooms: ['Ballroom Centre'] },
         levels: ['SSD'],
         eventType: 'Dancing',
         callers: ['Ted Lizotte'],
@@ -83,6 +83,7 @@ describe('parseDanceScheduleSheet', () => {
     expect(sessions).toEqual([
       expect.objectContaining({
         kind: 'freeform',
+        location: { kind: 'located', rooms: ['Ballroom Centre'] },
         description: 'Intro to calling - Bill Eyler',
       }),
     ])
@@ -116,11 +117,11 @@ describe('parseDanceScheduleSheet', () => {
     expect(errors[0]).toMatch(/Unrecognized level code "C5"/)
   })
 
-  it('aggregates an error for a second line that is not a GCA line', () => {
+  it('aggregates an error for an unrecognized trailing line', () => {
     const { sessions, errors } = parseOneCell('SSD : Dancing - Ted Lizotte\nSomething else')
     expect(sessions).toEqual([])
     expect(errors).toHaveLength(1)
-    expect(errors[0]).toMatch(/Expected a "GCA:" line/)
+    expect(errors[0]).toMatch(/Unexpected extra line/)
   })
 
   it('aggregates an error for an unparseable time-slot row', () => {
@@ -141,5 +142,166 @@ describe('parseDanceScheduleSheet', () => {
     ]
     const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
     expect(errors).toHaveLength(2)
+  })
+
+  describe('"ROOMS:" line', () => {
+    it('parses "ROOMS: NONE" as a roomless session, even on a freeform cell', () => {
+      const { sessions, errors } = parseOneCell('* Lunch Break\nROOMS: NONE')
+      expect(errors).toEqual([])
+      expect(sessions).toEqual([
+        expect.objectContaining({
+          kind: 'freeform',
+          location: { kind: 'roomless' },
+          description: 'Lunch Break',
+        }),
+      ])
+    })
+
+    it('parses an explicit multi-room list on a structured cell', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom West'],
+        ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre, Ballroom West', null],
+      ]
+      const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+      expect(sessions).toEqual([
+        expect.objectContaining({
+          location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom West'] },
+        }),
+      ])
+    })
+
+    it('parses "ROOMS:" together with a "GCA:" line, in either order', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom West'],
+        [
+          '12:30p-1:30p',
+          'SSD : Combined Dance - Vic Ceder\nGCA: Tim Stephens\nROOMS: Ballroom Centre, Ballroom West',
+          null,
+        ],
+      ]
+      const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+      expect(sessions).toEqual([
+        expect.objectContaining({
+          gca: 'Tim Stephens',
+          location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom West'] },
+        }),
+      ])
+    })
+
+    it('aggregates an error for an unrecognized room name', () => {
+      const { errors } = parseOneCell('SSD : Dancing - Ted Lizotte\nROOMS: Ballroom Centre, Nonexistent Room')
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/unrecognized room "Nonexistent Room"/)
+    })
+
+    it('aggregates an error when the list omits the cell\'s own room', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom West'],
+        ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom West', null],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/must include this cell's own room "Ballroom Centre"/)
+    })
+
+    it('aggregates an error when a claimed room\'s cell is not actually blank', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom West'],
+        [
+          '12:30p-1:30p',
+          'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre, Ballroom West',
+          'Plus : Dancing - Ted Lizotte',
+        ],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/claims room "Ballroom West", but its cell \(C2\) isn't blank/)
+    })
+
+    it('does not enforce adjacency for an explicit room list', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Middle Room', 'Ballroom West'],
+        [
+          '12:30p-1:30p',
+          'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre, Ballroom West',
+          null,
+          null,
+        ],
+      ]
+      const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+      expect(sessions[0]).toMatchObject({
+        location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom West'] },
+      })
+    })
+  })
+
+  describe('ditto mark (")', () => {
+    it('chains a 2-cell ditto onto the content cell to its left', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder', '"'],
+      ]
+      const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+      expect(sessions).toEqual([
+        expect.objectContaining({
+          location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom East'] },
+        }),
+      ])
+    })
+
+    it('chains a 3-cell ditto run onto the content cell', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East', 'Ballroom West'],
+        ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder', '"', '"'],
+      ]
+      const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+      expect(sessions).toEqual([
+        expect.objectContaining({
+          location: {
+            kind: 'located',
+            rooms: ['Ballroom Centre', 'Ballroom East', 'Ballroom West'],
+          },
+        }),
+      ])
+    })
+
+    it('aggregates an error for a dangling ditto with nothing to its left', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', '"', 'SSD : Dancing - Ted Lizotte'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/Ditto mark \("\) has no content cell to its left/)
+    })
+
+    it('aggregates an error for a ditto chain broken by a blank cell', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East', 'Ballroom West'],
+        ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder', null, '"'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/Ditto mark \("\) has no content cell to its left/)
+    })
+
+    it('aggregates an error when a cell has both an explicit "ROOMS:" line and a ditto pointing at it', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        [
+          '12:30p-1:30p',
+          'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre',
+          '"',
+        ],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/already has an explicit "ROOMS:" line/)
+    })
   })
 })

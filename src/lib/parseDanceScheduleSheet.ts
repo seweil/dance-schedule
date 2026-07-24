@@ -1,11 +1,19 @@
 import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
-import { LEVEL_CODES, type LevelCode, type DanceSessionData } from '../types/danceSchedule'
+import {
+  LEVEL_CODES,
+  type LevelCode,
+  type DanceSessionData,
+  type SessionLocation,
+} from '../types/danceSchedule'
 
 const WEEKDAY_PREFIX = /^\w+day\s+/i
 const LEVEL_SEPARATOR = /[&/]/
 const GCA_PREFIX = /^GCA:\s*/i
+const ROOMS_PREFIX = /^ROOMS:\s*/i
+const ROOMS_NONE = 'NONE'
 const FREEFORM_PREFIX = '* '
+const DITTO_MARKER = '"'
 
 export interface ParseDanceScheduleSheetResult {
   sessions: DanceSessionData[]
@@ -35,35 +43,135 @@ function columnLetter(colIndex: number): string {
   return letters
 }
 
+interface TrailingMetadata {
+  mainText: string
+  gca?: string
+  roomsLine?: string
+}
+
+// Pops "GCA:"/"ROOMS:" lines off the end of the cell text, in either order, at most
+// one of each — applies uniformly to structured and freeform cells alike (a roomless
+// freeform entry like a lunch break is "* Lunch Break" plus a trailing "ROOMS:" line).
+function extractTrailingMetadata(trimmed: string): TrailingMetadata {
+  const lines = trimmed.split('\n')
+  let gca: string | undefined
+  let roomsLine: string | undefined
+
+  while (lines.length > 1) {
+    const lastLine = lines[lines.length - 1]!.trim()
+    if (GCA_PREFIX.test(lastLine)) {
+      if (gca !== undefined) {
+        throw new Error(`More than one "GCA:" line in ${JSON.stringify(trimmed)}`)
+      }
+      gca = lastLine.replace(GCA_PREFIX, '').trim()
+      lines.pop()
+      continue
+    }
+    if (ROOMS_PREFIX.test(lastLine)) {
+      if (roomsLine !== undefined) {
+        throw new Error(`More than one "ROOMS:" line in ${JSON.stringify(trimmed)}`)
+      }
+      roomsLine = lastLine.replace(ROOMS_PREFIX, '').trim()
+      lines.pop()
+      continue
+    }
+    break
+  }
+
+  return { mainText: lines.join('\n').trim(), gca, roomsLine }
+}
+
+// Resolves an explicit "ROOMS:" line into a location — "NONE" means no room at all
+// (e.g. a lunch break); otherwise a comma-separated list, validated against the
+// sheet's actual rooms and required to include the cell's own room (the list must be
+// complete, not "additional rooms besides this one").
+function resolveExplicitRooms(
+  roomsLine: string,
+  ownRoom: string,
+  allRooms: string[],
+  cellText: string,
+): SessionLocation {
+  if (roomsLine.toUpperCase() === ROOMS_NONE) {
+    return { kind: 'roomless' }
+  }
+
+  const rooms = roomsLine
+    .split(',')
+    .map((room) => room.trim())
+    .filter(Boolean)
+
+  if (rooms.length === 0) {
+    throw new Error(`"ROOMS:" line has no rooms listed in ${JSON.stringify(cellText)}`)
+  }
+
+  for (const room of rooms) {
+    if (!allRooms.includes(room)) {
+      throw new Error(`"ROOMS:" names unrecognized room ${JSON.stringify(room)} in ${JSON.stringify(cellText)}`)
+    }
+  }
+
+  if (!rooms.includes(ownRoom)) {
+    throw new Error(
+      `"ROOMS:" line must include this cell's own room ${JSON.stringify(ownRoom)} in ${JSON.stringify(cellText)}`,
+    )
+  }
+
+  return { kind: 'located', rooms }
+}
+
+interface ParsedCell {
+  room: string
+  session: DanceSessionData
+  hasExplicitRooms: boolean
+}
+
 function parseCell(
   cellText: string,
-  context: { date: Date; startTime: Date; endTime: Date; room: string },
-): DanceSessionData {
+  context: { date: Date; startTime: Date; endTime: Date; room: string; allRooms: string[] },
+): ParsedCell {
   const trimmed = cellText.trim()
+  const { mainText, gca, roomsLine } = extractTrailingMetadata(trimmed)
+
+  const hasExplicitRooms = roomsLine !== undefined
+  const location: SessionLocation = hasExplicitRooms
+    ? resolveExplicitRooms(roomsLine!, context.room, context.allRooms, trimmed)
+    : { kind: 'located', rooms: [context.room] }
+
   const base = {
     date: context.date.toISOString(),
     startTime: context.startTime.toISOString(),
     endTime: context.endTime.toISOString(),
-    room: context.room,
+    location,
   }
 
-  if (trimmed.startsWith(FREEFORM_PREFIX)) {
+  if (mainText.startsWith(FREEFORM_PREFIX)) {
+    if (gca !== undefined) {
+      throw new Error(`Freeform cell can't have a "GCA:" line in ${JSON.stringify(trimmed)}`)
+    }
     return {
-      kind: 'freeform',
-      ...base,
-      description: trimmed.slice(FREEFORM_PREFIX.length).trim(),
+      room: context.room,
+      hasExplicitRooms,
+      session: {
+        kind: 'freeform',
+        ...base,
+        description: mainText.slice(FREEFORM_PREFIX.length).trim(),
+      },
     }
   }
 
-  const colonIndex = trimmed.indexOf(':')
+  if (mainText.includes('\n')) {
+    throw new Error(`Unexpected extra line(s) in ${JSON.stringify(trimmed)}`)
+  }
+
+  const colonIndex = mainText.indexOf(':')
   if (colonIndex === -1) {
     throw new Error(
       `Cell doesn't match "Level : Type - Caller" and isn't prefixed with "${FREEFORM_PREFIX}": ${JSON.stringify(trimmed)}`,
     )
   }
 
-  const levelPortion = trimmed.slice(0, colonIndex).trim()
-  const rest = trimmed.slice(colonIndex + 1).trim()
+  const levelPortion = mainText.slice(0, colonIndex).trim()
+  const rest = mainText.slice(colonIndex + 1).trim()
 
   const levels = levelPortion.split(LEVEL_SEPARATOR).map((level) => level.trim())
   for (const level of levels) {
@@ -72,30 +180,12 @@ function parseCell(
     }
   }
 
-  const lines = rest.split('\n')
-  const mainLine = lines[0]?.trim() ?? ''
-  const secondLine = lines[1]?.trim()
-
-  if (lines.length > 2) {
-    throw new Error(`Unexpected extra line(s) in ${JSON.stringify(trimmed)}`)
-  }
-
-  let gca: string | undefined
-  if (secondLine !== undefined) {
-    if (!GCA_PREFIX.test(secondLine)) {
-      throw new Error(
-        `Expected a "GCA:" line but found ${JSON.stringify(secondLine)} in ${JSON.stringify(trimmed)}`,
-      )
-    }
-    gca = secondLine.replace(GCA_PREFIX, '').trim()
-  }
-
-  const dashIndex = mainLine.indexOf(' - ')
+  const dashIndex = rest.indexOf(' - ')
   if (dashIndex === -1) {
     throw new Error(`Cell doesn't match "Type - Caller": ${JSON.stringify(trimmed)}`)
   }
-  const eventType = mainLine.slice(0, dashIndex).trim()
-  const callerPortion = mainLine.slice(dashIndex + 3).trim()
+  const eventType = rest.slice(0, dashIndex).trim()
+  const callerPortion = rest.slice(dashIndex + 3).trim()
   const callers = callerPortion
     .split('&')
     .map((caller) => caller.trim())
@@ -105,22 +195,35 @@ function parseCell(
   }
 
   return {
-    kind: 'structured',
-    ...base,
-    levels: levels as LevelCode[],
-    eventType,
-    callers,
-    gca,
+    room: context.room,
+    hasExplicitRooms,
+    session: {
+      kind: 'structured',
+      ...base,
+      levels: levels as LevelCode[],
+      eventType,
+      callers,
+      gca,
+    },
   }
 }
+
+type CellKind =
+  | { type: 'empty' }
+  | { type: 'content'; room: string; text: string }
+  | { type: 'ditto'; room: string; targetRoomIdx: number }
 
 /**
  * Parses one sheet of the dance-schedule grid: row 0 is room-name headers, each
  * following row is [timeRange, ...cells] with one cell per room (null/empty if that
- * room/time has nothing scheduled). Returns parsed sessions and any errors — doesn't
- * throw, so a caller can aggregate errors across every sheet in the file before
- * failing the build with the complete list. See parseDanceScheduleSheet.test.ts
- * for the exact cell formats supported (drawn from real spreadsheet examples).
+ * room/time has nothing scheduled). A cell may occupy more than one room (an explicit
+ * "ROOMS:" line, or a `"` ditto mark chaining to the content cell immediately to its
+ * left) or no room at all ("ROOMS: NONE", e.g. a lunch break) — see
+ * docs/design/dance-schedule.md for the full authoring conventions. Returns parsed
+ * sessions and any errors — doesn't throw, so a caller can aggregate errors across
+ * every sheet in the file before failing the build with the complete list. See
+ * parseDanceScheduleSheet.test.ts for the exact cell formats supported (drawn from
+ * real spreadsheet examples).
  */
 export function parseDanceScheduleSheet(
   sheetName: string,
@@ -156,21 +259,106 @@ export function parseDanceScheduleSheet(
       return
     }
 
+    const cellRef = (roomIdx: number) => `${columnLetter(roomIdx + 1)}${excelRow}`
+    const rowError = (roomIdx: number, room: string, message: string) => {
+      errors.push(
+        `Sheet "${sheetName}", cell ${cellRef(roomIdx)} (time "${timeRangeRaw}", room "${room}"): ${message}`,
+      )
+    }
+
+    // First pass: classify each room's cell as empty, real content, or a ditto mark
+    // chained to the nearest content cell to its left (a blank cell breaks the chain).
+    const cellKinds: CellKind[] = []
+    let lastContent: { roomIdx: number; room: string } | null = null
     rooms.forEach((room, roomIdx) => {
-      const cell = row[roomIdx + 1]
-      if (cell === null || cell === undefined || cell === '') {
+      const raw = row[roomIdx + 1]
+      if (raw === null || raw === undefined || raw === '') {
+        cellKinds.push({ type: 'empty' })
+        lastContent = null
         return
       }
 
+      const text = String(raw).trim()
+      if (text === DITTO_MARKER) {
+        if (!lastContent) {
+          rowError(roomIdx, room, `Ditto mark (${DITTO_MARKER}) has no content cell to its left`)
+          cellKinds.push({ type: 'empty' })
+          return
+        }
+        cellKinds.push({ type: 'ditto', room, targetRoomIdx: lastContent.roomIdx })
+        return
+      }
+
+      cellKinds.push({ type: 'content', room, text })
+      lastContent = { roomIdx, room }
+    })
+
+    // Second pass: parse every real content cell.
+    const parsed = new Map<number, ParsedCell>()
+    cellKinds.forEach((cellKind, roomIdx) => {
+      if (cellKind.type !== 'content') {
+        return
+      }
       try {
-        sessions.push(parseCell(String(cell), { date, startTime, endTime, room }))
+        parsed.set(
+          roomIdx,
+          parseCell(cellKind.text, { date, startTime, endTime, room: cellKind.room, allRooms: rooms }),
+        )
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        const cellRef = `${columnLetter(roomIdx + 1)}${excelRow}`
-        errors.push(
-          `Sheet "${sheetName}", cell ${cellRef} (time "${timeRangeRaw}", room "${room}"): ${message}`,
-        )
+        rowError(roomIdx, cellKind.room, message)
       }
+    })
+
+    // Third pass: attach ditto cells to their target's room list. A ditto pointing at
+    // a cell that already has an explicit "ROOMS:" line is ambiguous (pick one
+    // mechanism); a ditto pointing at a cell that itself failed to parse is silently
+    // skipped (that cell's own error was already recorded).
+    cellKinds.forEach((cellKind, roomIdx) => {
+      if (cellKind.type !== 'ditto') {
+        return
+      }
+      const target = parsed.get(cellKind.targetRoomIdx)
+      if (!target) {
+        return
+      }
+      if (target.hasExplicitRooms) {
+        rowError(
+          roomIdx,
+          cellKind.room,
+          `Ditto mark (${DITTO_MARKER}) points at ${cellRef(cellKind.targetRoomIdx)}, which already has an explicit "ROOMS:" line — use only one mechanism`,
+        )
+        return
+      }
+      if (target.session.location.kind !== 'located') {
+        return
+      }
+      target.session.location.rooms.push(cellKind.room)
+    })
+
+    // Fourth pass: for an explicit multi-room "ROOMS:" list, every other named room's
+    // cell in this row must be genuinely blank — not content, not a ditto.
+    parsed.forEach((result, roomIdx) => {
+      if (!result.hasExplicitRooms || result.session.location.kind !== 'located') {
+        return
+      }
+      for (const room of result.session.location.rooms) {
+        if (room === result.room) {
+          continue
+        }
+        const otherRoomIdx = rooms.indexOf(room)
+        if (cellKinds[otherRoomIdx]?.type !== 'empty') {
+          rowError(
+            roomIdx,
+            result.room,
+            `"ROOMS:" claims room ${JSON.stringify(room)}, but its cell (${cellRef(otherRoomIdx)}) isn't blank`,
+          )
+        }
+      }
+    })
+
+    parsed.forEach((result) => {
+      sessions.push(result.session)
     })
   })
 

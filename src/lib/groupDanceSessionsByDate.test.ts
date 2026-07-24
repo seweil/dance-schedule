@@ -8,7 +8,7 @@ function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSess
     date: new Date('2026-07-02T00:00:00.000Z'),
     startTime: new Date('2026-07-02T12:30:00.000Z'),
     endTime: new Date('2026-07-02T13:30:00.000Z'),
-    room: 'Ballroom Centre',
+    location: { kind: 'located', rooms: ['Ballroom Centre'] },
     levels: ['SSD'],
     eventType: 'Dancing',
     callers: ['Ted Lizotte'],
