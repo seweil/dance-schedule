@@ -1,26 +1,19 @@
 import type { DanceSession } from '../types/danceSchedule'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
+import {
+  formatSessionCallerDetails,
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionRoom,
+  formatSessionTimeRange,
+} from '../lib/formatDanceSession'
 import styles from './RawDanceScheduleTable.module.css'
 
-// Session date/time values are wall-clock values from the spreadsheet, not real
-// instants (see buildDanceSchedule.ts) — pinned to UTC so they display exactly
-// as entered, same reasoning as ScheduleList.tsx.
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' })
-const timeFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
-
-function formatTimeRange(session: DanceSession): string {
-  return `${timeFormatter.format(session.startTime)} – ${timeFormatter.format(session.endTime)}`
-}
 
 function formatDetails(session: DanceSession): string {
-  if (session.kind === 'freeform') {
-    return `(freeform) ${session.description}`
-  }
-  return `${session.eventType} - ${session.callers.join(' & ')}`
-}
-
-function formatRoom(session: DanceSession): string {
-  return session.location.kind === 'roomless' ? '—' : session.location.rooms.join(', ')
+  const details = formatSessionCallerDetails(session)
+  return session.kind === 'freeform' ? `(freeform) ${details}` : details
 }
 
 // Dense, desktop-only debug view of the parsed dance schedule — one table per
@@ -48,12 +41,12 @@ export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }
             </thead>
             <tbody>
               {group.sessions.map((session) => (
-                <tr key={`${formatRoom(session)}-${session.startTime.toISOString()}`}>
-                  <td>{formatTimeRange(session)}</td>
-                  <td>{formatRoom(session)}</td>
-                  <td>{session.kind === 'structured' ? session.levels.join(', ') : ''}</td>
+                <tr key={`${formatSessionRoom(session)}-${session.startTime.toISOString()}`}>
+                  <td>{formatSessionTimeRange(session)}</td>
+                  <td>{formatSessionRoom(session)}</td>
+                  <td>{formatSessionLevels(session)}</td>
                   <td>{formatDetails(session)}</td>
-                  <td>{session.kind === 'structured' ? (session.gca ?? '') : ''}</td>
+                  <td>{formatSessionGca(session)}</td>
                 </tr>
               ))}
             </tbody>

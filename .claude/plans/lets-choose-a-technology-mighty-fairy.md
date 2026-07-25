@@ -1,214 +1,185 @@
-# Dance schedule: room-spanning and roomless sessions (data model + parsing)
+# Dance schedule display page
 
 ## Context
 
-Before building the real dance-schedule display page (a room-column × time-row grid —
-already discussed and deferred, see "Next phase" at the end of this doc), the data
-model and parser need to support two kinds of sessions the real display will eventually
-need to render:
+`data/dance-schedule.xlsx` is parsed at build time into `virtual:dance-schedule`
+(`DanceSessionData[]`, see `docs/design/dance-schedule.md`), and today the only thing
+rendering it is `RawDanceScheduleTable`/`RawDanceScheduleDebugPage` — an intentionally
+disposable, desktop-only debug table at `/debug/dance-schedule`, not linked from nav.
+The data model now also supports a session spanning multiple rooms and a session with
+no room at all (`location: SessionLocation`, added in the previous phase), with one real
+example of each already in the spreadsheet.
 
-1. **Room-spanning sessions** — one session that covers 2+ rooms at once (e.g. a
-   combined general session across two adjacent ballroom sections).
-2. **Roomless sessions** — a block of calendar time not tied to any specific room at
-   all (e.g. a lunch break).
+This phase builds the **real, user-facing** display: a new page, reachable from the
+nav, rendering the dance schedule as a room-column × time-row calendar grid (matching
+the shape of the original paper convention schedule), with:
+- a date combo-box (a small, fixed number of dates — currently 3),
+- a dual-thumb slider filtering sessions by a min/max **skill level** range,
+- a checkbox to show/hide the GCA-caller line,
+- room columns that disappear when every session in that room is filtered out,
+- a multi-room session rendered as one block spanning its rooms' columns,
+- a roomless session (e.g. lunch) rendered as a block spanning **every** visible room
+  column at its correct time position,
+- and a layout that works on both desktop and mobile.
 
-Today's data model has exactly one `room: string` per session, and nothing in
-`data/dance-schedule.xlsx` represents either case yet. This phase extends the type,
-the parser, and every existing consumer to support both, and adds real example rows to
-the actual spreadsheet so the whole pipeline is exercised end-to-end, before any
-display work begins.
+The debug table/page stay as-is — still useful for troubleshooting raw parse output,
+separate from this real page.
 
-## Decisions (confirmed with the user)
+## Decisions
 
-### Authoring convention: a `ROOMS:` text line inside the cell, not merged Excel cells
-Confirmed by research: `read-excel-file` (the library already parsing this data) has
-**zero merged-cell support** — its return type is a bare `(CellValue|null)[][]` matrix
-with no merge/span metadata anywhere in its API, and this isn't a version gap, it's
-architecturally out of scope for the library. Switching to a library that does support
-merges (e.g. `exceljs`) would mean replacing the foundation the whole data pipeline is
-built on, for this feature alone — too big a change.
+### Level order for the slider: a real skill hierarchy, not `LEVEL_CODES`'s declared order
+`LEVEL_CODES`'s array order (`SSD, MS, Plus, Advanced, C1, C2, C3A, C3B, C4, A1, A2, Intro,
+Various`) doesn't reflect the real square-dance skill progression. The slider uses a
+separate ordered scale: `SSD < MS < Plus < A1 < A2 < C1 < C2 < C3A < C3B < C4`.
+`Advanced`, `Intro`, and `Various` aren't points on this scale — a session whose only
+level(s) are among these (or a freeform session with no level at all) is **always
+shown**, regardless of the slider. A multi-level session (e.g. `"C1, C2"`) stays visible
+if **any** of its levels is in range, not all of them.
 
-Instead, a session's room(s) are declared with a `ROOMS:` line inside the cell text,
-exactly mirroring the existing `GCA:` line convention:
+### GCA checkbox: display-only, not a filter
+Unchecking "show GCA" hides just the GCA name from a session's card; it never hides a
+whole session. Visibility is controlled only by date + level range.
 
-```
-SSD : Combined Dance - Vic Ceder
-ROOMS: Ballroom Centre, Ballroom East
-```
+### Grid layout: a time-proportional calendar grid, not a simple stacked list
+Rooms are columns; the vertical axis is real clock time (15-minute units — the GCD of
+the 30/45/60-minute slot lengths seen in the real data), so simultaneous sessions across
+rooms line up and a session's height is proportional to its duration.
 
-entered once, in **one** of the spanned rooms' cells for that time row; the other
-spanned rooms' cells for that same row are left blank.
+**Desktop vs. mobile is the same grid, not two layouts.** Room columns get a
+touch-friendly minimum width (~150px); the grid container scrolls horizontally when
+wider than the viewport — true on both a narrow phone and a desktop window with many
+rooms. The time-axis column stays `position: sticky; left: 0`, the room header row
+stays `position: sticky; top: 0`, and the corner cell is sticky on both axes (a real
+"frozen row + frozen column" CSS pattern — the main implementation risk in this plan,
+but it avoids maintaining two separate grid implementations).
 
-### Ditto mark (`"`): spatial shorthand for the common contiguous-room case
-For the common case — a session spanning rooms that sit right next to each other as
-columns — typing out `ROOMS: A, B` is more ceremony than a spreadsheet author should
-need. A cell whose entire (trimmed) content is a single `"` (ditto mark, the familiar
-paper convention for "same as before") means "this room is part of the same session as
-the cell **immediately to its left** in this row":
+### Room order and column visibility: derived per date, not hand-maintained
+Room order isn't stored explicitly anywhere — only implied by each sheet's header row,
+which `buildDanceSchedule`'s chronological sorting doesn't preserve as a standalone list.
+Derived instead from **first chronological occurrence across that date's full,
+unfiltered session list**: walk sessions in order, and for each `located` session
+append any of its rooms not already seen (in the order its `rooms` array lists them,
+which — because of how the parser builds it — already reflects left-to-right column
+order for both the default single-room case and a ditto-chained multi-room case).
+Column visibility (which rooms currently have a column) is computed separately, from
+the **currently level-filtered** session list, so a room only disappears once nothing
+in it is visible — but the *order* is always computed from the full unfiltered list, so
+columns never reshuffle as filters change, only appear/disappear. The grid's time
+bounds (earliest start → latest end) are likewise computed from the full unfiltered
+list, so the grid's vertical proportions don't jump as the level filter changes.
 
-```
-Ballroom Centre        Ballroom East   Ballroom West
-SSD : Combined Dance    "               (blank)
-- Vic Ceder
-```
+### Multi-room and roomless sessions: placements, not a 1:1 session→cell mapping
+A session can now require more than one visual position:
+- **Roomless** (`location.kind === 'roomless'`): one block spanning every *currently
+  visible* room column, at its correct time position — same mechanism as a multi-room
+  span, just claiming every column instead of a named subset.
+- **Multi-room, contiguous** (its rooms are consecutive in the current visible column
+  order — true for the one real example, "All Callers Dance" spanning `Ballroom Centre`
+  + `Ballroom East`): one block spanning that column range.
+- **Multi-room, non-contiguous** (a `ROOMS:` list naming rooms that aren't next to each
+  other — parsing deliberately doesn't forbid this, see `docs/design/dance-schedule.md`):
+  falls back to one block **per named room**, each showing the same session content.
+  Not pretty, but correct and safe — a spanning visual claim across a gap would
+  misleadingly cover rooms the session doesn't occupy.
 
-No `ROOMS:` line is needed for this case — the parser builds the room list itself from
-the content cell plus every contiguous run of ditto cells to its right. Scoped strictly
-**horizontal/left-neighbor** for now (not a general "   repeat the cell above" convention —
-that's a different, unrelated idea and out of scope here).
+So the layout computation produces a list of **placements** (session + row range +
+column range), not one entry per session — most sessions produce exactly one.
 
-Rules, kept simple and fail-loud:
-- A ditto cell with no real content immediately to its left (row start, or the
-  immediately-preceding cell is blank) → parse error (dangling ditto).
-- A ditto chain must be contiguous — a blank cell breaks the chain; a later ditto after
-  a gap has nothing valid to attach to → error.
-- A content cell that has **both** an explicit `ROOMS:` line **and** ditto cells pointing
-  at it from the right → error (ambiguous — pick one mechanism, not both).
-- The explicit `ROOMS: <list>` convention still exists for the case ditto can't express:
-  non-adjacent rooms, or an author who just prefers to type it out.
+### Dual-thumb slider: `@radix-ui/react-slider`, not hand-rolled
+A dual-thumb range is a genuinely hard widget to get right from scratch — the common
+"two overlapping native `<input type=range>`" trick has real known issues (z-index dead
+zones when both thumbs are near the same value, no proper ARIA slider semantics, fiddly
+touch-drag behavior). `@radix-ui/react-slider` is headless/unstyled (fits the CSS
+Modules approach) and handles multi-thumb a11y/touch correctly out of the box — the
+project already accepts one focused UI dependency (`yet-another-react-lightbox`), so
+this adds one more.
 
-### Roomless sessions: `ROOMS: NONE`, a distinct sentinel — not "all rooms"
-A roomless block (lunch, a break) has **no** room association at all — it is not the
-same thing as "spans every currently-known room." `ROOMS: NONE` is its own explicit
-value, entered in any single cell for that time row (the choice of which column doesn't
-matter semantically once `NONE` is used):
+### Date picker: a native `<select>`
+Only a handful of dates exist (3 today) — a native `<select>` is fully accessible for
+free and needs no extra widget.
 
-```
-* Lunch Break
-ROOMS: NONE
-```
-
-### Room list validation: must be complete and must include the cell's own room
-`ROOMS: <list>` must name every room the session occupies, **including** the room the
-cell is physically sitting in — no implicit "plus wherever it's typed" behavior. Two new
-parse errors, in addition to existing ones:
-- A room named in `ROOMS:` that doesn't exist in that sheet's header row → error
-  (probably a typo).
-- The cell's own room is missing from its own `ROOMS:` list → error (the list must be
-  complete, not "additional rooms besides this one").
-
-### Cross-room content collision: still validated (this is not the adjacency question)
-For a `ROOMS:` list with more than one room, every other room named must have a **blank**
-cell in that same row — if a spreadsheet author accidentally puts content in more than
-one of the spanned rooms' cells for the same row, that's a real ambiguity and fails the
-build with a descriptive error (sheet, row, the conflicting cell). This is a distinct,
-narrower check from adjacency (below) — it's about duplicate/conflicting content, not
-about column order.
-
-### Adjacency of spanned rooms: not validated in this phase
-Whether the rooms named in a `ROOMS:` list end up next to each other as columns is a
-concern for the future *display* phase (rendering a visual span only makes sense across
-contiguous columns) — this phase stores the room list exactly as given, with no
-adjacency check. Revisit if/when the display phase needs it.
-
-### Parser restructuring: metadata lines extracted generically, before branching
-Today, `parseCell` only recognizes an optional second line as a `GCA:` line, specific to
-structured sessions. Both `GCA:` and the new `ROOMS:` line need to work as **generic
-trailing metadata lines**, applicable to structured *and* freeform cells alike (a
-roomless lunch break is freeform + `ROOMS:`, not structured). New approach: scan lines
-from the bottom of the cell text; while the last remaining line matches `GCA:` or
-`ROOMS:` (case-insensitive), pop and classify it (at most one of each; either order).
-Whatever's left after that is the "main content," parsed exactly as before (freeform
-`"* "` prefix, or `Level(s) : Type - Caller(s)`). No `ROOMS:` line present → default
-behavior unchanged: `{ kind: 'located', rooms: [<the cell's own room>] }` — so all 151
-existing real sessions parse identically to today.
-
-Row processing gets an extra pass on top of this, for the ditto mark: before parsing
-non-ditto cells with the logic above, scan each row left-to-right and resolve ditto
-chains (a run of `"`-only cells following a content cell) into room lists, per the
-ditto rules above. A ditto cell is never itself passed through `parseCell` — it's pure
-room-list plumbing, not a session of its own.
-
-### Real example data: added to the actual spreadsheet now, not just synthetic fixtures
-Two real edits to `data/dance-schedule.xlsx`, chosen from natural gaps/entries already in
-the real schedule (verified against the current `data/dance-schedule-dump.md`):
-
-1. **Room-spanning example** — Friday July 3, "All Callers Dance" (10:15–11:00 AM,
-   currently only in the `Ballroom Centre` column, and `Ballroom East`'s cell for that
-   row is already blank): put a ditto mark (`"`) in the `Ballroom East` cell for that
-   row, leaving the existing "All Callers Dance" cell text untouched. A real, plausible
-   edit — an all-attendee event happening in a larger combined space, and this is
-   probably how a real spreadsheet author would actually do it (adjacent rooms, no need
-   to type room names out) — low-risk since it only touches one currently-blank cell.
-   The explicit `ROOMS: <list>` form (for non-adjacent rooms) is exercised by synthetic
-   parser tests only, since no real non-adjacent multi-room session exists yet.
-2. **Roomless example** — insert one new time-slot row on **Friday** (the
-   11:00 AM–12:00 PM block is followed by a gap before 1:30 PM — insert `12:00p-1:30p`)
-   and one on **Saturday** (11:00 AM–12:00 PM is followed by a gap before 2:00 PM —
-   insert `12:00p-2:00p`), each with `"* Lunch Break\nROOMS: NONE"` in a single cell.
-   This is a genuine new row, not just a text edit — riskier than (1), so it needs a
-   write-capable library (`exceljs`, added temporarily the way it was for the earlier
-   one-off `"* "`-prefix script) and careful before/after verification: re-parse and
-   diff `data/dance-schedule-dump.md` to confirm *only* the intended new content
-   appears, nothing else in either sheet shifted or changed.
-
-## Data model changes (`src/types/danceSchedule.ts`)
-
-Replace `room: string` in `SessionBase` with a discriminated `location`:
-
-```ts
-export type SessionLocation =
-  | { kind: 'located'; rooms: string[] }  // 1+ rooms; length 1 is today's normal case
-  | { kind: 'roomless' }                   // no room at all (lunch, breaks, etc.)
-
-interface SessionBase {
-  date: string
-  startTime: string
-  endTime: string
-  location: SessionLocation
-}
-```
-
-Applies identically to both the ISO-string `*Data` variants and the resolved
-`Date`-object variants (`location` needs no date conversion, just passthrough in
-`buildDanceSchedule.ts`).
+### Shared formatting extracted to a third location
+`formatDanceScheduleMarkdown.ts` and `RawDanceScheduleTable.tsx` each have their own
+near-duplicate detail/level/GCA/room formatting. This page is a third consumer, crossing
+the project's "don't abstract until a third call site appears" threshold — a shared
+`src/lib/formatDanceSession.ts` is extracted and the two existing call sites refactored
+to use it (behavior-preserving).
 
 ## Files touched
 
-- `src/types/danceSchedule.ts` — `room: string` → `location: SessionLocation` (above).
-- `src/lib/parseDanceScheduleSheet.ts` (+ test) — the metadata-line restructuring above;
-  `ROOMS:` parsing (`NONE` vs. comma-separated list); room-name validation against the
-  header row; own-room-must-be-included validation; cross-room blank-cell validation.
-  Existing tests should keep passing unchanged (default/no-`ROOMS:` behavior is
-  identical); new table-driven cases cover: `ROOMS: NONE` on a freeform cell, a
-  multi-room `ROOMS:` list on a structured cell, `ROOMS:` + `GCA:` together (either
-  order), an unrecognized room name, a missing own-room, a content collision in a
-  claimed-but-non-blank room, a 2-cell and a 3-cell ditto chain, a dangling ditto (row
-  start / preceded by a blank), a ditto chain broken by a gap, and a cell with both an
-  explicit `ROOMS:` line and trailing ditto cells (error).
-- `src/lib/buildDanceSchedule.ts` (+ test) — pass `location` through unchanged instead of
-  `room`.
-- `src/lib/formatDanceScheduleMarkdown.ts` (+ test) and `src/components/
-  RawDanceScheduleTable.tsx` (+ test) — Room column rendering: `located` → room names
-  joined with `, `; `roomless` → an explicit placeholder (e.g. `—`) rather than a blank
-  cell, so it's visually distinct from "forgot to fill this in."
-- `data/dance-schedule.xlsx` — the two real edits above (one existing-cell edit, one
-  new-row insertion per sheet), done via a one-off script, verified via a dump diff.
-- `docs/design/dance-schedule.md` — this is the **same** living design doc as the
-  original data-model/parsing phase (not a new file) — add new Sub-problems/Decisions
-  entries here for room-spanning and roomless sessions, consistent with the "living doc,
-  updated in place" convention.
+**New:**
+- `src/pages/12 dance-schedule.tsx` — thin default-export wrapper (`export {
+  DanceSchedulePage as default } from '../components/DanceSchedulePage'`), same pattern
+  as `src/pages/10 schedule.tsx`. Picked up automatically by `vite-plugin-pages` and
+  `buildNavTree`, appearing in nav as "Dance Schedule" at `/dance-schedule`.
+- `src/lib/levelOrder.ts` (+ test) — the `LEVEL_ORDER` scale, plus a helper implementing
+  "any listed level in range, unordered levels always pass."
+- `src/lib/filterDanceSessions.ts` (+ test) — pure function: all sessions + a selected
+  date + a level index range → the sessions to show for that date.
+- `src/lib/computeDanceScheduleLayout.ts` (+ test) — the core of this feature: derives
+  room order + visible columns (per the Decisions above), day time bounds, and produces
+  the placement list (`{ session, rowStart, rowSpan, columnStart, columnSpan }[]`),
+  including the contiguous/non-contiguous multi-room fallback and the roomless
+  full-width case. The file to test most thoroughly — table-driven fixtures covering
+  30/45/60-minute slots, a contiguous multi-room session, a deliberately non-contiguous
+  one, a roomless session, and column disappearance under filtering.
+- `src/lib/formatDanceSession.ts` (+ test) — shared formatting helpers extracted from
+  the two existing call sites (see Decisions).
+- `src/hooks/useDanceScheduleFilters.ts` (+ test) — owns `selectedDate`, the level
+  range, and `showGca` state; derives `dates`, the date-scoped session lists, and the
+  layout via the lib functions above — keeps `DanceSchedulePage` presentational, per
+  `CLAUDE.md`'s "push data-fetching/side effects into hooks" convention.
+- `src/components/DanceSchedulePage.tsx` (+ test) — top-level page, wires the hook's
+  output into `DanceScheduleFilters` and `DanceScheduleGrid`.
+- `src/components/DanceScheduleFilters.tsx` + `.module.css` (+ test) — date `<select>`,
+  the Radix dual-thumb level slider (with level-name labels), and the GCA checkbox.
+- `src/components/DanceScheduleGrid.tsx` + `.module.css` (+ test) — the sticky-header/
+  sticky-time-column scrollable grid; placements positioned via CSS custom properties
+  set inline (`--row-start`/`--row-span`/`--col-start`/`--col-span`) consumed by static
+  grid-placement rules in the CSS module (exact placement is per-instance/data-driven,
+  can't be a static CSS Modules rule). Roomless placements get distinct styling (e.g. a
+  muted, centered banner) so they read differently from a normal room card. A
+  session-card sub-component may be split out during implementation if this file gets
+  unwieldy — not committing to that split up front.
+- `e2e/dance-schedule.spec.ts` — Playwright coverage (see Verification).
 
-**Not touched in this phase:** no display/rendering component, no room-order/adjacency
-plumbing beyond what's described above, no `vite-plugin-dance-schedule.ts` structural
-change (still emits `DanceSessionData[]`, just with the new `location` shape per
-element).
+**Modified:**
+- `src/lib/formatDanceScheduleMarkdown.ts` and `src/components/RawDanceScheduleTable.tsx`
+  — refactored to use the new shared `formatDanceSession.ts` instead of their own copies.
+- `package.json` / `pnpm-lock.yaml` — add `@radix-ui/react-slider`.
+- `src/index.css` — add a `--color-border` token (currently `#ddd` is hardcoded in two
+  places; this page becomes a third, natural point to promote it to a shared token).
+
+**Not touched:** `RawDanceScheduleTable`/`RawDanceScheduleDebugPage`/`App.tsx`'s debug
+routes, and the parsing/data-model layer (`parseDanceScheduleSheet.ts`,
+`buildDanceSchedule.ts`, the `SessionLocation` type) — all already done in the previous
+phase.
+
+## Open questions (deferred, not blocking this phase)
+
+- No color-coding or visual styling per skill level — plain text/badge for now.
+- No "auto-select today's date" behavior — the combo-box defaults to the earliest date.
+- A levels-as-columns alternate view is a known future direction but a genuinely
+  different render path per earlier discussion — not designed here. The time-axis math
+  in `computeDanceScheduleLayout.ts` is room-agnostic, so it's likely reusable; only the
+  column-axis grouping would need a level-based equivalent.
 
 ## Verification
 
-- `pnpm typecheck && pnpm lint && pnpm test` — existing + new parser/formatter tests.
-- `pnpm build` — confirms the real (now-edited) `data/dance-schedule.xlsx` still parses
-  cleanly, including the two new real examples, and regenerates
-  `data/dance-schedule-dump.md` — diff it manually to confirm only the intended two
-  changes appear (the `ROOMS:` addition to "All Callers Dance," and the two new lunch
-  rows), nothing else shifted.
-
-## Next phase (deferred, already discussed in this conversation)
-
-Once this lands, the next phase is the real user-facing dance-schedule display page — a
-time-proportional, room-columns grid with a date selector, a dual-thumb skill-level
-slider (`@radix-ui/react-slider`), and a GCA show/hide checkbox — already designed in
-detail earlier in this conversation. That design will be revisited and adjusted to
-consume the new `location`-based data model (in particular, a `roomless` session
-rendering as a full-width banner, and a `located` session with 2+ rooms rendering as a
-column-spanning block) before being turned into its own plan.
+- `pnpm typecheck && pnpm lint && pnpm test` — all new lib functions/components get
+  colocated tests; `computeDanceScheduleLayout.test.ts` is the one to scrutinize most
+  closely.
+- `pnpm build` — confirms the new page's route/bundle builds and the real dataset
+  (including the multi-room and roomless examples) flows through cleanly.
+- `pnpm build && pnpm preview`, then check in a real browser (Chrome MCP tools, as used
+  earlier this session): default date renders all its rooms; changing the date swaps
+  the grid; dragging the level slider hides out-of-range sessions and their now-empty
+  room columns disappear; unchecking the GCA checkbox hides GCA text without hiding
+  sessions; the "All Callers Dance" session renders as one block spanning `Ballroom
+  Centre`/`Ballroom East`; the lunch-break entries render as full-width banners at their
+  correct time position; narrow the viewport to confirm the grid scrolls horizontally
+  with the time column and room header staying pinned.
+- `pnpm test:e2e` (new `e2e/dance-schedule.spec.ts`) — automates the manual checks
+  above. Playwright's browser couldn't launch in this sandbox in earlier sessions (a
+  sandbox permission issue, not a project bug) — if still the case, this step needs to
+  run in the user's own terminal.

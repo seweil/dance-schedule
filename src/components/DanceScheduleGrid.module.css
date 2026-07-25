@@ -1,0 +1,89 @@
+/* Sticky-header/sticky-time-column scrollable calendar grid. The same layout serves
+   both desktop and mobile: room columns get a touch-friendly minimum width (set
+   inline, since column/row counts are data-driven) and the container scrolls
+   horizontally once there are more columns than fit — no separate mobile layout. */
+.scrollContainer {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--color-border);
+}
+
+.grid {
+  display: grid;
+}
+
+.corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: #fff;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+.roomHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  padding: var(--space-sm);
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+
+.timeLabel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #fff;
+  padding: 0 var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--color-text);
+  text-align: right;
+  white-space: nowrap;
+  border-top: 1px solid var(--color-border);
+}
+
+.card {
+  margin: 1px;
+  padding: var(--space-sm);
+  border-radius: 4px;
+  background: rgb(36 84 255 / 8%);
+  overflow: hidden;
+  font-size: 0.8125rem;
+}
+
+.roomlessCard {
+  margin: 1px;
+  padding: var(--space-sm);
+  border-radius: 4px;
+  background: rgb(0 0 0 / 6%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-style: italic;
+  color: var(--color-text);
+}
+
+.levels {
+  font-weight: bold;
+}
+
+.details {
+  margin: 0;
+}
+
+.gca {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text);
+}
+
+.empty {
+  padding: var(--space-md);
+}

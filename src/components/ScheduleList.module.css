@@ -19,7 +19,7 @@
 }
 
 .card:not(:first-child) {
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--color-border);
 }
 
 .card:nth-child(even) {

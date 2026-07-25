@@ -1,33 +1,18 @@
 import { groupDanceSessionsByDate } from './groupDanceSessionsByDate'
+import {
+  formatSessionCallerDetails,
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionRoom,
+  formatSessionTimeRange,
+} from './formatDanceSession'
 import type { DanceSession } from '../types/danceSchedule'
 
-// Session date/time values are wall-clock values from the spreadsheet, not real
-// instants (see buildDanceSchedule.ts) — pinned to UTC so they display exactly
-// as entered, same reasoning as ScheduleList.tsx.
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' })
-const timeFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
-
-function formatTimeRange(session: DanceSession): string {
-  return `${timeFormatter.format(session.startTime)} – ${timeFormatter.format(session.endTime)}`
-}
-
-function formatLevels(session: DanceSession): string {
-  return session.kind === 'structured' ? session.levels.join(', ') : ''
-}
 
 function formatDetails(session: DanceSession): string {
-  if (session.kind === 'freeform') {
-    return `*(freeform)* ${session.description}`
-  }
-  return `${session.eventType} - ${session.callers.join(' & ')}`
-}
-
-function formatGca(session: DanceSession): string {
-  return session.kind === 'structured' ? (session.gca ?? '') : ''
-}
-
-function formatRoom(session: DanceSession): string {
-  return session.location.kind === 'roomless' ? '—' : session.location.rooms.join(', ')
+  const details = formatSessionCallerDetails(session)
+  return session.kind === 'freeform' ? `*(freeform)* ${details}` : details
 }
 
 function escapeCell(value: string): string {
@@ -39,11 +24,11 @@ function escapeCell(value: string): string {
 function formatSection(group: { date: Date; sessions: DanceSession[] }): string {
   const rows = group.sessions.map((session) =>
     [
-      formatTimeRange(session),
-      formatRoom(session),
-      formatLevels(session),
+      formatSessionTimeRange(session),
+      formatSessionRoom(session),
+      formatSessionLevels(session),
       formatDetails(session),
-      formatGca(session),
+      formatSessionGca(session),
     ]
       .map(escapeCell)
       .join(' | '),
