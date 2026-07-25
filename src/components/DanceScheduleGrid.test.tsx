@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { DanceScheduleGrid } from './DanceScheduleGrid'
 import type { DanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
+import { colorForSession, NEUTRAL_CARD_COLOR } from '../lib/levelColors'
 import type { DanceSession } from '../types/danceSchedule'
 
 vi.mock('./DanceScheduleGrid.module.css', () => ({
@@ -37,6 +38,7 @@ function makeLayout(overrides: Partial<DanceScheduleLayout> = {}): DanceSchedule
       { rowStart: 1, label: '12:00 PM' },
       { rowStart: 5, label: '1:00 PM' },
     ],
+    halfHourMarks: [3],
     placements: [
       { session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 0, columnSpan: 1 },
     ],
@@ -96,8 +98,38 @@ describe('DanceScheduleGrid', () => {
         showGca
       />,
     )
-    expect(screen.getByText('(freeform) Lunch Break')).toBeInTheDocument()
+    expect(screen.getByText('Lunch Break')).toBeInTheDocument()
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
+  })
+
+  it('renders a half-hour tick between the hour marks', () => {
+    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const tick = container.querySelector('.halfHourTick')
+    expect(tick).toBeInTheDocument()
+    expect(tick).toHaveStyle({ gridRow: '4' })
+  })
+
+  it("colors a room card's background by the session's level", () => {
+    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const card = container.querySelector('.card')
+    expect(card).toHaveStyle({ backgroundColor: colorForSession(STRUCTURED_SESSION) })
+  })
+
+  it('does not color a roomless card by level (keeps the neutral CSS-module background)', () => {
+    const { container } = render(
+      <DanceScheduleGrid
+        layout={makeLayout({
+          visibleRooms: [],
+          placements: [
+            { session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 },
+          ],
+        })}
+        showGca
+      />,
+    )
+    const card = container.querySelector('.roomlessCard') as HTMLElement
+    expect(card.style.backgroundColor).toBe('')
+    expect(colorForSession(ROOMLESS_SESSION)).toBe(NEUTRAL_CARD_COLOR)
   })
 
   it('renders one card per placement even when several share the same session', () => {

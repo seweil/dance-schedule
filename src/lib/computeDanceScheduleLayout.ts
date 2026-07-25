@@ -29,6 +29,9 @@ export interface DanceScheduleLayout {
   visibleRooms: string[]
   totalRowUnits: number
   hourMarks: HourMark[]
+  // Row-start positions only (no label) for the half-hour tick between each pair of
+  // hour marks in the sticky time axis.
+  halfHourMarks: number[]
   placements: DanceSessionPlacement[]
 }
 
@@ -36,6 +39,7 @@ const EMPTY_LAYOUT: DanceScheduleLayout = {
   visibleRooms: [],
   totalRowUnits: 0,
   hourMarks: [],
+  halfHourMarks: [],
   placements: [],
 }
 
@@ -76,9 +80,10 @@ function isContiguous(sortedIndices: number[]): boolean {
 
 /**
  * Computes the time-proportional calendar grid layout for one date: which room
- * columns are visible, the day's row-unit bounds, hour-mark labels for the sticky
- * time axis, and a placement per visible session (or several, for the rare
- * non-contiguous multi-room fallback — see docs/design/dance-schedule.md).
+ * columns are visible, the day's row-unit bounds, hour-mark labels and half-hour
+ * tick positions for the sticky time axis, and a placement per visible session (or
+ * several, for the rare non-contiguous multi-room fallback — see
+ * docs/design/dance-schedule.md).
  *
  * `dateSessions` must be every session for the date (unfiltered) — used to derive a
  * stable room order and fixed time bounds, so neither reshuffles/jumps as the level
@@ -122,6 +127,11 @@ export function computeDanceScheduleLayout(
   for (let t = dayStart.getTime(); t <= dayEnd.getTime(); t += MS_PER_HOUR) {
     const time = new Date(t)
     hourMarks.push({ rowStart: rowStartFor(time), label: hourFormatter.format(time) })
+  }
+
+  const halfHourMarks: number[] = []
+  for (let t = dayStart.getTime() + MS_PER_HOUR / 2; t < dayEnd.getTime(); t += MS_PER_HOUR) {
+    halfHourMarks.push(rowStartFor(new Date(t)))
   }
 
   const placements: DanceSessionPlacement[] = []
@@ -170,5 +180,5 @@ export function computeDanceScheduleLayout(
 
   placements.sort((a, b) => a.rowStart - b.rowStart || a.columnStart - b.columnStart)
 
-  return { visibleRooms, totalRowUnits, hourMarks, placements }
+  return { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, placements }
 }

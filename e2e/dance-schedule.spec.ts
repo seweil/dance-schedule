@@ -37,7 +37,7 @@ test('a roomless session renders as a full-width banner with its time range', as
   // regardless of the exact year parseEventDate's year-inference resolves to.
   await page.getByLabel('Date').selectOption({ index: 1 })
 
-  await expect(page.getByText('(freeform) Lunch Break')).toBeVisible()
+  await expect(page.getByText('Lunch Break')).toBeVisible()
   await expect(page.getByText('12:00 PM – 1:30 PM')).toBeVisible()
 })
 

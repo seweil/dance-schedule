@@ -31,6 +31,7 @@ describe('computeDanceScheduleLayout', () => {
       visibleRooms: [],
       totalRowUnits: 0,
       hourMarks: [],
+      halfHourMarks: [],
       placements: [],
     })
   })
@@ -49,6 +50,20 @@ describe('computeDanceScheduleLayout', () => {
       { rowStart: 1, label: '12:00 PM' },
       { rowStart: 5, label: '1:00 PM' },
     ])
+  })
+
+  it('places one half-hour tick between each pair of hour marks', () => {
+    const session = makeSession(
+      '2026-07-02T12:15:00.000Z',
+      '2026-07-02T14:45:00.000Z',
+      located('Ballroom Centre'),
+    )
+    const layout = computeDanceScheduleLayout([session], [session])
+
+    // dayStart 12:00, dayEnd 15:00 -> hour marks at rows 1/5/9/13, half-hour ticks
+    // (12:30/1:30/2:30) fall exactly between each consecutive pair.
+    expect(layout.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5, 9, 13])
+    expect(layout.halfHourMarks).toEqual([3, 7, 11])
   })
 
   it('computes rowStart/rowSpan for 30- and 45-minute sessions', () => {

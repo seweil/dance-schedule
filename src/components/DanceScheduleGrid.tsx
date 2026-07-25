@@ -6,7 +6,7 @@ import {
   formatSessionLevels,
   formatSessionTimeRange,
 } from '../lib/formatDanceSession'
-import type { DanceSession } from '../types/danceSchedule'
+import { colorForSession } from '../lib/levelColors'
 import styles from './DanceScheduleGrid.module.css'
 
 // One 15-minute row unit's pixel height — see computeDanceScheduleLayout.ts for why
@@ -15,18 +15,16 @@ const UNIT_HEIGHT_PX = 20
 const TIME_COLUMN_WIDTH = '70px'
 const ROOM_COLUMN_MIN_WIDTH = '150px'
 
-function formatDetails(session: DanceSession): string {
-  const details = formatSessionCallerDetails(session)
-  return session.kind === 'freeform' ? `(freeform) ${details}` : details
-}
-
 function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement; showGca: boolean }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
+  const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     gridRow: `${rowStart + 1} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
+    // Roomless cards keep their own neutral/centered treatment from the CSS module —
+    // only room cards are colored by level.
+    backgroundColor: isRoomless ? undefined : colorForSession(session),
   }
-  const isRoomless = session.location.kind === 'roomless'
   const levels = formatSessionLevels(session)
   const gca = formatSessionGca(session)
 
@@ -34,7 +32,7 @@ function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement;
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
         {levels && <p className={styles.levels}>{levels}</p>}
-        <p className={styles.details}>{formatDetails(session)}</p>
+        <p className={styles.details}>{formatSessionCallerDetails(session)}</p>
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
         {!isRoomless && showGca && gca && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
@@ -48,7 +46,7 @@ function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement;
 // scrolling depending on viewport width and room count. See computeDanceScheduleLayout
 // for how `layout` is derived (room order/visibility, time bounds, placements).
 export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLayout; showGca: boolean }) {
-  const { visibleRooms, totalRowUnits, hourMarks, placements } = layout
+  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, placements } = layout
 
   if (placements.length === 0) {
     return <p className={styles.empty}>No sessions match the current filters.</p>
@@ -74,6 +72,13 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
           >
             {mark.label}
           </div>
+        ))}
+        {halfHourMarks.map((rowStart) => (
+          <div
+            key={rowStart}
+            className={styles.halfHourTick}
+            style={{ gridRow: rowStart + 1, gridColumn: 1 }}
+          />
         ))}
         {placements.map((placement, index) => (
           // Placements have no stable id of their own (a non-contiguous multi-room

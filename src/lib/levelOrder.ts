@@ -19,7 +19,7 @@ export const LEVEL_ORDER = [
 
 export type OrderedLevelCode = (typeof LEVEL_ORDER)[number]
 
-function isOrderedLevel(level: LevelCode): level is OrderedLevelCode {
+export function isOrderedLevel(level: LevelCode): level is OrderedLevelCode {
   return (LEVEL_ORDER as readonly string[]).includes(level)
 }
 
