@@ -1,0 +1,44 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - corepack enable
+        - corepack prepare pnpm@11.15.1 --activate
+        - pnpm install --frozen-lockfile
+    build:
+      commands:
+        - pnpm build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - .pnpm-store/**/*
+  customHeaders:
+    # sw.js/index.html/manifest must be revalidated on every load so a new
+    # deploy is actually detected (see src/App.tsx's UpdatePrompt) — never
+    # cache-first for these, unlike the hashed /assets/ files below.
+    - pattern: 'index.html'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-cache'
+    - pattern: 'manifest.webmanifest'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-cache'
+    - pattern: 'sw.js'
+      headers:
+        - key: 'Cache-Control'
+          value: 'no-cache'
+    - pattern: '/assets/**'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
+    # workbox-<hash>.js is generateSW's helper script, imported by sw.js — its
+    # hash changes on every build same as /assets/, so it's safe to cache long.
+    - pattern: 'workbox-*.js'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=31536000, immutable'
