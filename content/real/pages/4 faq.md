@@ -9,7 +9,9 @@ Every page, including this one, is a plain markdown file in `content/pages/`.
 There's no database or CMS involved.
 
 **Can pages include images?**
-Yes — just reference a relative image path and it'll be optimized and precached
+Yes — just reference a relative image path and it'll be optimized and precached.
+
+Better zooming coming soon
 automatically:
 
 ![A placeholder FAQ icon](./assets/faq.png)
