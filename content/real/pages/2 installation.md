@@ -1,10 +1,25 @@
 # Installation
 
-Follow these steps to get set up.
+Dance Schedule works right in your browser — no app store needed. Adding it
+to your home screen lets it open like any other app, and keeps the schedule
+available even when you don't have a signal or Wi-Fi.
 
-1. Install dependencies with `pnpm install`.
-2. Start the dev server with `pnpm dev`.
+## On iPhone or iPad
 
-Here's a screenshot — click it to view full-screen:
+1. Open this site in **Safari**. (Other browsers on iOS, like Chrome or
+   Firefox, can't add it to your home screen — it has to be Safari.)
+2. Tap the **Share** icon (the square with an arrow pointing up) in the
+   toolbar.
+3. Scroll down and tap **Add to Home Screen**.
+4. Tap **Add** in the top right.
 
-![A screenshot of the app](./assets/screenshot.png)
+## On Android
+
+1. Open this site in **Chrome**.
+2. Tap the **⋮** menu in the top right.
+3. Tap **Add to Home screen** (or **Install app**, depending on your Chrome
+   version).
+4. Confirm by tapping **Add** or **Install**.
+
+Chrome may also show an **Install** banner or icon in the address bar on its
+own after a couple of visits — tapping that works the same way.

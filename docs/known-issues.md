@@ -79,3 +79,31 @@ also written (same TODO, two places).
 than `wide` (mobile) — only affects the "richer install UI" presentation,
 not installability itself. Worth doing once real screenshots exist, not
 urgent.
+
+## Future work: native "Install" button on Chrome/Android via `beforeinstallprompt`
+
+**Raised:** 2026-07-26, while writing the Installation page's manual
+instructions ("tap the ⋮ menu → Add to Home screen").
+
+Chrome/Android (and other Chromium browsers) fire a `beforeinstallprompt`
+event when the page is installable, which can be captured and deferred to
+show a custom "Install" button that triggers the browser's native install
+prompt directly — nicer than asking the user to find the menu item
+themselves. iOS Safari has no equivalent API (no installability detection,
+no programmatic prompt), so manual instructions stay required there
+regardless.
+
+**Why deferred:** manual instructions are correct and sufficient for now;
+this is a UX polish item, not a gap. No standard package is worth adding for
+it (surveyed in conversation — the install-prompt ecosystem is thin and
+fragmented; the one community option, `pwa-install`, is an unofficial web
+component and would mean handing install UI/copy to a third-party dependency
+instead of this repo's hand-editable content).
+
+**Direction when picked up:** a small custom hook (listen for
+`beforeinstallprompt`, call `.preventDefault()`, store the event, expose a
+`promptInstall()` that calls `event.prompt()`) — Android/Chrome only, ~15
+lines, no dependency needed. Would need to live in a component (not the
+plain-markdown Installation page), likely surfaced as a button in `Nav` or
+on the Installation page itself once that page can host interactive
+elements again.
