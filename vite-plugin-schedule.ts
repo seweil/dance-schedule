@@ -7,7 +7,13 @@ import type { ScheduleEventData } from './src/types/schedule'
 
 export const SCHEDULE_VIRTUAL_MODULE_ID = 'virtual:schedule'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + SCHEDULE_VIRTUAL_MODULE_ID
-const SCHEDULE_FILE_RELATIVE_PATH = 'data/event-schedule.xlsx'
+const SCHEDULE_FILE_NAME = 'event-schedule.xlsx'
+
+export interface SchedulePluginOptions {
+  // Directory (relative to the Vite project root) holding event-schedule.xlsx for the
+  // active content set — e.g. "content/real/data". See docs/design/content-sets.md.
+  dataDir: string
+}
 
 interface RawScheduleRow {
   date: Date
@@ -62,16 +68,16 @@ async function loadScheduleData(scheduleFile: string): Promise<ScheduleEventData
   return events
 }
 
-// Resolves virtual:schedule to the schedule data parsed from data/event-schedule.xlsx at
-// build time, so the client bundle never sees the raw spreadsheet or a parsing library.
+// Resolves virtual:schedule to the schedule data parsed from <dataDir>/event-schedule.xlsx
+// at build time, so the client bundle never sees the raw spreadsheet or a parsing library.
 // Watches the source file so pnpm dev picks up edits like content hot-reloads today.
-export function schedulePlugin(): Plugin {
-  let scheduleFile = path.resolve(process.cwd(), SCHEDULE_FILE_RELATIVE_PATH)
+export function schedulePlugin(options: SchedulePluginOptions): Plugin {
+  let scheduleFile = path.resolve(process.cwd(), options.dataDir, SCHEDULE_FILE_NAME)
 
   return {
     name: 'schedule',
     configResolved(config) {
-      scheduleFile = path.resolve(config.root, SCHEDULE_FILE_RELATIVE_PATH)
+      scheduleFile = path.resolve(config.root, options.dataDir, SCHEDULE_FILE_NAME)
     },
     resolveId(id) {
       if (id === SCHEDULE_VIRTUAL_MODULE_ID) {

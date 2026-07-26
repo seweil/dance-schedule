@@ -9,8 +9,15 @@ import type { DanceSessionData } from './src/types/danceSchedule'
 
 export const DANCE_SCHEDULE_VIRTUAL_MODULE_ID = 'virtual:dance-schedule'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + DANCE_SCHEDULE_VIRTUAL_MODULE_ID
-const DANCE_SCHEDULE_FILE_RELATIVE_PATH = 'data/dance-schedule.xlsx'
-const DANCE_SCHEDULE_DUMP_RELATIVE_PATH = 'data/dance-schedule-dump.md'
+const DANCE_SCHEDULE_FILE_NAME = 'dance-schedule.xlsx'
+const DANCE_SCHEDULE_DUMP_FILE_NAME = 'dance-schedule-dump.md'
+
+export interface DanceSchedulePluginOptions {
+  // Directory (relative to the Vite project root) holding dance-schedule.xlsx (and
+  // where dance-schedule-dump.md is (re)written) for the active content set — e.g.
+  // "content/real/data". See docs/design/content-sets.md.
+  dataDir: string
+}
 
 async function loadDanceScheduleData(danceScheduleFile: string): Promise<DanceSessionData[]> {
   // Reads every sheet (one per day) via the default export — this file's matrix
@@ -38,18 +45,26 @@ async function loadDanceScheduleData(danceScheduleFile: string): Promise<DanceSe
 }
 
 // Resolves virtual:dance-schedule to the data parsed from
-// data/dance-schedule.xlsx at build time — mirrors vite-plugin-schedule.ts's
+// <dataDir>/dance-schedule.xlsx at build time — mirrors vite-plugin-schedule.ts's
 // schedulePlugin() (build-time only, watches the source file in dev), extended to
 // read every sheet in the file rather than a single schema-mapped one.
-export function danceSchedulePlugin(): Plugin {
-  let danceScheduleFile = path.resolve(process.cwd(), DANCE_SCHEDULE_FILE_RELATIVE_PATH)
-  let danceScheduleDumpFile = path.resolve(process.cwd(), DANCE_SCHEDULE_DUMP_RELATIVE_PATH)
+export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin {
+  let danceScheduleFile = path.resolve(process.cwd(), options.dataDir, DANCE_SCHEDULE_FILE_NAME)
+  let danceScheduleDumpFile = path.resolve(
+    process.cwd(),
+    options.dataDir,
+    DANCE_SCHEDULE_DUMP_FILE_NAME,
+  )
 
   return {
     name: 'dance-schedule',
     configResolved(config) {
-      danceScheduleFile = path.resolve(config.root, DANCE_SCHEDULE_FILE_RELATIVE_PATH)
-      danceScheduleDumpFile = path.resolve(config.root, DANCE_SCHEDULE_DUMP_RELATIVE_PATH)
+      danceScheduleFile = path.resolve(config.root, options.dataDir, DANCE_SCHEDULE_FILE_NAME)
+      danceScheduleDumpFile = path.resolve(
+        config.root,
+        options.dataDir,
+        DANCE_SCHEDULE_DUMP_FILE_NAME,
+      )
     },
     resolveId(id) {
       if (id === DANCE_SCHEDULE_VIRTUAL_MODULE_ID) {

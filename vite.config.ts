@@ -14,6 +14,14 @@ import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
 const BUILD_NUMBER = execSync('git rev-parse --short HEAD').toString().trim()
 const BUILD_TIME = new Date().toISOString()
 
+// Selects which content/<set>/ directory supplies pages and schedule data for this
+// build — see docs/design/content-sets.md. Read directly from process.env (no
+// loadEnv()/.env file involved anywhere in this repo) since it's a plain Node-context
+// build-time switch, never exposed to the client bundle. Defaults to "real" so
+// pnpm dev/build/preview/test:e2e behave exactly as before when unset.
+const CONTENT_SET = process.env.CONTENT_SET || 'real'
+const CONTENT_DIR = `content/${CONTENT_SET}`
+
 export default defineConfig({
   define: {
     __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
@@ -37,17 +45,18 @@ export default defineConfig({
       }),
     },
     Pages({
-      // content/pages/ only has .md files and src/pages/ only has .tsx files today, so
-      // sharing one extensions list across both dirs doesn't cross-contaminate either.
+      // <CONTENT_DIR>/pages only has .md files and src/pages/ only has .tsx files
+      // today, so sharing one extensions list across both dirs doesn't cross-
+      // contaminate either.
       dirs: [
-        { dir: 'content/pages', baseRoute: '' },
+        { dir: `${CONTENT_DIR}/pages`, baseRoute: '' },
         { dir: 'src/pages', baseRoute: '' },
       ],
       extensions: ['md', 'tsx'],
       resolver: 'react',
     }),
-    schedulePlugin(),
-    danceSchedulePlugin(),
+    schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
+    danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
     react(),
     VitePWA({
       strategies: 'generateSW',

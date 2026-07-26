@@ -24,7 +24,7 @@ Check there for the reasoning behind a past decision before re-deriving it.
   Playwright for E2E and PWA-behavior tests (offline mode, service worker, install flow)
 - **Linting/formatting:** ESLint + Prettier
 - **Content/routing:** pages and the nav menu are generated from markdown files in
-  `content/pages/` — see "Content pipeline" below
+  `content/<content-set>/pages/` — see "Content pipeline" below
 
 ## Commands
 
@@ -39,6 +39,8 @@ pnpm test:e2e         # run Playwright tests against the built/previewed app
 pnpm typecheck        # tsc --noEmit
 pnpm lint             # eslint
 pnpm lint:fix         # eslint --fix
+pnpm dev:test         # start dev server against the "test" content set (fixture data)
+pnpm build:test       # type-check + production build of the "test" content set
 ```
 
 Note: Vite's dev server does not register the service worker the same way production
@@ -53,16 +55,23 @@ docs/
     README.md                 # design-doc convention (see "Project overview" above)
     <topic>.md                # one living design doc per architectural topic
 content/
-  pages/
-    index.md                  # → route "/"
-    2 installation.md         # → route "/installation" (nav-sorted 2nd)
-    assets/                   # images referenced by the markdown files above
-data/
-  event-schedule.xlsx     # schedule source data — see "Schedule data pipeline" below
-  dance-schedule.xlsx     # multi-day/multi-room convention schedule source data —
-                          # see docs/design/dance-schedule.md (debug page only so
-                          # far at /debug/dance-schedule — no real page renders
-                          # this yet)
+  <content-set>/          # one directory per content set (any name) — which one is
+                          # active is chosen by the CONTENT_SET env var; see
+                          # docs/design/content-sets.md. Two always exist:
+                          #   real/ — the default/production set (CONTENT_SET unset or "real")
+                          #   test/ — deliberately edge-case-flavored fixture set —
+                          #           `pnpm dev:test` / `pnpm build:test`
+    pages/
+      index.md                  # → route "/"
+      2 installation.md         # → route "/installation" (nav-sorted 2nd)
+      assets/                   # images referenced by the markdown files above
+                                 # (only present if a set's pages reference images)
+    data/
+      event-schedule.xlsx     # schedule source data — see "Schedule data pipeline" below
+      dance-schedule.xlsx     # multi-day/multi-room convention schedule source data —
+                              # see docs/design/dance-schedule.md (debug page only so
+                              # far at /debug/dance-schedule — no real page renders
+                              # this yet)
 src/
   components/     # reusable UI components (incl. ZoomableImage, Nav)
   pages/          # hand-written routes, auto-routed like content pages (e.g.
@@ -80,11 +89,17 @@ e2e/
 
 ## Content pipeline
 
-Pages and the nav menu are generated from plain markdown files in `content/pages/` —
-there is no hand-written route for a content page and no frontmatter. `content/pages/`
-is a flat list of files (no further subfolders for `.md` files) — each file's name
-becomes its route/nav label, one level deep. `content/pages/assets/` holds the images
-those files reference; it isn't scanned for routes since `vite-plugin-pages` only
+Which content set is active is chosen by the `CONTENT_SET` env var read in
+`vite.config.ts` (default `real` if unset) — see "Project structure" above and
+`docs/design/content-sets.md`. Everything below refers to whichever
+`content/<content-set>/pages/` directory is currently selected.
+
+Pages and the nav menu are generated from plain markdown files in that content
+set's `pages/` directory — there is no hand-written route for a content page and
+no frontmatter. It's a flat list of files (no further subfolders for `.md` files) —
+each file's name becomes its route/nav label, one level deep. Its `assets/`
+subfolder holds the images those files reference (only needed if any page
+references an image); it isn't scanned for routes since `vite-plugin-pages` only
 picks up the `.md` extension.
 
 - **Naming**: content filenames are kebab-case (`getting-started.md`, not
@@ -93,19 +108,20 @@ picks up the `.md` extension.
   and the extension are stripped to produce both the route and the title-cased label
   (`2 installation.md` → route `/installation`, label "Installation"). Files with no
   prefix sort after prefixed ones, in filesystem order.
-- **Routing**: `vite-plugin-pages` (configured in `vite.config.ts`) scans
-  `content/pages/` and turns each `.md` file into a route; `src/lib/buildNavTree.ts`'s
-  `normalizeRoutes` then strips the order prefix from each route's path before it's
-  registered (`App.tsx`), so the live route always matches the clean nav href — never
-  the raw filename. This works identically in `pnpm dev` (HMR on file add/remove/rename)
-  and in `pnpm build` (statically resolved) — no custom watch code.
+- **Routing**: `vite-plugin-pages` (configured in `vite.config.ts`) scans the active
+  content set's `pages/` directory and turns each `.md` file into a route;
+  `src/lib/buildNavTree.ts`'s `normalizeRoutes` then strips the order prefix from each
+  route's path before it's registered (`App.tsx`), so the live route always matches
+  the clean nav href — never the raw filename. This works identically in `pnpm dev`
+  (HMR on file add/remove/rename) and in `pnpm build` (statically resolved) — no
+  custom watch code.
 - **Compilation**: `@mdx-js/rollup` compiles each `.md` into a React component
   (`format: 'md'` keeps JSX-in-content disabled — authors write plain markdown only).
 - **Images**: write standard `![alt](./assets/relative.png)` — `rehype-mdx-import-media`
   rewrites relative paths into real Vite asset imports so they're hashed/optimized in
-  the build (required for the PWA precache to work correctly). All content images live
-  in `content/pages/assets/`, referenced with a `./assets/` prefix from each markdown
-  file.
+  the build (required for the PWA precache to work correctly). Content images live in
+  that content set's `pages/assets/`, referenced with a `./assets/` prefix from each
+  markdown file.
 - **Image zoom**: every rendered `<img>` is automatically replaced with
   `src/components/ZoomableImage.tsx` (a `yet-another-react-lightbox` wrapper) via a
   global `MDXProvider` override in `App.tsx` — content authors don't add any markup
@@ -117,13 +133,17 @@ picks up the `.md` extension.
 
 ## Schedule data pipeline
 
-Full rationale in `docs/design/schedule-page.md`. The short version:
+Full rationale in `docs/design/schedule-page.md`; content-set mechanics in
+`docs/design/content-sets.md`. The short version:
 
-- The schedule/events page is generated from `data/event-schedule.xlsx`, parsed at
-  **build time** by a custom Vite plugin (`vite-plugin-schedule.ts`) into the
-  `virtual:schedule` module — never shipped to the client, and automatically covered
-  by the existing PWA precache since the parsed data ends up in the route's own JS
-  chunk. Editing the spreadsheet requires a rebuild+redeploy to take effect.
+- The schedule/events page is generated from the active content set's
+  `data/event-schedule.xlsx` (see "Content pipeline" above for how the content set
+  is chosen — `schedulePlugin`/`danceSchedulePlugin` both take a `dataDir` option
+  computed from `CONTENT_SET`), parsed at **build time** by a custom Vite plugin
+  (`vite-plugin-schedule.ts`) into the `virtual:schedule` module — never shipped to
+  the client, and automatically covered by the existing PWA precache since the
+  parsed data ends up in the route's own JS chunk. Editing the spreadsheet requires
+  a rebuild+redeploy to take effect.
 - Date/time cells are parsed forgivingly (multiple date formats, AM/PM or 24-hour
   time, meridiem/year inference for ambiguous input) — see `src/lib/parseEventDate.ts`
   and `src/lib/parseTimeRange.ts` and their colocated table-driven tests, which are
