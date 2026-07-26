@@ -4,6 +4,7 @@ import { MDXProvider } from '@mdx-js/react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
 import { Nav } from './components/Nav'
+import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { ZoomableImage } from './components/ZoomableImage'
 import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
 import { normalizeRoutes } from './lib/buildNavTree'
@@ -71,6 +72,7 @@ export function App() {
           <Pages />
         </Suspense>
         <UpdatePrompt />
+        <ScrollToTopButton />
       </MDXProvider>
     </BrowserRouter>
   )

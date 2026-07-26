@@ -13,3 +13,29 @@ class ResizeObserverStub {
   disconnect() {}
 }
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
+
+// jsdom doesn't implement IntersectionObserver — needed by useIsElementVisible
+// (ScrollToTopButton). This default never fires; a test that needs to simulate a
+// visibility change should stub globalThis.IntersectionObserver itself, scoped to
+// that test file, rather than relying on this one.
+class IntersectionObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.IntersectionObserver ??=
+  IntersectionObserverStub as unknown as typeof IntersectionObserver
+
+// jsdom doesn't implement matchMedia — needed by ScrollToTopButton's
+// prefers-reduced-motion check. Defaults to "no match" (motion not reduced);
+// override per-test with vi.spyOn(window, 'matchMedia') to simulate the opposite.
+globalThis.matchMedia ??=
+  ((query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia
