@@ -106,7 +106,35 @@ describe('DanceScheduleGrid', () => {
     const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
     const tick = container.querySelector('.halfHourTick')
     expect(tick).toBeInTheDocument()
-    expect(tick).toHaveStyle({ gridRow: '4' })
+    // No header row in bodyGrid to offset past anymore — layout.rowStart (3 here, per
+    // makeLayout's halfHourMarks) maps directly to the CSS grid row.
+    expect(tick).toHaveStyle({ gridRow: '3' })
+  })
+
+  it('renders header content (corner, room headers) and body content (time labels, cards) in separate grids', () => {
+    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const roomHeader = container.querySelector('.roomHeader')
+    const timeLabel = container.querySelector('.timeLabel')
+    expect(roomHeader).toBeInTheDocument()
+    expect(timeLabel).toBeInTheDocument()
+    // Neither shares the other's nearest ".grid" ancestor — confirms headerGrid and
+    // bodyGrid are genuinely separate grid containers, not one shared grid.
+    expect(roomHeader?.closest('.grid')).not.toBe(timeLabel?.closest('.grid'))
+  })
+
+  it('gives header and body grids the identical computed gridTemplateColumns', () => {
+    const { container } = render(
+      <DanceScheduleGrid
+        layout={makeLayout({ visibleRooms: ['Ballroom Centre', 'Ballroom East'] })}
+        showGca
+      />,
+    )
+    const roomHeader = container.querySelector('.roomHeader')
+    const timeLabel = container.querySelector('.timeLabel')
+    const headerGrid = roomHeader?.closest('.grid') as HTMLElement
+    const bodyGrid = timeLabel?.closest('.grid') as HTMLElement
+    expect(headerGrid.style.gridTemplateColumns).toBe(bodyGrid.style.gridTemplateColumns)
+    expect(headerGrid.style.gridTemplateColumns).not.toBe('')
   })
 
   it("colors a room card's background by the session's level", () => {

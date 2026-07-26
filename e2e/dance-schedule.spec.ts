@@ -10,6 +10,30 @@ test('nav links to the dance schedule page, which renders the default date\'s gr
   await expect(page.locator('[class*="roomHeader"]').first()).toBeVisible()
 })
 
+test('desktop: the panel itself scrolls both directions, unaffected by the mobile split-header behavior', async ({
+  page,
+}) => {
+  await page.goto('/dance-schedule')
+  const panel = page.locator('[class*="panelWrapper"]')
+  const { scrollWidth, clientWidth, scrollHeight, clientHeight } = await panel.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  }))
+  // The panel is its own scroll area on desktop (today's pre-existing behavior) —
+  // more rooms than fit horizontally, and content taller than the 70vh cap vertically.
+  expect(scrollWidth).toBeGreaterThan(clientWidth)
+  expect(scrollHeight).toBeGreaterThan(clientHeight)
+
+  // The page itself never needs to scroll — everything is contained in the panel.
+  const { docScrollHeight, docClientHeight } = await page.evaluate(() => ({
+    docScrollHeight: document.documentElement.scrollHeight,
+    docClientHeight: document.documentElement.clientHeight,
+  }))
+  expect(docScrollHeight).toBeLessThanOrEqual(docClientHeight + 1)
+})
+
 test('changing the date select swaps the grid to that date', async ({ page }) => {
   await page.goto('/dance-schedule')
   await expect(page.getByText('All Callers Dance')).not.toBeVisible()
@@ -147,26 +171,109 @@ test.describe('mobile viewport', () => {
 
       test('grid spans the full viewport width with no left/right inset', async ({ page }) => {
         await page.goto('/dance-schedule')
-        const grid = page.locator('[class*="scrollContainer"]')
-        await expect(grid).toBeVisible()
+        const panel = page.locator('[class*="panelWrapper"]')
+        await expect(panel).toBeVisible()
 
-        const box = await grid.boundingBox()
+        const box = await panel.boundingBox()
         const viewportWidth = page.viewportSize()?.width ?? 0
         expect(Math.abs(box?.x ?? 999)).toBeLessThan(2)
-        // The grid itself may be wider than the viewport (more room columns than fit,
-        // scrolling the page horizontally) — only the left edge needs to be flush.
-        expect(box?.width ?? 0).toBeGreaterThanOrEqual(viewportWidth)
+        expect(box?.width ?? 0).toBeCloseTo(viewportWidth, 0)
       })
 
-      test('page scrolls horizontally when the grid is wider than the viewport', async ({
+      test('only the grid body scrolls horizontally — the page itself never overflows', async ({
         page,
       }) => {
         await page.goto('/dance-schedule')
-        const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
+        const body = page.locator('[class*="bodyWrapper"]')
+        const { scrollWidth, clientWidth } = await body.evaluate((el) => ({
+          scrollWidth: el.scrollWidth,
+          clientWidth: el.clientWidth,
         }))
+        // More room columns than fit — the body itself is the thing that scrolls.
         expect(scrollWidth).toBeGreaterThan(clientWidth)
+
+        const { docScrollWidth, docClientWidth } = await page.evaluate(() => ({
+          docScrollWidth: document.documentElement.scrollWidth,
+          docClientWidth: document.documentElement.clientWidth,
+        }))
+        expect(docScrollWidth).toBeLessThanOrEqual(docClientWidth)
+      })
+
+      test('scrolling the grid body horizontally leaves nav, heading, and filters in place', async ({
+        page,
+      }) => {
+        await page.goto('/dance-schedule')
+        const navLink = page.getByRole('link', { name: /dance schedule/i })
+        const heading = page.getByRole('heading', { name: /dance schedule/i })
+        const dateSelect = page.getByLabel('Date')
+        const [navBoxBefore, headingBoxBefore, dateBoxBefore] = await Promise.all([
+          navLink.boundingBox(),
+          heading.boundingBox(),
+          dateSelect.boundingBox(),
+        ])
+
+        const body = page.locator('[class*="bodyWrapper"]')
+        await body.evaluate((el) => {
+          el.scrollLeft = 300
+        })
+
+        const [navBoxAfter, headingBoxAfter, dateBoxAfter] = await Promise.all([
+          navLink.boundingBox(),
+          heading.boundingBox(),
+          dateSelect.boundingBox(),
+        ])
+        expect(navBoxAfter?.x).toBe(navBoxBefore?.x)
+        expect(headingBoxAfter?.x).toBe(headingBoxBefore?.x)
+        expect(dateBoxAfter?.x).toBe(dateBoxBefore?.x)
+      })
+
+      test('scrolling the grid body horizontally mirrors onto the header (room names track their column)', async ({
+        page,
+      }) => {
+        await page.goto('/dance-schedule')
+        const firstHeaderBefore = await page.locator('[class*="roomHeader"]').first().boundingBox()
+
+        const body = page.locator('[class*="bodyWrapper"]')
+        const header = page.locator('[class*="headerWrapper"]')
+        await body.evaluate((el) => {
+          el.scrollLeft = 300
+        })
+
+        // The scroll listener fires on the native 'scroll' event, which can lag a
+        // JS-driven scrollLeft assignment by more than one tick (observed live) —
+        // poll for the sync to settle rather than asserting immediately.
+        await expect(async () => {
+          const [headerScrollLeft, bodyScrollLeft] = await Promise.all([
+            header.evaluate((el) => el.scrollLeft),
+            body.evaluate((el) => el.scrollLeft),
+          ])
+          expect(headerScrollLeft).toBe(bodyScrollLeft)
+          expect(bodyScrollLeft).toBeGreaterThan(0)
+        }).toPass()
+
+        const firstHeaderAfter = await page.locator('[class*="roomHeader"]').first().boundingBox()
+        // The room header moved with its column (not left in place like nav/filters) —
+        // this is what keeps a header aligned with the cells underneath it.
+        expect(firstHeaderAfter?.x).not.toBe(firstHeaderBefore?.x)
+      })
+
+      test('switching date resets horizontal scroll position', async ({ page }) => {
+        await page.goto('/dance-schedule')
+        const body = page.locator('[class*="bodyWrapper"]')
+        await body.evaluate((el) => {
+          el.scrollLeft = 300
+        })
+        await expect(async () => {
+          expect(await body.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0)
+        }).toPass()
+
+        // Index 1 — Friday is always the 2nd of the 3 known dates.
+        await page.getByLabel('Date').selectOption({ index: 1 })
+
+        expect(await body.evaluate((el) => el.scrollLeft)).toBe(0)
+        expect(
+          await page.locator('[class*="headerWrapper"]').evaluate((el) => el.scrollLeft),
+        ).toBe(0)
       })
     })
   }

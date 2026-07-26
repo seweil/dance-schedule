@@ -1,31 +1,45 @@
-/* Sticky-header/sticky-time-column scrollable calendar grid. The same layout serves
-   both desktop and mobile: room columns get a touch-friendly minimum width (set
-   inline, since column/row counts are data-driven) and the container scrolls
-   horizontally once there are more columns than fit — no separate mobile layout. */
-.scrollContainer {
+/* Two independently-scrollable grids (headerWrapper/bodyWrapper below), not one —
+   full rationale in docs/design/dance-schedule-mobile-scroll.md. Above the
+   breakpoint, this panel is the ONLY scrolling box (both wrappers inherit normal
+   flow), so scrolling it moves header and body together automatically — byte-
+   identical to this grid's original single-.scrollContainer design, no JS involved.
+   Room columns get a touch-friendly minimum width (set inline, since column/row
+   counts are data-driven). */
+.panelWrapper {
   overflow: auto;
   max-height: 70vh;
   border: 1px solid var(--color-border);
 }
 
 /* Below this (narrow-portrait OR short-landscape — an iPhone in landscape is wide
-   but short, so width alone wouldn't catch it) the inner scroll area is replaced by
-   normal page scrolling: the container stops clipping/scrolling itself, so the
-   existing sticky rules below (.corner/.roomHeader/.timeLabel/.halfHourTick) resolve
-   relative to the real viewport instead of this box — no other change needed for
-   them to pin against the page as it scrolls. The negative margins cancel body's
-   horizontal padding exactly (src/index.css) so the grid bleeds flush to the true
-   viewport edges — deliberately not a vw-based trick (calc(50% - 50vw)): vw is
-   defined relative to the viewport including any reserved-space scrollbar, which
-   doesn't match the containing block's actual width once one appears (confirmed live
-   — it introduced a several-px offset), whereas cancelling a known, explicit padding
-   value has no such edge case. */
+   but short, so width alone wouldn't catch it): the panel stops being its own scroll
+   area (letting the page scroll vertically instead, so headerWrapper's sticky top
+   below resolves against the real viewport), and bleeds edge-to-edge — the negative
+   margins cancel body's horizontal padding exactly (src/index.css), deliberately not
+   a vw-based trick (calc(50% - 50vw)): vw is defined relative to the viewport
+   including any reserved-space scrollbar, which doesn't match the containing block's
+   actual width once one appears (confirmed live — it introduced a several-px
+   offset), whereas cancelling a known, explicit padding value has no such edge case.
+   headerWrapper/bodyWrapper below take on independent scrolling roles only in this
+   media query — the JS scroll-sync between them (DanceScheduleGrid.tsx) is always
+   attached but naturally inert above this breakpoint, since bodyWrapper never fires
+   its own scroll event when panelWrapper is the one actually scrolling. */
 @media (max-width: 640px), (max-height: 500px) {
-  .scrollContainer {
+  .panelWrapper {
     overflow: visible;
     max-height: none;
     margin-left: calc(-1 * var(--space-sm));
     margin-right: calc(-1 * var(--space-sm));
+  }
+
+  .headerWrapper {
+    position: sticky;
+    top: 0;
+    overflow-x: hidden;
+  }
+
+  .bodyWrapper {
+    overflow-x: auto;
   }
 }
 

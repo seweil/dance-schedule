@@ -3,32 +3,6 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
-## Mobile/landscape dance-schedule grid: room header doesn't stay pinned during horizontal scroll
-
-**Found:** 2026-07-26, while verifying the content-sets change (unrelated to
-that work — pre-existing). **Updated:** 2026-07-26, after reworking the
-grid's small-screen scroll behavior (page-level scroll + edge-to-edge width,
-below `(max-width: 640px), (max-height: 500px)` in
-`DanceScheduleGrid.module.css`) — the original bug report's mechanism (an
-inner `.scrollContainer` div with its own `scrollLeft`) no longer exists
-below that breakpoint, replaced by the whole page scrolling instead. The
-underlying question survives in the new model, restated below; this wasn't
-addressed as part of that work since only vertical (top) pinning was asked
-for.
-
-`.roomHeader` in `src/components/DanceScheduleGrid.module.css` is
-`position: sticky; top: 0` only — pinned vertically (now correctly, against
-the real viewport, on small screens) but with no `left: 0` it doesn't stay
-in place during a *horizontal* scroll, whether that's the page itself
-(small screens, current architecture) or the old inner scroll box (desktop,
-still `overflow: auto` above the breakpoint — unchanged there).
-
-**Fix direction (undecided):** either the CSS is wrong (room headers should
-also pin horizontally, like a frozen spreadsheet column, as you scroll) or
-this is fine as-is (room headers were only ever meant to pin vertically;
-`.corner`/`.timeLabel` already have `left: 0` and stay pinned horizontally
-today). Decide the intended UX before adding `left` to `.roomHeader`.
-
 ## Flaky: "nav links to the schedule page, which renders events"
 
 **Found:** 2026-07-26, same verification pass.
