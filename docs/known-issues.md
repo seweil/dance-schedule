@@ -42,3 +42,40 @@ regression.
 **Next step:** re-run `pnpm test:e2e` a few times to confirm it's actually
 flaky rather than a one-off fluke; if it recurs, look at SW registration
 timing on that route.
+
+## PWA manifest: icons never added, description still a placeholder
+
+**Found:** 2026-07-26, while verifying the Amplify Hosting deploy
+(unrelated to hosting — pre-existing; DevTools → Application → Manifest
+surfaced it against the live Amplify URL).
+
+Chrome's manifest audit reports:
+- `icons/icon-192.png`, `icons/icon-512.png`, `icons/icon-maskable-512.png`
+  all fail to load (404)
+- "No supplied icon is at least 144px square" / "Most operating systems
+  require square icons" — a consequence of the above, not a separate defect
+- `description` field renders as the literal string
+  `"TODO: one-line description of what this app does."`
+
+**Root cause:** `public/manifest.webmanifest` references all three icon
+paths correctly, but `public/icons/` only contains a `.gitkeep` — the actual
+PNG files were never added (confirmed both in the source tree and in a local
+`dist/` build). The `description` field is the unfilled placeholder text,
+same wording as the still-TODO project-overview line in `CLAUDE.md`.
+
+**Not just cosmetic:** per `CLAUDE.md`, PWA audit regressions are meant to
+be build-breaking, not optional cleanup — a missing valid icon set is a real
+installability gap (affects the actual "Add to Home Screen" / install
+experience), not merely a "richer UI" nice-to-have.
+
+**Fix direction:** design/export real 192×192, 512×512, and a maskable
+512×512 icon (with safe-area padding per Chrome's maskable-icon guidance),
+add them under `public/icons/`, and replace the `description` placeholder
+with a real one-line summary once the project overview in `CLAUDE.md` is
+also written (same TODO, two places).
+
+**Lower priority (same audit pass, cosmetic only):** no manifest
+`screenshots` entries with `form_factor: "wide"` (desktop) or without/other
+than `wide` (mobile) — only affects the "richer install UI" presentation,
+not installability itself. Worth doing once real screenshots exist, not
+urgent.
