@@ -8,6 +8,27 @@
   border: 1px solid var(--color-border);
 }
 
+/* Below this (narrow-portrait OR short-landscape — an iPhone in landscape is wide
+   but short, so width alone wouldn't catch it) the inner scroll area is replaced by
+   normal page scrolling: the container stops clipping/scrolling itself, so the
+   existing sticky rules below (.corner/.roomHeader/.timeLabel/.halfHourTick) resolve
+   relative to the real viewport instead of this box — no other change needed for
+   them to pin against the page as it scrolls. The negative margins cancel body's
+   horizontal padding exactly (src/index.css) so the grid bleeds flush to the true
+   viewport edges — deliberately not a vw-based trick (calc(50% - 50vw)): vw is
+   defined relative to the viewport including any reserved-space scrollbar, which
+   doesn't match the containing block's actual width once one appears (confirmed live
+   — it introduced a several-px offset), whereas cancelling a known, explicit padding
+   value has no such edge case. */
+@media (max-width: 640px), (max-height: 500px) {
+  .scrollContainer {
+    overflow: visible;
+    max-height: none;
+    margin-left: calc(-1 * var(--space-sm));
+    margin-right: calc(-1 * var(--space-sm));
+  }
+}
+
 .grid {
   display: grid;
 }

@@ -1,3 +1,13 @@
+/* Explicit, not the browser's implicit default (historically ~8px in every major
+   engine) — a known value, referenced by name (e.g. DanceScheduleGrid.module.css's
+   full-bleed mobile grid), beats relying on an unstated UA default. Padding, not
+   margin, so it can be cancelled with a plain negative margin elsewhere without the
+   margin-collapsing edge cases a body margin can introduce. */
+body {
+  margin: 0;
+  padding: 0 var(--space-sm);
+}
+
 :root {
   font-family:
     system-ui,

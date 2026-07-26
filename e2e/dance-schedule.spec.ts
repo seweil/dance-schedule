@@ -94,41 +94,80 @@ test('app shell still renders the dance schedule page when offline after the SW 
 })
 
 test.describe('mobile viewport', () => {
-  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 13']
-  test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch })
+  // Both orientations matter here, not just portrait: an iPhone in landscape is wide
+  // (past a naive width-only breakpoint) but short — exactly the case
+  // DanceScheduleGrid.module.css's `(max-width: 640px), (max-height: 500px)` query is
+  // built to also catch, and the primary motivating scenario for this behavior.
+  const orientations = [
+    { label: 'portrait', deviceKey: 'iPhone 13' },
+    { label: 'landscape', deviceKey: 'iPhone 13 landscape' },
+  ] as const
 
-  test('grid scrolls horizontally with the time column and room header staying pinned', async ({
-    page,
-  }) => {
-    await page.goto('/dance-schedule')
-    await expect(page.getByRole('heading', { name: /dance schedule/i })).toBeVisible()
+  for (const { label, deviceKey } of orientations) {
+    test.describe(label, () => {
+      const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices[deviceKey]
+      test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch })
 
-    const firstHeader = page.locator('[class*="roomHeader"]').first()
-    await expect(firstHeader).toBeVisible()
-    const beforeScrollBox = await firstHeader.boundingBox()
+      test('room header pins to the top of the viewport as the page scrolls down', async ({
+        page,
+      }) => {
+        await page.goto('/dance-schedule')
+        const firstHeader = page.locator('[class*="roomHeader"]').first()
+        await expect(firstHeader).toBeVisible()
 
-    // The grid's own scroll container should be wider than the viewport (more rooms
-    // than fit), independent of the page itself never overflowing horizontally.
-    const grid = page.locator('[class*="scrollContainer"]')
-    const { scrollWidth, clientWidth } = await grid.evaluate((el) => ({
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-    }))
-    expect(scrollWidth).toBeGreaterThan(clientWidth)
+        await page.evaluate(() => window.scrollBy(0, 400))
+        await expect(async () => {
+          const scrollTop = await page.evaluate(() => document.documentElement.scrollTop)
+          expect(scrollTop).toBeGreaterThan(0)
+        }).toPass()
 
-    await grid.evaluate((el) => {
-      el.scrollLeft = 300
+        // Sticky top: 0 puts it flush with the viewport's top edge once scrolled past
+        // its natural position — a couple of px of slack for sub-pixel layout.
+        const box = await firstHeader.boundingBox()
+        expect(box?.y ?? -1).toBeGreaterThanOrEqual(0)
+        expect(box?.y ?? Infinity).toBeLessThan(2)
+      })
+
+      test('nav and filters scroll out of view as the page scrolls down', async ({ page }) => {
+        await page.goto('/dance-schedule')
+        const navLink = page.getByRole('link', { name: /dance schedule/i })
+        const dateSelect = page.getByLabel('Date')
+        await expect(navLink).toBeVisible()
+        await expect(dateSelect).toBeVisible()
+
+        await page.evaluate(() => window.scrollBy(0, 400))
+
+        // Fully above the viewport's top edge — not just "not intersecting the
+        // pointer," genuinely scrolled out of view.
+        const navBox = await navLink.boundingBox()
+        const dateBox = await dateSelect.boundingBox()
+        expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual(0)
+        expect((dateBox?.y ?? 0) + (dateBox?.height ?? 0)).toBeLessThanOrEqual(0)
+      })
+
+      test('grid spans the full viewport width with no left/right inset', async ({ page }) => {
+        await page.goto('/dance-schedule')
+        const grid = page.locator('[class*="scrollContainer"]')
+        await expect(grid).toBeVisible()
+
+        const box = await grid.boundingBox()
+        const viewportWidth = page.viewportSize()?.width ?? 0
+        expect(Math.abs(box?.x ?? 999)).toBeLessThan(2)
+        // The grid itself may be wider than the viewport (more room columns than fit,
+        // scrolling the page horizontally) — only the left edge needs to be flush.
+        expect(box?.width ?? 0).toBeGreaterThanOrEqual(viewportWidth)
+      })
+
+      test('page scrolls horizontally when the grid is wider than the viewport', async ({
+        page,
+      }) => {
+        await page.goto('/dance-schedule')
+        const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        }))
+        expect(scrollWidth).toBeGreaterThan(clientWidth)
+      })
     })
-
-    // The first room header stays visually pinned at the same screen position even
-    // though the grid's content scrolled sideways underneath it.
-    const afterScrollBox = await firstHeader.boundingBox()
-    expect(afterScrollBox?.x).toBeCloseTo(beforeScrollBox?.x ?? 0, 0)
-
-    const { docScrollWidth, docClientWidth } = await page.evaluate(() => ({
-      docScrollWidth: document.documentElement.scrollWidth,
-      docClientWidth: document.documentElement.clientWidth,
-    }))
-    expect(docScrollWidth).toBeLessThanOrEqual(docClientWidth)
-  })
+  }
 })
