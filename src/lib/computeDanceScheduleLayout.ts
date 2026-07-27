@@ -78,6 +78,34 @@ function isContiguous(sortedIndices: number[]): boolean {
   return sortedIndices.every((index, i) => i === 0 || index === sortedIndices[i - 1]! + 1)
 }
 
+// Trims fullDayStart/fullDayEnd to the visible sessions' own occupied time range,
+// hour-aligned the same way the full bounds are (so hour-mark labels stay clean) —
+// when the level filter has narrowed the visible set enough that leading and/or
+// trailing hours are now entirely empty across every room, that dead space is cut
+// rather than left as blank rows. A gap *between* visible sessions is left alone —
+// only genuinely leading/trailing empty time is trimmed, never the middle of the
+// day. Bounded by the full day's own bounds (Math.max/min below), so this can only
+// ever trim inward, never wider than the real day. No visible sessions at all is a
+// no-op (irrelevant either way — DanceScheduleGrid shows an empty-state message
+// instead of this grid then).
+function trimEmptyDayEdges(
+  fullDayStart: Date,
+  fullDayEnd: Date,
+  visibleSessions: DanceSession[],
+): { dayStart: Date; dayEnd: Date } {
+  if (visibleSessions.length === 0) {
+    return { dayStart: fullDayStart, dayEnd: fullDayEnd }
+  }
+
+  const earliestVisibleStart = new Date(Math.min(...visibleSessions.map((s) => s.startTime.getTime())))
+  const latestVisibleEnd = new Date(Math.max(...visibleSessions.map((s) => s.endTime.getTime())))
+
+  return {
+    dayStart: new Date(Math.max(fullDayStart.getTime(), floorToHour(earliestVisibleStart).getTime())),
+    dayEnd: new Date(Math.min(fullDayEnd.getTime(), ceilToHour(latestVisibleEnd).getTime())),
+  }
+}
+
 /**
  * Computes the time-proportional calendar grid layout for one date: which room
  * columns are visible, the day's row-unit bounds, hour-mark labels and half-hour
@@ -86,8 +114,11 @@ function isContiguous(sortedIndices: number[]): boolean {
  * docs/design/dance-schedule.md).
  *
  * `dateSessions` must be every session for the date (unfiltered) — used to derive a
- * stable room order and fixed time bounds, so neither reshuffles/jumps as the level
- * filter changes. `visibleSessions` is the level-filtered subset actually rendered.
+ * stable room order, so it never reshuffles as the level filter changes.
+ * `visibleSessions` is the level-filtered subset actually rendered — the day's time
+ * bounds are trimmed to its occupied range (see trimEmptyDayEdges) when filtering
+ * has left leading/trailing hours entirely empty, though never past the full day's
+ * own bounds.
  */
 export function computeDanceScheduleLayout(
   dateSessions: DanceSession[],
@@ -97,12 +128,13 @@ export function computeDanceScheduleLayout(
     return EMPTY_LAYOUT
   }
 
-  const dayStart = floorToHour(
+  const fullDayStart = floorToHour(
     new Date(Math.min(...dateSessions.map((session) => session.startTime.getTime()))),
   )
-  const dayEnd = ceilToHour(
+  const fullDayEnd = ceilToHour(
     new Date(Math.max(...dateSessions.map((session) => session.endTime.getTime()))),
   )
+  const { dayStart, dayEnd } = trimEmptyDayEdges(fullDayStart, fullDayEnd, visibleSessions)
   const totalRowUnits = Math.round((dayEnd.getTime() - dayStart.getTime()) / (UNIT_MINUTES * MS_PER_MINUTE))
 
   const rowStartFor = (time: Date): number =>

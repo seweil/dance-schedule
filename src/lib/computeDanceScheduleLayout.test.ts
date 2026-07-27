@@ -115,7 +115,7 @@ describe('computeDanceScheduleLayout', () => {
     expect(layout.visibleRooms).toEqual(['Ballroom Centre', 'Ballroom West'])
   })
 
-  it('keeps day time bounds fixed to the unfiltered session list, not the filtered one', () => {
+  it('keeps room order fixed to the unfiltered session list even as time bounds trim', () => {
     const early = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T09:30:00.000Z', located('Ballroom Centre'), {
       levels: ['C4'],
     })
@@ -127,9 +127,138 @@ describe('computeDanceScheduleLayout', () => {
 
     const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
 
-    // Bounds still span 9:00-14:00 even though only the 13:00 session is visible.
-    expect(layout.hourMarks[0]).toEqual({ rowStart: 1, label: '9:00 AM' })
-    expect(layout.hourMarks.at(-1)).toEqual({ rowStart: 21, label: '2:00 PM' })
+    // Ballroom Centre still reserves its column-order position even with nothing
+    // visible in it — only Ballroom East (the one with a visible session) actually
+    // renders as a column, per the existing "hides a room column" test above, but
+    // the *order* a room would take if it did become visible again stays anchored
+    // to the unfiltered list, not recomputed from just what's currently visible.
+    expect(layout.visibleRooms).toEqual(['Ballroom East'])
+  })
+
+  describe('trimming leading/trailing empty time after filtering', () => {
+    it('trims leading hours entirely empty after the level filter narrows the visible set', () => {
+      const early = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T09:30:00.000Z', located('Ballroom Centre'), {
+        levels: ['C4'],
+      })
+      const late = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', located('Ballroom East'), {
+        levels: ['SSD'],
+      })
+      const dateSessions = [early, late]
+      const visibleSessions = [late] // early (9am) filtered out by level
+
+      const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+
+      // Full day would span 9:00 AM-2:00 PM; trimmed to just 1:00-2:00 PM, the
+      // visible session's own (hour-aligned) range.
+      expect(layout.hourMarks).toEqual([
+        { rowStart: 1, label: '1:00 PM' },
+        { rowStart: 5, label: '2:00 PM' },
+      ])
+      expect(layout.totalRowUnits).toBe(4)
+    })
+
+    it('trims trailing hours entirely empty after the level filter narrows the visible set', () => {
+      const early = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', located('Ballroom Centre'), {
+        levels: ['SSD'],
+      })
+      const late = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T13:30:00.000Z', located('Ballroom East'), {
+        levels: ['C4'],
+      })
+      const dateSessions = [early, late]
+      const visibleSessions = [early] // late (1pm) filtered out by level
+
+      const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+
+      // Full day would span 9:00 AM-2:00 PM; trimmed to just 9:00-10:00 AM.
+      expect(layout.hourMarks).toEqual([
+        { rowStart: 1, label: '9:00 AM' },
+        { rowStart: 5, label: '10:00 AM' },
+      ])
+      expect(layout.totalRowUnits).toBe(4)
+    })
+
+    it('trims both ends when only a middle slice of the day is visible', () => {
+      const early = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T09:30:00.000Z', located('Ballroom Centre'), {
+        levels: ['C4'],
+      })
+      const middle = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', located('Ballroom East'), {
+        levels: ['SSD'],
+      })
+      const late = makeSession('2026-07-02T16:00:00.000Z', '2026-07-02T16:30:00.000Z', located('Ballroom West'), {
+        levels: ['C4'],
+      })
+      const dateSessions = [early, middle, late]
+      const visibleSessions = [middle]
+
+      const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+
+      expect(layout.hourMarks).toEqual([
+        { rowStart: 1, label: '12:00 PM' },
+        { rowStart: 5, label: '1:00 PM' },
+      ])
+    })
+
+    it('does not trim a gap between two visible sessions, only genuine leading/trailing dead time', () => {
+      const morning = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T09:30:00.000Z', located('Ballroom Centre'))
+      const afternoon = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T13:30:00.000Z', located('Ballroom East'))
+      const dateSessions = [morning, afternoon]
+      // Both visible — the empty 9:30-1:00 stretch between them is a mid-day gap,
+      // not leading/trailing time, so it must NOT be trimmed away.
+      const visibleSessions = [morning, afternoon]
+
+      const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+
+      expect(layout.hourMarks[0]).toEqual({ rowStart: 1, label: '9:00 AM' })
+      expect(layout.hourMarks.at(-1)).toEqual({ rowStart: 21, label: '2:00 PM' })
+    })
+
+    it('does not trim when the visible sessions already span the full unfiltered range', () => {
+      const session = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', located('Ballroom Centre'))
+      const layout = computeDanceScheduleLayout([session], [session])
+
+      expect(layout.hourMarks).toEqual([
+        { rowStart: 1, label: '9:00 AM' },
+        { rowStart: 5, label: '10:00 AM' },
+      ])
+    })
+
+    it('never trims past the full unfiltered day bounds', () => {
+      // A degenerate/defensive case — visibleSessions is a subset of dateSessions in
+      // real usage, so this can't happen via the real filtering path, but the
+      // Math.max/min clamp in trimEmptyDayEdges should hold regardless.
+      const dateSessions = [
+        makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', located('Ballroom Centre')),
+      ]
+      const visibleSessions = [
+        makeSession('2026-07-02T08:00:00.000Z', '2026-07-02T16:00:00.000Z', located('Ballroom Centre')),
+      ]
+
+      const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+
+      expect(layout.hourMarks[0]).toEqual({ rowStart: 1, label: '12:00 PM' })
+      expect(layout.hourMarks.at(-1)).toEqual({ rowStart: 5, label: '1:00 PM' })
+    })
+
+    it('includes a roomless session\'s time range when computing the trimmed bounds', () => {
+      const early = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T09:30:00.000Z', located('Ballroom Centre'), {
+        levels: ['C4'],
+      })
+      const lunch = makeSession(
+        '2026-07-02T12:00:00.000Z',
+        '2026-07-02T13:00:00.000Z',
+        { kind: 'roomless' },
+        { kind: 'freeform', description: 'Lunch Break' },
+      )
+      const dateSessions = [early, lunch]
+      const visibleSessions = [lunch] // early filtered out by level; lunch is freeform (always visible)
+
+      const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+
+      expect(layout.hourMarks).toEqual([
+        { rowStart: 1, label: '12:00 PM' },
+        { rowStart: 5, label: '1:00 PM' },
+      ])
+    })
   })
 
   it('gives a contiguous multi-room session a single spanning placement', () => {
