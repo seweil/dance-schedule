@@ -127,7 +127,7 @@ describe('DanceScheduleFilters', () => {
 
   it('renders the GCA checkbox reflecting showGca and calls onShowGcaChange when toggled', () => {
     const { onShowGcaChange } = renderFilters({ showGca: true })
-    const checkbox = screen.getByRole('checkbox', { name: /show gca callers/i })
+    const checkbox = screen.getByRole('checkbox', { name: /gca callers/i })
     expect(checkbox).toBeChecked()
     fireEvent.click(checkbox)
     expect(onShowGcaChange).toHaveBeenCalledWith(false)

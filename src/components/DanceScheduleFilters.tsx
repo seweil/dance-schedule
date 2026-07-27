@@ -25,8 +25,10 @@ export interface DanceScheduleFiltersProps {
   onShowGcaChange: (showGca: boolean) => void
 }
 
-// Date combo-box, dual-thumb skill-level slider, and GCA-visibility checkbox for
+// Date combo-box, GCA-visibility checkbox, and dual-thumb skill-level slider for
 // DanceSchedulePage — purely presentational, all state owned by useDanceScheduleFilters.
+// Rendered in that order (Date, GCA, Levels); Date and GCA are grouped in their own
+// row so they stay paired even when the wider level field wraps below on mobile.
 // `slots` (from getLevelSlots, via the combineA1A2 feature flag) determines the
 // slider's tick count/labels — not hardcoded to LEVEL_ORDER, so a combined A1/A2
 // stop renders here with no changes needed to this component beyond taking slots
@@ -44,25 +46,35 @@ export function DanceScheduleFilters({
 }: DanceScheduleFiltersProps) {
   return (
     <div className={styles.filters}>
-      <label className={styles.field}>
-        <span className={styles.visuallyHidden}>Date</span>
-        <select
-          className={styles.select}
-          value={selectedDate.toISOString()}
-          onChange={(event) => {
-            const next = dates.find((date) => date.toISOString() === event.target.value)
-            if (next) {
-              onDateChange(next)
-            }
-          }}
-        >
-          {dates.map((date) => (
-            <option key={date.toISOString()} value={date.toISOString()}>
-              {dateFormatter.format(date)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* Grouped so Date and GCA always share one row — both are narrow controls
+          that comfortably fit side by side even on a narrow mobile viewport, while
+          the wider level field (min-width: 17rem) wraps below on its own. */}
+      <div className={styles.dateGcaRow}>
+        <label className={`${styles.field} ${styles.dateField}`}>
+          <span className={styles.visuallyHidden}>Date</span>
+          <select
+            className={styles.select}
+            value={selectedDate.toISOString()}
+            onChange={(event) => {
+              const next = dates.find((date) => date.toISOString() === event.target.value)
+              if (next) {
+                onDateChange(next)
+              }
+            }}
+          >
+            {dates.map((date) => (
+              <option key={date.toISOString()} value={date.toISOString()}>
+                {dateFormatter.format(date)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className={styles.checkboxField}>
+          <input type="checkbox" checked={showGca} onChange={(event) => onShowGcaChange(event.target.checked)} />
+          GCA callers
+        </label>
+      </div>
 
       <div className={`${styles.field} ${styles.levelField}`}>
         {/* Radix positions each thumb's CENTER inset by half its own width from the
@@ -113,11 +125,6 @@ export function DanceScheduleFilters({
           <Slider.Thumb className={styles.sliderThumb} aria-label="Maximum level" />
         </Slider.Root>
       </div>
-
-      <label className={styles.checkboxField}>
-        <input type="checkbox" checked={showGca} onChange={(event) => onShowGcaChange(event.target.checked)} />
-        Show GCA callers
-      </label>
     </div>
   )
 }

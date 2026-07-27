@@ -1,15 +1,22 @@
+/* Two flex items now: the dateGcaRow group and the level field — flex-wrap lets
+   the (wider) level field drop to its own line on narrow viewports while
+   dateGcaRow's own internal row (below) always keeps Date and GCA paired. */
 .filters {
   display: flex;
   flex-wrap: wrap;
-  /* flex-end, not flex-start — the three fields have different-height content above
-     their actual control (the level field's tick row sits above its slider; the
-     date field has none now that its label is visually hidden), so top-aligning
-     left the controls themselves at mismatched heights. Bottom-aligning lines up
-     the select, slider, and checkbox regardless of what (if anything) sits above
-     each. */
+  /* flex-end, not flex-start — the level field has content above its actual
+     control (the tick row sits above its slider) that dateGcaRow doesn't, so
+     top-aligning left the controls themselves at mismatched heights.
+     Bottom-aligning lines up dateGcaRow and the slider regardless. */
   align-items: flex-end;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
+}
+
+.dateGcaRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-md);
 }
 
 .field {
@@ -17,6 +24,14 @@
   flex-direction: column;
   gap: var(--space-sm);
   min-width: 12rem;
+}
+
+/* Overrides .field's shared 12rem floor — the date select's own content ("Thu, Jul
+   2") never needs anywhere near that, and 12rem was stretching the (column, so
+   stretch-sized) select far wider than its text, leaving visibly dead space next to
+   it. No min-width at all: the select sizes to its own widest option instead. */
+.dateField {
+  min-width: 0;
 }
 
 /* The level field needs more committed width than the shared .field floor (12rem)
@@ -66,6 +81,18 @@
 .select {
   padding: var(--space-sm);
   font: inherit;
+}
+
+/* Rounded border on desktop only — native <select> chrome on mobile (especially
+   iOS) largely ignores border styling anyway, so this is scoped to where it
+   actually reads as an intentional design choice rather than fighting the
+   platform's own control rendering. Matches .timeLabel's 6px radius elsewhere in
+   the dance-schedule UI. */
+@media (min-width: 641px) {
+  .select {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+  }
 }
 
 .checkboxField {
