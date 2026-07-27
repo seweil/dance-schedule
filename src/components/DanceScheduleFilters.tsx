@@ -1,5 +1,5 @@
 import * as Slider from '@radix-ui/react-slider'
-import { LEVEL_ORDER } from '../lib/levelOrder'
+import type { LevelSlot } from '../lib/levelOrder'
 import { moveNearestThumb } from '../lib/moveNearestThumb'
 import styles from './DanceScheduleFilters.module.css'
 
@@ -17,6 +17,7 @@ export interface DanceScheduleFiltersProps {
   dates: Date[]
   selectedDate: Date
   onDateChange: (date: Date) => void
+  slots: readonly LevelSlot[]
   minLevelIndex: number
   maxLevelIndex: number
   onLevelRangeChange: (minLevelIndex: number, maxLevelIndex: number) => void
@@ -26,10 +27,15 @@ export interface DanceScheduleFiltersProps {
 
 // Date combo-box, dual-thumb skill-level slider, and GCA-visibility checkbox for
 // DanceSchedulePage — purely presentational, all state owned by useDanceScheduleFilters.
+// `slots` (from getLevelSlots, via the combineA1A2 feature flag) determines the
+// slider's tick count/labels — not hardcoded to LEVEL_ORDER, so a combined A1/A2
+// stop renders here with no changes needed to this component beyond taking slots
+// as a prop.
 export function DanceScheduleFilters({
   dates,
   selectedDate,
   onDateChange,
+  slots,
   minLevelIndex,
   maxLevelIndex,
   onLevelRangeChange,
@@ -67,11 +73,11 @@ export function DanceScheduleFilters({
             the slider, not below — the mark sits under the label (closest to the
             slider) so the reading order is label, mark, then the track it belongs to. */}
         <div className={styles.ticks}>
-          {LEVEL_ORDER.map((level, index) => {
-            const fraction = index / (LEVEL_ORDER.length - 1)
+          {slots.map((slot, index) => {
+            const fraction = index / (slots.length - 1)
             return (
               <button
-                key={level}
+                key={slot.label}
                 type="button"
                 className={styles.tick}
                 style={{ left: `calc(8px + (100% - 16px) * ${fraction})` }}
@@ -80,7 +86,7 @@ export function DanceScheduleFilters({
                   onLevelRangeChange(min, max)
                 }}
               >
-                {level}
+                {slot.label}
                 {/* Decorative only — the button's accessible name is still just the
                     level text above, unaffected by this mark. */}
                 <span className={styles.tickMark} aria-hidden="true" />
@@ -91,7 +97,7 @@ export function DanceScheduleFilters({
         <Slider.Root
           className={styles.sliderRoot}
           min={0}
-          max={LEVEL_ORDER.length - 1}
+          max={slots.length - 1}
           step={1}
           value={[minLevelIndex, maxLevelIndex]}
           onValueChange={([min, max]) => {

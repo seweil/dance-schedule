@@ -7,6 +7,8 @@ import mdx from '@mdx-js/rollup'
 import rehypeMdxImportMedia from 'rehype-mdx-import-media'
 import { schedulePlugin } from './vite-plugin-schedule'
 import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
+import { contentConfigPlugin } from './vite-plugin-content-config'
+import { assertContentSetExists, loadTopLevelContentConfig } from './content-config'
 
 // Baked in at build time (never re-evaluated client-side) so the debug page can
 // show which build is running — the short commit hash doubles as a build number
@@ -15,11 +17,20 @@ const BUILD_NUMBER = execSync('git rev-parse --short HEAD').toString().trim()
 const BUILD_TIME = new Date().toISOString()
 
 // Selects which content/<set>/ directory supplies pages and schedule data for this
-// build — see docs/design/content-sets.md. Read directly from process.env (no
-// loadEnv()/.env file involved anywhere in this repo) since it's a plain Node-context
-// build-time switch, never exposed to the client bundle. Defaults to "real" so
-// pnpm dev/build/preview/test:e2e behave exactly as before when unset.
-const CONTENT_SET = process.env.CONTENT_SET || 'real'
+// build — see docs/design/content-sets.md and docs/design/content-config.md. Read
+// directly from process.env (no loadEnv()/.env file involved anywhere in this repo)
+// since it's a plain Node-context build-time switch, never exposed to the client
+// bundle. Defaults to content/config.yaml's defaultContentSet (itself "real" if that
+// file is absent) so pnpm dev/build/preview/test:e2e behave exactly as before when
+// CONTENT_SET is unset. Either way, the resolved name is validated against a real
+// content/<name>/ directory here — a typo (env var or config file) fails loudly with
+// a named error instead of a raw ENOENT surfacing later from vite-plugin-pages or
+// read-excel-file deep inside plugin resolution.
+const topLevelContentConfig = loadTopLevelContentConfig(process.cwd())
+const CONTENT_SET = process.env.CONTENT_SET || topLevelContentConfig.defaultContentSet
+if (process.env.CONTENT_SET) {
+  assertContentSetExists(process.cwd(), process.env.CONTENT_SET, 'CONTENT_SET env var')
+}
 const CONTENT_DIR = `content/${CONTENT_SET}`
 
 export default defineConfig({
@@ -57,6 +68,9 @@ export default defineConfig({
     }),
     schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
     danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
+    // dataDir is the content set's own root (config.yaml sits alongside pages/data,
+    // not inside data/) — see docs/design/content-config.md.
+    contentConfigPlugin({ dataDir: CONTENT_DIR }),
     react(),
     VitePWA({
       strategies: 'generateSW',
@@ -82,7 +96,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // The second pattern is only for repo-root files (content-config.ts) — vite-
+    // plugin-schedule.ts/vite-plugin-dance-schedule.ts have no tests of their own
+    // (covered live via pnpm build/pnpm dev:test instead), so this doesn't pick up
+    // anything unexpected.
+    include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts'],
     css: true,
   },
 })

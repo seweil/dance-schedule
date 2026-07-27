@@ -55,12 +55,17 @@ docs/
     README.md                 # design-doc convention (see "Project overview" above)
     <topic>.md                # one living design doc per architectural topic
 content/
+  config.yaml             # top-level, shared — defaultContentSet used when CONTENT_SET
+                          # is unset; see docs/design/content-config.md
   <content-set>/          # one directory per content set (any name) — which one is
-                          # active is chosen by the CONTENT_SET env var; see
-                          # docs/design/content-sets.md. Two always exist:
-                          #   real/ — the default/production set (CONTENT_SET unset or "real")
+                          # active is chosen by the CONTENT_SET env var, falling back to
+                          # config.yaml's defaultContentSet; see docs/design/content-sets.md
+                          # and docs/design/content-config.md. Two always exist:
+                          #   real/ — the default/production set
                           #   test/ — deliberately edge-case-flavored fixture set —
                           #           `pnpm dev:test` / `pnpm build:test`
+    config.yaml             # per-set feature flags (e.g. combineA1A2); see
+                            # docs/design/content-config.md
     pages/
       index.md                  # → route "/"
       2 installation.md         # → route "/installation" (nav-sorted 2nd)

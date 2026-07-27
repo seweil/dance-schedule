@@ -1,125 +1,231 @@
-# Tighten up the dance-schedule grid for small screens (mobile-only)
+# Content-folder configuration: default content set + per-event feature flags
 
 ## Context
 
-`src/components/DanceScheduleGrid.tsx`/`.module.css` renders the room-column ×
-time-row grid inside a `.scrollContainer` div (`overflow: auto; max-height:
-70vh`) — an inner scroll area, independent of the page. `.corner`/`.roomHeader`
-(`top: 0`) and `.timeLabel`/`.halfHourTick` (`left: 0`) are `position: sticky`,
-so today they pin relative to that inner 70vh box, not the real viewport. There's
-a pre-existing logged issue (`docs/known-issues.md`) that `.roomHeader` isn't
-also pinned during *horizontal* scroll of that inner box (no `left: 0`) — this
-work doesn't fix that, see below.
+Two related needs came up together: (1) which content set (`content/<set>/`)
+loads by default should be configurable, instead of hardcoded to `'real'` in
+`vite.config.ts`; (2) individual real events (content sets) sometimes want
+the dance-schedule level slider to treat A1 and A2 as one combined stop —
+per the user, many events have too few A1-only dances to bother
+distinguishing, but some events do want them separate. That second point is
+the key design driver: **this is a per-event (per-content-set) setting, not
+a single global toggle** — different content sets need different values.
 
-The ask: on small screens, replace the inner scroll area with normal page
-scrolling — the room headers should pin to the browser viewport's top edge as
-the whole page scrolls (not just within a capped inner box), the nav and the
-filter controls above the grid should scroll away normally (already true today
-— neither has any `position: sticky`/`fixed` anywhere), and the grid should
-span the full viewport width instead of sitting inset by the page's default
-margin.
+This splits into two genuinely different kinds of config, at two different
+scopes:
 
-**Scoping correction worth flagging:** the user asked to scope this to mobile
-only, matching `Nav.module.css`'s existing `max-width: 640px` breakpoint. But
-the primary motivating case is explicitly **iPhone landscape** — and in
-landscape, an iPhone's *width* (e.g. 844px for iPhone 13) is well past 640px;
-a width-only breakpoint would silently miss the exact case this is meant to
-fix. What actually makes the current 70vh cap feel cramped is short viewport
-*height* (~390px in landscape), not narrow width. So the media query needs
-both conditions — `(max-width: 640px)` for narrow portrait phones, OR
-`(max-height: 500px)` for short landscape phones (500px comfortably separates
-phones-in-landscape from tablets/laptops, which stay on today's desktop
-behavior). Flagging this now since it changes the mechanics of what was
-approved, but keeps the actual intent (iPhone, either orientation) intact.
+- **Which content set to use by default** — must live *outside* any
+  particular content set (it's what picks one), and is consumed purely at
+  build time in Node (`vite.config.ts`), never shipped to the client.
+- **Per-event feature flags** (starting with "combine A1/A2 on the slider")
+  — live *inside* each content set's own directory (alongside its
+  `pages/`/`data/`), and must reach client-side React code (the level
+  slider), so — per this repo's established pattern
+  (`vite-plugin-schedule.ts`/`vite-plugin-dance-schedule.ts`) — need a
+  build-time Vite plugin exposing a `virtual:*` module, not a raw runtime
+  file read (Node `fs` isn't available in the browser bundle).
 
-## Change 1: `src/components/DanceScheduleGrid.module.css`
+YAML, per the user's suggestion — no YAML library exists in this repo yet
+(confirmed); adding `yaml` (the same package Vite itself already optionally
+depends on) as a **devDependency** (parsing only ever happens in Node/build
+context, never bundled to the client — same category as `read-excel-file`).
 
-Add one new media query; no changes above it, no `.tsx`/component changes at
-all needed — the existing `position: sticky` rules on `.corner`/`.roomHeader`/
-`.timeLabel`/`.halfHourTick` automatically start resolving relative to the
-real viewport instead of `.scrollContainer` the moment that container stops
-being its own scrolling context (a sticky element's containing block for
-stickiness is its nearest ancestor that actually clips/scrolls — remove that,
-and the search continues up to the viewport, with zero other ancestor in this
-app ever setting `overflow`/height in a way that would trap it, confirmed by
-reading `index.html`/`main.tsx`/`src/index.css`/every component CSS file).
+This also happens to close two items already logged as open questions in
+`docs/design/content-sets.md` ("should content-set resolution validate the
+target directory exists" / discoverability) — the new top-level loader
+validates `defaultContentSet` (and any `CONTENT_SET` env override) against
+real `content/<name>/` directories and fails loudly if not, rather than
+letting `vite-plugin-pages`/`read-excel-file` produce a raw ENOENT.
 
-```css
-@media (max-width: 640px), (max-height: 500px) {
-  .scrollContainer {
-    overflow: visible;
-    max-height: none;
-    /* Full-bleed regardless of the page's actual left/right inset (this repo
-       has no body margin reset — see src/index.css — so this cancels out
-       whatever the browser's default happens to be, without assuming a
-       specific px value or touching that default for any other page). */
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-  }
-}
+## File layout
+
+```
+content/
+  config.yaml              # NEW — top-level, shared, chooses the default set
+    defaultContentSet: real
+
+  real/
+    config.yaml             # NEW — per-set feature flags
+      features:
+        combineA1A2: false
+    pages/...
+    data/...
+
+  test/
+    config.yaml
+      features:
+        combineA1A2: true   # exercises the merged-slot behavior in the fixture
+    pages/...
+    data/...
 ```
 
-Leave `.roomHeader` exactly as-is (`top` only, no `left`) — the user asked
-specifically for vertical pin-to-top; horizontal pinning during a sideways
-scroll is a separate, still-undecided question (see Change 3).
+Missing `content/config.yaml` → falls back to `defaultContentSet: real`
+(today's hardcoded behavior, unchanged). Missing per-set `config.yaml` →
+falls back to `features: { combineA1A2: false }` (today's UI, unchanged).
+Malformed YAML, or a value of the wrong type/shape, in either file → fails
+the build loudly with a clear message, consistent with this repo's existing
+fail-loud parsing philosophy (`docs/design/schedule-page.md`).
 
-## Change 2: `e2e/dance-schedule.spec.ts` — rewrite the `mobile viewport` block
+## Change 1: top-level `defaultContentSet`
 
-The existing single test in this block manipulates `.scrollContainer`'s own
-`scrollLeft` and asserts the *page* never overflows horizontally — both
-premises are now backwards below the breakpoint (the container no longer
-scrolls itself; the page overflowing horizontally when there are more rooms
-than fit is now the intended behavior). Replace it with tests covering what's
-actually being verified now, using `devices['iPhone 13 landscape']` as the
-primary case (the explicit motivating scenario — confirm this device key
-exists in the installed Playwright version; fall back to manually swapping
-`devices['iPhone 13']`'s width/height if not) alongside the existing portrait
-`devices['iPhone 13']` case:
+- **New `content-config.ts`** (repo root, alongside `vite-plugin-schedule.ts`)
+  — a small, pure, synchronous Node function
+  `loadTopLevelContentConfig(root: string): { defaultContentSet: string }`.
+  Reads `content/config.yaml` via `fs.readFileSync` + `yaml.parse`; validates
+  `defaultContentSet` is a string naming a real `content/<name>/` directory
+  (`fs.existsSync`), throwing a clear error if not (e.g. `content/config.yaml
+  names defaultContentSet "spring" but content/spring/ doesn't exist`).
+  Colocated `content-config.test.ts` (pure function — easy to test against
+  fixture strings/temp paths, no Vite machinery needed).
+- **`vite.config.ts`** — replace the hardcoded fallback:
+  ```ts
+  const contentConfig = loadTopLevelContentConfig(process.cwd())
+  const CONTENT_SET = process.env.CONTENT_SET || contentConfig.defaultContentSet
+  ```
+  Also validate an explicit `CONTENT_SET` env override the same way (same
+  "does `content/<name>/` exist" check) — closes the open question fully,
+  not just for the default case.
 
-- Room header stays pinned at the top of the *viewport* as the page is
-  scrolled down (scroll via `page.mouse.wheel`/`window.scrollBy`, then assert
-  the first `.roomHeader`'s bounding box stays near `y: 0` while
-  `document.documentElement.scrollTop` has actually increased and more
-  session cards are visible).
-- Nav and the filter controls scroll out of view once the page is scrolled
-  down past them (bounding box no longer intersects the viewport, or
-  `toBeVisible()` on the nav/filters returns false after scrolling).
-- The grid sits flush with the viewport's left/right edges (no inset) — check
-  `.scrollContainer`'s bounding box `x` is `0` (or within a hair of it).
-- Keep a page-level-horizontal-overflow check, but inverted from today: when
-  there are more room columns than fit, `document.documentElement.scrollWidth`
-  now *exceeds* `clientWidth` (the page itself scrolls horizontally), instead
-  of asserting it never does.
+## Change 2: per-set feature flags reaching the client
 
-Exact assertions/thresholds need a real Playwright run (and a live
-`claude-in-chrome` check against `pnpm build && pnpm preview` resized to
-iPhone-landscape dimensions) to get pixel tolerances right — don't hand-write
-these blind.
+- **New `vite-plugin-content-config.ts`** (repo root) — mirrors
+  `vite-plugin-schedule.ts` exactly: `CONTENT_CONFIG_VIRTUAL_MODULE_ID =
+  'virtual:content-config'`, `\0`-prefixed resolved id, `{ dataDir: string }`
+  options (same shape as `schedulePlugin`/`danceSchedulePlugin`, reusing
+  `CONTENT_DIR` from `vite.config.ts`), path resolved eagerly then corrected
+  in `configResolved`, `load()` reads `${dataDir}/config.yaml` (note:
+  `dataDir` here is the content-set root, e.g. `content/real`, not
+  `content/real/data` — distinct from the schedule plugins' data dir),
+  parses with `yaml`, returns `export default ${JSON.stringify(data)}`.
+  Dev-watching via `configureServer` + `server.watcher.add` + change
+  listener + `moduleGraph.invalidateModule` + full-reload — identical
+  mechanism to the existing plugins. Missing file → default
+  `{ features: { combineA1A2: false } }`; malformed/wrong-shaped → throws.
+- **New `src/types/virtual-content-config.d.ts`** — ambient declaration
+  mirroring `virtual-dance-schedule.d.ts`.
+- **`vite.config.ts`** — register
+  `contentConfigPlugin({ dataDir: CONTENT_DIR })` alongside the existing
+  `schedulePlugin`/`danceSchedulePlugin` registrations.
 
-## Change 3: `docs/known-issues.md`
+## Change 3: "combine A1/A2" — a real behavioral merge in the slider
 
-Update the existing "Mobile dance-schedule grid: room header doesn't stay
-pinned during horizontal scroll" entry: the original bug was specifically
-about `.scrollContainer`'s *own* horizontal scroll below the breakpoint, which
-this change removes entirely (replaced by page-level scroll) — so the bug
-report's original mechanism no longer exists. Reframe rather than delete: the
-underlying open question survives in the new model (should `.roomHeader` also
-get `left`-based pinning so it stays visible during a horizontal *page*
-scroll?) — note this was deliberately left unresolved here since it wasn't
-part of what was asked, so it doesn't read as an oversight.
+Today every slider position maps 1:1 to exactly one `LEVEL_ORDER` entry, and
+every downstream piece (`isSessionInLevelRange`, `DanceScheduleFilters`'
+tick rendering/click handling, `moveNearestThumb`) is keyed on that raw
+array index — confirmed via research, there's no indirection layer to hook
+into today. Combining A1/A2 means a single slider position now represents
+*two* level codes, so this introduces a **slot** concept:
+
+- **`src/lib/levelOrder.ts`** — add:
+  ```ts
+  export interface LevelSlot {
+    label: string
+    levels: readonly OrderedLevelCode[] // one level normally; two when combined
+  }
+
+  export function getLevelSlots(combineA1A2: boolean): readonly LevelSlot[] {
+    // combineA1A2 === false: same 10 slots as today, one level each.
+    // combineA1A2 === true: 9 slots — A1 and A2's two separate slots become
+    // one { label: 'A1/A2', levels: ['A1', 'A2'] } slot in their place.
+  }
+  ```
+  Keep `LEVEL_ORDER` itself unchanged (still the canonical base ordering;
+  `getLevelSlots(false)` is just derived from it). Rewrite
+  `isSessionInLevelRange` to accept `slots: readonly LevelSlot[]` instead of
+  closing over `LEVEL_ORDER` directly — for each of a session's levels, find
+  which slot's `.levels` contains it (not a direct `indexOf`), then the
+  existing "any level's slot-index falls in `[min, max]`" logic is
+  unchanged. This is the one true behavioral core of the feature: a session
+  tagged only `A1`, only `A2`, or both, all resolve to the *same* slot index
+  when combined, so all three match identically against the range — a real
+  merge, not just a relabel.
+- **`src/lib/filterDanceSessions.ts`** — add a `slots` parameter, threaded
+  through to `isSessionInLevelRange`.
+- **`src/hooks/useDanceScheduleFilters.ts`** — accept `combineA1A2: boolean`,
+  compute `slots = getLevelSlots(combineA1A2)` once, use `slots.length` (not
+  `LEVEL_ORDER.length`) for the initial full-range default, pass `slots`
+  through to `filterDanceSessions` and out to the caller (replacing the
+  page's/filter component's own `LEVEL_ORDER` import).
+- **`src/components/DanceScheduleFilters.tsx`** — take `slots` as a prop
+  instead of importing `LEVEL_ORDER` directly; tick rendering/positioning
+  math (`fraction = index / (slots.length - 1)`) and `Slider.Root`'s
+  `max={slots.length - 1}` use `slots.length`; each tick's label is
+  `slot.label` (so the combined tick reads "A1/A2"). `moveNearestThumb`
+  itself needs no change — it already operates on plain indices, agnostic
+  to what they represent.
+- **`src/components/DanceSchedulePage.tsx`** — import `virtual:content-config`
+  (mirroring its existing `virtual:dance-schedule` import), extract
+  `features.combineA1A2`, pass into `useDanceScheduleFilters`.
+
+## Test/doc updates
+
+- `content-config.test.ts` (new) — the top-level loader: default when
+  missing, parses a real file, throws on bad YAML, throws when
+  `defaultContentSet` names a nonexistent directory.
+- A colocated test for `vite-plugin-content-config.ts`'s data-loading
+  function (mirroring how `vite-plugin-schedule.ts`/
+  `vite-plugin-dance-schedule.ts` structure their own tests, if any exist
+  for those — check during implementation and match precedent) or, if
+  those plugins aren't unit-tested directly, cover it live via
+  `pnpm build`/`pnpm dev:test` instead, consistent with precedent.
+- `src/lib/levelOrder.test.ts` — new tests for `getLevelSlots(false)`
+  (matches today's 10 single-level slots) and `getLevelSlots(true)` (9
+  slots, the merged `A1/A2` entry); update `isSessionInLevelRange`'s
+  existing tests to pass slots; add cases proving an A1-only, A2-only, and
+  both-tagged session all match identically against the combined slot.
+- `src/lib/filterDanceSessions.test.ts`, `useDanceScheduleFilters.test.ts` —
+  update call sites for the new `slots`/`combineA1A2` parameters.
+- `src/components/DanceScheduleFilters.test.tsx` — per research, these
+  currently hardcode `LEVEL_ORDER` iteration and magic indices (`9`, `5`,
+  `4`); update the render helper to take a `slots` prop, fix hardcoded
+  indices to derive from whichever `slots` value each test uses, and add
+  new cases for the combined-slot render (9 ticks, "A1/A2" label, clicking
+  it, and — importantly — that the *filtering* callback reflects the merged
+  index).
+- `e2e/dance-schedule.spec.ts` — the two tests hardcoding `9`/`5` (tied to
+  today's 10-level, `combineA1A2: false` default for the `real` content set)
+  need no change *if* `real`'s new `config.yaml` sets `combineA1A2: false`
+  (preserving current behavior exactly) — confirm this holds since
+  Playwright's `webServer` always builds the default (`real`) content set.
+  No new e2e coverage for the combined-slot case is planned (would need a
+  second Playwright project pointed at a `CONTENT_SET=test`-like build,
+  overengineering for this) — covered by unit tests instead, plus a manual
+  live-browser check against `pnpm build:test && pnpm preview` during
+  implementation (mirrors how `content/test/`'s `combineA1A2: true` gets
+  exercised).
+- `docs/design/content-sets.md` — add a Decisions entry for the new
+  top-level `content/config.yaml` / `defaultContentSet` mechanism, and mark
+  the "should content-set resolution validate the target directory exists"
+  open question resolved.
+- New `docs/design/content-config.md` — the general config-file mechanism
+  (both changes above), why two separate files/scopes exist, the YAML
+  choice, fail-loud/fallback behavior. Cross-links to
+  `docs/design/content-sets.md` (for `defaultContentSet`) and
+  `docs/design/dance-schedule.md` (for the `LevelSlot` concept, which
+  extends that doc's existing level-code design decisions — add a short
+  Decisions entry there too pointing at the new doc rather than duplicating
+  detail).
 
 ## Verification
 
-- `pnpm typecheck && pnpm lint && pnpm test` (unit suite shouldn't be affected
-  — this is CSS/e2e-only).
-- `pnpm build && pnpm test:e2e` — full suite including the rewritten mobile
-  block; confirm desktop tests (everything outside `mobile viewport`) are
-  completely unaffected, since the media query never applies above both
-  thresholds.
-- Live check via `claude-in-chrome` against `pnpm preview`: resize to iPhone
-  13 landscape dimensions (844×390), confirm visually — page scrolls as one,
-  room headers pin to the top on scroll, nav/filters scroll away, grid spans
-  full width edge-to-edge. Repeat at portrait (390×844) to confirm the
-  `max-width: 640px` arm still works. Also load at a plain desktop size (e.g.
-  1280×800) and confirm nothing changed there (still the capped 70vh inner
-  scroll box with its normal margins).
+- `pnpm typecheck && pnpm lint && pnpm test` — full unit suite including all
+  new/updated tests above.
+- `pnpm build` (default `real` content set) — confirm it still builds with
+  `content/real/config.yaml`'s `combineA1A2: false`, and that
+  `defaultContentSet` resolution from `content/config.yaml` works with no
+  `CONTENT_SET` env var set.
+- `pnpm build:test` (or `CONTENT_SET=test pnpm build`) then `pnpm preview` —
+  live-verify via `claude-in-chrome`: the level slider shows 9 ticks with a
+  combined "A1/A2" label, clicking/dragging it filters sessions tagged
+  either A1, A2, or both identically, and the tick math (position, no
+  overlap) still holds with one fewer slot — reuse the same live-measurement
+  approach (comparing `getBoundingClientRect()` against expected thumb
+  positions) established for the original tick-mark work.
+- Temporarily rename/corrupt `content/config.yaml` and
+  `content/real/config.yaml` to confirm the fail-loud/fallback behavior
+  each actually triggers as designed (missing → default; malformed → clear
+  thrown error), then restore.
+- `pnpm test:e2e` outside this sandbox (Playwright can't launch here,
+  confirmed in earlier sessions) — confirm the two previously-hardcoded
+  tests still pass unchanged against the `real` content set's
+  `combineA1A2: false`.

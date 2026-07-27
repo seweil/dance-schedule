@@ -20,17 +20,22 @@
 }
 
 /* The level field needs more committed width than the shared .field floor (12rem)
-   provides — 10 tick labels need enough combined room that the widest adjacent
-   pair (C3A/C3B) doesn't touch. Setting min-width on a CHILD (.sliderRoot/.ticks)
-   instead of here was tried first and doesn't work: a child's own min-width just
-   makes that child overflow its parent when the parent's width is constrained by
-   something else (confirmed live — .sliderRoot and .ticks ended up different
-   widths from each other, breaking the tick-alignment math below, which assumes
-   they're identical). This has to be set on .field itself, which every descendant
-   (.sliderRoot at width: 100%, .ticks via flex stretch) then reliably sizes from
-   consistently. */
+   provides — the tick labels need enough combined room that no adjacent pair
+   touches. Setting min-width on a CHILD (.sliderRoot/.ticks) instead of here was
+   tried first and doesn't work: a child's own min-width just makes that child
+   overflow its parent when the parent's width is constrained by something else
+   (confirmed live — .sliderRoot and .ticks ended up different widths from each
+   other, breaking the tick-alignment math below, which assumes they're identical).
+   This has to be set on .field itself, which every descendant (.sliderRoot at
+   width: 100%, .ticks via flex stretch) then reliably sizes from consistently.
+   17rem, not 15rem — 15rem was sized for the uncombined 10-slot case's widest
+   adjacent pair (C3A/C3B); combining A1/A2 (getLevelSlots(true)) produces a wider
+   "A1/A2" label than any single-level label, and at 15rem its gap to "Plus"
+   measured a bare ~1.85px live — technically not touching, but not the comfortable
+   margin every other pair gets. 17rem covers both the base and combined cases with
+   a similar margin, confirmed live after raising it. */
 .levelField {
-  min-width: 15rem;
+  min-width: 17rem;
   /* Overrides .field's gap (var(--space-sm), meant for the Date field's label-above-
      control spacing) — the tick row and the slider it labels should read as one
      tightly-connected unit, not two evenly-spaced blocks. */

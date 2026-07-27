@@ -1,0 +1,8 @@
+# Top-level content configuration — shared across all content sets, unlike
+# content/<set>/config.yaml (per-set feature flags). Read only at build time in
+# Node (content-config.ts, imported by vite.config.ts), never shipped to the
+# client. See docs/design/content-config.md.
+
+# Which content/<set>/ directory to use when the CONTENT_SET env var is unset.
+# Must name a real content/<name>/ directory — validated at build time.
+defaultContentSet: real

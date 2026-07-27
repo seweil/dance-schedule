@@ -89,16 +89,28 @@ rather than reimplementing validation in the generation script.
 **Why:** The path is now set-dependent; wording generalized to "this content
 set's `pages/` directory" so it's correct regardless of which set is active.
 
+## Decisions (continued)
+
+### Default content set is configurable via `content/config.yaml`
+**Why:** See `docs/design/content-config.md` for the full design — the
+short version is that the hardcoded `'real'` fallback became
+`content/config.yaml`'s `defaultContentSet`, validated against a real
+`content/<name>/` directory at build time (closing the "validate the
+target directory exists" open question below for both the config-file
+default and an explicit `CONTENT_SET` env override).
+
 ## Open questions
 
 - Should there be a way to list/discover available content sets (e.g. a
   script listing `content/*/` directory names), so `CONTENT_SET=<name>`
-  isn't purely tribal knowledge?
-- Should content-set resolution validate the target directory exists (at
+  isn't purely tribal knowledge? (The *validation* half of the original
+  open question below is resolved — see Decisions above and
+  `docs/design/content-config.md` — but discovery/listing itself isn't.)
+- ~~Should content-set resolution validate the target directory exists (at
   `configResolved`/`load()` time) and fail with a friendly named error
   ("content set 'xyz' not found — expected content/xyz/ to exist"), rather
   than whatever raw ENOENT `vite-plugin-pages`/`read-excel-file` currently
-  produce for a missing dir/file?
+  produce for a missing dir/file?~~ Resolved — see Decisions above.
 - Should `test` get its own Playwright e2e coverage (a second `webServer`/
   project running `CONTENT_SET=test`), now that its data is deliberately
   edge-case-rich, or stay a manual/dev-time tool for now?

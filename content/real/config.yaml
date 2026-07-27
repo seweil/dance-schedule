@@ -1,0 +1,8 @@
+# Per-content-set feature flags — read at build time and exposed to client-side
+# code via the virtual:content-config module (vite-plugin-content-config.ts).
+# See docs/design/content-config.md.
+
+features:
+  # Whether the dance-schedule level slider treats A1 and A2 as a single
+  # combined stop (see docs/design/dance-schedule.md's LevelSlot decision).
+  combineA1A2: true

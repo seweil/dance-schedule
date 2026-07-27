@@ -118,14 +118,17 @@ automatically, per above.
 ## Content sets
 
 Which markdown pages and schedule spreadsheet data are active is chosen by
-the `CONTENT_SET` env var (default `real`):
+the `CONTENT_SET` env var, falling back to `content/config.yaml`'s
+`defaultContentSet` (itself `real`) when unset:
 
 ```bash
 pnpm dev:test      # dev server against the "test" content set (edge-case fixture data)
 pnpm build:test    # production build of the "test" content set
 ```
 
-Full mechanics in `docs/design/content-sets.md`.
+Full mechanics in `docs/design/content-sets.md`. Each content set also has
+its own `config.yaml` for feature flags (e.g. whether the dance-schedule
+level slider combines A1/A2) — see `docs/design/content-config.md`.
 
 ## Deployment
 

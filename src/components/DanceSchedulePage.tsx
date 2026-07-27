@@ -1,4 +1,5 @@
 import danceSessionsData from 'virtual:dance-schedule'
+import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
@@ -13,13 +14,14 @@ export function DanceSchedulePage() {
     dates,
     selectedDate,
     setSelectedDate,
+    slots,
     minLevelIndex,
     maxLevelIndex,
     setLevelRange,
     showGca,
     setShowGca,
     layout,
-  } = useDanceScheduleFilters(sessions)
+  } = useDanceScheduleFilters(sessions, contentConfig.features.combineA1A2)
 
   return (
     <>
@@ -28,6 +30,7 @@ export function DanceSchedulePage() {
         dates={dates}
         selectedDate={selectedDate}
         onDateChange={setSelectedDate}
+        slots={slots}
         minLevelIndex={minLevelIndex}
         maxLevelIndex={maxLevelIndex}
         onLevelRangeChange={setLevelRange}

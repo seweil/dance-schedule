@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { filterDanceSessions } from './filterDanceSessions'
-import { LEVEL_ORDER } from './levelOrder'
+import { LEVEL_ORDER, getLevelSlots } from './levelOrder'
 import type { StructuredSession } from '../types/danceSchedule'
+
+const BASE_SLOTS = getLevelSlots(false)
 
 function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSession {
   return {
@@ -25,7 +27,7 @@ describe('filterDanceSessions', () => {
       makeSession({ date: new Date('2026-07-02T00:00:00.000Z') }),
       makeSession({ date: new Date('2026-07-03T00:00:00.000Z') }),
     ]
-    const result = filterDanceSessions(sessions, new Date('2026-07-02T00:00:00.000Z'), ...FULL_RANGE)
+    const result = filterDanceSessions(sessions, new Date('2026-07-02T00:00:00.000Z'), ...FULL_RANGE, BASE_SLOTS)
     expect(result).toHaveLength(1)
     expect(result[0]?.date).toEqual(new Date('2026-07-02T00:00:00.000Z'))
   })
@@ -41,6 +43,7 @@ describe('filterDanceSessions', () => {
       new Date('2026-07-02T00:00:00.000Z'),
       minIndex,
       maxIndex,
+      BASE_SLOTS,
     )
 
     expect(result.map((s) => (s.kind === 'structured' ? s.eventType : null))).toEqual(['InRange'])
@@ -70,6 +73,7 @@ describe('filterDanceSessions', () => {
       new Date('2026-07-02T00:00:00.000Z'),
       minIndex,
       maxIndex,
+      BASE_SLOTS,
     )
 
     expect(result.map((s) => (s.kind === 'structured' ? s.eventType : null))).toEqual(['Match'])
@@ -77,7 +81,7 @@ describe('filterDanceSessions', () => {
 
   it('returns an empty array when nothing matches the date', () => {
     const sessions = [makeSession({ date: new Date('2026-07-02T00:00:00.000Z') })]
-    const result = filterDanceSessions(sessions, new Date('2026-07-05T00:00:00.000Z'), ...FULL_RANGE)
+    const result = filterDanceSessions(sessions, new Date('2026-07-05T00:00:00.000Z'), ...FULL_RANGE, BASE_SLOTS)
     expect(result).toEqual([])
   })
 })

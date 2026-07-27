@@ -303,6 +303,30 @@ them end-to-end:
 Verified via a `data/dance-schedule-dump.md` diff after rebuilding:
 exactly these three changes appeared, nothing else shifted.
 
+### Level slider: a `LevelSlot` indirection, so A1/A2 can combine into one stop per content set
+**Why:** Some events want the skill-level filter slider to treat A1 and A2
+as one combined position (per-event feature flag `combineA1A2`, from
+`content/<set>/config.yaml` — see `docs/design/content-config.md` for the
+config mechanism itself). Every slider position used to map 1:1 to exactly
+one `LEVEL_ORDER` entry, with `isSessionInLevelRange` and the tick
+rendering/click handling all keyed on that raw array index — no
+indirection to hook a merge into. `src/lib/levelOrder.ts` now exposes
+`getLevelSlots(combineA1A2): readonly LevelSlot[]`, where a `LevelSlot`
+(`{ label: string; levels: readonly OrderedLevelCode[] }`) is usually one
+level but two (`{ label: 'A1/A2', levels: ['A1', 'A2'] }`) when combined —
+9 slots instead of 10, in A1's/A2's place. `isSessionInLevelRange` resolves
+each of a session's levels to a *slot* index (not a direct
+`LEVEL_ORDER.indexOf`), so a session tagged only A1, only A2, or both all
+resolve to the same slot when combined — a real filtering merge, not just
+a relabel. `slots` is threaded from `useDanceScheduleFilters` (which
+computes it once from the flag) through `filterDanceSessions` and out to
+`DanceScheduleFilters`, which renders ticks from `slots` instead of
+importing `LEVEL_ORDER` directly — `moveNearestThumb` needed no change, it
+already only operates on plain indices. `LEVEL_ORDER` itself, and
+`levelColors.ts`'s use of it for card color-coding, are unaffected —
+combining on the slider is a filtering/display concern only, not a change
+to the underlying level data or how sessions are colored.
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't

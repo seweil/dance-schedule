@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { computeDanceScheduleLayout, type DanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
 import { filterDanceSessions } from '../lib/filterDanceSessions'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
-import { LEVEL_ORDER } from '../lib/levelOrder'
+import { getLevelSlots, type LevelSlot } from '../lib/levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
 
 export interface UseDanceScheduleFiltersResult {
   dates: Date[]
   selectedDate: Date
   setSelectedDate: (date: Date) => void
+  slots: readonly LevelSlot[]
   minLevelIndex: number
   maxLevelIndex: number
   setLevelRange: (minLevelIndex: number, maxLevelIndex: number) => void
@@ -19,14 +20,20 @@ export interface UseDanceScheduleFiltersResult {
 
 // Owns the dance-schedule page's filter state and derives everything downstream from
 // it — keeps DanceSchedulePage presentational, per CLAUDE.md's "push data-fetching and
-// side effects into hooks" convention.
-export function useDanceScheduleFilters(sessions: DanceSession[]): UseDanceScheduleFiltersResult {
+// side effects into hooks" convention. `combineA1A2` (from the active content set's
+// config.yaml, via virtual:content-config) is a build-time-constant feature flag, not
+// expected to change within a session — see docs/design/dance-schedule.md.
+export function useDanceScheduleFilters(
+  sessions: DanceSession[],
+  combineA1A2: boolean,
+): UseDanceScheduleFiltersResult {
   const groups = useMemo(() => groupDanceSessionsByDate(sessions), [sessions])
   const dates = useMemo(() => groups.map((group) => group.date), [groups])
+  const slots = useMemo(() => getLevelSlots(combineA1A2), [combineA1A2])
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => dates[0] ?? new Date())
   const [minLevelIndex, setMinLevelIndex] = useState(0)
-  const [maxLevelIndex, setMaxLevelIndex] = useState(LEVEL_ORDER.length - 1)
+  const [maxLevelIndex, setMaxLevelIndex] = useState(() => slots.length - 1)
   const [showGca, setShowGca] = useState(true)
 
   const setLevelRange = (min: number, max: number) => {
@@ -43,8 +50,8 @@ export function useDanceScheduleFilters(sessions: DanceSession[]): UseDanceSched
   )
 
   const visibleSessions = useMemo(
-    () => filterDanceSessions(sessions, selectedDate, minLevelIndex, maxLevelIndex),
-    [sessions, selectedDate, minLevelIndex, maxLevelIndex],
+    () => filterDanceSessions(sessions, selectedDate, minLevelIndex, maxLevelIndex, slots),
+    [sessions, selectedDate, minLevelIndex, maxLevelIndex, slots],
   )
 
   const layout = useMemo(
@@ -56,6 +63,7 @@ export function useDanceScheduleFilters(sessions: DanceSession[]): UseDanceSched
     dates,
     selectedDate,
     setSelectedDate,
+    slots,
     minLevelIndex,
     maxLevelIndex,
     setLevelRange,

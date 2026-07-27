@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
-import { LEVEL_ORDER } from '../lib/levelOrder'
+import { LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
 
 vi.mock('./DanceScheduleFilters.module.css', () => ({
   default: new Proxy({}, { get: (_target, prop) => prop }) as Record<string, string>,
 }))
 
 const DATES = [new Date('2026-07-02T00:00:00.000Z'), new Date('2026-07-03T00:00:00.000Z')]
+const BASE_SLOTS = getLevelSlots(false)
+const COMBINED_SLOTS = getLevelSlots(true)
 
 function renderFilters(overrides: Partial<React.ComponentProps<typeof DanceScheduleFilters>> = {}) {
   const onDateChange = vi.fn()
@@ -19,8 +21,9 @@ function renderFilters(overrides: Partial<React.ComponentProps<typeof DanceSched
       dates={DATES}
       selectedDate={DATES[0]!}
       onDateChange={onDateChange}
+      slots={BASE_SLOTS}
       minLevelIndex={0}
-      maxLevelIndex={LEVEL_ORDER.length - 1}
+      maxLevelIndex={BASE_SLOTS.length - 1}
       onLevelRangeChange={onLevelRangeChange}
       showGca
       onShowGcaChange={onShowGcaChange}
@@ -84,16 +87,42 @@ describe('DanceScheduleFilters', () => {
   })
 
   it('clicking a tick below the current range moves the min thumb to it', () => {
-    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 4, maxLevelIndex: 9 })
+    const maxIndex = BASE_SLOTS.length - 1
+    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 4, maxLevelIndex: maxIndex })
     fireEvent.click(screen.getByRole('button', { name: 'SSD' }))
-    expect(onLevelRangeChange).toHaveBeenCalledWith(0, 9)
+    expect(onLevelRangeChange).toHaveBeenCalledWith(0, maxIndex)
   })
 
   it('clicking a tick inside the current range moves whichever thumb is closer', () => {
-    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: 9 })
-    // 'A2' (index 4) is closer to min (0) than to max (9).
+    const maxIndex = BASE_SLOTS.length - 1
+    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: maxIndex })
+    // 'A2' is closer to min (0) than to max (the last index).
     fireEvent.click(screen.getByRole('button', { name: 'A2' }))
-    expect(onLevelRangeChange).toHaveBeenCalledWith(LEVEL_ORDER.indexOf('A2'), 9)
+    expect(onLevelRangeChange).toHaveBeenCalledWith(LEVEL_ORDER.indexOf('A2'), maxIndex)
+  })
+
+  describe('with A1/A2 combined', () => {
+    it('renders 9 ticks, including one labeled "A1/A2" in place of separate A1 and A2 ticks', () => {
+      renderFilters({ slots: COMBINED_SLOTS, maxLevelIndex: COMBINED_SLOTS.length - 1 })
+      expect(screen.getByRole('button', { name: 'A1/A2' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'A1' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'A2' })).not.toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /./ })).toHaveLength(COMBINED_SLOTS.length)
+    })
+
+    it('clicking the combined tick sets the range using its slot index, not a raw LEVEL_ORDER index', () => {
+      const maxIndex = COMBINED_SLOTS.length - 1
+      const { onLevelRangeChange } = renderFilters({
+        slots: COMBINED_SLOTS,
+        minLevelIndex: 0,
+        maxLevelIndex: maxIndex,
+      })
+      const a1a2Index = COMBINED_SLOTS.findIndex((slot) => slot.label === 'A1/A2')
+      fireEvent.click(screen.getByRole('button', { name: 'A1/A2' }))
+      // Index 4 in the 9-slot combined array (SSD, MS, Plus, A1/A2, ...) is closer
+      // to min (0) than to max (8), so it moves the min thumb there.
+      expect(onLevelRangeChange).toHaveBeenCalledWith(a1a2Index, maxIndex)
+    })
   })
 
   it('renders the GCA checkbox reflecting showGca and calls onShowGcaChange when toggled', () => {
