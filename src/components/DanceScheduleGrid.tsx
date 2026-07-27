@@ -13,7 +13,17 @@ import styles from './DanceScheduleGrid.module.css'
 // 15 minutes is the grid's time granularity.
 const UNIT_HEIGHT_PX = 20
 const TIME_COLUMN_WIDTH = '70px'
-const ROOM_COLUMN_MIN_WIDTH = '150px'
+// Fixed, not minmax(150px, 1fr) — headerGrid and bodyGrid are separate grid
+// containers that only share this computed string, not actual measured layout, so a
+// flexible 1fr track can resolve to a different pixel width in each (each grid's own
+// content — short room names vs. longer session-card text — independently drives its
+// intrinsic sizing once the box has to be at least content-sized; see the .grid
+// comment in the CSS module). A fixed width guarantees both grids agree exactly,
+// keeping header and body columns aligned at any scroll position. Tradeoff: room
+// columns no longer stretch to fill extra width on desktop when there are few rooms
+// (blank space to the right instead) — acceptable for now; revisit with a measured
+// (ResizeObserver-driven) shared width if that space needs to be reclaimed later.
+const ROOM_COLUMN_WIDTH = '150px'
 
 function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement; showGca: boolean }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
@@ -97,7 +107,7 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
     return <p className={styles.empty}>No sessions match the current filters.</p>
   }
 
-  const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, minmax(${ROOM_COLUMN_MIN_WIDTH}, 1fr))`
+  const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, ${ROOM_COLUMN_WIDTH})`
 
   return (
     <div className={styles.panelWrapper}>

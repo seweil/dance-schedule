@@ -3,8 +3,8 @@
    breakpoint, this panel is the ONLY scrolling box (both wrappers inherit normal
    flow), so scrolling it moves header and body together automatically — byte-
    identical to this grid's original single-.scrollContainer design, no JS involved.
-   Room columns get a touch-friendly minimum width (set inline, since column/row
-   counts are data-driven). */
+   Room columns get a fixed, touch-friendly width (set inline, since the column
+   count is data-driven — see DanceScheduleGrid.tsx's ROOM_COLUMN_WIDTH). */
 .panelWrapper {
   overflow: auto;
   max-height: 70vh;
@@ -36,6 +36,15 @@
     position: sticky;
     top: 0;
     overflow-x: hidden;
+    /* .corner/.roomHeader (its grid children) are already individually opaque, but
+       headerWrapper itself has no background of its own — this guarantees the whole
+       sticky region stays solid as ONE backdrop rather than depending on two
+       separately-painted cells tiling with zero gap. will-change hints the browser
+       to keep this on a stable compositing layer, avoiding a brief flash of
+       scrolled-past body content showing through a sticky header during fast
+       scrolling — a known artifact on mobile browsers, not just a hypothetical. */
+    background: #fff;
+    will-change: transform;
   }
 
   .bodyWrapper {
@@ -45,6 +54,25 @@
 
 .grid {
   display: grid;
+  /* Without this, a block-level grid's own box shrinks to fit its (scrolling)
+     ancestor's width rather than its actual (wider) column content — content still
+     visibly overflows either way, but position: sticky's containing block is this
+     box, not the overflow, so a sticky item (.corner/.roomHeader/.timeLabel/
+     .halfHourTick) unsticks and scrolls away once past that narrower width instead
+     of the grid's real scrollable width. Confirmed with a minimal repro outside this
+     app: breakAt was reproducibly wrapperWidth - stickyWidth + 1, and
+     getBoundingClientRect().width on the grid matched the wrapper's clientWidth,
+     not its (correct) scrollWidth, until this was added.
+     Safe to use plain `width` (not `min-width`) because gridTemplateColumns is now
+     built from fixed pixel values only (DanceScheduleGrid.tsx) — headerGrid and
+     bodyGrid, despite being separate containers with different content, always
+     compute the identical natural width from that shared, fixed track list, so there
+     is no "let 1fr fill extra space" behavior to preserve here (an earlier `1fr`-
+     based version of this rule broke exactly that: each grid's `1fr` tracks silently
+     resolved against ITS OWN content once box-sizing went intrinsic, desyncing
+     header/body by content-length differences — confirmed live as a ~1000px drift
+     at far scroll; see docs/design/dance-schedule-mobile-scroll.md). */
+  width: max-content;
 }
 
 .corner {

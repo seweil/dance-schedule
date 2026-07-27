@@ -48,6 +48,10 @@ splitting the grid into a separately-scrolling header and body.
       reserves row 1 for the header? — see Decisions
 - [x] Test plan — unit and e2e coverage, given this sandbox can't run
       Playwright — see Test plan section below
+- [x] Follow-up, found after initial implementation shipped: time labels
+      (and the header row) unstick and scroll off past a certain scroll
+      depth — see Decisions ("Sticky containing block..." and "Fixed room
+      column width...")
 
 ## Decisions
 
@@ -188,12 +192,97 @@ room-header cells themselves to their new wrapper.
 **Why:** `headerGrid` and `bodyGrid` are two separate CSS Grid containers
 (a single grid can't span two DOM subtrees with independent scroll
 behavior), so they don't align automatically the way rows within one grid
-do. `DanceScheduleGrid` already computes `gridTemplateColumns` once today
-(`${TIME_COLUMN_WIDTH} repeat(${visibleRooms.length}, minmax(...))`) —
-applying that *same* computed string as an inline style to both grids is
-sufficient; as long as the column tracks are defined identically, room
-columns line up pixel-for-pixel between the two independently-rendered
-grids.
+do. `DanceScheduleGrid` computes `gridTemplateColumns` once — applying that
+*same* computed string as an inline style to both grids is necessary for
+room columns to line up between the two independently-rendered grids. As
+originally written this used `minmax(150px, 1fr)` per room column; that
+turned out to be **insufficient** on its own — see "Fixed room column
+width..." below, found via a real bug this produced.
+
+### Sticky containing block bug: a grid's own box can be narrower than its content
+**Found:** 2026-07-26, reported by the user — "time labels remain visible
+as I scroll left, but after scrolling a lot, they scroll off screen."
+
+**Root cause (confirmed with a minimal repro outside this app, isolating it
+from anything else in this codebase):** a block-level `display: grid`
+element's own layout box does **not** grow to fit its grid tracks' content
+width the way intuition suggests — like any block box, `width: auto`
+resolves against its *containing block* (here, `bodyWrapper`'s clientWidth),
+not its content. The grid's *tracks* can still be wider and visibly overflow
+(that's the whole reason there's something to scroll), but the grid
+element's own box — its `getBoundingClientRect().width` — stays clamped to
+the narrower containing-block width. Confirmed directly: a grid whose tracks
+summed to 1050px, inside a 200px-wide `overflow: auto` wrapper, reported
+`getBoundingClientRect().width: 200`, not 1050.
+
+This matters because `position: sticky`'s containing block is that same
+(too-narrow) grid box, not the wrapper's scrollable content area. A sticky
+item can only move within its containing block's bounds — so once scrolled
+past `(containing-block width) − (sticky item's own width)`, there's no
+more room left for it to "stick" into, and it reverts to static position
+and scrolls away with everything else. Reproduced precisely: for a
+`wrapperWidth`-wide wrapper and `stickyWidth`-wide sticky item, the exact
+scroll offset where this happens is `wrapperWidth − stickyWidth + 1`, no
+matter how much wider the actual scrollable content is — confirmed across
+many width/column-count combinations. (Equivalent flexbox layout does not
+have this problem — a flex item does size its box to content by default —
+which is how this was isolated as CSS Grid–specific.)
+
+**Fix:** give `.grid` (`DanceScheduleGrid.module.css`) a `width` that
+reflects its actual content, not its containing block:
+
+```css
+.grid {
+  display: grid;
+  width: max-content;
+}
+```
+
+This makes the grid's own box match its tracks' real total width, so
+`position: sticky`'s containing block is correctly sized and stickiness
+holds across the entire scrollable range — confirmed at true max scroll
+after the fix (`timeLabel`'s `x` stays `1`, not drifting negative).
+
+### Fixed room column width, not `minmax(..., 1fr)`
+**Found:** applying `width: max-content` alone (without also touching the
+column-width unit) fixed the sticky bug but surfaced a *second*, subtler
+bug: `headerGrid` and `bodyGrid` are separate grid containers that only
+share a *track-definition string*, not actual measured layout. Once a
+grid's box has to size from `max-content` rather than a definite containing-
+block width, `1fr` tracks lose the definite space they need to distribute
+evenly and instead degrade to sizing from **that grid's own content** —
+independently per grid. Since `headerGrid`'s only content is short room
+names and `bodyGrid`'s content is longer (caller names, GCA lines), the two
+grids resolved `1fr` differently and ended up with genuinely different
+total widths (`bodyWrapper.scrollWidth: 2657` vs.
+`headerWrapper.scrollWidth: 1658` in one real measurement) — silently
+desyncing the header from the body by the difference, worse the further
+right you scroll.
+
+Tried `min-width: max-content` (keep `1fr`, only floor the box at its
+content width) first — this correctly preserves the "stretch to fill the
+viewport when there are few rooms" desktop behavior in isolation, but does
+**not** fix the header/body desync, since the two grids still each resolve
+their own `1fr` independently once *either* falls back to intrinsic sizing.
+
+**Fix:** room columns are a plain fixed pixel width
+(`ROOM_COLUMN_WIDTH = '150px'` in `DanceScheduleGrid.tsx`), not
+`minmax(150px, 1fr)`. A fixed-width track's resolved size never depends on
+either grid's own content, so `headerGrid` and `bodyGrid` — despite being
+separate containers — always compute byte-identical total widths from the
+same shared track-definition string, at any viewport size. Confirmed live:
+`headerWrapper.scrollWidth === bodyWrapper.scrollWidth` exactly, and
+`headerScrollLeft === bodyScrollLeft` at true max scroll (`diff: 0`).
+
+**Accepted tradeoff (explicitly approved by the user):** room columns no
+longer stretch to fill extra width on desktop when there are few rooms —
+they stay a constant `150px` each, leaving blank space to the right inside
+`panelWrapper` instead. Chosen over the `1fr`/`min-width: max-content`
+approach specifically because it's simple and unconditionally correct
+(no per-grid content dependence at all), versus a measured/JS-driven
+shared-width approach that would restore the fill behavior at the cost of
+real added complexity (e.g. a `ResizeObserver` computing one shared column
+width and feeding it to both grids).
 
 ### Desktop stays byte-for-byte the same UX, via one wrapper + CSS only
 **Why:** wrap `headerWrapper` and `bodyWrapper` together in a `panelWrapper`
@@ -327,3 +416,19 @@ fine." Also specifically check:
   scroll/wheel actions over the grid's own screen region, not just
   `window.scrollBy` from a JS console, since gesture-chaining is exactly
   the kind of thing that can silently differ from a synthetic scroll call.
+
+## Open questions
+
+- Room columns are now a flat fixed width (`ROOM_COLUMN_WIDTH`), not
+  content-aware — every column is the same width regardless of how much
+  text a given room's sessions actually need, and desktop no longer
+  stretches columns to fill extra viewport width when there are few rooms.
+  If either of these becomes a real problem later, revisit with a
+  *measured* shared width: e.g. a `ResizeObserver` on `panelWrapper`/
+  `bodyWrapper` computing one column width in JS (either a simple
+  viewport-driven fill calculation, or something genuinely content-aware,
+  measuring each room's actual widest card) and feeding that same computed
+  value into both `headerGrid`'s and `bodyGrid`'s `gridTemplateColumns` —
+  the key constraint proven by this investigation is that the two grids
+  must always receive the *same already-resolved pixel value*, never a
+  flexible unit (`1fr`/`minmax`) each grid could resolve independently.
