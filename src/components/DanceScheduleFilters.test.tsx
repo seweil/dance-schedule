@@ -32,12 +32,17 @@ function renderFilters(overrides: Partial<React.ComponentProps<typeof DanceSched
 }
 
 describe('DanceScheduleFilters', () => {
-  it('renders a date option per date, with the selected date chosen', () => {
+  it('renders a date option per date (short — weekday, month, day, no year), with the selected date chosen', () => {
     renderFilters()
     const select = screen.getByRole('combobox') as HTMLSelectElement
     expect(select.value).toBe(DATES[0]!.toISOString())
-    expect(screen.getByRole('option', { name: /Thursday, July 2, 2026/ })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: /Friday, July 3, 2026/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Thu, Jul 2' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Fri, Jul 3' })).toBeInTheDocument()
+  })
+
+  it('gives the date select an accessible name of "Date" even though the label is visually hidden', () => {
+    renderFilters()
+    expect(screen.getByLabelText('Date')).toBe(screen.getByRole('combobox'))
   })
 
   it('calls onDateChange with the matching Date object when the selection changes', () => {

@@ -3,7 +3,15 @@ import { LEVEL_ORDER } from '../lib/levelOrder'
 import { moveNearestThumb } from '../lib/moveNearestThumb'
 import styles from './DanceScheduleFilters.module.css'
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' })
+// Weekday + day + month, no year — the year is never ambiguous within a single
+// convention's schedule, and dropping it keeps each <option> (and the closed
+// select's own display) short enough to help the vertical-footprint goal below.
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+})
 
 export interface DanceScheduleFiltersProps {
   dates: Date[]
@@ -31,7 +39,7 @@ export function DanceScheduleFilters({
   return (
     <div className={styles.filters}>
       <label className={styles.field}>
-        <span className={styles.label}>Date</span>
+        <span className={styles.visuallyHidden}>Date</span>
         <select
           className={styles.select}
           value={selectedDate.toISOString()}

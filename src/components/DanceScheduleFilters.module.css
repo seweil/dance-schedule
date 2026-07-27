@@ -1,7 +1,13 @@
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* flex-end, not flex-start — the three fields have different-height content above
+     their actual control (the level field's tick row sits above its slider; the
+     date field has none now that its label is visually hidden), so top-aligning
+     left the controls themselves at mismatched heights. Bottom-aligning lines up
+     the select, slider, and checkbox regardless of what (if anything) sits above
+     each. */
+  align-items: flex-end;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
 }
@@ -36,6 +42,22 @@
   color: var(--color-text);
 }
 
+/* Keeps the Date <select>'s accessible name (still needed for screen readers and
+   for Playwright's getByLabel('Date') in e2e/dance-schedule.spec.ts) without
+   spending any vertical space on it — the select's own content makes "Date"
+   visually redundant once the date format itself is unambiguous. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .select {
   padding: var(--space-sm);
   font: inherit;
@@ -45,7 +67,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  align-self: center;
 }
 
 .sliderRoot {
