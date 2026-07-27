@@ -10,6 +10,30 @@ test('nav links to the dance schedule page, which renders the default date\'s gr
   await expect(page.locator('[class*="roomHeader"]').first()).toBeVisible()
 })
 
+test('the redundant "Dancing -" prefix is omitted, and the caller name renders bold', async ({
+  page,
+}) => {
+  await page.goto('/dance-schedule')
+  await expect(page.getByRole('heading', { name: /dance schedule/i })).toBeVisible()
+
+  // Thursday (the default date) has real "Dancing"-type sessions — none of their
+  // cards should show the literal "Dancing -" prefix.
+  await expect(page.getByText('Dancing -')).toHaveCount(0)
+
+  const caller = page.locator('[class*="details"] strong', { hasText: 'Kris Jensen' }).first()
+  await expect(caller).toBeVisible()
+})
+
+test('a non-"Dancing" event type keeps its plain-text prefix before the bold caller name', async ({
+  page,
+}) => {
+  await page.goto('/dance-schedule')
+
+  await expect(page.getByText('Skirt Work Hour -')).toBeVisible()
+  const caller = page.locator('[class*="details"] strong', { hasText: 'Wendy VanderMeulen' }).first()
+  await expect(caller).toBeVisible()
+})
+
 test('desktop: the panel itself scrolls both directions, unaffected by the mobile split-header behavior', async ({
   page,
 }) => {
@@ -95,10 +119,14 @@ test('unchecking "Show GCA callers" hides the GCA line without hiding the sessio
   await page.goto('/dance-schedule')
   await expect(page.getByText(/^GCA:/).first()).toBeVisible()
 
+  const detailsBefore = await page.locator('[class*="details"]').first().textContent()
+
   await page.getByLabel(/show gca callers/i).uncheck()
 
   await expect(page.getByText(/^GCA:/)).toHaveCount(0)
-  await expect(page.getByText('Dancing -').first()).toBeVisible()
+  // The session card's own details (event type/caller) are untouched by the GCA
+  // toggle — same text before and after, just the GCA line disappears.
+  await expect(page.locator('[class*="details"]').first()).toHaveText(detailsBefore ?? '')
 })
 
 test('app shell still renders the dance schedule page when offline after the SW takes control', async ({

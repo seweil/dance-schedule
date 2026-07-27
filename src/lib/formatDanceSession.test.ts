@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatSessionCallerDetails,
+  formatSessionCallers,
+  formatSessionEventTypePrefix,
   formatSessionGca,
   formatSessionLevels,
   formatSessionRoom,
@@ -58,6 +60,34 @@ describe('formatSessionCallerDetails', () => {
 
   it('returns the bare description for a freeform session, with no "(freeform)" marker', () => {
     expect(formatSessionCallerDetails(FREEFORM)).toBe('Country Western Dance - until 1am')
+  })
+})
+
+describe('formatSessionEventTypePrefix', () => {
+  it('is empty for the common "Dancing" event type', () => {
+    expect(formatSessionEventTypePrefix(makeStructured({ eventType: 'Dancing' }))).toBe('')
+  })
+
+  it('includes a trailing " - " for any other event type', () => {
+    expect(formatSessionEventTypePrefix(makeStructured({ eventType: 'Skirt Work Hour' }))).toBe(
+      'Skirt Work Hour - ',
+    )
+  })
+
+  it('is empty for a freeform session', () => {
+    expect(formatSessionEventTypePrefix(FREEFORM)).toBe('')
+  })
+})
+
+describe('formatSessionCallers', () => {
+  it('joins multiple callers with " & "', () => {
+    expect(
+      formatSessionCallers(makeStructured({ callers: ['Michael Kellogg', 'Terri Sherrer'] })),
+    ).toBe('Michael Kellogg & Terri Sherrer')
+  })
+
+  it('is empty for a freeform session', () => {
+    expect(formatSessionCallers(FREEFORM)).toBe('')
   })
 })
 

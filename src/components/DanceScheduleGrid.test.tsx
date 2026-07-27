@@ -69,10 +69,35 @@ describe('DanceScheduleGrid', () => {
     expect(screen.getByText('1:00 PM')).toBeInTheDocument()
   })
 
-  it('renders a structured session card with levels and details', () => {
+  it('renders a structured session card with levels and details, omitting the redundant "Dancing" prefix', () => {
     render(<DanceScheduleGrid layout={makeLayout()} showGca />)
     expect(screen.getByText('SSD')).toBeInTheDocument()
-    expect(screen.getByText('Dancing - Ted Lizotte')).toBeInTheDocument()
+    expect(screen.queryByText(/Dancing -/)).not.toBeInTheDocument()
+    const caller = screen.getByText('Ted Lizotte')
+    expect(caller).toBeInTheDocument()
+    expect(caller.tagName).toBe('STRONG')
+  })
+
+  it('keeps a non-"Dancing" event type as a plain-text prefix before the bold caller name', () => {
+    render(
+      <DanceScheduleGrid
+        layout={makeLayout({
+          placements: [
+            {
+              session: { ...STRUCTURED_SESSION, eventType: 'Skirt Work Hour' },
+              rowStart: 3,
+              rowSpan: 4,
+              columnStart: 0,
+              columnSpan: 1,
+            },
+          ],
+        })}
+        showGca
+      />,
+    )
+    expect(screen.getByText(/Skirt Work Hour -/)).toBeInTheDocument()
+    const caller = screen.getByText('Ted Lizotte')
+    expect(caller.tagName).toBe('STRONG')
   })
 
   it('shows the GCA line when showGca is true', () => {
@@ -83,7 +108,7 @@ describe('DanceScheduleGrid', () => {
   it('hides the GCA line (but keeps the session) when showGca is false', () => {
     render(<DanceScheduleGrid layout={makeLayout()} showGca={false} />)
     expect(screen.queryByText(/GCA: Tim Stephens/)).not.toBeInTheDocument()
-    expect(screen.getByText('Dancing - Ted Lizotte')).toBeInTheDocument()
+    expect(screen.getByText('Ted Lizotte')).toBeInTheDocument()
   })
 
   it('renders a roomless session with its time range and no GCA line', () => {
@@ -173,6 +198,6 @@ describe('DanceScheduleGrid', () => {
         showGca
       />,
     )
-    expect(screen.getAllByText('Dancing - Ted Lizotte')).toHaveLength(2)
+    expect(screen.getAllByText('Ted Lizotte')).toHaveLength(2)
   })
 })

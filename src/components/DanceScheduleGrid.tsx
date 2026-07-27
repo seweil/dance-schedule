@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
 import type { DanceScheduleLayout, DanceSessionPlacement } from '../lib/computeDanceScheduleLayout'
 import {
-  formatSessionCallerDetails,
+  formatSessionCallers,
+  formatSessionEventTypePrefix,
   formatSessionGca,
   formatSessionLevels,
   formatSessionTimeRange,
@@ -45,7 +46,16 @@ function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement;
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
         {levels && <p className={styles.levels}>{levels}</p>}
-        <p className={styles.details}>{formatSessionCallerDetails(session)}</p>
+        <p className={styles.details}>
+          {session.kind === 'freeform' ? (
+            session.description
+          ) : (
+            <>
+              {formatSessionEventTypePrefix(session)}
+              <strong>{formatSessionCallers(session)}</strong>
+            </>
+          )}
+        </p>
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
         {!isRoomless && showGca && gca && <p className={styles.gca}>GCA: {gca}</p>}
       </div>

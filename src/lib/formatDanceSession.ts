@@ -25,6 +25,25 @@ export function formatSessionCallerDetails(session: DanceSession): string {
   return `${session.eventType} - ${session.callers.join(' & ')}`
 }
 
+// Used by the real display page's session cards (DanceScheduleGrid.tsx), not the
+// raw debug table/markdown dump — those stay a faithful, unfiltered echo of the
+// parsed data via formatSessionCallerDetails above. "Dancing" is suppressed
+// specifically because it's the overwhelmingly common event type in the real data
+// (stating it on nearly every card is redundant noise); other types (e.g. "Skirt
+// Work Hour", "Leather Tip") are meaningful and kept. Includes the trailing " - "
+// separator so a caller can concatenate this directly before the caller name(s);
+// empty string (freeform, or eventType "Dancing") when there's nothing to show.
+export function formatSessionEventTypePrefix(session: DanceSession): string {
+  if (session.kind !== 'structured' || session.eventType === 'Dancing') {
+    return ''
+  }
+  return `${session.eventType} - `
+}
+
+export function formatSessionCallers(session: DanceSession): string {
+  return session.kind === 'structured' ? session.callers.join(' & ') : ''
+}
+
 export function formatSessionGca(session: DanceSession): string {
   return session.kind === 'structured' ? (session.gca ?? '') : ''
 }
