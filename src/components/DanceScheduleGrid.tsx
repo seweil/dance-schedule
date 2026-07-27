@@ -11,8 +11,18 @@ import { colorForSession } from '../lib/levelColors'
 import styles from './DanceScheduleGrid.module.css'
 
 // One 15-minute row unit's pixel height — see computeDanceScheduleLayout.ts for why
-// 15 minutes is the grid's time granularity.
-const UNIT_HEIGHT_PX = 20
+// 15 minutes is the grid's time granularity. Two values, not one: showGca is a
+// single global toggle (not per-card), so hiding it uniformly drops one line of
+// content from every card that has GCA data — the whole grid can compact to match,
+// not just cards that happen to lose a line. 18, not a more aggressive 16 — chosen
+// live: 16 visibly compresses the common (1hr/45min) case just as well, but also
+// measurably worsens a separate, pre-existing overflow issue (very short sessions
+// with long wrapping text clip regardless of this toggle — see
+// docs/known-issues.md) for cards that don't even have GCA data to hide in the
+// first place. 18 keeps that collateral impact smaller while still delivering
+// visible compaction for the common case this feature is actually for.
+const UNIT_HEIGHT_PX_WITH_GCA = 20
+const UNIT_HEIGHT_PX_WITHOUT_GCA = 18
 const TIME_COLUMN_WIDTH = '70px'
 // Fixed, not minmax(150px, 1fr) — headerGrid and bodyGrid are separate grid
 // containers that only share this computed string, not actual measured layout, so a
@@ -118,6 +128,7 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
   }
 
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, ${ROOM_COLUMN_WIDTH})`
+  const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
 
   return (
     <div className={styles.panelWrapper}>
@@ -134,7 +145,7 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
       <div className={styles.bodyWrapper} ref={setBodyRef}>
         <div
           className={styles.grid}
-          style={{ gridTemplateColumns, gridTemplateRows: `repeat(${totalRowUnits}, ${UNIT_HEIGHT_PX}px)` }}
+          style={{ gridTemplateColumns, gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)` }}
         >
           {hourMarks.map((mark) => (
             <div

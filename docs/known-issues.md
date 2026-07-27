@@ -85,3 +85,39 @@ lines, no dependency needed. Would need to live in a component (not the
 plain-markdown Installation page), likely surfaced as a button in `Nav` or
 on the Installation page itself once that page can host interactive
 elements again.
+
+## Dance-schedule cards: long wrapping text clips on very short (~30min) sessions
+
+**Found:** 2026-07-26, live-measuring card content height while adding the
+GCA-hidden row-compaction feature (`DanceScheduleGrid.tsx`'s
+`UNIT_HEIGHT_PX_WITH_GCA`/`UNIT_HEIGHT_PX_WITHOUT_GCA`) — pre-existing,
+unrelated to that change itself.
+
+A session short enough to occupy only 2 row units (~30 minutes at the
+grid's 15-min/unit granularity) can have a details line (event type +
+caller name(s), or a roomless description) long enough to wrap to a second
+line — measured live on the real Saturday data, e.g. "GCA Caller Showcase
+Dance - Michael Maltenfort" and "Medallion Tip - Vic Ceder" both wrap and
+get visibly cut off (`.card`'s `overflow: hidden` clips rather than
+growing the card, since row height is fixed by time span, not content).
+Confirmed via `contentScrollHeight` measurements exceeding the actual
+rendered card height by 13-28px on real cards, and directly visually (a
+caller's name cut off mid-word in a screenshot).
+
+**Not related to the "Show GCA callers" toggle specifically** — these
+particular overflowing cards don't have GCA data at all, so hiding GCA
+doesn't reduce their content; they were already clipping before that
+toggle existed. The new GCA-hidden compaction (a smaller shared per-unit
+height, since `showGca` is a global toggle) does make this pre-existing
+overflow marginally worse in absolute pixels for these specific cards
+(measured: 20% worse at an initially-tried 16px/unit, ~10% worse at the
+18px/unit value actually shipped) — factored into picking 18 over a more
+aggressive 16, but not eliminated.
+
+**Fix direction (undecided):** either let cards grow taller than their
+strict time-proportional row span when their content demands it (breaks
+the "vertical position exactly encodes time" property elsewhere in the
+grid, needs a real design decision, not a quick tweak), or tighten
+font-size/line-height/padding further specifically for very short
+sessions, or accept truncation with a `title` tooltip showing the full
+text on hover/tap. Decide the intended UX before implementing.

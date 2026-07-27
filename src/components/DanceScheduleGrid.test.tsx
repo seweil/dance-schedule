@@ -185,6 +185,20 @@ describe('DanceScheduleGrid', () => {
     expect(colorForSession(ROOMLESS_SESSION)).toBe(NEUTRAL_CARD_COLOR)
   })
 
+  it('uses a shorter row height (all rows uniformly, not just cards with GCA) when showGca is false', () => {
+    const { container: shown } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const { container: hidden } = render(<DanceScheduleGrid layout={makeLayout()} showGca={false} />)
+
+    const bodyGridShown = shown.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
+    const bodyGridHidden = hidden.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
+
+    // Both extract the per-unit pixel value from "repeat(N, <px>px)" and compare —
+    // asserting hidden < shown, not exact numbers, so this doesn't need updating
+    // every time the actual pixel values are retuned.
+    const unitPx = (grid: HTMLElement) => Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
+    expect(unitPx(bodyGridHidden)).toBeLessThan(unitPx(bodyGridShown))
+  })
+
   it('renders one card per placement even when several share the same session', () => {
     render(
       <DanceScheduleGrid
