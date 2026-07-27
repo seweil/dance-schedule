@@ -1,5 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { computeDanceScheduleLayout, type DanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
+import {
+  loadStoredDanceScheduleFilters,
+  resolveStoredDate,
+  resolveStoredLevelRange,
+  resolveStoredShowGca,
+  saveDanceScheduleFilters,
+} from '../lib/danceScheduleFiltersStorage'
 import { filterDanceSessions } from '../lib/filterDanceSessions'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
 import { getLevelSlots, type LevelSlot } from '../lib/levelOrder'
@@ -31,15 +38,32 @@ export function useDanceScheduleFilters(
   const dates = useMemo(() => groups.map((group) => group.date), [groups])
   const slots = useMemo(() => getLevelSlots(combineA1A2), [combineA1A2])
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => dates[0] ?? new Date())
-  const [minLevelIndex, setMinLevelIndex] = useState(0)
-  const [maxLevelIndex, setMaxLevelIndex] = useState(() => slots.length - 1)
-  const [showGca, setShowGca] = useState(true)
+  // Read once, at mount — a stable lazy useState initializer, not a plain call, so
+  // it doesn't re-read localStorage on every render. See
+  // src/lib/danceScheduleFiltersStorage.ts for how each stored field is validated/
+  // clamped against the CURRENT dates/slots before being trusted.
+  const [initialStoredFilters] = useState(() => loadStoredDanceScheduleFilters())
+
+  const [selectedDate, setSelectedDate] = useState<Date>(() => resolveStoredDate(initialStoredFilters, dates))
+  const [minLevelIndex, setMinLevelIndex] = useState(
+    () => resolveStoredLevelRange(initialStoredFilters, slots.length).minLevelIndex,
+  )
+  const [maxLevelIndex, setMaxLevelIndex] = useState(
+    () => resolveStoredLevelRange(initialStoredFilters, slots.length).maxLevelIndex,
+  )
+  const [showGca, setShowGca] = useState(() => resolveStoredShowGca(initialStoredFilters))
 
   const setLevelRange = (min: number, max: number) => {
     setMinLevelIndex(min)
     setMaxLevelIndex(max)
   }
+
+  // Persists on every change (including the initial mount, harmlessly re-writing the
+  // just-resolved/clamped values) so a returning visit — or a fresh PWA launch —
+  // picks up right where the user left off.
+  useEffect(() => {
+    saveDanceScheduleFilters({ selectedDateISO: selectedDate.toISOString(), minLevelIndex, maxLevelIndex, showGca })
+  }, [selectedDate, minLevelIndex, maxLevelIndex, showGca])
 
   // The full, unfiltered set of sessions for the selected date — layout needs this
   // (not just the visible subset) to keep room order/time bounds stable as the level

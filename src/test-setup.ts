@@ -4,6 +4,11 @@ import '@testing-library/jest-dom/vitest'
 
 afterEach(cleanup)
 
+// Vitest reuses one jsdom environment (and its localStorage) across every test in a
+// file — without this, a test that persists app settings (useDanceScheduleFilters,
+// useLastPagePersistence) leaks state into whichever test happens to run next.
+afterEach(() => localStorage.clear())
+
 // jsdom doesn't implement ResizeObserver — needed by @radix-ui/react-slider (via
 // react-use-size) to measure the track/thumb, even though tests never assert on
 // real layout/pixel positions.

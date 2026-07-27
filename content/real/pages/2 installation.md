@@ -23,3 +23,10 @@ available even when you don't have a signal or Wi-Fi.
 
 Chrome may also show an **Install** banner or icon in the address bar on its
 own after a couple of visits — tapping that works the same way.
+
+## Troubleshooting
+
+Dance Schedule remembers your selected date, level filters, and GCA setting
+so they're there the next time you open it. If something looks stuck or
+out of date, [clear saved settings](/clear-storage) to reset everything
+back to its defaults.

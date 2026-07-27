@@ -3,10 +3,12 @@ import { BrowserRouter, Navigate, useRoutes, type RouteObject } from 'react-rout
 import { MDXProvider } from '@mdx-js/react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
+import { ClearStorageAction } from './components/ClearStorageAction'
 import { Nav } from './components/Nav'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { ZoomableImage } from './components/ZoomableImage'
 import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
+import { useLastPagePersistence } from './hooks/useLastPagePersistence'
 import { normalizeRoutes } from './lib/buildNavTree'
 
 const mdxComponents = { img: ZoomableImage }
@@ -23,8 +25,14 @@ const debugRoutes: RouteObject[] = [
   { path: '/debug/dance-schedule', element: <RawDanceScheduleDebugPage /> },
 ]
 
+// Same "reachable but not in nav" treatment as debugRoutes above, for a different
+// reason: this is a one-off utility action (linked from the Installation page), not
+// a page worth a permanent nav entry.
+const utilityRoutes: RouteObject[] = [{ path: '/clear-storage', element: <ClearStorageAction /> }]
+
 function Pages() {
-  return useRoutes([...normalizedRoutes, ...debugRoutes])
+  useLastPagePersistence()
+  return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes])
 }
 
 // Without this, an already-open tab only checks for a new service worker on its
