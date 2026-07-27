@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import type { DanceScheduleLayout, DanceSessionPlacement } from '../lib/computeDanceScheduleLayout'
+import { shouldCombineLevelAndDetails } from '../lib/estimateCardFit'
 import {
   formatSessionCallers,
   formatSessionEventTypePrefix,
@@ -8,6 +9,7 @@ import {
   formatSessionTimeRange,
 } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
+import { measureTextWidth } from '../lib/measureTextWidth'
 import styles from './DanceScheduleGrid.module.css'
 
 // One 15-minute row unit's pixel height — see computeDanceScheduleLayout.ts for why
@@ -34,9 +36,45 @@ const TIME_COLUMN_WIDTH = '70px'
 // columns no longer stretch to fill extra width on desktop when there are few rooms
 // (blank space to the right instead) — acceptable for now; revisit with a measured
 // (ResizeObserver-driven) shared width if that space needs to be reclaimed later.
-const ROOM_COLUMN_WIDTH = '150px'
+const ROOM_COLUMN_WIDTH_PX = 150
+const ROOM_COLUMN_WIDTH = `${ROOM_COLUMN_WIDTH_PX}px`
+// .card's own horizontal margin (1px each side) + padding (8px each side, --space-sm)
+// — the difference between a room column's track width and the usable text width
+// inside a card in that column. Live-measured: a 150px column leaves 132px of usable
+// text width (150 - 18).
+const CARD_HORIZONTAL_OVERHEAD_PX = 18
+// Matches :root's font stack in src/index.css, at .card's 13px (0.8125rem) font-size,
+// bold — the caller name (the widest part of a details line) renders in <strong>, so
+// measuring as bold errs toward a wider (safer, more likely to trigger combining)
+// estimate rather than an under-estimate that risks leaving real overflow uncombined.
+const DETAILS_MEASUREMENT_FONT = 'bold 13px system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
 
-function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement; showGca: boolean }) {
+function detailsPlainText(session: DanceSessionPlacement['session']): string {
+  return session.kind === 'freeform'
+    ? session.description
+    : `${formatSessionEventTypePrefix(session)}${formatSessionCallers(session)}`
+}
+
+function detailsContent(session: DanceSessionPlacement['session']): ReactNode {
+  return session.kind === 'freeform' ? (
+    session.description
+  ) : (
+    <>
+      {formatSessionEventTypePrefix(session)}
+      <strong>{formatSessionCallers(session)}</strong>
+    </>
+  )
+}
+
+function SessionCard({
+  placement,
+  showGca,
+  unitHeightPx,
+}: {
+  placement: DanceSessionPlacement
+  showGca: boolean
+  unitHeightPx: number
+}) {
   const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
@@ -51,23 +89,43 @@ function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement;
   }
   const levels = formatSessionLevels(session)
   const gca = formatSessionGca(session)
+  const showGcaLine = !isRoomless && showGca && !!gca
+
+  // Cards are a fixed, time-proportional height (rowSpan * unitHeightPx) that never
+  // grows to fit content — see docs/known-issues.md's "long wrapping text clips on
+  // very short sessions" entry. When a level line exists and the estimate says the
+  // level + details (+ GCA) lines won't fit separately, combine level and details
+  // onto one line to save the line break, rather than risk clipping.
+  const combineLevelAndDetails =
+    !isRoomless &&
+    !!levels &&
+    shouldCombineLevelAndDetails(
+      {
+        levelsText: levels,
+        detailsText: detailsPlainText(session),
+        hasGcaLine: showGcaLine,
+        availableHeightPx: rowSpan * unitHeightPx,
+        textWidthPx: columnSpan * ROOM_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX,
+      },
+      (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
+    )
 
   return (
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
-        {levels && <p className={styles.levels}>{levels}</p>}
-        <p className={styles.details}>
-          {session.kind === 'freeform' ? (
-            session.description
-          ) : (
-            <>
-              {formatSessionEventTypePrefix(session)}
-              <strong>{formatSessionCallers(session)}</strong>
-            </>
-          )}
-        </p>
+        {combineLevelAndDetails ? (
+          <p className={styles.details}>
+            <span className={styles.levels}>{levels} </span>
+            {detailsContent(session)}
+          </p>
+        ) : (
+          <>
+            {levels && <p className={styles.levels}>{levels}</p>}
+            <p className={styles.details}>{detailsContent(session)}</p>
+          </>
+        )}
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
-        {!isRoomless && showGca && gca && <p className={styles.gca}>GCA: {gca}</p>}
+        {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>
   )
@@ -166,7 +224,7 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
           {placements.map((placement, index) => (
             // Placements have no stable id of their own (a non-contiguous multi-room
             // session produces several for the same session) — index is stable per render.
-            <SessionCard key={index} placement={placement} showGca={showGca} />
+            <SessionCard key={index} placement={placement} showGca={showGca} unitHeightPx={unitHeightPx} />
           ))}
         </div>
       </div>

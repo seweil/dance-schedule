@@ -114,10 +114,22 @@ overflow marginally worse in absolute pixels for these specific cards
 18px/unit value actually shipped) — factored into picking 18 over a more
 aggressive 16, but not eliminated.
 
-**Fix direction (undecided):** either let cards grow taller than their
-strict time-proportional row span when their content demands it (breaks
-the "vertical position exactly encodes time" property elsewhere in the
-grid, needs a real design decision, not a quick tweak), or tighten
-font-size/line-height/padding further specifically for very short
-sessions, or accept truncation with a `title` tooltip showing the full
-text on hover/tap. Decide the intended UX before implementing.
+**Partial mitigation shipped 2026-07-27:** `src/lib/estimateCardFit.ts`'s
+`shouldCombineLevelAndDetails` (word-wrap simulated via
+`src/lib/estimateWrappedLineCount.ts`, real widths measured by
+`src/lib/measureTextWidth.ts`'s Canvas 2D `measureText`) estimates whether
+a card's level + details (+ GCA) lines will exceed its actual available
+height and, if so, combines the level and details text onto one line
+instead of two. Live-verified against the real Saturday data: of 57
+cards, 16 still overflow and all 16 were correctly flagged and combined
+(no false negatives) — combining fully resolved overflow for 1 of them
+(e.g. "Medallion Tip - Vic Ceder"), while the remaining 15 (mostly "GCA
+Caller Showcase Dance - <name>" cards, whose combined text still needs 3
+wrapped lines in a 2-row-unit card) still clip, just by less than before.
+
+**Fix direction for the remaining cases (undecided):** either let cards
+grow taller than their strict time-proportional row span when their
+content demands it (breaks the "vertical position exactly encodes time"
+property elsewhere in the grid, needs a real design decision, not a quick
+tweak), or accept truncation with a `title` tooltip showing the full text
+on hover/tap. Decide the intended UX before implementing.

@@ -199,6 +199,51 @@ describe('DanceScheduleGrid', () => {
     expect(unitPx(bodyGridHidden)).toBeLessThan(unitPx(bodyGridShown))
   })
 
+  it('combines the level and details lines onto one <p> when the card is too short for both', () => {
+    const longCallerSession: DanceSession = {
+      ...STRUCTURED_SESSION,
+      eventType: 'Dancing',
+      callers: ['Michael Maltenfort'],
+    }
+    const { container } = render(
+      <DanceScheduleGrid
+        layout={makeLayout({
+          // A 2-row-unit (30-minute) card is too short for "SSD" plus a wrapping
+          // caller name as two separate lines, even with the roomier
+          // showGca-true 20px/unit row height.
+          placements: [{ session: longCallerSession, rowStart: 3, rowSpan: 2, columnStart: 0, columnSpan: 1 }],
+        })}
+        showGca
+      />,
+    )
+
+    expect(container.querySelector('p.levels')).not.toBeInTheDocument()
+    const combined = container.querySelector('p.details') as HTMLElement
+    expect(combined.querySelector('span.levels')?.textContent).toContain('SSD')
+    expect(combined.textContent).toBe('SSD Michael Maltenfort')
+  })
+
+  it('keeps the level and details lines separate when the card has plenty of room', () => {
+    const longCallerSession: DanceSession = {
+      ...STRUCTURED_SESSION,
+      eventType: 'Dancing',
+      callers: ['Michael Maltenfort'],
+    }
+    const { container } = render(
+      <DanceScheduleGrid
+        layout={makeLayout({
+          // A tall (2-hour, 8-row-unit) card has plenty of vertical room even if the
+          // caller name wraps to a second line.
+          placements: [{ session: longCallerSession, rowStart: 3, rowSpan: 8, columnStart: 0, columnSpan: 1 }],
+        })}
+        showGca
+      />,
+    )
+
+    expect(container.querySelector('p.levels')?.textContent).toBe('SSD')
+    expect(container.querySelector('p.details')?.textContent).toBe('Michael Maltenfort')
+  })
+
   it('renders one card per placement even when several share the same session', () => {
     render(
       <DanceScheduleGrid
