@@ -104,13 +104,31 @@ test('narrowing the level slider hides out-of-range sessions and their now-empty
   for (let i = 0; i < 9; i++) {
     await page.keyboard.press('ArrowRight')
   }
-  await expect(page.getByText('Level: C4 – C4')).toBeVisible()
+  // 9 — C4's index in LEVEL_ORDER (src/lib/levelOrder.ts), the last of 10 levels.
+  await expect(minThumb).toHaveAttribute('aria-valuenow', '9')
 
   // Only C4 sessions remain — everything else, and any room column that had nothing
   // in C4, disappears.
   const columnCountAfter = await page.locator('[class*="roomHeader"]').count()
   expect(columnCountAfter).toBeLessThan(columnCountBefore)
   await expect(page.getByText('All Callers Dance - All Callers')).not.toBeVisible()
+})
+
+test('clicking a level tick label sets the range directly, without using the slider thumbs', async ({
+  page,
+}) => {
+  await page.goto('/dance-schedule')
+  const maxThumb = page.getByRole('slider', { name: /maximum level/i })
+  // 9 — C4's index in LEVEL_ORDER (src/lib/levelOrder.ts): the default range starts
+  // at the full SSD-C4 span.
+  await expect(maxThumb).toHaveAttribute('aria-valuenow', '9')
+
+  // Clicking a tick above the current range extends the max thumb to it — no drag,
+  // no keyboard, just a click on the label itself.
+  await page.getByRole('button', { name: 'C1', exact: true }).click()
+
+  // 5 — C1's index in LEVEL_ORDER.
+  await expect(maxThumb).toHaveAttribute('aria-valuenow', '5')
 })
 
 test('unchecking "Show GCA callers" hides the GCA line without hiding the session', async ({

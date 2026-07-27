@@ -46,11 +46,6 @@ describe('DanceScheduleFilters', () => {
     expect(onDateChange).toHaveBeenCalledWith(DATES[1])
   })
 
-  it('shows the current level range as level names', () => {
-    renderFilters({ minLevelIndex: LEVEL_ORDER.indexOf('Plus'), maxLevelIndex: LEVEL_ORDER.indexOf('C2') })
-    expect(screen.getByText('Level: Plus – C2')).toBeInTheDocument()
-  })
-
   it('renders two slider thumbs with correct min/max ARIA values', () => {
     renderFilters({ minLevelIndex: 2, maxLevelIndex: 7 })
     const [minThumb, maxThumb] = screen.getAllByRole('slider')
@@ -64,6 +59,36 @@ describe('DanceScheduleFilters', () => {
     minThumb!.focus()
     fireEvent.keyDown(minThumb!, { key: 'ArrowRight' })
     expect(onLevelRangeChange).toHaveBeenCalledWith(3, 7)
+  })
+
+  it('renders one labeled, clickable tick per level, each with a visible mark above the label', () => {
+    renderFilters()
+    for (const level of LEVEL_ORDER) {
+      const tick = screen.getByRole('button', { name: level })
+      expect(tick).toBeInTheDocument()
+      // The mark is decorative (aria-hidden) — doesn't affect the button's
+      // accessible name above, but should still be present in the DOM.
+      expect(tick.querySelector('[aria-hidden="true"]')).toBeInTheDocument()
+    }
+  })
+
+  it('clicking a tick above the current range extends the max thumb to it', () => {
+    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
+    fireEvent.click(screen.getByRole('button', { name: 'C1' }))
+    expect(onLevelRangeChange).toHaveBeenCalledWith(0, LEVEL_ORDER.indexOf('C1'))
+  })
+
+  it('clicking a tick below the current range moves the min thumb to it', () => {
+    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 4, maxLevelIndex: 9 })
+    fireEvent.click(screen.getByRole('button', { name: 'SSD' }))
+    expect(onLevelRangeChange).toHaveBeenCalledWith(0, 9)
+  })
+
+  it('clicking a tick inside the current range moves whichever thumb is closer', () => {
+    const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: 9 })
+    // 'A2' (index 4) is closer to min (0) than to max (9).
+    fireEvent.click(screen.getByRole('button', { name: 'A2' }))
+    expect(onLevelRangeChange).toHaveBeenCalledWith(LEVEL_ORDER.indexOf('A2'), 9)
   })
 
   it('renders the GCA checkbox reflecting showGca and calls onShowGcaChange when toggled', () => {

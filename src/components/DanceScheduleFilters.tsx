@@ -1,5 +1,6 @@
 import * as Slider from '@radix-ui/react-slider'
 import { LEVEL_ORDER } from '../lib/levelOrder'
+import { moveNearestThumb } from '../lib/moveNearestThumb'
 import styles from './DanceScheduleFilters.module.css'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' })
@@ -49,10 +50,36 @@ export function DanceScheduleFilters({
         </select>
       </label>
 
-      <div className={styles.field}>
-        <span className={styles.label}>
-          Level: {LEVEL_ORDER[minLevelIndex]} – {LEVEL_ORDER[maxLevelIndex]}
-        </span>
+      <div className={`${styles.field} ${styles.levelField}`}>
+        {/* Radix positions each thumb's CENTER inset by half its own width from the
+            track's ends (confirmed live: an 8px inset for the 1rem/16px thumb) — each
+            tick's `left` is computed the same way (8px to calc(100% - 8px)) and
+            re-centered via the .tick CSS rule's transform, so tick N lines up under
+            thumb position N exactly, regardless of that label's own text width. Above
+            the slider, not below — the mark sits under the label (closest to the
+            slider) so the reading order is label, mark, then the track it belongs to. */}
+        <div className={styles.ticks}>
+          {LEVEL_ORDER.map((level, index) => {
+            const fraction = index / (LEVEL_ORDER.length - 1)
+            return (
+              <button
+                key={level}
+                type="button"
+                className={styles.tick}
+                style={{ left: `calc(8px + (100% - 16px) * ${fraction})` }}
+                onClick={() => {
+                  const { min, max } = moveNearestThumb(index, minLevelIndex, maxLevelIndex)
+                  onLevelRangeChange(min, max)
+                }}
+              >
+                {level}
+                {/* Decorative only — the button's accessible name is still just the
+                    level text above, unaffected by this mark. */}
+                <span className={styles.tickMark} aria-hidden="true" />
+              </button>
+            )
+          })}
+        </div>
         <Slider.Root
           className={styles.sliderRoot}
           min={0}
