@@ -1,72 +1,104 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
-import type { DanceScheduleLayout, DanceSessionPlacement } from '../lib/computeDanceScheduleLayout'
+import type {
+  DanceLevelSessionPlacement,
+  DanceScheduleLevelLayout,
+} from '../lib/computeDanceScheduleLevelLayout'
 import { detailsContent, detailsPlainText } from '../lib/danceScheduleCardContent'
 import {
   CARD_HORIZONTAL_OVERHEAD_PX,
+  CARD_PADDING_PX,
   DETAILS_MEASUREMENT_FONT,
   UNIT_HEIGHT_PX_WITH_GCA,
   UNIT_HEIGHT_PX_WITHOUT_GCA,
 } from '../lib/danceScheduleCardSizing'
 import { shouldCombinePrimaryAndDetails } from '../lib/estimateCardFit'
-import { formatSessionGca, formatSessionLevels, formatSessionTimeRange } from '../lib/formatDanceSession'
+import { formatSessionGca, formatSessionRoom, formatSessionTimeRange } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import { measureTextWidth } from '../lib/measureTextWidth'
+// Reused as-is — the two grids share the exact same visual language (card, levels/
+// details/gca lines, sticky headers, mobile scroll behavior); only what determines
+// columns and what text is bold differs between them.
 import styles from './DanceScheduleGrid.module.css'
 
 const TIME_COLUMN_WIDTH = '70px'
-// Fixed, not minmax(150px, 1fr) — headerGrid and bodyGrid are separate grid
-// containers that only share this computed string, not actual measured layout, so a
-// flexible 1fr track can resolve to a different pixel width in each (each grid's own
-// content — short room names vs. longer session-card text — independently drives its
-// intrinsic sizing once the box has to be at least content-sized; see the .grid
-// comment in the CSS module). A fixed width guarantees both grids agree exactly,
-// keeping header and body columns aligned at any scroll position. Tradeoff: room
-// columns no longer stretch to fill extra width on desktop when there are few rooms
-// (blank space to the right instead) — acceptable for now; revisit with a measured
-// (ResizeObserver-driven) shared width if that space needs to be reclaimed later.
-const ROOM_COLUMN_WIDTH_PX = 150
-const ROOM_COLUMN_WIDTH = `${ROOM_COLUMN_WIDTH_PX}px`
+// Same 150px starting point as the room-columns grid's own column width — room
+// names (this grid's bold primary label) aren't reliably shorter than level codes
+// were, so there's no a priori reason to start narrower. Kept independent of the
+// room grid's own constant (not shared) since the two may need to diverge with
+// real-world tuning.
+const LEVEL_COLUMN_WIDTH_PX = 150
+const LEVEL_COLUMN_WIDTH = `${LEVEL_COLUMN_WIDTH_PX}px`
 
 function SessionCard({
   placement,
   showGca,
   unitHeightPx,
 }: {
-  placement: DanceSessionPlacement
+  placement: DanceLevelSessionPlacement
   showGca: boolean
   unitHeightPx: number
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
-    // already 1-based for the first time unit (see computeDanceScheduleLayout.ts and
-    // docs/design/dance-schedule-mobile-scroll.md).
+    // already 1-based for the first time unit (see computeDanceScheduleTimeAxis.ts
+    // and docs/design/dance-schedule-mobile-scroll.md).
     gridRow: `${rowStart} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
     // Roomless cards keep their own neutral/centered treatment from the CSS module —
     // only room cards are colored by level.
     backgroundColor: isRoomless ? undefined : colorForSession(session),
   }
-  const levels = formatSessionLevels(session)
+
+  // A laneCount > 1 placement shares its column with other sessions overlapping it
+  // in time (different rooms, same level) — shrink and horizontally offset within
+  // the column's existing single CSS Grid track rather than needing nested grids or
+  // absolute positioning. Plain percentages, not a CSS calc() expression — laneCount
+  // is already a known number here, and computing it in JS avoids depending on how
+  // (or whether) a browser simplifies/serializes calc(100% / n). Only ever paired
+  // with columnSpan === 1: a placement only keeps columnSpan > 1 (a merged multi-
+  // level span) when it has no conflict anywhere in its range — see
+  // computeDanceScheduleLevelLayout.ts's mergeIntoPlacements.
+  if (laneCount > 1) {
+    const widthPercent = 100 / laneCount
+    style.width = `${widthPercent}%`
+    style.marginLeft = `${widthPercent * lane}%`
+  }
+
+  const room = formatSessionRoom(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
 
+  // A lane-split card's own box width is track/laneCount exactly (an explicit
+  // percentage width, not grid-stretch-filled — see the style block above), so its
+  // usable text width is that minus just the padding, not the combined margin+
+  // padding overhead: margin sits outside a border-box element and doesn't shrink
+  // its content area the way padding does. Only the ordinary (laneCount === 1,
+  // grid-stretch-filled) case uses CARD_HORIZONTAL_OVERHEAD_PX, same as the
+  // room-columns grid.
+  const textWidthPx =
+    laneCount > 1
+      ? (columnSpan * LEVEL_COLUMN_WIDTH_PX) / laneCount - CARD_PADDING_PX
+      : columnSpan * LEVEL_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX
+
   // Cards are a fixed, time-proportional height (rowSpan * unitHeightPx) that never
   // grows to fit content — see docs/known-issues.md's "long wrapping text clips on
-  // very short sessions" entry. When a level line exists and the estimate says the
-  // level + details (+ GCA) lines won't fit separately, combine level and details
-  // onto one line to save the line break, rather than risk clipping.
-  const combineLevelAndDetails =
+  // very short sessions" entry. When a room line exists and the estimate says the
+  // room + details (+ GCA) lines won't fit separately, combine them onto one line to
+  // save the line break, rather than risk clipping. A lane-split card has less
+  // actual width than its column's full track (see textWidthPx above), so it's more
+  // likely to need combining, not less.
+  const combineRoomAndDetails =
     !isRoomless &&
-    !!levels &&
+    !!room &&
     shouldCombinePrimaryAndDetails(
       {
-        primaryText: levels,
+        primaryText: room,
         detailsText: detailsPlainText(session),
         hasGcaLine: showGcaLine,
         availableHeightPx: rowSpan * unitHeightPx,
-        textWidthPx: columnSpan * ROOM_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX,
+        textWidthPx,
       },
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
     )
@@ -74,14 +106,14 @@ function SessionCard({
   return (
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
-        {combineLevelAndDetails ? (
+        {combineRoomAndDetails ? (
           <p className={styles.details}>
-            <span className={styles.levels}>{levels} </span>
+            <span className={styles.levels}>{room} </span>
             {detailsContent(session)}
           </p>
         ) : (
           <>
-            {levels && <p className={styles.levels}>{levels}</p>}
+            {room && <p className={styles.levels}>{room}</p>}
             <p className={styles.details}>{detailsContent(session)}</p>
           </>
         )}
@@ -92,17 +124,19 @@ function SessionCard({
   )
 }
 
-// Two independently-scrollable grids sharing one computed gridTemplateColumns so
-// their room columns stay aligned — full rationale in
-// docs/design/dance-schedule-mobile-scroll.md. headerGrid (corner + room names) is
-// wrapped so it can stay pinned to the viewport's top on small screens; bodyGrid
-// (time axis + session cards) is wrapped as the actual horizontally-scrollable area
-// there, with its scroll position mirrored onto the header (which has no scrollbar
-// of its own — see the CSS module). Above the mobile breakpoint, both wrappers sit
-// inside one shared scrollable panel exactly like the single grid this replaced —
-// same visual result, no JS involved (the listener below is naturally inert there).
-export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLayout; showGca: boolean }) {
-  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, placements } = layout
+// The level-columns counterpart of DanceScheduleGrid — same two-grid sticky-scroll
+// structure (see that component and docs/design/dance-schedule-mobile-scroll.md for
+// the full rationale, unchanged here), but columns are level slots
+// (layout.visibleSlots, from the level-range filter) instead of rooms, and each
+// card's bold primary label is the session's room instead of its level.
+export function DanceScheduleLevelGrid({
+  layout,
+  showGca,
+}: {
+  layout: DanceScheduleLevelLayout
+  showGca: boolean
+}) {
+  const { visibleSlots, totalRowUnits, hourMarks, halfHourMarks, placements } = layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -129,10 +163,11 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
   )
 
   // A stale horizontal offset from a previous date/filter selection isn't meaningful
-  // against a new set of rooms — reset whenever the visible rooms actually change.
+  // against a new set of columns — reset whenever the visible slots actually change.
   // `layout` is a fresh reference exactly when the date or level range changes (not
-  // on a showGca toggle, which doesn't affect which rooms are visible) — see
-  // useDanceScheduleFilters.ts.
+  // on a showGca toggle) — and for THIS grid, unlike the room grid, the level range
+  // directly determines the column set itself, not just which sessions are visible
+  // within a data-derived set — see useDanceScheduleFilters.ts.
   useEffect(() => {
     if (headerRef.current) {
       headerRef.current.scrollLeft = 0
@@ -146,7 +181,7 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
     return <p className={styles.empty}>No sessions match the current filters.</p>
   }
 
-  const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, ${ROOM_COLUMN_WIDTH})`
+  const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleSlots.length, 1)}, ${LEVEL_COLUMN_WIDTH})`
   const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
 
   return (
@@ -154,9 +189,9 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
       <div className={styles.headerWrapper} ref={headerRef}>
         <div className={styles.grid} style={{ gridTemplateColumns }}>
           <div className={styles.corner} style={{ gridRow: 1, gridColumn: 1 }} />
-          {visibleRooms.map((room, index) => (
-            <div key={room} className={styles.roomHeader} style={{ gridRow: 1, gridColumn: index + 2 }}>
-              {room}
+          {visibleSlots.map((slot, index) => (
+            <div key={slot.label} className={styles.roomHeader} style={{ gridRow: 1, gridColumn: index + 2 }}>
+              {slot.label}
             </div>
           ))}
         </div>
@@ -183,8 +218,9 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
             />
           ))}
           {placements.map((placement, index) => (
-            // Placements have no stable id of their own (a non-contiguous multi-room
-            // session produces several for the same session) — index is stable per render.
+            // Placements have no stable id of their own (a non-contiguous multi-
+            // level or overlapping session produces several for the same session) —
+            // index is stable per render.
             <SessionCard key={index} placement={placement} showGca={showGca} unitHeightPx={unitHeightPx} />
           ))}
         </div>

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { computeDanceScheduleLayout, type DanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
 import {
   loadStoredDanceScheduleFilters,
   resolveStoredDate,
@@ -22,14 +21,23 @@ export interface UseDanceScheduleFiltersResult {
   setLevelRange: (minLevelIndex: number, maxLevelIndex: number) => void
   showGca: boolean
   setShowGca: (showGca: boolean) => void
-  layout: DanceScheduleLayout
+  // The full, unfiltered set of sessions for the selected date, and the level-
+  // filtered subset actually visible — shared, view-agnostic inputs that each page
+  // (room-columns or level-columns) turns into its own layout via its own compute*
+  // function. Not computed here so this hook stays reusable by both.
+  dateSessions: DanceSession[]
+  visibleSessions: DanceSession[]
 }
 
 // Owns the dance-schedule page's filter state and derives everything downstream from
-// it — keeps DanceSchedulePage presentational, per CLAUDE.md's "push data-fetching and
-// side effects into hooks" convention. `combineA1A2` (from the active content set's
-// config.yaml, via virtual:content-config) is a build-time-constant feature flag, not
-// expected to change within a session — see docs/design/dance-schedule.md.
+// it — keeps DanceSchedulePage/DanceScheduleLevelsPage presentational, per
+// CLAUDE.md's "push data-fetching and side effects into hooks" convention. Shared by
+// both pages (same localStorage-persisted state, via danceScheduleFiltersStorage.ts)
+// so switching between the room-columns and level-columns views keeps the same
+// date/level-range/GCA selection rather than resetting it. `combineA1A2` (from the
+// active content set's config.yaml, via virtual:content-config) is a build-time-
+// constant feature flag, not expected to change within a session — see
+// docs/design/dance-schedule.md.
 export function useDanceScheduleFilters(
   sessions: DanceSession[],
   combineA1A2: boolean,
@@ -78,11 +86,6 @@ export function useDanceScheduleFilters(
     [sessions, selectedDate, minLevelIndex, maxLevelIndex, slots],
   )
 
-  const layout = useMemo(
-    () => computeDanceScheduleLayout(dateSessions, visibleSessions),
-    [dateSessions, visibleSessions],
-  )
-
   return {
     dates,
     selectedDate,
@@ -93,6 +96,7 @@ export function useDanceScheduleFilters(
     setLevelRange,
     showGca,
     setShowGca,
-    layout,
+    dateSessions,
+    visibleSessions,
   }
 }

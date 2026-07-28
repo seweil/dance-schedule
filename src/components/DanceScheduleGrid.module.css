@@ -135,7 +135,16 @@
   background: var(--color-border);
 }
 
+/* border-box, not the default content-box — .card's own margin+padding needs to be
+   INSIDE any explicit width a caller sets for it to mean what it says. Doesn't
+   affect the plain (unsized, grid-stretch-filled) case at all — box-sizing is
+   irrelevant when width is left to auto-stretch to the grid track — but
+   DanceScheduleLevelGrid.tsx's overlap-lane cards set an explicit percentage width,
+   and without this, that width was CONTENT width only, so the actual rendered box
+   (content + 16px padding) came out wider than intended and bled into the next
+   lane/column — the bug this comment is here to prevent regressing. */
 .card {
+  box-sizing: border-box;
   margin: 1px;
   padding: var(--space-sm);
   border-radius: 4px;
@@ -144,6 +153,7 @@
 }
 
 .roomlessCard {
+  box-sizing: border-box;
   margin: 1px;
   padding: var(--space-sm);
   border-radius: 4px;
@@ -156,13 +166,20 @@
   color: var(--color-text);
 }
 
+/* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"
+   has no space to break at, and browsers don't reliably treat "/" as a break
+   opportunity either, so without this a long unbreakable run just overflows the
+   card horizontally (silently clipped by .card's overflow: hidden) instead of
+   wrapping the way estimateCardFit.ts's line-count estimate assumes it will. */
 .levels {
   margin: 2px 0;
   font-weight: bold;
+  overflow-wrap: anywhere;
 }
 
 .details {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .gca {

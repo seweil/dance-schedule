@@ -64,29 +64,28 @@ describe('useDanceScheduleFilters', () => {
     expect(result.current.showGca).toBe(true)
   })
 
-  it('scopes the layout to the selected date and switches when the date changes', () => {
+  it('scopes dateSessions/visibleSessions to the selected date and switches when the date changes', () => {
     const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
 
-    expect(result.current.layout.placements.map((p) => p.session)).toEqual([
-      day1Session,
-      day1AdvancedSession,
-    ])
+    expect(result.current.dateSessions).toEqual([day1Session, day1AdvancedSession])
+    expect(result.current.visibleSessions).toEqual([day1Session, day1AdvancedSession])
 
     act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
 
     expect(result.current.selectedDate).toEqual(new Date('2026-07-03T00:00:00.000Z'))
-    expect(result.current.layout.placements.map((p) => p.session)).toEqual([day2Session])
+    expect(result.current.dateSessions).toEqual([day2Session])
+    expect(result.current.visibleSessions).toEqual([day2Session])
   })
 
-  it('hides out-of-range sessions and their now-empty room column when the level range narrows', () => {
+  it('narrows visibleSessions (but not dateSessions) when the level range narrows', () => {
     const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
 
     act(() => result.current.setLevelRange(LEVEL_ORDER.indexOf('SSD'), LEVEL_ORDER.indexOf('Plus')))
 
     expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
     expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.indexOf('Plus'))
-    expect(result.current.layout.placements.map((p) => p.session)).toEqual([day1Session])
-    expect(result.current.layout.visibleRooms).toEqual(['Ballroom Centre'])
+    expect(result.current.visibleSessions).toEqual([day1Session])
+    expect(result.current.dateSessions).toEqual([day1Session, day1AdvancedSession])
   })
 
   it('toggles showGca', () => {

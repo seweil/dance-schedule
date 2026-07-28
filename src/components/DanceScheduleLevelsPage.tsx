@@ -2,16 +2,23 @@ import { useMemo } from 'react'
 import danceSessionsData from 'virtual:dance-schedule'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
-import { computeDanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
+import { computeDanceScheduleLevelLayout } from '../lib/computeDanceScheduleLevelLayout'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
-import { DanceScheduleGrid } from './DanceScheduleGrid'
+import { DanceScheduleLevelGrid } from './DanceScheduleLevelGrid'
 
 // Computed once at module load — the virtual module's data is static, so there's no
-// need to re-sort on every filter-driven re-render.
+// need to re-sort on every filter-driven re-render. A second call to
+// buildDanceSchedule (DanceSchedulePage.tsx makes its own) is cheap and keeps the two
+// pages independent modules; the array contents are identical either way.
 const sessions = buildDanceSchedule(danceSessionsData)
 
-export function DanceSchedulePage() {
+// The level-columns counterpart of DanceSchedulePage — same date/level-range/GCA
+// selectors (useDanceScheduleFilters, shared state/localStorage key with the room-
+// columns page, so switching between the two views keeps the same selection), but
+// level slots become the grid's columns instead of rooms — see
+// docs/design/dance-schedule.md.
+export function DanceScheduleLevelsPage() {
   const {
     dates,
     selectedDate,
@@ -27,13 +34,13 @@ export function DanceSchedulePage() {
   } = useDanceScheduleFilters(sessions, contentConfig.features.combineA1A2)
 
   const layout = useMemo(
-    () => computeDanceScheduleLayout(dateSessions, visibleSessions),
-    [dateSessions, visibleSessions],
+    () => computeDanceScheduleLevelLayout(dateSessions, visibleSessions, slots, minLevelIndex, maxLevelIndex),
+    [dateSessions, visibleSessions, slots, minLevelIndex, maxLevelIndex],
   )
 
   return (
     <>
-      <h1>Dance Schedule</h1>
+      <h1>Dance Schedule by Level</h1>
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}
@@ -45,7 +52,7 @@ export function DanceSchedulePage() {
         showGca={showGca}
         onShowGcaChange={setShowGca}
       />
-      <DanceScheduleGrid layout={layout} showGca={showGca} />
+      <DanceScheduleLevelGrid layout={layout} showGca={showGca} />
     </>
   )
 }

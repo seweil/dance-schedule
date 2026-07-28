@@ -45,6 +45,10 @@ separate, later phase.
       see Decisions
 - [x] Authoring convention for the above, given the parsing library has
       no merged-cell support — see Decisions
+- [x] Second view with level slots as columns instead of rooms, same
+      date/level/GCA selectors — see Decisions
+- [x] How two different sessions can share a level at overlapping times
+      (impossible for rooms, real for levels) — see Decisions
 
 ## Decisions
 
@@ -327,6 +331,115 @@ already only operates on plain indices. `LEVEL_ORDER` itself, and
 combining on the slider is a filtering/display concern only, not a change
 to the underlying level data or how sessions are colored.
 
+### Level-columns view: a second grid, same filters, level slots as columns
+
+**Why:** Alongside the room-column × time-row grid (`DanceScheduleGrid.tsx`,
+`/dance-schedule`), some users want to scan a single skill level across every
+room at once — e.g. "what's running at C1 all day?" — which the room-columns
+view doesn't answer directly. Rather than adding a mode toggle to the existing
+page, this is a second page (`/dance-schedule-by-level`,
+`DanceScheduleLevelsPage.tsx`) reusing the exact same date/level-range/GCA
+selectors (`DanceScheduleFilters.tsx`, unchanged) and the exact same
+`useDanceScheduleFilters` hook — including its `localStorage` persistence, so
+switching between the two pages keeps the same selection instead of resetting
+it. The hook itself no longer computes a room layout internally; it now
+returns `dateSessions`/`visibleSessions`, and each page turns that into its
+own layout via its own `compute*` function
+(`computeDanceScheduleLayout`/`computeDanceScheduleLevelLayout`).
+
+The genuinely shared, axis-agnostic half of the layout math (day-bounds
+trimming, hour/half-hour marks, `rowStartFor`/`rowSpanFor`, and the
+`isContiguous` span check) was extracted into
+`src/lib/computeDanceScheduleTimeAxis.ts`, used by both layout functions —
+the two grids' *time* behavior is identical by construction, not just by
+convention. Card sizing constants (row height, overflow-estimate font/
+padding) similarly moved to `src/lib/danceScheduleCardSizing.ts`, and the
+"combine primary + details onto one line when short on space" heuristic
+(`estimateCardFit.ts`) was renamed from `levelsText`/
+`shouldCombineLevelAndDetails` to `primaryText`/`shouldCombinePrimaryAndDetails`
+now that it's shared by both grids with different bold-label semantics.
+
+**Columns are the filter's own range, not data-derived:** unlike rooms
+(discovered per-date via `deriveRoomOrder`, hidden once nothing in a room
+is visible), a level-columns view's columns are exactly
+`getLevelSlots(combineA1A2).slice(minLevelIndex, maxLevelIndex + 1)` — the
+level-range slider directly picks the visible column range, always shown in
+full even for a slot with nothing scheduled that day. This is a genuine
+simplification versus the room view (no "hide an empty column" logic needed
+at all) and matches what a level-range selection should mean in this view:
+"show me these levels," not "show me these levels, except any with nothing
+in it."
+
+**A session with no ordered level** (a freeform session, or a structured
+session tagged only `Advanced`/`Intro`/`Various` — not in `LEVEL_ORDER`)
+floats across every visible slot column, exactly mirroring how a roomless
+session already floats across every visible room column today. A
+contiguous multi-level session (today only ever `A1, A2` or `C1, C2`) gets
+one spanning placement across its columns, same as a contiguous multi-room
+session — reusing the same `isContiguous` check, just applied to
+(`minLevelIndex`-relative) slot indices instead of room indices.
+
+**Cards stay colored by level** (`colorForSession`, unchanged), even though
+level is already encoded by the column in this view and the coloring is
+therefore visually redundant — considered switching to color-by-room
+instead (which would add non-redundant information), but decided against
+it to avoid a second color-mapping concept; simplicity won over the
+marginal visual gain.
+
+### Overlap lanes: two sessions can share a level at an overlapping time
+
+**Why:** A room is exclusive real estate — the parser and the room-columns
+layout algorithm have never needed to handle two sessions in the same room
+at overlapping times (confirmed: no such handling exists anywhere in the
+codebase, and it doesn't occur in the real or test data). A **level**
+isn't exclusive: two different sessions in different rooms can trivially
+share a level at overlapping times, and the level-columns view puts them
+in the same column, where they'd otherwise silently overlap on screen.
+
+Sessions sharing a level at overlapping times render as side-by-side
+sub-columns within that level's column (calendar-day-view style), sized
+and positioned by each session's actual time extent — not simply stacked
+in one cell — via a new lane-assignment algorithm in
+`computeDanceScheduleLevelLayout.ts`: entries claiming the same level slot
+are grouped into overlap-clusters by a standard interval sweep, then each
+cluster's entries are assigned lanes via the classic greedy "first free
+lane" calendar-layout algorithm (sort by start, place in the first lane
+whose last occupant has already ended, else open a new lane). Rendered by
+`DanceScheduleLevelGrid.tsx`'s `SessionCard` setting `width`/`marginLeft`
+as plain percentages (`100 / laneCount`, offset by `lane`) on the card's
+existing single-column CSS Grid item — no nested grids or absolute
+positioning needed, since a grid item is free to not fill its track's full
+width. The overflow-estimate heuristic (`shouldCombinePrimaryAndDetails`)
+divides its assumed text width by `laneCount` too, since a lane-split card
+is narrower and more likely to need its primary/details lines combined.
+
+**Simplification for the doubly-rare compound case:** a contiguous
+multi-level session (e.g. `C1, C2`) that *also* conflicts with another
+session in one of its columns can't keep its wide visual span AND show
+the conflict correctly in just one of its columns — it decomposes into
+separate single-column placements instead, each with its own lane. This
+loses the "one combined class" visual span for that specific occurrence,
+in exchange for not needing full 2D rectangle-packing. Accepted because
+this compound case has never been observed in real or test data — only
+unit-tested (`computeDanceScheduleLevelLayout.test.ts`), not exercised
+live.
+
+**Live-verified against the real data — a genuine surprise:** planned to add
+a synthetic same-level/overlapping-time fixture to `content/test/`'s
+spreadsheet for this, but there's no xlsx-writing library in this repo, and
+decided with the user not to add one just for this. Turned out to be
+unnecessary: the real `content/real/data/dance-schedule.xlsx` already
+contains several genuine same-level, different-room, overlapping-time
+cases (e.g. Thursday 2:00 PM SSD: "Skirt Work Hour" in Ballroom West
+alongside a separate session in Jarry/Joyce) that nobody had previously
+noticed, precisely because the room-columns view has no way to surface a
+same-level collision — it only became visible once levels became columns.
+All rendered correctly as side-by-side lanes on first try, both with
+`combineA1A2` on and off (temporarily flipped `content/real/config.yaml`
+to confirm the uncombined 10-column case, then restored it). The compound
+"multi-level span that also conflicts" simplification (above) still has
+no live example and remains unit-test-only.
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't
@@ -334,7 +447,12 @@ to the underlying level data or how sessions are colored.
   renders a column-spanning block (see below); revisit if that phase
   needs a stronger guarantee.
 - Rendering of the *real* dance schedule page (room-column × time-row
-  grid, date selector, skill-level range filter, GCA show/hide) is still
-  a deliberately separate, later phase — already discussed and designed
-  in outline, to be finalized once this data-model phase is stable. The
-  debug page in this doc is tooling, not that page.
+  grid, date selector, skill-level range filter, GCA show/hide) is now
+  built (`DanceScheduleGrid.tsx`) — see
+  `docs/design/dance-schedule-mobile-scroll.md` for its own rendering-
+  specific decisions. Its level-columns sibling
+  (`DanceScheduleLevelGrid.tsx`) is documented above.
+- The compound "multi-level span that also conflicts" case (see above) is
+  simplified rather than fully general, and has never been observed in
+  real data — the ordinary overlap case, by contrast, turned out to be
+  real and is now live-verified.

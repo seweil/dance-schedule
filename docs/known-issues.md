@@ -115,7 +115,7 @@ overflow marginally worse in absolute pixels for these specific cards
 aggressive 16, but not eliminated.
 
 **Partial mitigation shipped 2026-07-27:** `src/lib/estimateCardFit.ts`'s
-`shouldCombineLevelAndDetails` (word-wrap simulated via
+`shouldCombinePrimaryAndDetails` (word-wrap simulated via
 `src/lib/estimateWrappedLineCount.ts`, real widths measured by
 `src/lib/measureTextWidth.ts`'s Canvas 2D `measureText`) estimates whether
 a card's level + details (+ GCA) lines will exceed its actual available
@@ -133,3 +133,48 @@ content demands it (breaks the "vertical position exactly encodes time"
 property elsewhere in the grid, needs a real design decision, not a quick
 tweak), or accept truncation with a `title` tooltip showing the full text
 on hover/tap. Decide the intended UX before implementing.
+
+**Compounded by overlap lanes in the level-columns view (2026-07-28):**
+`DanceScheduleLevelGrid.tsx`'s side-by-side lane rendering (see
+`docs/design/dance-schedule.md`'s Overlap lanes decision) halves a card's
+width whenever it shares a level at an overlapping time — the same
+overflow mechanism as above, just triggered by less horizontal room
+instead of less vertical room. Confirmed live: "Ballroom West Skirt Work
+Hour - Wendy VanderMeulen" in a 2-lane SSD column still clips even after
+the primary+details combine heuristic correctly triggers (its
+`textWidthPx` estimate now correctly accounts for the halved width — see
+below), because the combined text itself still needs more lines than a
+75px-wide, 1-hour-tall card has room for. Same undecided fix direction as
+above; no additional lane-specific mitigation attempted.
+
+**Bug fixed same day:** the lane-split cards were initially rendering
+wider than their actual lane (bleeding into the neighboring lane/column)
+because `.card` had no `box-sizing: border-box` — an explicit percentage
+`width` set content-width only, with padding added on top. Fixed by
+adding `box-sizing: border-box` to `.card`/`.roomlessCard`
+(`DanceScheduleGrid.module.css`) and correcting the lane-card
+`textWidthPx` estimate to divide the column's track width by `laneCount`
+before subtracting padding, rather than subtracting the (margin+padding)
+overhead before dividing — the two aren't equivalent, and the old formula
+overestimated available width, undertriggering the combine heuristic.
+
+**Second bug fixed same day — the room-columns grid's primary label can
+itself overflow horizontally:** reported live as "Jarry/Joyce" clipping
+in the level-columns view's SSD column. Two compounding gaps, both fixed:
+(1) `estimateCardFit.ts`'s `shouldCombinePrimaryAndDetails` hardcoded
+`primaryLines` to 1 regardless of the primary text's own length — a safe
+assumption for the room-columns grid's primary text (level codes, always
+short) but not for the level-columns grid's (room names, sometimes long
+enough to wrap on their own, e.g. "Drummond Ballroom") — now estimated via
+`estimateWrappedLineCount` the same way `detailsLines` already was. (2)
+Even so, "Jarry/Joyce" specifically has no space for the word-wrap
+estimate (or the browser's default line-breaking) to break at, so it was
+overflowing the card box horizontally and getting silently clipped by
+`.card`'s `overflow: hidden` rather than wrapping — `overflow-wrap:
+anywhere` added to `.levels`/`.details` so the browser can break
+anywhere, including mid-word, when nothing else fits. Note the JS
+estimate still can't predict *where* a mid-word break like this lands (it
+only reasons about whitespace-delimited words), so a case like this can
+still end up needing more vertical space than estimated — falls into the
+same already-documented, accepted vertical-overflow category above, just
+no longer silently clipped horizontally with no wrap at all.
