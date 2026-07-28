@@ -12,21 +12,52 @@
   background: #e6e6e6;
 }
 
+/* The tab bar's shared baseline — each .link's own border sits on top of this
+   (desktop only; the mobile media query below removes it, since a bare line under
+   just the hamburger toggle would look like a stray underline, not a tab strip). */
+.nav {
+  border-bottom: 1px solid var(--color-border);
+}
+
 .list {
   display: flex;
-  gap: var(--space-md);
+  gap: 2px;
   list-style: none;
   margin: 0;
-  padding: var(--space-sm) 0;
+  padding: var(--space-sm) 0 0;
 }
 
-.nav a {
+/* Each item reads as an actual tab: a bordered, rounded-top box sitting on the
+   nav's own baseline border (positioned via the negative margin-bottom so the
+   two borders overlap exactly, not stack as two visible lines). */
+.link {
+  display: inline-block;
+  padding: var(--space-sm) var(--space-md);
   color: var(--color-text);
   text-decoration: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -1px;
 }
 
-.nav a:hover {
+.link:hover {
+  background: #f5f5f5;
+}
+
+/* The current page's tab — set automatically by NavLink, not computed by hand (see
+   Nav.tsx). Bordered + white-backgrounded with a white bottom edge that "erases"
+   the nav's own baseline right underneath it, the classic look of a selected tab
+   appearing to merge into the page content below. Bold + accent color on top of
+   that so it reads unmistakably even before noticing the shape (also carries
+   through to the mobile dropdown below, which resets the shape but not the text
+   treatment). */
+.link[aria-current='page'] {
   color: var(--color-accent);
+  font-weight: bold;
+  background: #fff;
+  border-color: var(--color-border);
+  border-bottom: 1px solid #fff;
 }
 
 @media (max-width: 640px) {
@@ -34,6 +65,7 @@
     display: flex;
     justify-content: flex-end;
     position: relative;
+    border-bottom: none;
   }
 
   .toggle {
@@ -43,6 +75,7 @@
   .list {
     flex-direction: column;
     align-items: flex-end;
+    gap: var(--space-sm);
     position: absolute;
     top: 100%;
     right: 0;
@@ -65,6 +98,28 @@
     visibility: visible;
     pointer-events: auto;
     transform: translateY(0);
+  }
+
+  /* The desktop tab shape (border/background/negative margin) doesn't fit a plain
+     vertical dropdown list — reset to a simple in-line text treatment, keeping the
+     bold + accent-color current-page styling above (not overridden here) as the
+     "clearly selected" cue in this context instead. */
+  .link {
+    display: inline;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+  }
+
+  .link:hover {
+    background: none;
+    color: var(--color-accent);
+  }
+
+  .link[aria-current='page'] {
+    background: none;
+    border-bottom: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

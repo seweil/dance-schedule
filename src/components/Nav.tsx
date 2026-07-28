@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
 import styles from './Nav.module.css'
@@ -71,7 +71,12 @@ export function Nav() {
       <ul id={listId} className={styles.list} data-open={isOpen}>
         {items.map((item) => (
           <li key={item.href}>
-            <Link to={item.href}>{item.label}</Link>
+            {/* end (only for Home): every other route's path starts with "/" too, so
+                without it NavLink's default prefix-matching would mark Home
+                permanently "current" no matter which page is actually active. */}
+            <NavLink to={item.href} end={item.href === '/'} className={styles.link}>
+              {item.label}
+            </NavLink>
           </li>
         ))}
       </ul>

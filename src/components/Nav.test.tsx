@@ -11,7 +11,7 @@ import { Nav } from './Nav'
 // These tests cover ARIA/interaction state, not the responsive CSS switch itself
 // (that's covered in Playwright instead).
 vi.mock('./Nav.module.css', () => ({
-  default: { nav: 'nav', toggle: 'toggle', list: 'list' } satisfies Record<string, string>,
+  default: { nav: 'nav', toggle: 'toggle', list: 'list', link: 'link' } satisfies Record<string, string>,
 }))
 
 function getToggle() {
@@ -67,6 +67,23 @@ describe('Nav', () => {
     await user.click(screen.getByRole('link', { name: /home/i }))
 
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('marks the current page\'s link with aria-current, and no other', () => {
+    renderNav()
+    expect(screen.getByRole('link', { name: /installation/i })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: /home/i })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /features/i })).not.toHaveAttribute('aria-current')
+  })
+
+  it('does not mark Home as current on every other page (exact-match only)', () => {
+    render(
+      <MemoryRouter initialEntries={['/faq']}>
+        <Nav />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: /home/i })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /faq/i })).toHaveAttribute('aria-current', 'page')
   })
 
   it('closes the menu when clicking outside the nav', async () => {
