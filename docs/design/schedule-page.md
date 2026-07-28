@@ -248,22 +248,22 @@ nav entry outside this system.
   `{ dir: 'src/pages', baseRoute: '' }`, and `extensions` becomes
   `['md', 'tsx']`. Each directory only contains files of its own
   extension today, so this doesn't change how `content/pages/` is scanned.
-- `src/pages/10 schedule.tsx` is the route file — reusing the exact same
+- `src/pages/10 event-schedule.tsx` is the route file — reusing the exact same
   `"<digits> "` order-prefix filename convention already used for content
   pages (e.g. `2 installation.md`), confirmed to work identically for
   hand-written `.tsx` routes since `buildNavTree`'s ordering logic
   operates on the resulting route path text, not the source directory.
-- **Nav ordering convention:** prefix `10` is reserved for the Schedule
-  page. Content pages using prefixes below 10 (the existing `2`, `3`, `4`)
-  sort before it; any future page intended to sort after Schedule should
-  use a prefix of `10` or higher. This is a deliberate numbering scheme,
-  not an accident — worth calling out to future contributors (e.g. in
-  `CLAUDE.md`) once this page exists.
+- **Nav ordering convention:** prefix `10` is reserved for the Event
+  Schedule page. Content pages using prefixes below 10 (the existing `2`,
+  `3`, `4`) sort before it; any future page intended to sort after it
+  should use a prefix of `10` or higher. This is a deliberate numbering
+  scheme, not an accident — worth calling out to future contributors (e.g.
+  in `CLAUDE.md`) once this page exists.
 - **Default-export tension:** `vite-plugin-pages` (like most file-based
   routers) requires each route file to have a default export, which
   conflicts with this repo's "prefer named exports" convention
   (`CLAUDE.md`'s "Code conventions"). Resolved by keeping
-  `src/pages/10 schedule.tsx` a thin wrapper — e.g.
+  `src/pages/10 event-schedule.tsx` a thin wrapper — e.g.
   `export { SchedulePage as default } from '../components/SchedulePage'`
   — so the real, testable component keeps a normal named export in
   `src/components/SchedulePage.tsx`, and the mandatory default export is
@@ -350,9 +350,9 @@ establishes and this repo already practices for `Nav`.
   same reason `Nav.test.tsx` mocks its CSS module), so that's Playwright's
   job.
 - **Playwright** (extending `e2e/app.spec.ts` or a new `e2e/schedule.spec.ts`):
-  - Navigate to `/schedule` and assert the page renders event cards —
+  - Navigate to `/event-schedule` and assert the page renders event cards —
     asserting on structural/accessibility properties (e.g. at least one
-    event card visible, a "Schedule" nav link that routes correctly)
+    event card visible, an "Event Schedule" nav link that routes correctly)
     rather than exact event content, since the real `data/event-schedule.xlsx`
     is live hand-authored content, not a test fixture — coupling
     assertions to its exact contents would make the suite brittle to

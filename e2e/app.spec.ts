@@ -68,7 +68,7 @@ test('app shell still renders the schedule page when offline after the SW takes 
   page,
   context,
 }) => {
-  await page.goto('/schedule')
+  await page.goto('/event-schedule')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
@@ -87,7 +87,7 @@ test('schedule cards lay out as columns without horizontal overflow on a narrow 
   // matches `orientation: landscape` — this is deliberately narrow to catch the same
   // overflow risk a fixed-width column floor would reintroduce.
   await page.setViewportSize({ width: 500, height: 300 })
-  await page.goto('/schedule')
+  await page.goto('/event-schedule')
   const firstCard = page.getByRole('listitem').first()
   await expect(firstCard).toBeVisible()
 
@@ -148,7 +148,7 @@ test.describe('mobile viewport', () => {
   test('schedule reflows to a single column without horizontal overflow on a small screen', async ({
     page,
   }) => {
-    await page.goto('/schedule')
+    await page.goto('/event-schedule')
     await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
     await expect(page.getByRole('listitem').first()).toBeVisible()
 

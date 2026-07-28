@@ -53,6 +53,15 @@ describe('buildNavTree', () => {
     expect(items.map((item) => item.label)).toEqual(['Home', 'About'])
   })
 
+  it('keeps a short connector word lowercase, except as the first word', () => {
+    const items = buildNavTree([
+      { path: 'dance-by-level', element: createElement('div') },
+      { path: 'by-the-way', element: createElement('div') },
+    ])
+
+    expect(items.map((item) => item.label)).toEqual(['Dance by Level', 'By the Way'])
+  })
+
   it('sorts unprefixed pages after prefixed ones, in their original order', () => {
     const items = buildNavTree([
       { path: 'unprefixed', element: createElement('div') },

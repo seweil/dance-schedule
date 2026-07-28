@@ -17,11 +17,36 @@ function parseSegment(segment: string): { order: number | null; slug: string } {
   return match ? { order: Number(match[1]), slug: match[2] ?? segment } : { order: null, slug: segment }
 }
 
+// Short connector words stay lowercase (conventional English title-case style,
+// e.g. "Dance by Level" not "Dance By Level") — except as the first word, where a
+// label should never start lowercase regardless of what the word is.
+const LOWERCASE_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'as',
+  'at',
+  'by',
+  'for',
+  'in',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'with',
+])
+
 function titleCase(slug: string): string {
   return slug
     .split(/[-_]+/)
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word, index) => {
+      if (index > 0 && LOWERCASE_WORDS.has(word.toLowerCase())) {
+        return word.toLowerCase()
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1)
+    })
     .join(' ')
 }
 

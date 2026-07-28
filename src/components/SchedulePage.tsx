@@ -5,7 +5,7 @@ import { ScheduleList } from './ScheduleList'
 export function SchedulePage() {
   return (
     <>
-      <h1>Schedule</h1>
+      <h1>Event Schedule</h1>
       <ScheduleList events={buildSchedule(scheduleData)} />
     </>
   )

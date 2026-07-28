@@ -337,7 +337,7 @@ to the underlying level data or how sessions are colored.
 `/dance-schedule`), some users want to scan a single skill level across every
 room at once — e.g. "what's running at C1 all day?" — which the room-columns
 view doesn't answer directly. Rather than adding a mode toggle to the existing
-page, this is a second page (`/dance-schedule-by-level`,
+page, this is a second page (`/dance-by-level`,
 `DanceScheduleLevelsPage.tsx`) reusing the exact same date/level-range/GCA
 selectors (`DanceScheduleFilters.tsx`, unchanged) and the exact same
 `useDanceScheduleFilters` hook — including its `localStorage` persistence, so
