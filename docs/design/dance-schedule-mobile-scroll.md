@@ -52,6 +52,10 @@ splitting the grid into a separately-scrolling header and body.
       (and the header row) unstick and scroll off past a certain scroll
       depth — see Decisions ("Sticky containing block..." and "Fixed room
       column width...")
+- [x] Second follow-up, found 2026-07-28: on desktop, the room/level
+      header row was never actually sticky through a full vertical
+      scroll at all (not just past some depth) — see Decisions
+      ("Desktop's header row wasn't actually sticky...")
 
 ## Decisions
 
@@ -416,6 +420,47 @@ fine." Also specifically check:
   scroll/wheel actions over the grid's own screen region, not just
   `window.scrollBy` from a JS console, since gesture-chaining is exactly
   the kind of thing that can silently differ from a synthetic scroll call.
+
+### Desktop's header row wasn't actually sticky through a full vertical scroll
+**Found:** 2026-07-28, reported by the user for the (later-added)
+level-columns grid, but confirmed live to be true of the original
+room-columns grid too, and to predate that later grid entirely — this
+doc's "Desktop stays byte-for-byte the same UX" decision above was wrong
+about desktop already having a working sticky header; it never verified
+a genuinely *long* vertical scroll, only that the mechanism looked
+equivalent to the pre-split single-`.scrollContainer` design.
+
+**Root cause:** `.roomHeader`/`.corner` (inside `headerGrid`) were
+already `position: sticky; top: 0`, but a sticky element only stays
+pinned *within its own parent's box* — and `headerGrid`'s parent,
+`headerWrapper`, had no positioning of its own on desktop (only below the
+mobile breakpoint), so it was just one ordinary row-tall block sitting
+above `bodyWrapper` in normal flow. Once vertical scroll carried
+`headerWrapper`'s own (one-row-tall) box past `panelWrapper`'s top edge,
+there was no more "room" left for its sticky children to stick into, and
+the whole header row scrolled away with everything else — confirmed live
+by scrolling `panelWrapper` down past the first few rows and watching the
+room-header row disappear entirely, on both the room-columns and
+level-columns grids.
+
+**Fix:** make `headerWrapper` itself `position: sticky; top: 0` (plus the
+`background`/`will-change` it already had, mobile-only, for the same
+reason) **unconditionally**, not just below the mobile breakpoint — moved
+out of the `@media` block in `DanceScheduleGrid.module.css` into
+`.headerWrapper`'s base rule. This is what actually keeps the header
+pinned through the *entire* scrollable range on desktop, the same way it
+already did below the breakpoint (where `headerWrapper` was always
+sticky, just relative to the real viewport there instead of
+`panelWrapper`). `.roomHeader`/`.corner`'s own sticky rules are
+unchanged — they still only need to stay pinned within their own (now
+permanently on-screen) `headerWrapper`, which is a much smaller, always-
+satisfied bound than before. The mobile media query now only adds
+`overflow-x: hidden` to `.headerWrapper` (meaningful once
+`headerWrapper`/`bodyWrapper` become independently horizontally
+scrollable there) — everything else that was mobile-scoped moved to the
+unconditional base rule. Confirmed live on both grids, at both desktop
+and mobile viewport sizes, with no regression to horizontal scroll-sync
+or column alignment.
 
 ## Open questions
 

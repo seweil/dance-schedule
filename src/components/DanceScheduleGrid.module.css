@@ -1,20 +1,41 @@
 /* Two independently-scrollable grids (headerWrapper/bodyWrapper below), not one —
    full rationale in docs/design/dance-schedule-mobile-scroll.md. Above the
    breakpoint, this panel is the ONLY scrolling box (both wrappers inherit normal
-   flow), so scrolling it moves header and body together automatically — byte-
-   identical to this grid's original single-.scrollContainer design, no JS involved.
-   Room columns get a fixed, touch-friendly width (set inline, since the column
-   count is data-driven — see DanceScheduleGrid.tsx's ROOM_COLUMN_WIDTH). */
+   flow, so scrolling it moves header and body together automatically), but that
+   alone only keeps them column-aligned during HORIZONTAL scroll — vertical scroll
+   past headerWrapper's own (one-row-tall) box still carried it off the top like any
+   other content, since position: sticky only holds an element within its own
+   parent's box, not indefinitely within a taller scrolling ancestor. headerWrapper
+   is sticky at every size (below) specifically so the room/level header row stays
+   pinned through vertical scroll too, not just horizontal. Room columns get a
+   fixed, touch-friendly width (set inline, since the column count is data-driven —
+   see DanceScheduleGrid.tsx's ROOM_COLUMN_WIDTH). */
 .panelWrapper {
   overflow: auto;
   max-height: 70vh;
   border: 1px solid var(--color-border);
 }
 
+/* Sticky at every size — see .panelWrapper's comment above for why. */
+.headerWrapper {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  /* .corner/.roomHeader (its grid children) are already individually opaque, but
+     headerWrapper itself has no background of its own — this guarantees the whole
+     sticky region stays solid as ONE backdrop rather than depending on two
+     separately-painted cells tiling with zero gap. will-change hints the browser
+     to keep this on a stable compositing layer, avoiding a brief flash of
+     scrolled-past body content showing through a sticky header during fast
+     scrolling — a known artifact on mobile browsers, not just a hypothetical. */
+  background: #fff;
+  will-change: transform;
+}
+
 /* Below this (narrow-portrait OR short-landscape — an iPhone in landscape is wide
    but short, so width alone wouldn't catch it): the panel stops being its own scroll
    area (letting the page scroll vertically instead, so headerWrapper's sticky top
-   below resolves against the real viewport), and bleeds edge-to-edge — the negative
+   above resolves against the real viewport), and bleeds edge-to-edge — the negative
    margins cancel body's horizontal padding exactly (src/index.css), deliberately not
    a vw-based trick (calc(50% - 50vw)): vw is defined relative to the viewport
    including any reserved-space scrollbar, which doesn't match the containing block's
@@ -32,19 +53,12 @@
     margin-right: calc(-1 * var(--space-sm));
   }
 
+  /* Only meaningful once headerWrapper/bodyWrapper become independently
+     scrollable (this media query) — above it, panelWrapper is the only scrolling
+     box, and headerWrapper's own horizontal scroll never engages since it's never
+     wider than the shared, fixed gridTemplateColumns it's sized to. */
   .headerWrapper {
-    position: sticky;
-    top: 0;
     overflow-x: hidden;
-    /* .corner/.roomHeader (its grid children) are already individually opaque, but
-       headerWrapper itself has no background of its own — this guarantees the whole
-       sticky region stays solid as ONE backdrop rather than depending on two
-       separately-painted cells tiling with zero gap. will-change hints the browser
-       to keep this on a stable compositing layer, avoiding a brief flash of
-       scrolled-past body content showing through a sticky header during fast
-       scrolling — a known artifact on mobile browsers, not just a hypothetical. */
-    background: #fff;
-    will-change: transform;
   }
 
   .bodyWrapper {
