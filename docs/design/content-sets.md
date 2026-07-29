@@ -192,6 +192,24 @@ starting template, then repoint `content/config.yaml`'s
 edited to reflect a real event's actual details — it stays the fixed
 sample/test fixture indefinitely.
 
+### Root/default-mirrored build's service worker excludes sibling content sets via `navigateFallbackDenylist`
+**Why:** The default set is mirrored unprefixed at `/`, so that build's
+service worker registers with scope `/` — a superset of every other
+content set's own `/<set>/` scope. Uncustomized, its `navigateFallback`
+acts as a catch-all for *any* unmatched navigation within scope `/`,
+including `/backtrack2abq/...`, `/test/...`, etc. — so any visitor who's
+ever loaded the bare domain in a given browser gets permanently shadowed
+onto the default set's cached shell for every other event too, silently
+(confirmed empirically: reproduces in a normal tab with a pre-registered
+root SW, but not a fresh/private one, since there's nothing there yet to
+do the shadowing — server-side/Amplify routing is unaffected either way).
+`vite.config.ts` now sets `workbox.navigateFallbackDenylist` to every
+sibling set's prefix (via `listContentSets`), but only for the root build
+(`BASE_PATH === '/'`) — excluded navigations fall through to the existing
+NetworkFirst `runtimeCaching` rule instead, which correctly reaches the
+network. Non-root builds don't need this: a service worker scoped to
+`/backtrack2abq/` can't shadow `/test/` in the first place.
+
 ## Open questions
 
 - Content-set names are not currently checked against a reserved list

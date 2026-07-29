@@ -10,7 +10,12 @@ import { schedulePlugin } from './vite-plugin-schedule'
 import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
 import { contentConfigPlugin } from './vite-plugin-content-config'
 import { contentSetsPlugin } from './vite-plugin-content-sets'
-import { assertContentSetExists, loadContentManifestStrings, loadTopLevelContentConfig } from './content-config'
+import {
+  assertContentSetExists,
+  listContentSets,
+  loadContentManifestStrings,
+  loadTopLevelContentConfig,
+} from './content-config'
 import { generateContentSetIcons } from './content-icons'
 
 // Baked in at build time (never re-evaluated client-side) so the debug page can
@@ -131,6 +136,25 @@ export default defineConfig(async () => {
           // the default set's root bundle for offline navigations inside a prefixed
           // set's scope (e.g. /test/) once multiple content sets publish under
           // different base paths — see docs/design/content-sets.md.
+          //
+          // The root/default-mirrored build (BASE_PATH "/") is the one exception:
+          // its service worker registers with scope "/", a superset of every other
+          // content set's own "/<set>/" scope. Without this denylist, that root SW's
+          // navigateFallback acts as a catch-all for *any* unmatched navigation
+          // within scope "/" — including "/backtrack2abq/...", "/test/...", etc. —
+          // and silently serves its own (wrong) cached app shell instead of ever
+          // reaching the network, for any visitor who's ever loaded the bare domain
+          // in that browser (confirmed: reproduces in a normal browser tab, but not
+          // a fresh private one, since a private window has no pre-registered SW to
+          // do the shadowing). Excluding every sibling content set's prefix here
+          // lets those navigations fall through to the NetworkFirst runtimeCaching
+          // rule below instead, which actually reaches the network/Amplify. Other
+          // (non-root) builds don't need this — their own scope is already narrowly
+          // "/<set>/", so they can't shadow a sibling set's paths in the first place.
+          navigateFallbackDenylist:
+            BASE_PATH === '/'
+              ? listContentSets(process.cwd()).map((set) => new RegExp(`^/${set}/`))
+              : undefined,
           runtimeCaching: [
             {
               urlPattern: ({ request }) => request.mode === 'navigate',
