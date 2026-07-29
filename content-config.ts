@@ -3,7 +3,7 @@ import path from 'node:path'
 import { parse } from 'yaml'
 
 const TOP_LEVEL_CONFIG_RELATIVE_PATH = 'content/config.yaml'
-const DEFAULT_CONTENT_SET = 'real'
+const DEFAULT_CONTENT_SET = 'automated-testing'
 const CONTENT_SET_CONFIG_FILENAME = 'config.yaml'
 
 export interface TopLevelContentConfig {

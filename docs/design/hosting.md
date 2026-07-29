@@ -70,9 +70,11 @@ hashed `workbox-<hash>.js` helper at the `dist/` root (confirmed via a local
 pattern to get the same long-cache treatment.
 
 ### `CONTENT_SET` left unset in the Amplify build
-**Why:** Unset defaults to `real` (see `docs/design/content-sets.md`), which
-is exactly the production content — no environment variable needed in
-Amplify's build settings.
+**Why:** Unset defaults to `automated-testing` (see
+`docs/design/content-sets.md`'s "permanent stable sample event" decision)
+— no environment variable needed in Amplify's build settings. Once a
+genuine real event is cloned in, `content/config.yaml`'s
+`defaultContentSet` is what changes, not this Amplify setting.
 
 ### Per-content-set Amplify rewrite rule, in addition to the root SPA fallback
 **Why:** `pnpm build` now publishes every content set under its own
@@ -80,10 +82,10 @@ Amplify's build settings.
 build with its own `basename`-scoped router. The existing root SPA
 fallback rule (Source `</^[^.]+$/>` → Target `/index.html` → Type 200)
 would incorrectly rewrite a direct/deep-link navigation to e.g.
-`/real/installation` to the *root* `/index.html` (wrong bundle/basename)
-instead of `/real/index.html`. This needs **one additional Amplify console
+`/automated-testing/installation` to the *root* `/index.html` (wrong bundle/basename)
+instead of `/automated-testing/index.html`. This needs **one additional Amplify console
 rewrite rule per content-set path segment** — e.g. Source
-`</real\/[^.]+$/>` → Target `/real/index.html` → Type 200 (Rewrite), and
+`</automated-testing\/[^.]+$/>` → Target `/automated-testing/index.html` → Type 200 (Rewrite), and
 likewise for `test` and any future set — added/removed by hand in the
 Amplify console whenever a content set is added or removed, mirroring the
 existing "not expressible in the repo" pattern already noted above for the
@@ -91,16 +93,17 @@ root rule. `amplify.yml`'s `customHeaders` patterns were also updated to
 `'**/...'` globs so the no-cache/long-cache header split still applies to
 every set's nested output, not just the root copy.
 
-A **second, separate rule is also needed**: a bare `/real` or `/test`
-(no trailing slash — the natural way to type or bookmark a set's URL)
-doesn't match Amplify's static asset serving either, and would fall
+A **second, separate rule is also needed**: a bare `/automated-testing` or
+`/test` (no trailing slash — the natural way to type or bookmark a set's
+URL) doesn't match Amplify's static asset serving either, and would fall
 through to the same global fallback — landing on the *root* bundle with
 no matching client route, rendering blank rather than 404ing (confirmed
 locally: `vite preview` has the identical gap, worked around there by
 `vite-plugin-content-sets.ts`'s `configurePreviewServer` hook, which only
 covers local testing). Amplify needs one additional redirect rule per
-content-set — Source `/real` → Target `/real/` → Type 301 (Redirect), and
-likewise for `test`/future sets — alongside the rewrite rule above.
+content-set — Source `/automated-testing` → Target `/automated-testing/` →
+Type 301 (Redirect), and likewise for `test`/future sets — alongside the
+rewrite rule above.
 
 ## Open questions
 

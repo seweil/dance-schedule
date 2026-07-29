@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test'
 // per-prefix rewrite in production, see docs/design/hosting.md). So these tests
 // deliberately avoid hard-navigating to a deep, non-physical route under a "/<set>/"
 // prefix while online — they either stay at a real on-disk index.html
-// (`/`, `/real/`, `/test/`), reach a deeper route via genuine in-app client
+// (`/`, `/automated-testing/`, `/test/`), reach a deeper route via genuine in-app client
 // navigation (a nav link click) once the correct bundle is already loaded, or — for
 // the offline test — rely on the "test" set's own already-active, same-scoped
 // service worker intercepting the request before it ever reaches the (buggy, for
@@ -26,7 +26,9 @@ test('the debug page lists every published content set, linking to its own canon
   // Unprefixed root path — vite preview's fallback happens to be correct here,
   // since the root scope *is* the default set's own bundle.
   await page.goto('/debug/dance-schedule')
-  await expect(page.getByRole('heading', { name: /dance schedule.*debug.*real/i })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /dance schedule.*debug.*automated-testing/i }),
+  ).toBeVisible()
 
   const testLink = page.getByRole('link', { name: /^test/ })
   await expect(testLink).toBeVisible()

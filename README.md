@@ -25,8 +25,8 @@ pnpm install
 pnpm dev
 ```
 
-Opens the dev server (default: real content and schedule data — see
-"Content sets" below).
+Opens the dev server (default: the `automated-testing` sample content and
+schedule data — see "Content sets" below).
 
 ## Building
 
@@ -109,7 +109,7 @@ automatically, per above.
   gesture, not just `element.scrollLeft = x`.
 - The actual "Add to Home Screen" install flow on a real iOS or Android
   device — iOS Safari in particular has no programmatic install API, so
-  there's nothing to automate here at all (see `content/real/pages/2
+  there's nothing to automate here at all (see `content/automated-testing/pages/2
   installation.md` for the manual steps this app documents to end users).
 - Lighthouse PWA audits and DevTools → Application panel inspection
   (Manifest, Service Workers, Cache Storage) — useful for spot-checks
@@ -119,12 +119,19 @@ automatically, per above.
 
 Which markdown pages and schedule spreadsheet data are active is chosen by
 the `CONTENT_SET` env var, falling back to `content/config.yaml`'s
-`defaultContentSet` (itself `real`) when unset:
+`defaultContentSet` (itself `automated-testing`) when unset:
 
 ```bash
 pnpm dev:test      # dev server against the "test" content set (edge-case fixture data)
 pnpm build:test    # production build of the "test" content set
 ```
+
+`automated-testing` (the default) is a permanent, stable sample event —
+both unit and e2e tests assert directly against its content, so it's never
+edited to reflect an actual real event. `test` is a separate, deliberately
+edge-case-flavored fixture covering spreadsheet-parsing corner cases, not a
+coherent event. See `docs/design/content-sets.md`'s "permanent stable
+sample event" decision for why.
 
 Full mechanics in `docs/design/content-sets.md`. Each content set also has
 its own `config.yaml` for feature flags (e.g. whether the dance-schedule

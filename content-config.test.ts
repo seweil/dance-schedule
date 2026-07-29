@@ -29,9 +29,9 @@ function writeContentSetConfig(root: string, name: string, contents: string) {
 }
 
 describe('loadTopLevelContentConfig', () => {
-  it('defaults to "real" when content/config.yaml is missing', () => {
-    makeContentSetDir(root, 'real')
-    expect(loadTopLevelContentConfig(root)).toEqual({ defaultContentSet: 'real' })
+  it('defaults to "automated-testing" when content/config.yaml is missing', () => {
+    makeContentSetDir(root, 'automated-testing')
+    expect(loadTopLevelContentConfig(root)).toEqual({ defaultContentSet: 'automated-testing' })
   })
 
   it('reads defaultContentSet from a real config file', () => {

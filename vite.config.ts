@@ -23,8 +23,9 @@ const BUILD_TIME = new Date().toISOString()
 // build — see docs/design/content-sets.md and docs/design/content-config.md. Read
 // directly from process.env (no loadEnv()/.env file involved anywhere in this repo)
 // since it's a plain Node-context build-time switch, never exposed to the client
-// bundle. Defaults to content/config.yaml's defaultContentSet (itself "real" if that
-// file is absent) so pnpm dev/build/preview/test:e2e behave exactly as before when
+// bundle. Defaults to content/config.yaml's defaultContentSet (itself
+// "automated-testing" if that file is absent) so pnpm dev/build/preview/test:e2e
+// behave exactly as before when
 // CONTENT_SET is unset. Either way, the resolved name is validated against a real
 // content/<name>/ directory here — a typo (env var or config file) fails loudly with
 // a named error instead of a raw ENOENT surfacing later from vite-plugin-pages or

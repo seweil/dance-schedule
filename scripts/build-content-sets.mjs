@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 
 const root = path.resolve(fileURLToPath(import.meta.url), '../..')
-const DEFAULT_CONTENT_SET = 'real'
+const DEFAULT_CONTENT_SET = 'automated-testing'
 const TMP_DIR = path.join(root, 'dist-build-tmp')
 const DIST_DIR = path.join(root, 'dist')
 

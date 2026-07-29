@@ -5,4 +5,4 @@
 
 # Which content/<set>/ directory to use when the CONTENT_SET env var is unset.
 # Must name a real content/<name>/ directory — validated at build time.
-defaultContentSet: real
+defaultContentSet: automated-testing

@@ -428,14 +428,14 @@ live.
 a synthetic same-level/overlapping-time fixture to `content/test/`'s
 spreadsheet for this, but there's no xlsx-writing library in this repo, and
 decided with the user not to add one just for this. Turned out to be
-unnecessary: the real `content/real/data/dance-schedule.xlsx` already
+unnecessary: the real `content/automated-testing/data/dance-schedule.xlsx` already
 contains several genuine same-level, different-room, overlapping-time
 cases (e.g. Thursday 2:00 PM SSD: "Skirt Work Hour" in Ballroom West
 alongside a separate session in Jarry/Joyce) that nobody had previously
 noticed, precisely because the room-columns view has no way to surface a
 same-level collision — it only became visible once levels became columns.
 All rendered correctly as side-by-side lanes on first try, both with
-`combineA1A2` on and off (temporarily flipped `content/real/config.yaml`
+`combineA1A2` on and off (temporarily flipped `content/automated-testing/config.yaml`
 to confirm the uncombined 10-column case, then restored it). The compound
 "multi-level span that also conflicts" simplification (above) still has
 no live example and remains unit-test-only.

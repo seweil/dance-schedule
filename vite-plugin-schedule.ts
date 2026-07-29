@@ -11,7 +11,7 @@ const SCHEDULE_FILE_NAME = 'event-schedule.xlsx'
 
 export interface SchedulePluginOptions {
   // Directory (relative to the Vite project root) holding event-schedule.xlsx for the
-  // active content set — e.g. "content/real/data". See docs/design/content-sets.md.
+  // active content set — e.g. "content/automated-testing/data". See docs/design/content-sets.md.
   dataDir: string
 }
 

@@ -10,7 +10,7 @@ const CONTENT_CONFIG_FILE_NAME = 'config.yaml'
 
 export interface ContentConfigPluginOptions {
   // Directory (relative to the Vite project root) holding config.yaml for the active
-  // content set — e.g. "content/real" (the set's own root, not its data/ subdir,
+  // content set — e.g. "content/automated-testing" (the set's own root, not its data/ subdir,
   // since config.yaml sits alongside pages/ and data/). See
   // docs/design/content-config.md.
   dataDir: string

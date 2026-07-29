@@ -48,10 +48,11 @@ for `BUILD_NUMBER`'s `execSync` call), so no `defineConfig((env) => ...)`
 factory form is needed. Rejected alternative: Vite's built-in `--mode` —
 conflates content-set selection with Vite's own dev/prod mode concept.
 
-### Default (unset) resolves to `"real"`
+### Default (unset) resolves to `"automated-testing"`
+**(Originally `"real"` — renamed, see the "permanent stable sample event"
+decision below.)**
 **Why:** Zero-config parity with pre-existing behavior; `pnpm dev`/`build`/
-`preview`/`test:e2e` and their assertions against real content keep working
-unmodified.
+`preview`/`test:e2e` keep working unmodified with no env var set.
 
 ### Dedicated `pnpm` scripts only for `test`; other sets used via the raw env var
 **Why:** `test` is a permanent, always-present fixture worth a discoverable
@@ -85,7 +86,7 @@ with zero permanent dependency footprint. The generated fixture was
 validated by running it through the real parsing pipeline (`pnpm build:test`)
 rather than reimplementing validation in the generation script.
 
-### `content/real/pages/index.md` no longer hardcodes `content/pages/`
+### `content/automated-testing/pages/index.md` no longer hardcodes `content/pages/`
 **Why:** The path is now set-dependent; wording generalized to "this content
 set's `pages/` directory" so it's correct regardless of which set is active.
 
@@ -93,7 +94,7 @@ set's `pages/` directory" so it's correct regardless of which set is active.
 
 ### Default content set is configurable via `content/config.yaml`
 **Why:** See `docs/design/content-config.md` for the full design — the
-short version is that the hardcoded `'real'` fallback became
+short version is that the hardcoded default fallback became
 `content/config.yaml`'s `defaultContentSet`, validated against a real
 `content/<name>/` directory at build time (closing the "validate the
 target directory exists" open question below for both the config-file
@@ -162,6 +163,35 @@ used by the debug page's cross-set links
 longer purely tribal knowledge (`CONTENT_SET=<name>`) but discoverable
 from within the running app.
 
+### `content/real/` renamed to `content/automated-testing/` — enshrined as a permanent stable sample event, not treated as actual production data
+**Why:** `real` originally meant "the actual production content set," but
+in practice it held a realistic-but-generic convention's data (Montreal
+Mix 2026) with no real deploy target of its own — and both unit tests
+(`src/App.test.tsx`) and most of `e2e/`'s coverage (`e2e/app.spec.ts`,
+`e2e/dance-schedule.spec.ts`) asserted directly against its exact content
+(specific caller names, session details, page copy), since `pnpm dev`/
+`build`/`test:e2e` all defaulted to it with no env var set. That coupling
+is a problem the moment this set's content is ever actually swapped in for
+a genuine, one-off real event — tests would either break on every content
+edit or (worse) silently stop testing what they claim to. Renaming to
+`automated-testing` and keeping its content fixed makes that coupling
+*intentional and permanent* instead of accidental: it's a stable,
+narratively-coherent sample event that both unit and e2e tests are meant
+to assert against directly, distinct from `test`'s role as a deliberately
+edge-case/format-coverage fixture (parsing corner cases, not a coherent
+event). `content/config.yaml`'s `defaultContentSet` stays pointed at
+`automated-testing` for now, so `pnpm dev`/`build`/`test:e2e` keep working
+unmodified with no env var — there's no other real event to default to
+yet.
+
+**How a genuine first real event gets added:** per
+`docs/adding-a-new-event.md`, clone `content/automated-testing/` into a
+new, appropriately-named directory (e.g. `content/spring-2027/`) as a
+starting template, then repoint `content/config.yaml`'s
+`defaultContentSet` at the new set. `automated-testing` itself is never
+edited to reflect a real event's actual details — it stays the fixed
+sample/test fixture indefinitely.
+
 ## Open questions
 
 - Content-set names are not currently checked against a reserved list
@@ -171,7 +201,7 @@ from within the running app.
   but the check is manual/hardcoded rather than derived from Vite's actual
   build output.
 - Direct/deep-link navigation into a prefixed set (e.g. a bookmark or
-  shared link to `/real/installation`) needs server-side SPA-fallback
+  shared link to `/automated-testing/installation`) needs server-side SPA-fallback
   rewrite rules aware of each prefix — see `docs/design/hosting.md`'s new
   decision on this; it's Amplify console config, not something `vite
   preview` reproduces locally either.

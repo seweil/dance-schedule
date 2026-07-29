@@ -40,8 +40,13 @@ content/<your-event-name>/
     dance-schedule.xlsx   the detailed room/time grid — step 4
 ```
 
-You can copy `content/real/` as a starting template and edit from there —
-often the fastest way to get the folder shape right.
+You can copy `content/automated-testing/` as a starting template and edit
+from there — often the fastest way to get the folder shape right. That set
+is a permanent stable sample event used by the automated test suite, not a
+real one — it's never edited to reflect an actual event, only cloned. Once
+your event is ready, point `content/config.yaml`'s `defaultContentSet` at
+your new event's name (see step 7) rather than editing
+`content/automated-testing/` itself.
 
 ## Step 1: The pages
 

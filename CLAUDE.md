@@ -65,7 +65,13 @@ content/
                           # falling back to config.yaml's defaultContentSet; see
                           # docs/design/content-sets.md and docs/design/content-config.md.
                           # Two always exist:
-                          #   real/ — the default/production set
+                          #   automated-testing/ — the default set; a permanent, stable
+                          #           sample event (not real production data — both unit
+                          #           and e2e tests assert directly against its content,
+                          #           see docs/design/content-sets.md). Clone it as a
+                          #           starting template for an actual real event, per
+                          #           docs/adding-a-new-event.md, then repoint
+                          #           content/config.yaml's defaultContentSet.
                           #   test/ — deliberately edge-case-flavored fixture set —
                           #           `pnpm dev:test` / `pnpm build:test`
     config.yaml             # per-set feature flags (e.g. combineA1A2) AND manifest

@@ -76,7 +76,7 @@ value came from.
 ### Per-set feature flags reach the client via a new `virtual:content-config` module
 **Why:** Mirrors `vite-plugin-schedule.ts`'s `schedulePlugin()` exactly —
 same `\0`-prefixed resolved id convention, same `{ dataDir: string }`
-options shape (here the content set's own root, e.g. `content/real`, not
+options shape (here the content set's own root, e.g. `content/automated-testing`, not
 its `data/` subdir, since `config.yaml` sits alongside `pages/`/`data/`),
 same eager-then-`configResolved`-corrected path resolution, same
 `configureServer` + `watcher.add` + change listener + `invalidateModule` +
@@ -89,8 +89,8 @@ and `src/types/virtual-content-config.d.ts` — mirrors how
 `content/<set>/config.yaml` → falls back to `{ features: { combineA1A2:
 false } }`; malformed, or `features.combineA1A2` not a boolean → throws.
 
-### `content/real/config.yaml` and `content/test/config.yaml` intentionally differ
-**Why:** `real`'s `combineA1A2: false` preserves the exact pre-existing
+### `content/automated-testing/config.yaml` and `content/test/config.yaml` intentionally differ
+**Why:** `automated-testing`'s `combineA1A2: false` preserves the exact pre-existing
 10-level slider behavior. `test`'s `combineA1A2: true` deliberately
 exercises the merged-slot behavior in the fixture content set, so it's
 covered by manual/live verification (`pnpm build:test && pnpm preview`)
@@ -113,7 +113,7 @@ for `pnpm dev`/`build:test`), not a replacement for it.
 ### Each content set gets its own PWA manifest `name`/`short_name` and icon
 **Why:** Every published content set (`docs/design/content-sets.md`) used to
 share one static `public/manifest.webmanifest` and one static icon file —
-installed home-screen icons for `real` and `test` looked identical, an
+installed home-screen icons for `automated-testing` and `test` looked identical, an
 explicit open question logged there. Only `name`/`short_name` became
 per-set config (a new `manifest:` key in `content/<set>/config.yaml`,
 sibling to `features:`) — colors/display/layout stay fixed/shared, since
@@ -134,10 +134,10 @@ client code; shipping them to the client bundle would be pointless. Missing
 `content/<set>/config.yaml` or missing `manifest:` section → defaults to
 `{ name: 'Dance Schedule', shortName: 'Dance Schedule' }` (today's
 pre-existing values); present but not strings → throws, matching
-`loadContentConfigData`'s existing validation style. `content/real/config.yaml`
+`loadContentConfigData`'s existing validation style. `content/automated-testing/config.yaml`
 has no `manifest:` section (relies on the defaults, which already match);
 `content/test/config.yaml` overrides to `Dance Schedule (Test)` / `DS Test`
-so it's visually distinguishable once installed alongside `real`.
+so it's visually distinguishable once installed alongside `automated-testing`.
 
 ### Icons are generated per set at build time from a single source image (`content-icons.ts`)
 **Why:** `vite-plugin-pwa` doesn't generate/copy icon files itself (that
@@ -166,9 +166,12 @@ the artwork; auto-generated from the same single source rather than
 requiring separate hand-padded art).
 
 ### Missing `icon.png` falls back to a generated placeholder, not a build failure
-**Why:** No real artwork exists for any content set yet. Rather than
-hard-requiring `icon.png` (which would leave `pnpm build` broken out of the
-box), `content-icons.ts` falls back to rendering a simple placeholder — a
+**Why:** No real artwork existed for any content set at the time this was
+built (`content/automated-testing/icon.png` was added later; `content/test/`
+still relies on the placeholder, matching its role as a stable fixture, not
+a set that needs real branding). Rather than hard-requiring `icon.png`
+(which would've left `pnpm build` broken out of the box), `content-icons.ts`
+falls back to rendering a simple placeholder — a
 solid `#0f172a` square with the content set's uppercased first letter,
 rasterized from an inline SVG string via `sharp` (no extra font/canvas
 dependency) — through the exact same downstream resize/maskable pipeline a

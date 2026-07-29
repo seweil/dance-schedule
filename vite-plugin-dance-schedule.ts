@@ -15,7 +15,7 @@ const DANCE_SCHEDULE_DUMP_FILE_NAME = 'dance-schedule-dump.md'
 export interface DanceSchedulePluginOptions {
   // Directory (relative to the Vite project root) holding dance-schedule.xlsx (and
   // where dance-schedule-dump.md is (re)written) for the active content set — e.g.
-  // "content/real/data". See docs/design/content-sets.md.
+  // "content/automated-testing/data". See docs/design/content-sets.md.
   dataDir: string
 }
 
