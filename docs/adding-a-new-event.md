@@ -38,6 +38,12 @@ content/<your-event-name>/
   data/
     event-schedule.xlsx   the simple flat event list — step 3
     dance-schedule.xlsx   the detailed room/time grid — step 4
+  scratch/          (optional) your own staging area — raw material you want to
+                    keep around (e.g. a higher-resolution source photo before
+                    cropping) that isn't itself a built page, spreadsheet, or
+                    icon. Nothing in the build ever looks at this folder, so
+                    anything you put here is safe from breaking a build — put
+                    whatever's useful to you.
 ```
 
 You can copy `content/automated-testing/` as a starting template and edit

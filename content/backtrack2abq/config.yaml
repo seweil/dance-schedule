@@ -1,0 +1,11 @@
+# Per-content-set config for the "backtrack2abq" event — see
+# docs/design/content-config.md.
+
+features:
+  # Crawled schedule has no A1-only sessions distinct from A2, so keep them
+  # combined (the recommended default per docs/adding-a-new-event.md).
+  combineA1A2: true
+
+manifest:
+  name: Back Track 2 ABQ (44th IAGSDC Convention)
+  shortName: BT2ABQ

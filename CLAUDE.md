@@ -91,6 +91,15 @@ content/
                               # see docs/design/dance-schedule.md (debug page only so
                               # far at /debug/dance-schedule — no real page renders
                               # this yet)
+    scratch/                # optional — a content author's own staging area for raw
+                            # material (e.g. a higher-resolution source photo before
+                            # cropping) that isn't itself built content. Nothing in the
+                            # build reads this directory's name or contents — only
+                            # pages/, data/*.xlsx, icon.png, and config.yaml are ever
+                            # read from a content set — so anything placed here is
+                            # inert to `pnpm build`/`pnpm dev`. Committed like any other
+                            # content file (not gitignored), so originals persist for
+                            # future re-edits instead of being re-crawled/re-downloaded.
 src/
   components/     # reusable UI components (incl. ZoomableImage, Nav)
   pages/          # hand-written routes, auto-routed like content pages (e.g.
