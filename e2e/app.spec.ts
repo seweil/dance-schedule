@@ -2,12 +2,15 @@ import { test, expect, devices } from '@playwright/test'
 
 test('renders the home page generated from content/index.md', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: /welcome to dance schedule/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome to montreal mix/i })).toBeVisible()
 })
 
 test('nav links to a page generated from a content file', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: /installation/i }).click()
+  // Scoped to the nav — the home page's own body text also links to
+  // Installation, so an unscoped query would match two elements.
+  const nav = page.getByRole('navigation', { name: /site navigation/i })
+  await nav.getByRole('link', { name: /installation/i }).click()
   await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
 })
 
@@ -44,13 +47,14 @@ test('app shell still renders when offline after the SW takes control', async ({
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: /welcome to dance schedule/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /welcome to montreal mix/i })).toBeVisible()
   await context.setOffline(false)
 })
 
 test('desktop nav shows the flat link list with no kebab toggle', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('link', { name: /installation/i })).toBeVisible()
+  const nav = page.getByRole('navigation', { name: /site navigation/i })
+  await expect(nav.getByRole('link', { name: /installation/i })).toBeVisible()
   await expect(page.getByRole('button', { name: /menu/i })).not.toBeVisible()
 })
 
@@ -129,8 +133,11 @@ test.describe('mobile viewport', () => {
     page,
   }) => {
     await page.goto('/')
+    // Scoped to the nav — the home page's own body text also links to
+    // Installation, so an unscoped query would match two elements.
+    const nav = page.getByRole('navigation', { name: /site navigation/i })
     const toggle = page.getByRole('button', { name: /menu/i })
-    const homeLink = page.getByRole('link', { name: /home/i })
+    const homeLink = nav.getByRole('link', { name: /home/i })
 
     await expect(toggle).toBeVisible()
     await expect(homeLink).not.toBeVisible()
@@ -138,9 +145,9 @@ test.describe('mobile viewport', () => {
 
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    await expect(page.getByRole('link', { name: /installation/i })).toBeVisible()
+    await expect(nav.getByRole('link', { name: /installation/i })).toBeVisible()
 
-    await page.getByRole('link', { name: /installation/i }).click()
+    await nav.getByRole('link', { name: /installation/i }).click()
     await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
     await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })

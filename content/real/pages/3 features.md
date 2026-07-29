@@ -1,14 +1,14 @@
 # Features
 
-Dance Schedule is a Progressive Web App, which means it comes with a few things
-out of the box:
+A few things this schedule can do for you at the venue:
 
-- **Installable** — add it to your home screen and it opens like a native app.
-- **Works offline** — previously visited pages stay available without a network
-  connection.
-- **Fast updates** — when a new version ships, open tabs detect it and prompt you
-  to reload.
+- **Works without a signal.** Once you've opened it, the schedule keeps
+  working even if the venue's Wi-Fi is spotty or your phone has no bars.
+- **Lives on your home screen.** [Install it](/installation) once and open
+  it like any other app — no App Store, no separate download.
+- **Remembers your filters.** Your selected date, level range, and GCA
+  setting are all still there the next time you open it.
+- **Always current.** When the schedule is updated, an already-open tab
+  will let you know a new version is ready — just tap reload.
 
-Here's a placeholder icon representing the feature set:
-
-![A placeholder feature icon](./assets/features.png)
+![Dance Schedule installed on a phone's home screen](./assets/features.png)

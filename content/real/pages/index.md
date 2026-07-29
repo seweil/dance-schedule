@@ -1,11 +1,18 @@
-# Welcome to Dance Schedule
+# Welcome to Montreal Mix 2026
 
-This is the home page. It's rendered from this content set's `pages/index.md` —
-pages and the navigation menu are generated automatically from the markdown files
-in that content set's `pages/` directory. Which content set is active is chosen
-by the `CONTENT_SET` env var (see `docs/design/content-sets.md`); this is the
-default (`real`) content set.
+Three days of modern western square and round dancing, Thursday through
+Saturday — multiple rooms running side by side, every level from SSD
+through C4.
 
-Add or edit files under this content set's `pages/` directory and the site's
-pages and menu update accordingly, both in development and in the production
-build.
+- **Event Schedule** — meals, socials, workshops, and everything else on
+  the calendar that isn't a dance session.
+- **Dance Schedule** — the full room-by-room dance floor lineup: who's
+  calling, what level, and where.
+- **Dance by Level** — the same lineup, organized by skill level instead of
+  by room, if that's easier to scan for what you want to dance.
+
+New here? See [Installation](/installation) to add this schedule to your
+phone's home screen — handy for checking between tips if the venue's
+Wi-Fi is spotty.
+
+See you on the floor!
