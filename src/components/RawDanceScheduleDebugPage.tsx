@@ -26,9 +26,15 @@ export function RawDanceScheduleDebugPage() {
           <span key={set}>
             {index > 0 ? ' · ' : ''}
             {/* Plain <a>, not react-router's <Link> — each content set is a
-                separately built app, so crossing to another set's copy of this page
-                is a full page navigation, not a client-side route change. */}
-            <a href={`/${set}/debug/dance-schedule`}>
+                separately built app, so crossing to another set is a full page
+                navigation, not a client-side route change. Links to that set's home
+                page rather than its own copy of this debug page: a set's `/<set>/`
+                is a literal static file, served correctly with no extra hosting
+                config, whereas a deep link like `/<set>/debug/dance-schedule` needs
+                a per-content-set Amplify rewrite rule that's a manual, easy-to-forget
+                step for a brand-new set (see docs/design/hosting.md) — until that's
+                added, the deep link 404s/blanks even though the home page works. */}
+            <a href={`/${set}/`}>
               {set}
               {set === contentSets.activeSet ? ' (this build)' : ''}
               {set === contentSets.defaultSet ? ' (default)' : ''}
