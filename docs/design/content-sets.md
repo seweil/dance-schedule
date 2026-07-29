@@ -192,6 +192,20 @@ starting template, then repoint `content/config.yaml`'s
 edited to reflect a real event's actual details — it stays the fixed
 sample/test fixture indefinitely.
 
+**`pnpm test`/`test:watch` pin `CONTENT_SET=automated-testing` explicitly**
+(`package.json`) — the rename above declares the intent, but `CONTENT_SET`
+unset still falls back to whatever `content/config.yaml`'s
+`defaultContentSet` currently is (see `vite.config.ts`). Once a real
+event's `content/<name>/` became the actual default (repointing that
+file, as above), unit tests hardcoding assertions against
+`automated-testing`'s content (`src/App.test.tsx`, `src/components/
+Nav.test.tsx`, `src/hooks/useLastPagePersistence.test.tsx`) started
+silently rendering the *new* default's content instead and failing —
+confirmed exactly this happened the moment `backtrack2abq` became the
+default. Pinning the env var in both test scripts (matching the existing
+`dev:test`/`build:test` pattern) keeps `pnpm test` asserting against the
+stable sample regardless of which set is live in production.
+
 ### Root/default-mirrored build's service worker excludes sibling content sets via `navigateFallbackDenylist`
 **Why:** The default set is mirrored unprefixed at `/`, so that build's
 service worker registers with scope `/` — a superset of every other

@@ -3,17 +3,14 @@ import { test, expect } from '@playwright/test'
 // `pnpm build` publishes every content set under its own "/<set>/" prefix (see
 // docs/design/content-sets.md) — these tests exercise that.
 //
-// `vite preview` has no per-prefix SPA-fallback rewrite (confirmed empirically: it
-// always falls back to the *root*/default bundle for any unmatched path — correct
-// only when the root scope itself is what's being tested; only Amplify would have a
-// per-prefix rewrite in production, see docs/design/hosting.md). So these tests
-// deliberately avoid hard-navigating to a deep, non-physical route under a "/<set>/"
-// prefix while online — they either stay at a real on-disk index.html
-// (`/`, `/automated-testing/`, `/test/`), reach a deeper route via genuine in-app client
-// navigation (a nav link click) once the correct bundle is already loaded, or — for
-// the offline test — rely on the "test" set's own already-active, same-scoped
-// service worker intercepting the request before it ever reaches the (buggy, for
-// this purpose) preview server.
+// `vite preview` correctly rewrites a hard-navigated deep link under a *known*
+// set's prefix (e.g. "/test/dance-schedule") to that set's own index.html —
+// vite-plugin-content-sets.ts's configurePreviewServer middleware (confirmed
+// empirically: e2e/app.spec.ts and e2e/dance-schedule.spec.ts hard-navigate
+// straight to deep "/automated-testing/..." routes). The offline test below still
+// reaches its deeper route via a genuine in-app client nav-link click rather than a
+// hard reload, simply because that's the natural way to land there before flipping
+// the network off — not a workaround for any preview-server gap.
 
 test('the "test" content set publishes its own distinct build', async ({ page }) => {
   await page.goto('/test/')

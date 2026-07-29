@@ -1,12 +1,12 @@
 import { test, expect, devices } from '@playwright/test'
 
 test('renders the home page generated from content/index.md', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/automated-testing/')
   await expect(page.getByRole('heading', { name: /welcome to montreal mix/i })).toBeVisible()
 })
 
 test('nav links to a page generated from a content file', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/automated-testing/')
   // Scoped to the nav — the home page's own body text also links to
   // Installation, so an unscoped query would match two elements.
   const nav = page.getByRole('navigation', { name: /site navigation/i })
@@ -15,7 +15,7 @@ test('nav links to a page generated from a content file', async ({ page }) => {
 })
 
 test('clicking an embedded markdown image opens the full-screen lightbox', async ({ page }) => {
-  await page.goto('/installation')
+  await page.goto('/automated-testing/installation')
   await page.getByAltText(/screenshot of the app/i).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -23,7 +23,7 @@ test('clicking an embedded markdown image opens the full-screen lightbox', async
 })
 
 test('registers and activates a service worker against the built app', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/automated-testing/')
   const hasActiveServiceWorker = await page.evaluate(async () => {
     // .ready resolves once a worker has installed and activated for this scope —
     // checking .getRegistration() right after goto() races the install step.
@@ -37,7 +37,7 @@ test('app shell still renders when offline after the SW takes control', async ({
   page,
   context,
 }) => {
-  await page.goto('/')
+  await page.goto('/automated-testing/')
   // The page that performs the initial registration is never itself controlled —
   // control only applies to navigations that happen after a worker is active, so
   // wait for activation, then reload to pick up a controller.
@@ -52,14 +52,14 @@ test('app shell still renders when offline after the SW takes control', async ({
 })
 
 test('desktop nav shows the flat link list with no kebab toggle', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/automated-testing/')
   const nav = page.getByRole('navigation', { name: /site navigation/i })
   await expect(nav.getByRole('link', { name: /installation/i })).toBeVisible()
   await expect(page.getByRole('button', { name: /menu/i })).not.toBeVisible()
 })
 
 test('nav links to the schedule page, which renders events', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/automated-testing/')
   await page.getByRole('link', { name: /schedule/i }).click()
   await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
   // Asserts structurally (at least one event renders) rather than exact event content,
@@ -72,7 +72,7 @@ test('app shell still renders the schedule page when offline after the SW takes 
   page,
   context,
 }) => {
-  await page.goto('/event-schedule')
+  await page.goto('/automated-testing/event-schedule')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
@@ -91,7 +91,7 @@ test('schedule cards lay out as columns without horizontal overflow on a narrow 
   // matches `orientation: landscape` — this is deliberately narrow to catch the same
   // overflow risk a fixed-width column floor would reintroduce.
   await page.setViewportSize({ width: 500, height: 300 })
-  await page.goto('/event-schedule')
+  await page.goto('/automated-testing/event-schedule')
   const firstCard = page.getByRole('listitem').first()
   await expect(firstCard).toBeVisible()
 
@@ -117,7 +117,7 @@ test.describe('mobile viewport', () => {
   test('renders content and nav without horizontal overflow on a small screen', async ({
     page,
   }) => {
-    await page.goto('/installation')
+    await page.goto('/automated-testing/installation')
     await expect(page.getByRole('heading', { name: /installation/i })).toBeVisible()
     await page.getByRole('button', { name: /menu/i }).click()
     await expect(page.getByRole('link', { name: /home/i })).toBeVisible()
@@ -132,7 +132,7 @@ test.describe('mobile viewport', () => {
   test('kebab menu hides the link list until toggled, and closes after navigating', async ({
     page,
   }) => {
-    await page.goto('/')
+    await page.goto('/automated-testing/')
     // Scoped to the nav — the home page's own body text also links to
     // Installation, so an unscoped query would match two elements.
     const nav = page.getByRole('navigation', { name: /site navigation/i })
@@ -155,7 +155,7 @@ test.describe('mobile viewport', () => {
   test('schedule reflows to a single column without horizontal overflow on a small screen', async ({
     page,
   }) => {
-    await page.goto('/event-schedule')
+    await page.goto('/automated-testing/event-schedule')
     await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
     await expect(page.getByRole('listitem').first()).toBeVisible()
 
