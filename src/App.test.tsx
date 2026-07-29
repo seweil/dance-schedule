@@ -14,4 +14,10 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /installation/i })).toBeInTheDocument()
   })
+
+  it('redirects an unknown path to home instead of rendering blank', () => {
+    window.history.pushState({}, '', '/no-such-page')
+    render(<App />)
+    expect(screen.getByRole('heading', { name: /welcome to dance schedule/i })).toBeInTheDocument()
+  })
 })

@@ -74,12 +74,47 @@ pattern to get the same long-cache treatment.
 is exactly the production content — no environment variable needed in
 Amplify's build settings.
 
+### Per-content-set Amplify rewrite rule, in addition to the root SPA fallback
+**Why:** `pnpm build` now publishes every content set under its own
+`/<set>/` prefix (see `docs/design/content-sets.md`), each an independent
+build with its own `basename`-scoped router. The existing root SPA
+fallback rule (Source `</^[^.]+$/>` → Target `/index.html` → Type 200)
+would incorrectly rewrite a direct/deep-link navigation to e.g.
+`/real/installation` to the *root* `/index.html` (wrong bundle/basename)
+instead of `/real/index.html`. This needs **one additional Amplify console
+rewrite rule per content-set path segment** — e.g. Source
+`</real\/[^.]+$/>` → Target `/real/index.html` → Type 200 (Rewrite), and
+likewise for `test` and any future set — added/removed by hand in the
+Amplify console whenever a content set is added or removed, mirroring the
+existing "not expressible in the repo" pattern already noted above for the
+root rule. `amplify.yml`'s `customHeaders` patterns were also updated to
+`'**/...'` globs so the no-cache/long-cache header split still applies to
+every set's nested output, not just the root copy.
+
+A **second, separate rule is also needed**: a bare `/real` or `/test`
+(no trailing slash — the natural way to type or bookmark a set's URL)
+doesn't match Amplify's static asset serving either, and would fall
+through to the same global fallback — landing on the *root* bundle with
+no matching client route, rendering blank rather than 404ing (confirmed
+locally: `vite preview` has the identical gap, worked around there by
+`vite-plugin-content-sets.ts`'s `configurePreviewServer` hook, which only
+covers local testing). Amplify needs one additional redirect rule per
+content-set — Source `/real` → Target `/real/` → Type 301 (Redirect), and
+likewise for `test`/future sets — alongside the rewrite rule above.
+
 ## Open questions
 
 - Should a second Amplify branch/environment run `CONTENT_SET=test` (or a
   future real-event set) as a preview deploy, now that Amplify supports
   per-branch environment variables — or stay purely a local
-  `pnpm dev:test`/`build:test` tool?
+  `pnpm dev:test`/`build:test` tool? (Largely superseded now that `pnpm
+  build` publishes every set including `test` under `/test/` on every
+  deploy — a separate preview branch may no longer be needed.)
 - At what point (traffic volume, need for custom caching/analytics/edge
   logic) would it be worth revisiting the S3+CloudFront+Actions path for
   more control?
+- The per-content-set Amplify rewrite rules above are manual and easy to
+  forget when adding a new content set — is a checklist/reminder
+  (README, PR template, or a build-time warning if a set has no matching
+  rule — though Amplify's rewrite config isn't introspectable from the
+  repo) worth adding?

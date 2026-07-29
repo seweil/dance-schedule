@@ -99,13 +99,83 @@ short version is that the hardcoded `'real'` fallback became
 target directory exists" open question below for both the config-file
 default and an explicit `CONTENT_SET` env override).
 
+## Decisions (continued)
+
+### Every content set publishes at once, not just one chosen at build time
+**Why:** The original framing ("point the app at one of several bundles,
+chosen at build time") only fit while exactly one set needed to be *live*
+at a time. Once multiple real events are concurrently in development,
+each needs its own reachable, linkable URL rather than requiring a
+redeploy to switch which one is visible. `CONTENT_SET`/`BASE_PATH` are
+still resolved once per Vite process — that constraint didn't change — so
+"publish all sets" is implemented as **N+1 separate `vite build`
+invocations** (one per `content/<set>/`, each producing its own
+self-contained bundle/service-worker/manifest under a `/<set>/` URL
+prefix, plus one extra build for `content/config.yaml`'s
+`defaultContentSet` mirrored unprefixed at `/`), orchestrated by
+`scripts/build-content-sets.mjs` and merged into one `dist/` tree via a
+build-to-temp-dir-then-atomic-rename swap (so `dist/` is never left
+partially published if one of the N+1 builds fails). `pnpm build` now runs
+this orchestrator; `pnpm dev`/`dev:test`/`build:test`/`preview` are
+unchanged — they still serve/build exactly one set, unprefixed, for fast
+local iteration.
+
+### `BASE_PATH` env var drives `base`, `import.meta.env.BASE_URL` drives the router `basename`
+**Why:** Each of the N+1 builds needs its asset URLs, service worker
+scope, and client-side routing to agree on the same prefix. Vite's own
+`base` config option already does this consistently for asset URLs, the
+generated service worker's scope, and `import.meta.env.BASE_URL` — so
+`src/App.tsx`'s `<BrowserRouter basename={import.meta.env.BASE_URL}>` is
+the only client-code change needed; no custom runtime prefix-detection
+was written.
+
+### `public/manifest.webmanifest` uses relative URLs, not per-set generated manifests
+**Why:** `id`/`start_url`/`scope`/icon `src` values changed from
+root-absolute (`/`, `/icons/...`) to relative (`.`, `icons/...`). Per the
+Web App Manifest spec, relative URLs resolve against the manifest's own
+URL, so one static file (copied verbatim into every build via Vite's
+public dir) works correctly whether served from `/`, `/real/`, or
+`/test/`, with no per-set templating step. `id: "."` specifically matters
+so the root/`/real/`/`/test/` deploys register as distinct installable PWA
+identities instead of colliding on a shared `id: "/"`.
+
+### `vite.config.ts`'s `workbox.navigateFallback` no longer overridden to an absolute path
+**Why:** The prior `navigateFallback: '/index.html'` was harmless while
+`base` was always `/`. Once `base` varies per build, an absolute fallback
+would serve the *default* set's root `index.html` for offline navigations
+inside a prefixed set's scope (e.g. `/test/`) — wrong bundle. Removed in
+favor of `vite-plugin-pwa`'s own default (`'index.html'`, relative),
+which resolves correctly against each build's own `base`/scope.
+
+### `listContentSets`/`virtual:content-sets` resolve the discoverability open question
+**Why:** `content-config.ts`'s `listContentSets(root)` lists `content/*`
+directories, consumed both by `scripts/build-content-sets.mjs` (to decide
+what to build) and by a new `vite-plugin-content-sets.ts` exposing
+`virtual:content-sets` (`{ sets, defaultSet, activeSet }`) to client code —
+used by the debug page's cross-set links
+(`src/components/RawDanceScheduleDebugPage.tsx`) so published sets are no
+longer purely tribal knowledge (`CONTENT_SET=<name>`) but discoverable
+from within the running app.
+
 ## Open questions
 
-- Should there be a way to list/discover available content sets (e.g. a
-  script listing `content/*/` directory names), so `CONTENT_SET=<name>`
-  isn't purely tribal knowledge? (The *validation* half of the original
-  open question below is resolved — see Decisions above and
-  `docs/design/content-config.md` — but discovery/listing itself isn't.)
+- Content-set names are not currently checked against a reserved list
+  beyond a small hardcoded set in `scripts/build-content-sets.mjs`
+  (`assets`, `icons`, `index.html`, `manifest.webmanifest`, `sw.js`,
+  `workbox-*`) — a set colliding with one of these fails the build loudly,
+  but the check is manual/hardcoded rather than derived from Vite's actual
+  build output.
+- All published sets currently share one `manifest.webmanifest` verbatim,
+  so installed home-screen icons for different content sets look
+  identical (same name/short_name/icons). Differentiating them (e.g. "Dance
+  Schedule (Test)") would need per-build manifest templating instead of one
+  static file — deferred; will need solving before multiple sets are
+  regularly installed side-by-side as PWAs.
+- Direct/deep-link navigation into a prefixed set (e.g. a bookmark or
+  shared link to `/real/installation`) needs server-side SPA-fallback
+  rewrite rules aware of each prefix — see `docs/design/hosting.md`'s new
+  decision on this; it's Amplify console config, not something `vite
+  preview` reproduces locally either.
 - ~~Should content-set resolution validate the target directory exists (at
   `configResolved`/`load()` time) and fail with a friendly named error
   ("content set 'xyz' not found — expected content/xyz/ to exist"), rather

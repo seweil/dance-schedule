@@ -19,26 +19,29 @@ frontend:
   customHeaders:
     # sw.js/index.html/manifest must be revalidated on every load so a new
     # deploy is actually detected (see src/App.tsx's UpdatePrompt) — never
-    # cache-first for these, unlike the hashed /assets/ files below.
-    - pattern: 'index.html'
+    # cache-first for these, unlike the hashed /assets/ files below. '**/' prefixes
+    # so these match every content set's own copy (dist/real/index.html,
+    # dist/test/sw.js, ...) as well as the default set's root copy — see
+    # docs/design/content-sets.md.
+    - pattern: '**/index.html'
       headers:
         - key: 'Cache-Control'
           value: 'no-cache'
-    - pattern: 'manifest.webmanifest'
+    - pattern: '**/manifest.webmanifest'
       headers:
         - key: 'Cache-Control'
           value: 'no-cache'
-    - pattern: 'sw.js'
+    - pattern: '**/sw.js'
       headers:
         - key: 'Cache-Control'
           value: 'no-cache'
-    - pattern: '/assets/**'
+    - pattern: '**/assets/**'
       headers:
         - key: 'Cache-Control'
           value: 'public, max-age=31536000, immutable'
     # workbox-<hash>.js is generateSW's helper script, imported by sw.js — its
     # hash changes on every build same as /assets/, so it's safe to cache long.
-    - pattern: 'workbox-*.js'
+    - pattern: '**/workbox-*.js'
       headers:
         - key: 'Cache-Control'
           value: 'public, max-age=31536000, immutable'

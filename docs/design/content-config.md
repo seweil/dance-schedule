@@ -98,6 +98,16 @@ without needing a second Playwright project — see
 `docs/design/dance-schedule.md` for the slider-side design (the `LevelSlot`
 concept this flag drives).
 
+## Decisions (continued)
+
+### `defaultContentSet` now also picks which set is mirrored unprefixed at `/`
+**Why:** See `docs/design/content-sets.md`'s "every content set publishes
+at once" decision — production builds now publish every `content/<set>/`
+under its own `/<set>/` URL prefix, and `defaultContentSet` additionally
+determines which one of those also gets a second, unprefixed build at `/`.
+This is in addition to its original role (the `CONTENT_SET`-unset fallback
+for `pnpm dev`/`build:test`), not a replacement for it.
+
 ## Open questions
 
 - Should there be more feature flags of this shape in the future, and if

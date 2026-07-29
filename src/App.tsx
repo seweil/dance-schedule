@@ -30,9 +30,17 @@ const debugRoutes: RouteObject[] = [
 // a page worth a permanent nav entry.
 const utilityRoutes: RouteObject[] = [{ path: '/clear-storage', element: <ClearStorageAction /> }]
 
+// Without this, any unmatched path (typo, stale link, or — now that every content
+// set publishes under its own "/<set>/" prefix, see docs/design/content-sets.md —
+// a path that happens to look like another set's name, e.g. "/real/test") rendered
+// nothing below the nav instead of a real 404 or a helpful fallback. `to="/"` is
+// basename-relative (see BrowserRouter below), so this lands on *this* build's own
+// home page, not some other content set's.
+const notFoundRoute: RouteObject = { path: '*', element: <Navigate to="/" replace /> }
+
 function Pages() {
   useLastPagePersistence()
-  return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes])
+  return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes, notFoundRoute])
 }
 
 // Without this, an already-open tab only checks for a new service worker on its
@@ -73,7 +81,7 @@ function UpdatePrompt() {
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <MDXProvider components={mdxComponents}>
         <Nav />
         <Suspense fallback={<p>Loading…</p>}>

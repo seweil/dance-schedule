@@ -56,11 +56,15 @@ docs/
     <topic>.md                # one living design doc per architectural topic
 content/
   config.yaml             # top-level, shared — defaultContentSet used when CONTENT_SET
-                          # is unset; see docs/design/content-config.md
-  <content-set>/          # one directory per content set (any name) — which one is
-                          # active is chosen by the CONTENT_SET env var, falling back to
-                          # config.yaml's defaultContentSet; see docs/design/content-sets.md
-                          # and docs/design/content-config.md. Two always exist:
+                          # is unset (single-set dev/build:test), AND which set is also
+                          # mirrored unprefixed at "/" in a production `pnpm build`
+                          # (every set publishes, see "Content pipeline" below); see
+                          # docs/design/content-config.md
+  <content-set>/          # one directory per content set (any name) — for a single Vite
+                          # process, active set is chosen by the CONTENT_SET env var,
+                          # falling back to config.yaml's defaultContentSet; see
+                          # docs/design/content-sets.md and docs/design/content-config.md.
+                          # Two always exist:
                           #   real/ — the default/production set
                           #   test/ — deliberately edge-case-flavored fixture set —
                           #           `pnpm dev:test` / `pnpm build:test`
@@ -88,16 +92,25 @@ src/
 public/
   manifest.webmanifest
   icons/
+scripts/
+  build-content-sets.mjs  # `pnpm build` orchestrator — runs one `vite build` per
+                          # content set (plus one extra for the default set's
+                          # unprefixed mirror); see "Content pipeline" below
 e2e/
   *.spec.ts       # Playwright tests
 ```
 
 ## Content pipeline
 
-Which content set is active is chosen by the `CONTENT_SET` env var read in
-`vite.config.ts` (default `real` if unset) — see "Project structure" above and
-`docs/design/content-sets.md`. Everything below refers to whichever
-`content/<content-set>/pages/` directory is currently selected.
+For a single Vite process — `pnpm dev`, `pnpm dev:test`, `pnpm build:test` — which
+content set is active is chosen by the `CONTENT_SET` env var read in `vite.config.ts`
+(default `real` if unset) — see "Project structure" above and
+`docs/design/content-sets.md`. `pnpm build` (production) instead publishes **every**
+content set at once, each under its own `/<content-set>/` URL prefix, plus the
+default set (`content/config.yaml`'s `defaultContentSet`) additionally mirrored
+unprefixed at `/` — orchestrated by `scripts/build-content-sets.mjs`, which runs one
+`vite build` per set. Everything below refers to whichever single
+`content/<content-set>/pages/` directory is currently selected in a given build.
 
 Pages and the nav menu are generated from plain markdown files in that content
 set's `pages/` directory — there is no hand-written route for a content page and

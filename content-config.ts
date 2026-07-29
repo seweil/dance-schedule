@@ -61,3 +61,21 @@ export function assertContentSetExists(root: string, name: string, source: strin
     throw new Error(`${source} names content set ${JSON.stringify(name)}, but ${dir} doesn't exist`)
   }
 }
+
+// Every content/<name>/ directory that exists, sorted for deterministic build
+// ordering (used by scripts/build-content-sets.mjs, mirrored there in plain JS
+// since that script must run outside Vite's TS transform) and deterministic
+// virtual:content-sets output (vite-plugin-content-sets.ts). Ignores non-directory
+// entries — content/config.yaml itself sits alongside these. See
+// docs/design/content-sets.md.
+export function listContentSets(root: string): string[] {
+  const contentRoot = path.resolve(root, 'content')
+  if (!fs.existsSync(contentRoot)) {
+    return []
+  }
+  return fs
+    .readdirSync(contentRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+}

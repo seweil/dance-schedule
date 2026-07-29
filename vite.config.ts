@@ -8,6 +8,7 @@ import rehypeMdxImportMedia from 'rehype-mdx-import-media'
 import { schedulePlugin } from './vite-plugin-schedule'
 import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
 import { contentConfigPlugin } from './vite-plugin-content-config'
+import { contentSetsPlugin } from './vite-plugin-content-sets'
 import { assertContentSetExists, loadTopLevelContentConfig } from './content-config'
 
 // Baked in at build time (never re-evaluated client-side) so the debug page can
@@ -33,7 +34,15 @@ if (process.env.CONTENT_SET) {
 }
 const CONTENT_DIR = `content/${CONTENT_SET}`
 
+// Path prefix this build's assets/routes are served under — "/" for the default
+// set's unprefixed mirror, "/<set>/" for every set's own prefixed copy. Set by
+// scripts/build-content-sets.mjs per invocation; defaults to "/" so plain
+// `vite dev`/`vite build`/`build:test` behave exactly as before when unset. See
+// docs/design/content-sets.md.
+const BASE_PATH = process.env.BASE_PATH || '/'
+
 export default defineConfig({
+  base: BASE_PATH,
   define: {
     __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
     __BUILD_TIME__: JSON.stringify(BUILD_TIME),
@@ -71,6 +80,7 @@ export default defineConfig({
     // dataDir is the content set's own root (config.yaml sits alongside pages/data,
     // not inside data/) — see docs/design/content-config.md.
     contentConfigPlugin({ dataDir: CONTENT_DIR }),
+    contentSetsPlugin({ defaultSet: topLevelContentConfig.defaultContentSet, activeSet: CONTENT_SET }),
     react(),
     VitePWA({
       strategies: 'generateSW',
@@ -79,7 +89,12 @@ export default defineConfig({
       manifest: false, // manifest is hand-authored at public/manifest.webmanifest
       includeAssets: ['icons/*.png', 'icons/*.svg'],
       workbox: {
-        navigateFallback: '/index.html',
+        // No navigateFallback override here — vite-plugin-pwa's own default
+        // ('index.html', relative) resolves correctly against each build's own
+        // `base`/scope. An absolute '/index.html' would incorrectly fall back to
+        // the default set's root bundle for offline navigations inside a prefixed
+        // set's scope (e.g. /test/) once multiple content sets publish under
+        // different base paths — see docs/design/content-sets.md.
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',

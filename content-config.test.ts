@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { assertContentSetExists, loadTopLevelContentConfig } from './content-config'
+import { assertContentSetExists, listContentSets, loadTopLevelContentConfig } from './content-config'
 
 let root: string
 
@@ -67,5 +67,18 @@ describe('assertContentSetExists', () => {
     fs.mkdirSync(path.join(root, 'content'), { recursive: true })
     fs.writeFileSync(path.join(root, 'content/not-a-dir'), '')
     expect(() => assertContentSetExists(root, 'not-a-dir', 'source')).toThrow()
+  })
+})
+
+describe('listContentSets', () => {
+  it('returns an empty array when content/ does not exist', () => {
+    expect(listContentSets(root)).toEqual([])
+  })
+
+  it('returns sorted set names, ignoring non-directory entries', () => {
+    makeContentSetDir(root, 'test')
+    makeContentSetDir(root, 'real')
+    writeTopLevelConfig(root, 'defaultContentSet: real\n')
+    expect(listContentSets(root)).toEqual(['real', 'test'])
   })
 })
