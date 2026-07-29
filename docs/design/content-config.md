@@ -108,6 +108,74 @@ determines which one of those also gets a second, unprefixed build at `/`.
 This is in addition to its original role (the `CONTENT_SET`-unset fallback
 for `pnpm dev`/`build:test`), not a replacement for it.
 
+## Decisions (continued)
+
+### Each content set gets its own PWA manifest `name`/`short_name` and icon
+**Why:** Every published content set (`docs/design/content-sets.md`) used to
+share one static `public/manifest.webmanifest` and one static icon file —
+installed home-screen icons for `real` and `test` looked identical, an
+explicit open question logged there. Only `name`/`short_name` became
+per-set config (a new `manifest:` key in `content/<set>/config.yaml`,
+sibling to `features:`) — colors/display/layout stay fixed/shared, since
+the actual need is installed-icon *identity*, not full re-branding, and
+keeping the config surface small avoids premature generality.
+
+### `manifest.webmanifest` is generated (`vite-plugin-pwa`'s `manifest` option), not hand-authored
+**Why:** `vite-plugin-pwa`'s `manifest` option, given a real object (not
+`false`), computes `manifest.webmanifest` itself and auto-injects a
+`base`-aware `<link rel="manifest">` into the built `index.html` — so
+`index.html`'s manual `<link rel="manifest">` was removed (a real object
+would otherwise produce two manifest links). `name`/`short_name` come from
+a new `loadContentManifestStrings(root, contentDir)` (`content-config.ts`)
+— a plain synchronous function, not a `virtual:*` module, since (unlike
+`features.combineA1A2`) these strings are only ever needed at build time to
+construct `vite.config.ts`'s `VitePWA({ manifest })` object, never by
+client code; shipping them to the client bundle would be pointless. Missing
+`content/<set>/config.yaml` or missing `manifest:` section → defaults to
+`{ name: 'Dance Schedule', shortName: 'Dance Schedule' }` (today's
+pre-existing values); present but not strings → throws, matching
+`loadContentConfigData`'s existing validation style. `content/real/config.yaml`
+has no `manifest:` section (relies on the defaults, which already match);
+`content/test/config.yaml` overrides to `Dance Schedule (Test)` / `DS Test`
+so it's visually distinguishable once installed alongside `real`.
+
+### Icons are generated per set at build time from a single source image (`content-icons.ts`)
+**Why:** `vite-plugin-pwa` doesn't generate/copy icon files itself (that
+needs the separate, uninstalled `@vite-pwa/assets-generator` package) —
+files referenced in `manifest.icons[].src` must simply already exist under
+Vite's `publicDir`. Since each set needs *different* icons, and `publicDir`
+can only point at one directory, `vite.config.ts`'s `defineConfig` became
+an async factory (`defineConfig(async () => {...})`) that generates that
+content set's icons into `generated-assets/<set>/icons/` (gitignored,
+regenerated on every `vite` invocation — cheap, keyed by `CONTENT_SET`) and
+points `publicDir` there, entirely replacing the old static `public/`
+directory (deleted — it held nothing else). `content-icons.ts`'s
+`generateContentSetIcons()` takes a single source image,
+`content/<set>/icon.png` (sibling to `config.yaml`/`pages/`/`data/`,
+**optional**, recommended at least 1024×1024 — comfortable headroom above
+the 512px this pipeline actually needs, so downsampling stays sharp even if
+a larger size is added later; present but under 512×512 in either dimension
+→ throws, since upsampling would produce a blurry icon), and downsamples it
+via `sharp` (new devDependency — build-time/Node-only, same category as
+`read-excel-file`/`yaml`) into the three sizes the manifest needs:
+`icon-192.png`/`icon-512.png` (`purpose: "any"`, plain resize) and
+`icon-maskable-512.png` (`purpose: "maskable"`) — composited at ~70% scale
+centered on an opaque `#ffffff` canvas (standard maskable safe-zone
+guidance, so OS icon masks — circle, squircle, rounded square — don't crop
+the artwork; auto-generated from the same single source rather than
+requiring separate hand-padded art).
+
+### Missing `icon.png` falls back to a generated placeholder, not a build failure
+**Why:** No real artwork exists for any content set yet. Rather than
+hard-requiring `icon.png` (which would leave `pnpm build` broken out of the
+box), `content-icons.ts` falls back to rendering a simple placeholder — a
+solid `#0f172a` square with the content set's uppercased first letter,
+rasterized from an inline SVG string via `sharp` (no extra font/canvas
+dependency) — through the exact same downstream resize/maskable pipeline a
+real source image would go through. Dropping in a real
+`content/<set>/icon.png` later requires no pipeline changes; the real file
+is simply preferred whenever present.
+
 ## Open questions
 
 - Should there be more feature flags of this shape in the future, and if

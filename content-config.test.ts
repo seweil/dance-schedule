@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { assertContentSetExists, listContentSets, loadTopLevelContentConfig } from './content-config'
+import { assertContentSetExists, listContentSets, loadContentManifestStrings, loadTopLevelContentConfig } from './content-config'
 
 let root: string
 
@@ -21,6 +21,11 @@ function writeTopLevelConfig(root: string, contents: string) {
 
 function makeContentSetDir(root: string, name: string) {
   fs.mkdirSync(path.join(root, 'content', name), { recursive: true })
+}
+
+function writeContentSetConfig(root: string, name: string, contents: string) {
+  makeContentSetDir(root, name)
+  fs.writeFileSync(path.join(root, 'content', name, 'config.yaml'), contents)
 }
 
 describe('loadTopLevelContentConfig', () => {
@@ -80,5 +85,46 @@ describe('listContentSets', () => {
     makeContentSetDir(root, 'real')
     writeTopLevelConfig(root, 'defaultContentSet: real\n')
     expect(listContentSets(root)).toEqual(['real', 'test'])
+  })
+})
+
+describe('loadContentManifestStrings', () => {
+  it('defaults to "Dance Schedule" when content/<set>/config.yaml is missing', () => {
+    makeContentSetDir(root, 'real')
+    expect(loadContentManifestStrings(root, 'content/real')).toEqual({
+      name: 'Dance Schedule',
+      shortName: 'Dance Schedule',
+    })
+  })
+
+  it('defaults to "Dance Schedule" when config.yaml has no manifest section', () => {
+    writeContentSetConfig(root, 'real', 'features:\n  combineA1A2: false\n')
+    expect(loadContentManifestStrings(root, 'content/real')).toEqual({
+      name: 'Dance Schedule',
+      shortName: 'Dance Schedule',
+    })
+  })
+
+  it('reads an explicit manifest.name/manifest.shortName override', () => {
+    writeContentSetConfig(root, 'test', 'manifest:\n  name: Dance Schedule (Test)\n  shortName: DS Test\n')
+    expect(loadContentManifestStrings(root, 'content/test')).toEqual({
+      name: 'Dance Schedule (Test)',
+      shortName: 'DS Test',
+    })
+  })
+
+  it('throws on malformed YAML', () => {
+    writeContentSetConfig(root, 'real', 'manifest: [unterminated\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/Failed to parse/)
+  })
+
+  it('throws when manifest.name is present but not a string', () => {
+    writeContentSetConfig(root, 'real', 'manifest:\n  name: 42\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/"manifest\.name" must be a string/)
+  })
+
+  it('throws when manifest.shortName is present but not a string', () => {
+    writeContentSetConfig(root, 'real', 'manifest:\n  shortName: 42\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/"manifest\.shortName" must be a string/)
   })
 })

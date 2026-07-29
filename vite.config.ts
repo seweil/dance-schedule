@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -9,7 +10,8 @@ import { schedulePlugin } from './vite-plugin-schedule'
 import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
 import { contentConfigPlugin } from './vite-plugin-content-config'
 import { contentSetsPlugin } from './vite-plugin-content-sets'
-import { assertContentSetExists, loadTopLevelContentConfig } from './content-config'
+import { assertContentSetExists, loadContentManifestStrings, loadTopLevelContentConfig } from './content-config'
+import { generateContentSetIcons } from './content-icons'
 
 // Baked in at build time (never re-evaluated client-side) so the debug page can
 // show which build is running — the short commit hash doubles as a build number
@@ -41,81 +43,115 @@ const CONTENT_DIR = `content/${CONTENT_SET}`
 // docs/design/content-sets.md.
 const BASE_PATH = process.env.BASE_PATH || '/'
 
-export default defineConfig({
-  base: BASE_PATH,
-  define: {
-    __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
-    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
-  },
-  plugins: [
-    // Must run before vite-plugin-pages resolves .md files as route modules.
-    {
-      enforce: 'pre',
-      ...mdx({
-        // 'md' format keeps JSX-in-markdown disabled — content authors write plain
-        // markdown, and any accidental JSX in content fails the build loudly instead
-        // of silently working.
-        format: 'md',
-        rehypePlugins: [rehypeMdxImportMedia],
-        // Required for the global <img> (and any other element) override via
-        // MDXProvider in App.tsx to actually take effect — without this, compiled
-        // MDX components ignore React context and only honor a `components` prop
-        // passed directly, which vite-plugin-pages' generated routes never pass.
-        providerImportSource: '@mdx-js/react',
-      }),
+export default defineConfig(async () => {
+  // Generated per content set (never committed — see .gitignore) so each set's own
+  // manifest.webmanifest can reference its own icon files, distinct from every
+  // other set's. Replaces the old single shared public/ directory entirely (see
+  // docs/design/content-config.md) — vite-plugin-pwa's manifest icons must live
+  // under Vite's publicDir, and that can only point at one directory at a time, so
+  // it's repointed here instead of the default 'public'.
+  const generatedDir = path.resolve(process.cwd(), 'generated-assets', CONTENT_SET)
+  await generateContentSetIcons(process.cwd(), CONTENT_DIR, CONTENT_SET, path.join(generatedDir, 'icons'))
+  const manifestStrings = loadContentManifestStrings(process.cwd(), CONTENT_DIR)
+
+  return {
+    base: BASE_PATH,
+    publicDir: generatedDir,
+    define: {
+      __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
+      __BUILD_TIME__: JSON.stringify(BUILD_TIME),
     },
-    Pages({
-      // <CONTENT_DIR>/pages only has .md files and src/pages/ only has .tsx files
-      // today, so sharing one extensions list across both dirs doesn't cross-
-      // contaminate either.
-      dirs: [
-        { dir: `${CONTENT_DIR}/pages`, baseRoute: '' },
-        { dir: 'src/pages', baseRoute: '' },
-      ],
-      extensions: ['md', 'tsx'],
-      resolver: 'react',
-    }),
-    schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
-    danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
-    // dataDir is the content set's own root (config.yaml sits alongside pages/data,
-    // not inside data/) — see docs/design/content-config.md.
-    contentConfigPlugin({ dataDir: CONTENT_DIR }),
-    contentSetsPlugin({ defaultSet: topLevelContentConfig.defaultContentSet, activeSet: CONTENT_SET }),
-    react(),
-    VitePWA({
-      strategies: 'generateSW',
-      registerType: 'prompt',
-      injectRegister: null, // registered manually via useRegisterSW for update-prompt UI
-      manifest: false, // manifest is hand-authored at public/manifest.webmanifest
-      includeAssets: ['icons/*.png', 'icons/*.svg'],
-      workbox: {
-        // No navigateFallback override here — vite-plugin-pwa's own default
-        // ('index.html', relative) resolves correctly against each build's own
-        // `base`/scope. An absolute '/index.html' would incorrectly fall back to
-        // the default set's root bundle for offline navigations inside a prefixed
-        // set's scope (e.g. /test/) once multiple content sets publish under
-        // different base paths — see docs/design/content-sets.md.
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: { cacheName: 'pages' },
-          },
+    plugins: [
+      // Must run before vite-plugin-pages resolves .md files as route modules.
+      {
+        enforce: 'pre',
+        ...mdx({
+          // 'md' format keeps JSX-in-markdown disabled — content authors write plain
+          // markdown, and any accidental JSX in content fails the build loudly instead
+          // of silently working.
+          format: 'md',
+          rehypePlugins: [rehypeMdxImportMedia],
+          // Required for the global <img> (and any other element) override via
+          // MDXProvider in App.tsx to actually take effect — without this, compiled
+          // MDX components ignore React context and only honor a `components` prop
+          // passed directly, which vite-plugin-pages' generated routes never pass.
+          providerImportSource: '@mdx-js/react',
+        }),
+      },
+      Pages({
+        // <CONTENT_DIR>/pages only has .md files and src/pages/ only has .tsx files
+        // today, so sharing one extensions list across both dirs doesn't cross-
+        // contaminate either.
+        dirs: [
+          { dir: `${CONTENT_DIR}/pages`, baseRoute: '' },
+          { dir: 'src/pages', baseRoute: '' },
         ],
-      },
-      devOptions: {
-        enabled: false, // SW behavior is only verified against build+preview, per CLAUDE.md
-      },
-    }),
-  ],
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test-setup.ts'],
-    // The second pattern is only for repo-root files (content-config.ts) — vite-
-    // plugin-schedule.ts/vite-plugin-dance-schedule.ts have no tests of their own
-    // (covered live via pnpm build/pnpm dev:test instead), so this doesn't pick up
-    // anything unexpected.
-    include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts'],
-    css: true,
-  },
+        extensions: ['md', 'tsx'],
+        resolver: 'react',
+      }),
+      schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
+      danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
+      // dataDir is the content set's own root (config.yaml sits alongside pages/data,
+      // not inside data/) — see docs/design/content-config.md.
+      contentConfigPlugin({ dataDir: CONTENT_DIR }),
+      contentSetsPlugin({ defaultSet: topLevelContentConfig.defaultContentSet, activeSet: CONTENT_SET }),
+      react(),
+      VitePWA({
+        strategies: 'generateSW',
+        registerType: 'prompt',
+        injectRegister: null, // registered manually via useRegisterSW for update-prompt UI
+        // Computed per content set — name/short_name from that set's config.yaml
+        // (manifestStrings), icons from the freshly generated publicDir above.
+        // Everything else stays fixed/shared across sets. vite-plugin-pwa injects the
+        // <link rel="manifest"> tag itself once this isn't false (base-aware,
+        // index.html no longer hand-authors it) — see docs/design/content-config.md.
+        manifest: {
+          id: '.',
+          name: manifestStrings.name,
+          short_name: manifestStrings.shortName,
+          description: 'TODO: one-line description of what this app does.',
+          start_url: '.',
+          scope: '.',
+          display: 'standalone',
+          orientation: 'portrait-primary',
+          background_color: '#ffffff',
+          theme_color: '#0f172a',
+          icons: [
+            { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+        },
+        includeAssets: ['icons/*.png'],
+        workbox: {
+          // No navigateFallback override here — vite-plugin-pwa's own default
+          // ('index.html', relative) resolves correctly against each build's own
+          // `base`/scope. An absolute '/index.html' would incorrectly fall back to
+          // the default set's root bundle for offline navigations inside a prefixed
+          // set's scope (e.g. /test/) once multiple content sets publish under
+          // different base paths — see docs/design/content-sets.md.
+          runtimeCaching: [
+            {
+              urlPattern: ({ request }) => request.mode === 'navigate',
+              handler: 'NetworkFirst',
+              options: { cacheName: 'pages' },
+            },
+          ],
+        },
+        devOptions: {
+          enabled: false, // SW behavior is only verified against build+preview, per CLAUDE.md
+        },
+      }),
+    ],
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
+      // The second pattern is only for repo-root files (content-config.ts) — vite-
+      // plugin-schedule.ts/vite-plugin-dance-schedule.ts have no tests of their own
+      // (covered live via pnpm build/pnpm dev:test instead), so this doesn't pick up
+      // anything unexpected.
+      include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts'],
+      css: true,
+    },
+  }
 })

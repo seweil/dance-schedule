@@ -1,9 +1,17 @@
-# Per-content-set feature flags — read at build time and exposed to client-side
-# code via the virtual:content-config module (vite-plugin-content-config.ts).
-# See docs/design/content-config.md.
+# Per-content-set config, read at build time — see docs/design/content-config.md.
+# `features` is exposed to client-side code via the virtual:content-config module
+# (vite-plugin-content-config.ts). `manifest` (name/shortName) is build-time only,
+# used to construct vite.config.ts's per-set PWA manifest.
 
 features:
   # true here (unlike content/real/config.yaml) specifically so the "test"
   # content set exercises the combined-slot behavior — see
   # docs/design/dance-schedule.md's LevelSlot decision.
   combineA1A2: true
+
+manifest:
+  # Distinguishes this set's installed icon/app name from "real"'s, so the two are
+  # never confused once both are installed side by side — see
+  # docs/design/content-config.md.
+  name: Dance Schedule (Test)
+  shortName: DS Test

@@ -130,14 +130,19 @@ the only client-code change needed; no custom runtime prefix-detection
 was written.
 
 ### `public/manifest.webmanifest` uses relative URLs, not per-set generated manifests
-**Why:** `id`/`start_url`/`scope`/icon `src` values changed from
-root-absolute (`/`, `/icons/...`) to relative (`.`, `icons/...`). Per the
-Web App Manifest spec, relative URLs resolve against the manifest's own
+**(Superseded — see `docs/design/content-config.md`'s "manifest.webmanifest
+is generated" decision: once distinct per-set `name`/`short_name`/icons
+were needed, a single shared static file could no longer work regardless of
+its URLs being relative, and `public/` itself was retired.)**
+**Why (at the time):** `id`/`start_url`/`scope`/icon `src` values changed
+from root-absolute (`/`, `/icons/...`) to relative (`.`, `icons/...`). Per
+the Web App Manifest spec, relative URLs resolve against the manifest's own
 URL, so one static file (copied verbatim into every build via Vite's
-public dir) works correctly whether served from `/`, `/real/`, or
-`/test/`, with no per-set templating step. `id: "."` specifically matters
-so the root/`/real/`/`/test/` deploys register as distinct installable PWA
-identities instead of colliding on a shared `id: "/"`.
+public dir) worked correctly whether served from `/`, `/real/`, or
+`/test/`, with no per-set templating step. `id: "."` specifically mattered
+so the root/`/real/`/`/test/` deploys registered as distinct installable
+PWA identities instead of colliding on a shared `id: "/"` — that part of
+the reasoning still holds and carried over to the generated manifest.
 
 ### `vite.config.ts`'s `workbox.navigateFallback` no longer overridden to an absolute path
 **Why:** The prior `navigateFallback: '/index.html'` was harmless while
@@ -165,12 +170,6 @@ from within the running app.
   `workbox-*`) — a set colliding with one of these fails the build loudly,
   but the check is manual/hardcoded rather than derived from Vite's actual
   build output.
-- All published sets currently share one `manifest.webmanifest` verbatim,
-  so installed home-screen icons for different content sets look
-  identical (same name/short_name/icons). Differentiating them (e.g. "Dance
-  Schedule (Test)") would need per-build manifest templating instead of one
-  static file — deferred; will need solving before multiple sets are
-  regularly installed side-by-side as PWAs.
 - Direct/deep-link navigation into a prefixed set (e.g. a bookmark or
   shared link to `/real/installation`) needs server-side SPA-fallback
   rewrite rules aware of each prefix — see `docs/design/hosting.md`'s new

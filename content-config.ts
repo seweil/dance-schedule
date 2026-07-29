@@ -4,9 +4,20 @@ import { parse } from 'yaml'
 
 const TOP_LEVEL_CONFIG_RELATIVE_PATH = 'content/config.yaml'
 const DEFAULT_CONTENT_SET = 'real'
+const CONTENT_SET_CONFIG_FILENAME = 'config.yaml'
 
 export interface TopLevelContentConfig {
   defaultContentSet: string
+}
+
+export interface ContentManifestStrings {
+  name: string
+  shortName: string
+}
+
+const DEFAULT_MANIFEST_STRINGS: ContentManifestStrings = {
+  name: 'Dance Schedule',
+  shortName: 'Dance Schedule',
 }
 
 // Directory (relative to `root`) a content set name resolves to — mirrors
@@ -78,4 +89,43 @@ export function listContentSets(root: string): string[] {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort()
+}
+
+// Reads content/<set>/config.yaml's `manifest.name`/`manifest.shortName` — a
+// sibling of that file's existing `features:` key (vite-plugin-content-config.ts).
+// Kept as a separate plain Node function rather than folded into that plugin's
+// virtual:content-config module on purpose: these strings are only ever needed at
+// build time to construct vite.config.ts's VitePWA({ manifest }) object, never by
+// client-side code, so they shouldn't ship in the client bundle the way
+// features.combineA1A2 deliberately does. Missing file or missing `manifest:`
+// section → today's pre-existing values (zero-config parity). See
+// docs/design/content-config.md.
+export function loadContentManifestStrings(root: string, contentDir: string): ContentManifestStrings {
+  const configFile = path.resolve(root, contentDir, CONTENT_SET_CONFIG_FILENAME)
+
+  if (!fs.existsSync(configFile)) {
+    return DEFAULT_MANIFEST_STRINGS
+  }
+
+  const raw = fs.readFileSync(configFile, 'utf-8')
+  let parsed: unknown
+  try {
+    parsed = parse(raw)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
+  }
+
+  const manifest = (parsed as Record<string, unknown> | null)?.manifest ?? {}
+  const name = (manifest as Record<string, unknown>).name ?? DEFAULT_MANIFEST_STRINGS.name
+  const shortName = (manifest as Record<string, unknown>).shortName ?? DEFAULT_MANIFEST_STRINGS.shortName
+
+  if (typeof name !== 'string') {
+    throw new Error(`${configFile}'s "manifest.name" must be a string, got ${JSON.stringify(name)}`)
+  }
+  if (typeof shortName !== 'string') {
+    throw new Error(`${configFile}'s "manifest.shortName" must be a string, got ${JSON.stringify(shortName)}`)
+  }
+
+  return { name, shortName }
 }

@@ -3,6 +3,7 @@ node_modules
 dist
 dist-ssr
 dist-build-tmp
+generated-assets
 coverage
 playwright-report
 test-results
