@@ -130,6 +130,10 @@ Full mechanics in `docs/design/content-sets.md`. Each content set also has
 its own `config.yaml` for feature flags (e.g. whether the dance-schedule
 level slider combines A1/A2) — see `docs/design/content-config.md`.
 
+**Adding a new event** (a new content set, e.g. a new convention) is a
+data-only task — no code changes — see `docs/adding-a-new-event.md` for a
+step-by-step guide covering the page/spreadsheet/config files involved.
+
 ## Deployment
 
 Hosted on AWS Amplify Hosting, auto-deploying on push to `main` — see

@@ -153,7 +153,15 @@ picks up the `.md` extension.
 ## Schedule data pipeline
 
 Full rationale in `docs/design/schedule-page.md`; content-set mechanics in
-`docs/design/content-sets.md`. The short version:
+`docs/design/content-sets.md`. **`docs/adding-a-new-event.md`** is a
+semi-technical, user-facing how-to guide that duplicates the exact format
+details below (column headers, accepted date/time formats, dance-schedule
+cell syntax, `LEVEL_CODES`, `config.yaml` keys) for someone adding a new
+content set — whenever any of that changes (parsing logic, level codes, or
+the `config.yaml` schema), update that guide too, not just this file or the
+design docs it otherwise stays in sync with.
+
+The short version:
 
 - The schedule/events page is generated from the active content set's
   `data/event-schedule.xlsx` (see "Content pipeline" above for how the content set
