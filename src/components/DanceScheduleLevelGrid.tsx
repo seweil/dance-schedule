@@ -22,7 +22,7 @@ import styles from './DanceScheduleGrid.module.css'
 
 const TIME_COLUMN_WIDTH = '70px'
 // Same 150px starting point as the room-columns grid's own column width — room
-// names (this grid's bold primary label) aren't reliably shorter than level codes
+// names (this grid's second card line) aren't reliably shorter than level codes
 // were, so there's no a priori reason to start narrower. Kept independent of the
 // room grid's own constant (not shared) since the two may need to diverge with
 // real-world tuning.
@@ -108,13 +108,13 @@ function SessionCard({
       <div>
         {combineRoomAndDetails ? (
           <p className={styles.details}>
-            <span className={styles.levels}>{room} </span>
             {detailsContent(session)}
+            {room && <> {room}</>}
           </p>
         ) : (
           <>
-            {room && <p className={styles.levels}>{room}</p>}
             <p className={styles.details}>{detailsContent(session)}</p>
+            {room && <p className={styles.details}>{room}</p>}
           </>
         )}
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
@@ -127,8 +127,10 @@ function SessionCard({
 // The level-columns counterpart of DanceScheduleGrid — same two-grid sticky-scroll
 // structure (see that component and docs/design/dance-schedule-mobile-scroll.md for
 // the full rationale, unchanged here), but columns are level slots
-// (layout.visibleSlots, from the level-range filter) instead of rooms, and each
-// card's bold primary label is the session's room instead of its level.
+// (layout.visibleSlots, from the level-range filter) instead of rooms. The level is
+// already implied by the column, so each card instead shows the details line (event
+// type + bold caller) first, with the room as a second, plain (non-bold) line below
+// it — room isn't the primary thing being scanned for on this page, caller is.
 export function DanceScheduleLevelGrid({
   layout,
   showGca,

@@ -83,12 +83,14 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('1:00 PM')).toBeInTheDocument()
   })
 
-  it('shows the room (not the level) as the bold primary label', () => {
+  it('shows the caller/details line above the room line, with the room not bold', () => {
     const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
     expect(screen.getByText('Ballroom Centre')).toBeInTheDocument()
-    // "SSD" legitimately appears once, as the column header — but never as the
-    // card's own bold primary label.
-    expect(container.querySelector('.card p.levels')).toHaveTextContent('Ballroom Centre')
+    // Never bold — the room isn't this grid's primary label anymore.
+    expect(container.querySelector('.card p.levels')).not.toBeInTheDocument()
+    const paragraphs = container.querySelectorAll('.card > div > p')
+    expect(paragraphs[0]).toHaveTextContent('Ted Lizotte')
+    expect(paragraphs[1]).toHaveTextContent('Ballroom Centre')
     const caller = screen.getByText('Ted Lizotte')
     expect(caller.tagName).toBe('STRONG')
   })
@@ -196,9 +198,9 @@ describe('DanceScheduleLevelGrid', () => {
     )
 
     expect(container.querySelector('p.levels')).not.toBeInTheDocument()
+    expect(container.querySelector('span.levels')).not.toBeInTheDocument()
     const combined = container.querySelector('p.details') as HTMLElement
-    expect(combined.querySelector('span.levels')?.textContent).toContain('Ballroom Centre')
-    expect(combined.textContent).toBe('Ballroom Centre Michael Maltenfort')
+    expect(combined.textContent).toBe('Michael Maltenfort Ballroom Centre')
   })
 
   describe('overlap lanes', () => {
@@ -238,7 +240,7 @@ describe('DanceScheduleLevelGrid', () => {
 
       expect(container.querySelector('p.levels')).not.toBeInTheDocument()
       const combined = container.querySelector('p.details') as HTMLElement
-      expect(combined.textContent).toBe('Ballroom Centre Jane Ross')
+      expect(combined.textContent).toBe('Jane Ross Ballroom Centre')
     })
 
     it('does not override width/marginLeft when laneCount is 1', () => {
