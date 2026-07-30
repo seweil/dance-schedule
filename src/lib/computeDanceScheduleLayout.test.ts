@@ -327,6 +327,30 @@ describe('computeDanceScheduleLayout', () => {
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 1 })
   })
 
+  it('caps a roomless session over 1 hour to 4 row units and flags it compressed', () => {
+    const dinner = makeSession(
+      '2026-07-02T18:00:00.000Z',
+      '2026-07-02T20:30:00.000Z', // 2.5 hours
+      { kind: 'roomless' },
+      { kind: 'freeform', description: 'Dinner Break' },
+    )
+    const layout = computeDanceScheduleLayout([dinner], [dinner])
+
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 4, isDurationCompressed: true })
+  })
+
+  it('does not compress a roomless session of 1 hour or less', () => {
+    const lunch = makeSession(
+      '2026-07-02T12:00:00.000Z',
+      '2026-07-02T13:00:00.000Z',
+      { kind: 'roomless' },
+      { kind: 'freeform', description: 'Lunch Break' },
+    )
+    const layout = computeDanceScheduleLayout([lunch], [lunch])
+
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 4, isDurationCompressed: false })
+  })
+
   it('sorts placements by rowStart then columnStart', () => {
     const later = makeSession('2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z', located('Ballroom East'))
     const earlier = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', located('Ballroom Centre'))

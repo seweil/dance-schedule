@@ -8,6 +8,25 @@ const UNIT_MINUTES = 15
 const MS_PER_MINUTE = 60_000
 const MS_PER_HOUR = 60 * MS_PER_MINUTE
 
+// A roomless session (e.g. a meal break) spans every column, so an unusually long
+// one (compared to an ordinary dance session) would otherwise dominate the grid's
+// vertical space — capped to 1 hour's worth of rows regardless of its real
+// duration. The card's own time-range text still states the real start/end (see
+// DanceScheduleGrid.tsx/DanceScheduleLevelGrid.tsx); `isDurationCompressed` tells
+// the renderer to add a jagged/torn bottom edge signaling that the card's height
+// doesn't represent the full session. Shared by both grids' roomless/floating
+// placement construction (computeDanceScheduleLayout.ts,
+// computeDanceScheduleLevelLayout.ts) so the threshold and behavior can't drift
+// between them.
+const MAX_ROOMLESS_ROW_SPAN = MS_PER_HOUR / (UNIT_MINUTES * MS_PER_MINUTE)
+
+export function capRoomlessRowSpan(rowSpan: number): { rowSpan: number; isDurationCompressed: boolean } {
+  if (rowSpan <= MAX_ROOMLESS_ROW_SPAN) {
+    return { rowSpan, isDurationCompressed: false }
+  }
+  return { rowSpan: MAX_ROOMLESS_ROW_SPAN, isDurationCompressed: true }
+}
+
 const hourFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
 
 export interface HourMark {

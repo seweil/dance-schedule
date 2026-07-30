@@ -36,7 +36,7 @@ function SessionCard({
   showGca: boolean
   unitHeightPx: number
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan, isDurationCompressed } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
@@ -71,8 +71,13 @@ function SessionCard({
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
     )
 
+  // A jagged/torn bottom edge (CSS module) signals that this card's height was
+  // capped short of the session's real duration — see capRoomlessRowSpan.
+  const roomlessClassName =
+    isDurationCompressed ? `${styles.roomlessCard} ${styles.roomlessCardCompressed}` : styles.roomlessCard
+
   return (
-    <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
+    <div className={isRoomless ? roomlessClassName : styles.card} style={style}>
       <div>
         {combineLevelAndDetails ? (
           <p className={styles.details}>

@@ -1,4 +1,9 @@
-import { computeDanceScheduleTimeAxis, isContiguous, type HourMark } from './computeDanceScheduleTimeAxis'
+import {
+  capRoomlessRowSpan,
+  computeDanceScheduleTimeAxis,
+  isContiguous,
+  type HourMark,
+} from './computeDanceScheduleTimeAxis'
 import type { DanceSession } from '../types/danceSchedule'
 
 export interface DanceSessionPlacement {
@@ -11,6 +16,9 @@ export interface DanceSessionPlacement {
   // 0-based index into `visibleRooms` — the room-columns equivalent of rowStart/rowSpan.
   columnStart: number
   columnSpan: number
+  // True when rowSpan was capped from a roomless session's real (longer) duration —
+  // see capRoomlessRowSpan. Always false for a room-based placement.
+  isDurationCompressed: boolean
 }
 
 export type { HourMark }
@@ -96,12 +104,14 @@ export function computeDanceScheduleLayout(
     const rowSpan = rowSpanFor(session.startTime, session.endTime)
 
     if (session.location.kind === 'roomless') {
+      const capped = capRoomlessRowSpan(rowSpan)
       placements.push({
         session,
         rowStart,
-        rowSpan,
+        rowSpan: capped.rowSpan,
         columnStart: 0,
         columnSpan: Math.max(1, visibleRooms.length),
+        isDurationCompressed: capped.isDurationCompressed,
       })
       continue
     }
@@ -124,12 +134,20 @@ export function computeDanceScheduleLayout(
         rowSpan,
         columnStart: indices[0]!,
         columnSpan: indices.length,
+        isDurationCompressed: false,
       })
     } else {
       // Non-contiguous multi-room claim: render one block per named room rather than
       // a misleading span across rooms it doesn't occupy.
       for (const index of indices) {
-        placements.push({ session, rowStart, rowSpan, columnStart: index, columnSpan: 1 })
+        placements.push({
+          session,
+          rowStart,
+          rowSpan,
+          columnStart: index,
+          columnSpan: 1,
+          isDurationCompressed: false,
+        })
       }
     }
   }

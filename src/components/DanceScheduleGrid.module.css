@@ -180,6 +180,28 @@
   color: var(--color-text);
 }
 
+/* A roomless session (spans every column — e.g. a meal break) is capped to at
+   most 1 hour of vertical space regardless of its real duration
+   (capRoomlessRowSpan in computeDanceScheduleTimeAxis.ts) — its time-range text
+   still states the real start/end, but the card's own height doesn't. This torn/
+   zigzag bottom edge is the visual signal that space was omitted. Built from two
+   45deg-repeating gradients tiling over .roomlessCard's own background (a
+   standard CSS "torn paper edge" technique), not clip-path — clip-path's polygon
+   points would need a JS-measured pixel width to tile correctly at this card's
+   arbitrary, data-driven width, where a repeating background just tiles on its
+   own. #fff matches the grid's own background (.headerWrapper/.corner above) —
+   the gradients "punch" opaque notches through roomlessCard's translucent fill,
+   matching what's actually behind the card. */
+.roomlessCardCompressed {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-bottom: calc(var(--space-sm) + 6px);
+  background:
+    linear-gradient(45deg, #fff 8px, transparent 0) 0 100% / 16px 16px repeat-x,
+    linear-gradient(-45deg, #fff 8px, transparent 0) 0 100% / 16px 16px repeat-x,
+    rgb(0 0 0 / 6%);
+}
+
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"
    has no space to break at, and browsers don't reliably treat "/" as a break
    opportunity either, so without this a long unbreakable run just overflows the

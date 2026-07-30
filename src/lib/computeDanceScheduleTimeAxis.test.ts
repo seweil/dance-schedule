@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeDanceScheduleTimeAxis, isContiguous } from './computeDanceScheduleTimeAxis'
+import { capRoomlessRowSpan, computeDanceScheduleTimeAxis, isContiguous } from './computeDanceScheduleTimeAxis'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
 function located(...rooms: string[]): SessionLocation {
@@ -92,5 +92,20 @@ describe('computeDanceScheduleTimeAxis', () => {
 
     expect(axis?.hourMarks[0]).toEqual({ rowStart: 1, label: '9:00 AM' })
     expect(axis?.hourMarks.at(-1)).toEqual({ rowStart: 21, label: '2:00 PM' })
+  })
+})
+
+describe('capRoomlessRowSpan', () => {
+  it('leaves a span of exactly 1 hour (4 units) uncapped', () => {
+    expect(capRoomlessRowSpan(4)).toEqual({ rowSpan: 4, isDurationCompressed: false })
+  })
+
+  it('leaves a span shorter than 1 hour uncapped', () => {
+    expect(capRoomlessRowSpan(2)).toEqual({ rowSpan: 2, isDurationCompressed: false })
+  })
+
+  it('caps a span longer than 1 hour to 4 units and flags it compressed', () => {
+    // 90 minutes = 6 units.
+    expect(capRoomlessRowSpan(6)).toEqual({ rowSpan: 4, isDurationCompressed: true })
   })
 })

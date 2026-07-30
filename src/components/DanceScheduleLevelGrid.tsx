@@ -12,8 +12,14 @@ import {
   UNIT_HEIGHT_PX_WITHOUT_GCA,
 } from '../lib/danceScheduleCardSizing'
 import { shouldCombinePrimaryAndDetails } from '../lib/estimateCardFit'
-import { formatSessionGca, formatSessionRoom, formatSessionTimeRange } from '../lib/formatDanceSession'
+import {
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionRoom,
+  formatSessionTimeRange,
+} from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
+import type { LevelSlot } from '../lib/levelOrder'
 import { measureTextWidth } from '../lib/measureTextWidth'
 // Reused as-is — the two grids share the exact same visual language (card, levels/
 // details/gca lines, sticky headers, mobile scroll behavior); only what determines
@@ -33,12 +39,14 @@ function SessionCard({
   placement,
   showGca,
   unitHeightPx,
+  slots,
 }: {
   placement: DanceLevelSessionPlacement
   showGca: boolean
   unitHeightPx: number
+  slots: readonly LevelSlot[]
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, isDurationCompressed } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
@@ -70,6 +78,15 @@ function SessionCard({
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
 
+  // A combined slot (e.g. "A1/A2") doesn't tell you which of its merged levels this
+  // particular card actually is — every session landing here collapses to the same
+  // single slot index (see computeDanceScheduleLevelLayout.ts's buildRawEntries), so
+  // the only place left to recover that is the session's own `levels`. Shown as a
+  // plain-text prefix, exactly like a non-"Dancing" event type is. A non-combined
+  // slot never needs this — the level is already the column itself.
+  const slot = !isRoomless ? slots[columnStart] : undefined
+  const levelPrefix = slot && slot.levels.length > 1 ? formatSessionLevels(session) : undefined
+
   // A lane-split card's own box width is track/laneCount exactly (an explicit
   // percentage width, not grid-stretch-filled — see the style block above), so its
   // usable text width is that minus just the padding, not the combined margin+
@@ -95,7 +112,7 @@ function SessionCard({
     shouldCombinePrimaryAndDetails(
       {
         primaryText: room,
-        detailsText: detailsPlainText(session),
+        detailsText: detailsPlainText(session, levelPrefix),
         hasGcaLine: showGcaLine,
         availableHeightPx: rowSpan * unitHeightPx,
         textWidthPx,
@@ -103,17 +120,22 @@ function SessionCard({
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
     )
 
+  // A jagged/torn bottom edge (CSS module) signals that this card's height was
+  // capped short of the session's real duration — see capRoomlessRowSpan.
+  const roomlessClassName =
+    isDurationCompressed ? `${styles.roomlessCard} ${styles.roomlessCardCompressed}` : styles.roomlessCard
+
   return (
-    <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
+    <div className={isRoomless ? roomlessClassName : styles.card} style={style}>
       <div>
         {combineRoomAndDetails ? (
           <p className={styles.details}>
-            {detailsContent(session)}
+            {detailsContent(session, levelPrefix)}
             {room && <> {room}</>}
           </p>
         ) : (
           <>
-            <p className={styles.details}>{detailsContent(session)}</p>
+            <p className={styles.details}>{detailsContent(session, levelPrefix)}</p>
             {room && <p className={styles.details}>{room}</p>}
           </>
         )}
@@ -223,7 +245,13 @@ export function DanceScheduleLevelGrid({
             // Placements have no stable id of their own (a non-contiguous multi-
             // level or overlapping session produces several for the same session) —
             // index is stable per render.
-            <SessionCard key={index} placement={placement} showGca={showGca} unitHeightPx={unitHeightPx} />
+            <SessionCard
+              key={index}
+              placement={placement}
+              showGca={showGca}
+              unitHeightPx={unitHeightPx}
+              slots={visibleSlots}
+            />
           ))}
         </div>
       </div>

@@ -11,6 +11,8 @@ vi.mock('./DanceScheduleGrid.module.css', () => ({
 }))
 
 const SLOTS = getLevelSlots(false)
+const COMBINED_SLOTS = getLevelSlots(true)
+const A1_A2_SLOT_INDEX = COMBINED_SLOTS.findIndex((slot) => slot.label === 'A1/A2')
 
 const STRUCTURED_SESSION: DanceSession = {
   kind: 'structured',
@@ -42,6 +44,7 @@ function placement(overrides: Partial<DanceLevelSessionPlacement> = {}): DanceLe
     columnSpan: 1,
     lane: 0,
     laneCount: 1,
+    isDurationCompressed: false,
     ...overrides,
   }
 }
@@ -95,6 +98,54 @@ describe('DanceScheduleLevelGrid', () => {
     expect(caller.tagName).toBe('STRONG')
   })
 
+  it('prefixes the level(s) in a combined A1/A2 slot, plain text before the bold caller', () => {
+    const session: DanceSession = { ...STRUCTURED_SESSION, levels: ['A1'], eventType: 'Dancing' }
+    const { container } = render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({
+          visibleSlots: COMBINED_SLOTS.slice(A1_A2_SLOT_INDEX, A1_A2_SLOT_INDEX + 1),
+          placements: [placement({ session })],
+        })}
+        showGca
+      />,
+    )
+    const details = container.querySelector('.card p.details') as HTMLElement
+    expect(details).toHaveTextContent('A1 - Ted Lizotte')
+    // Only the caller is bold — the level prefix is plain text, same treatment as
+    // a non-"Dancing" event type prefix.
+    expect(details.querySelector('strong')).toHaveTextContent('Ted Lizotte')
+    expect(details.textContent).toBe('A1 - Ted Lizotte')
+  })
+
+  it('joins multiple levels in the combined-slot prefix, alongside a non-"Dancing" event type', () => {
+    const session: DanceSession = {
+      ...STRUCTURED_SESSION,
+      levels: ['A1', 'A2'],
+      eventType: 'Advanced Hothash',
+      callers: ['Justin Russell'],
+    }
+    const { container } = render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({
+          visibleSlots: COMBINED_SLOTS.slice(A1_A2_SLOT_INDEX, A1_A2_SLOT_INDEX + 1),
+          placements: [placement({ session })],
+        })}
+        showGca
+      />,
+    )
+    const details = container.querySelector('.card p.details') as HTMLElement
+    // toContain, not toBe — whether the room line combines onto the same <p>
+    // depends on the card-fit estimate, not something this test cares about.
+    expect(details.textContent).toContain('A1, A2 - Advanced Hothash - Justin Russell')
+    expect(details.querySelector('strong')).toHaveTextContent('Justin Russell')
+  })
+
+  it('omits the level prefix in a non-combined (single-level) slot', () => {
+    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const details = container.querySelector('.card p.details') as HTMLElement
+    expect(details.textContent).toBe('Ted Lizotte')
+  })
+
   it('shows the GCA line when showGca is true', () => {
     render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
@@ -118,6 +169,28 @@ describe('DanceScheduleLevelGrid', () => {
     )
     expect(screen.getByText('Lunch Break')).toBeInTheDocument()
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
+  })
+
+  it('adds the jagged/torn-edge class to a duration-compressed roomless card, not an ordinary one', () => {
+    const { container } = render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({
+          visibleSlots: [],
+          placements: [
+            placement({
+              session: ROOMLESS_SESSION,
+              rowStart: 1,
+              rowSpan: 4,
+              columnSpan: 1,
+              isDurationCompressed: true,
+            }),
+          ],
+        })}
+        showGca
+      />,
+    )
+    const card = container.querySelector('.roomlessCard') as HTMLElement
+    expect(card.classList.contains('roomlessCardCompressed')).toBe(true)
   })
 
   it('renders a half-hour tick between the hour marks', () => {

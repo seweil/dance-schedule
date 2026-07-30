@@ -1,4 +1,9 @@
-import { computeDanceScheduleTimeAxis, isContiguous, type HourMark } from './computeDanceScheduleTimeAxis'
+import {
+  capRoomlessRowSpan,
+  computeDanceScheduleTimeAxis,
+  isContiguous,
+  type HourMark,
+} from './computeDanceScheduleTimeAxis'
 import { isOrderedLevel, type LevelSlot } from './levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
 
@@ -15,6 +20,10 @@ export interface DanceLevelSessionPlacement {
   lane: number
   // How many lanes this placement's column is split into for its own row range.
   laneCount: number
+  // True when rowSpan was capped from a floating (roomless/no-ordered-level)
+  // session's real (longer) duration — see capRoomlessRowSpan. Always false
+  // otherwise.
+  isDurationCompressed: boolean
 }
 
 export interface DanceScheduleLevelLayout {
@@ -164,14 +173,16 @@ function mergeIntoPlacements(entries: RawEntry[], visibleSlotCount: number): Dan
 
   for (const entry of entries) {
     if (entry.slotIndex === null) {
+      const capped = capRoomlessRowSpan(entry.rowSpan)
       placements.push({
         session: entry.session,
         rowStart: entry.rowStart,
-        rowSpan: entry.rowSpan,
+        rowSpan: capped.rowSpan,
         columnStart: 0,
         columnSpan: Math.max(1, visibleSlotCount),
         lane: 0,
         laneCount: 1,
+        isDurationCompressed: capped.isDurationCompressed,
       })
       continue
     }
@@ -197,6 +208,7 @@ function mergeIntoPlacements(entries: RawEntry[], visibleSlotCount: number): Dan
         columnSpan: indices.length,
         lane: 0,
         laneCount: 1,
+        isDurationCompressed: false,
       })
     } else {
       for (const entry of sessionEntries) {
@@ -208,6 +220,7 @@ function mergeIntoPlacements(entries: RawEntry[], visibleSlotCount: number): Dan
           columnSpan: 1,
           lane: entry.lane,
           laneCount: entry.laneCount,
+          isDurationCompressed: false,
         })
       }
     }

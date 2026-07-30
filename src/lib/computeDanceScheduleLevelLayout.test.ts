@@ -47,7 +47,16 @@ describe('computeDanceScheduleLevelLayout', () => {
     const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, SLOTS.length - 1)
 
     expect(layout.placements).toEqual([
-      { session, rowStart: 1, rowSpan: 4, columnStart: 2, columnSpan: 1, lane: 0, laneCount: 1 },
+      {
+        session,
+        rowStart: 1,
+        rowSpan: 4,
+        columnStart: 2,
+        columnSpan: 1,
+        lane: 0,
+        laneCount: 1,
+        isDurationCompressed: false,
+      },
     ])
   })
 
@@ -97,7 +106,16 @@ describe('computeDanceScheduleLevelLayout', () => {
 
     expect(layout.visibleSlots[3]!.label).toBe('A1/A2')
     expect(layout.placements).toEqual([
-      { session, rowStart: 1, rowSpan: 4, columnStart: 3, columnSpan: 1, lane: 0, laneCount: 1 },
+      {
+        session,
+        rowStart: 1,
+        rowSpan: 4,
+        columnStart: 3,
+        columnSpan: 1,
+        lane: 0,
+        laneCount: 1,
+        isDurationCompressed: false,
+      },
     ])
   })
 
@@ -113,6 +131,20 @@ describe('computeDanceScheduleLevelLayout', () => {
     const layout = computeDanceScheduleLevelLayout([lunch], [lunch], SLOTS, 2, 5)
 
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 4 })
+  })
+
+  it('caps a floating roomless session over 1 hour to 4 row units and flags it compressed', () => {
+    const dinner: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T18:00:00.000Z'),
+      endTime: new Date('2026-07-02T20:30:00.000Z'), // 2.5 hours
+      location: { kind: 'roomless' },
+      description: 'Dinner Break',
+    }
+    const layout = computeDanceScheduleLevelLayout([dinner], [dinner], SLOTS, 0, SLOTS.length - 1)
+
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 4, isDurationCompressed: true })
   })
 
   it('floats a structured session tagged only Advanced/Intro/Various across every visible slot column', () => {

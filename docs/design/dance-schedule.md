@@ -440,6 +440,34 @@ to confirm the uncombined 10-column case, then restored it). The compound
 "multi-level span that also conflicts" simplification (above) still has
 no live example and remains unit-test-only.
 
+### A roomless session's card height is capped to 1 hour, with a jagged edge marking the cut
+**Why:** A roomless session (spans every column — e.g. a meal break) can run
+much longer than an ordinary dance session; left uncapped, its card would
+eat a proportionally huge share of the grid's vertical space for what's
+essentially dead time, pushing everything else far down the page. Capped
+to at most 1 hour's worth of rows (`capRoomlessRowSpan` in
+`computeDanceScheduleTimeAxis.ts`) regardless of the session's real
+duration — shared by both grids' roomless/floating placement construction
+(`computeDanceScheduleLayout.ts`'s `kind === 'roomless'` branch,
+`computeDanceScheduleLevelLayout.ts`'s `slotIndex === null` branch) so the
+threshold can't drift between them. The card's own time-range text still
+states the real start/end unchanged (`formatSessionTimeRange`) — only the
+visual height is compressed, never the information. A new
+`isDurationCompressed` flag on `DanceSessionPlacement`/
+`DanceLevelSessionPlacement` (always `false` for a room-based placement)
+tells `DanceScheduleGrid.tsx`/`DanceScheduleLevelGrid.tsx` to add a
+`roomlessCardCompressed` modifier class — a torn/zigzag bottom edge (two
+45°-repeating gradients tiling over the card's own background, a standard
+CSS "torn paper edge" technique) signaling that the card's height doesn't
+represent the full session. Built with tiling background gradients rather
+than `clip-path`, since a `clip-path` polygon's points would need a
+JS-measured pixel width to tile correctly at this card's arbitrary,
+data-driven width, where a repeating background just tiles on its own
+regardless of width. Exactly 1 hour is left uncapped/uncompressed (only
+*greater than* 1 hour triggers it) — the real `content/automated-testing/`
+"Lunch Break" (90 minutes) and a "Dinner Break"-style 2.5-hour session both
+now demonstrate this live.
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't
