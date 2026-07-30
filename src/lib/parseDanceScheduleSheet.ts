@@ -7,7 +7,7 @@ import {
   type SessionLocation,
 } from '../types/danceSchedule'
 
-const WEEKDAY_PREFIX = /^\w+day\s+/i
+const WEEKDAY_PREFIX = /^\w+day,?\s+/i
 const LEVEL_SEPARATOR = /[&/]/
 const GCA_PREFIX = /^GCA:\s*/i
 const ROOMS_PREFIX = /^ROOMS:\s*/i

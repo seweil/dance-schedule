@@ -16,6 +16,16 @@ describe('parseDanceScheduleSheet', () => {
     expect(sessions[0]?.date).toBe('2026-07-02T00:00:00.000Z')
   })
 
+  it('derives the date from the sheet name when the weekday is followed by a comma', () => {
+    const rows = [
+      ['Time', 'Ballroom Centre'],
+      ['12:30p-1:30p', 'SSD : Dancing - Ted Lizotte'],
+    ]
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday, July 2', rows, REFERENCE_DATE)
+    expect(errors).toEqual([])
+    expect(sessions[0]?.date).toBe('2026-07-02T00:00:00.000Z')
+  })
+
   it('parses the time-slot row label into start/end times', () => {
     const { sessions, errors } = parseOneCell('SSD : Dancing - Ted Lizotte')
     expect(errors).toEqual([])

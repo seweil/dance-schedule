@@ -89,25 +89,6 @@ reserved-name check exists to catch.
 **Fix direction:** add `debug` and `clear-storage` to `RESERVED_NAMES` and
 to the doc's matching list.
 
-## Dance-schedule sheet-name weekday regex rejects a comma after the weekday
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-`WEEKDAY_PREFIX` (`/^\w+day\s+/i`) requires whitespace immediately after the
-weekday name, so a naturally-punctuated sheet name like `Thursday, July 2`
-fails to have its weekday stripped, and the whole string then fails every
-format `parseEventDate` accepts.
-
-**Failure scenario:** a content author names a sheet `Thursday, July 2`
-(comma after the weekday — a very natural way to write it, e.g. copy-pasted
-from a calendar app). The regex doesn't match since a comma isn't
-whitespace, so the unmodified string reaches `parseEventDate`, which has no
-format expecting a leading weekday token at all and throws "Unrecognized
-date format," failing that entire sheet.
-
-**Fix direction:** allow an optional comma in `WEEKDAY_PREFIX`, e.g.
-`/^\w+day,?\s+/i`.
-
 ## Flaky: "nav links to the schedule page, which renders events"
 
 **Found:** 2026-07-26, same verification pass.
