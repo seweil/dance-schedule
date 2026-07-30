@@ -39,16 +39,8 @@ function makeLayout(overrides: Partial<DanceScheduleLayout> = {}): DanceSchedule
       { rowStart: 5, label: '1:00 PM' },
     ],
     halfHourMarks: [3],
-    placements: [
-      {
-        session: STRUCTURED_SESSION,
-        rowStart: 3,
-        rowSpan: 4,
-        columnStart: 0,
-        columnSpan: 1,
-        isDurationCompressed: false,
-      },
-    ],
+    elisionMarkers: [],
+    placements: [{ session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 0, columnSpan: 1 }],
     ...overrides,
   }
 }
@@ -96,7 +88,6 @@ describe('DanceScheduleGrid', () => {
               rowSpan: 4,
               columnStart: 0,
               columnSpan: 1,
-              isDurationCompressed: false,
             },
           ],
         })}
@@ -124,16 +115,7 @@ describe('DanceScheduleGrid', () => {
       <DanceScheduleGrid
         layout={makeLayout({
           visibleRooms: [],
-          placements: [
-            {
-              session: ROOMLESS_SESSION,
-              rowStart: 1,
-              rowSpan: 6,
-              columnStart: 0,
-              columnSpan: 1,
-              isDurationCompressed: false,
-            },
-          ],
+          placements: [{ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 }],
         })}
         showGca
       />,
@@ -142,27 +124,19 @@ describe('DanceScheduleGrid', () => {
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
   })
 
-  it('adds the jagged/torn-edge class to a duration-compressed roomless card, not an ordinary one', () => {
-    const { container } = render(
-      <DanceScheduleGrid
-        layout={makeLayout({
-          visibleRooms: [],
-          placements: [
-            {
-              session: ROOMLESS_SESSION,
-              rowStart: 1,
-              rowSpan: 4,
-              columnStart: 0,
-              columnSpan: 1,
-              isDurationCompressed: true,
-            },
-          ],
-        })}
-        showGca
-      />,
-    )
-    const card = container.querySelector('.roomlessCard') as HTMLElement
-    expect(card.classList.contains('roomlessCardCompressed')).toBe(true)
+  it('renders an elision marker in the time column at the row a long roomless session was compressed at', () => {
+    // The marker lives on the time axis, not the card — a roomless card never
+    // carries any compression-related styling of its own (see
+    // computeDanceScheduleTimeAxis.ts's elisionMarkers).
+    const { container } = render(<DanceScheduleGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />)
+    const marker = container.querySelector('.elisionMarker') as HTMLElement
+    expect(marker).toBeInTheDocument()
+    expect(marker).toHaveStyle({ gridRow: '5' })
+  })
+
+  it('renders no elision marker when nothing was compressed', () => {
+    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    expect(container.querySelector('.elisionMarker')).not.toBeInTheDocument()
   })
 
   it('renders a half-hour tick between the hour marks', () => {
@@ -211,16 +185,7 @@ describe('DanceScheduleGrid', () => {
       <DanceScheduleGrid
         layout={makeLayout({
           visibleRooms: [],
-          placements: [
-            {
-              session: ROOMLESS_SESSION,
-              rowStart: 1,
-              rowSpan: 6,
-              columnStart: 0,
-              columnSpan: 1,
-              isDurationCompressed: false,
-            },
-          ],
+          placements: [{ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 }],
         })}
         showGca
       />,
@@ -256,16 +221,7 @@ describe('DanceScheduleGrid', () => {
           // A 2-row-unit (30-minute) card is too short for "SSD" plus a wrapping
           // caller name as two separate lines, even with the roomier
           // showGca-true 20px/unit row height.
-          placements: [
-            {
-              session: longCallerSession,
-              rowStart: 3,
-              rowSpan: 2,
-              columnStart: 0,
-              columnSpan: 1,
-              isDurationCompressed: false,
-            },
-          ],
+          placements: [{ session: longCallerSession, rowStart: 3, rowSpan: 2, columnStart: 0, columnSpan: 1 }],
         })}
         showGca
       />,
@@ -288,16 +244,7 @@ describe('DanceScheduleGrid', () => {
         layout={makeLayout({
           // A tall (2-hour, 8-row-unit) card has plenty of vertical room even if the
           // caller name wraps to a second line.
-          placements: [
-            {
-              session: longCallerSession,
-              rowStart: 3,
-              rowSpan: 8,
-              columnStart: 0,
-              columnSpan: 1,
-              isDurationCompressed: false,
-            },
-          ],
+          placements: [{ session: longCallerSession, rowStart: 3, rowSpan: 8, columnStart: 0, columnSpan: 1 }],
         })}
         showGca
       />,
@@ -313,22 +260,8 @@ describe('DanceScheduleGrid', () => {
         layout={makeLayout({
           visibleRooms: ['Ballroom Centre', 'Ballroom West'],
           placements: [
-            {
-              session: STRUCTURED_SESSION,
-              rowStart: 3,
-              rowSpan: 4,
-              columnStart: 0,
-              columnSpan: 1,
-              isDurationCompressed: false,
-            },
-            {
-              session: STRUCTURED_SESSION,
-              rowStart: 3,
-              rowSpan: 4,
-              columnStart: 1,
-              columnSpan: 1,
-              isDurationCompressed: false,
-            },
+            { session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 0, columnSpan: 1 },
+            { session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 1, columnSpan: 1 },
           ],
         })}
         showGca

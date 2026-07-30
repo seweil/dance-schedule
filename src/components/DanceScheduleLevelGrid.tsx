@@ -46,7 +46,7 @@ function SessionCard({
   unitHeightPx: number
   slots: readonly LevelSlot[]
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, isDurationCompressed } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
@@ -120,13 +120,8 @@ function SessionCard({
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
     )
 
-  // A jagged/torn bottom edge (CSS module) signals that this card's height was
-  // capped short of the session's real duration — see capRoomlessRowSpan.
-  const roomlessClassName =
-    isDurationCompressed ? `${styles.roomlessCard} ${styles.roomlessCardCompressed}` : styles.roomlessCard
-
   return (
-    <div className={isRoomless ? roomlessClassName : styles.card} style={style}>
+    <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
         {combineRoomAndDetails ? (
           <p className={styles.details}>
@@ -160,7 +155,7 @@ export function DanceScheduleLevelGrid({
   layout: DanceScheduleLevelLayout
   showGca: boolean
 }) {
-  const { visibleSlots, totalRowUnits, hourMarks, halfHourMarks, placements } = layout
+  const { visibleSlots, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } = layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -238,6 +233,15 @@ export function DanceScheduleLevelGrid({
             <div
               key={rowStart}
               className={styles.halfHourTick}
+              style={{ gridRow: rowStart, gridColumn: 1 }}
+            />
+          ))}
+          {elisionMarkers.map((rowStart) => (
+            // A "scale break" in the time axis itself — see DanceScheduleGrid.tsx's
+            // identical marker and computeDanceScheduleTimeAxis.ts's elisionMarkers.
+            <div
+              key={rowStart}
+              className={styles.elisionMarker}
               style={{ gridRow: rowStart, gridColumn: 1 }}
             />
           ))}

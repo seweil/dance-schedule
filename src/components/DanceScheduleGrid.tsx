@@ -36,7 +36,7 @@ function SessionCard({
   showGca: boolean
   unitHeightPx: number
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan, isDurationCompressed } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
@@ -71,13 +71,8 @@ function SessionCard({
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
     )
 
-  // A jagged/torn bottom edge (CSS module) signals that this card's height was
-  // capped short of the session's real duration — see capRoomlessRowSpan.
-  const roomlessClassName =
-    isDurationCompressed ? `${styles.roomlessCard} ${styles.roomlessCardCompressed}` : styles.roomlessCard
-
   return (
-    <div className={isRoomless ? roomlessClassName : styles.card} style={style}>
+    <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
         {combineLevelAndDetails ? (
           <p className={styles.details}>
@@ -107,7 +102,7 @@ function SessionCard({
 // inside one shared scrollable panel exactly like the single grid this replaced —
 // same visual result, no JS involved (the listener below is naturally inert there).
 export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLayout; showGca: boolean }) {
-  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, placements } = layout
+  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } = layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -184,6 +179,17 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
             <div
               key={rowStart}
               className={styles.halfHourTick}
+              style={{ gridRow: rowStart, gridColumn: 1 }}
+            />
+          ))}
+          {elisionMarkers.map((rowStart) => (
+            // A "scale break" in the time axis itself — a long roomless session's
+            // excess duration (beyond 1 hour) was cut from the grid entirely, so
+            // everything after it sits closer than real elapsed time would suggest.
+            // See computeDanceScheduleTimeAxis.ts's elisionMarkers.
+            <div
+              key={rowStart}
+              className={styles.elisionMarker}
               style={{ gridRow: rowStart, gridColumn: 1 }}
             />
           ))}

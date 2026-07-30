@@ -44,7 +44,6 @@ function placement(overrides: Partial<DanceLevelSessionPlacement> = {}): DanceLe
     columnSpan: 1,
     lane: 0,
     laneCount: 1,
-    isDurationCompressed: false,
     ...overrides,
   }
 }
@@ -58,6 +57,7 @@ function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceSch
       { rowStart: 5, label: '1:00 PM' },
     ],
     halfHourMarks: [3],
+    elisionMarkers: [],
     placements: [placement()],
     ...overrides,
   }
@@ -171,26 +171,19 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
   })
 
-  it('adds the jagged/torn-edge class to a duration-compressed roomless card, not an ordinary one', () => {
-    const { container } = render(
-      <DanceScheduleLevelGrid
-        layout={makeLayout({
-          visibleSlots: [],
-          placements: [
-            placement({
-              session: ROOMLESS_SESSION,
-              rowStart: 1,
-              rowSpan: 4,
-              columnSpan: 1,
-              isDurationCompressed: true,
-            }),
-          ],
-        })}
-        showGca
-      />,
-    )
-    const card = container.querySelector('.roomlessCard') as HTMLElement
-    expect(card.classList.contains('roomlessCardCompressed')).toBe(true)
+  it('renders an elision marker in the time column at the row a long roomless session was compressed at', () => {
+    // The marker lives on the time axis, not the card — a roomless card never
+    // carries any compression-related styling of its own (see
+    // computeDanceScheduleTimeAxis.ts's elisionMarkers).
+    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />)
+    const marker = container.querySelector('.elisionMarker') as HTMLElement
+    expect(marker).toBeInTheDocument()
+    expect(marker).toHaveStyle({ gridRow: '5' })
+  })
+
+  it('renders no elision marker when nothing was compressed', () => {
+    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    expect(container.querySelector('.elisionMarker')).not.toBeInTheDocument()
   })
 
   it('renders a half-hour tick between the hour marks', () => {

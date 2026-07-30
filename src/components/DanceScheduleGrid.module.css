@@ -180,26 +180,29 @@
   color: var(--color-text);
 }
 
-/* A roomless session (spans every column — e.g. a meal break) is capped to at
-   most 1 hour of vertical space regardless of its real duration
-   (capRoomlessRowSpan in computeDanceScheduleTimeAxis.ts) — its time-range text
-   still states the real start/end, but the card's own height doesn't. This torn/
-   zigzag bottom edge is the visual signal that space was omitted. Built from two
-   45deg-repeating gradients tiling over .roomlessCard's own background (a
-   standard CSS "torn paper edge" technique), not clip-path — clip-path's polygon
-   points would need a JS-measured pixel width to tile correctly at this card's
-   arbitrary, data-driven width, where a repeating background just tiles on its
-   own. #fff matches the grid's own background (.headerWrapper/.corner above) —
-   the gradients "punch" opaque notches through roomlessCard's translucent fill,
-   matching what's actually behind the card. */
-.roomlessCardCompressed {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  padding-bottom: calc(var(--space-sm) + 6px);
+/* A "scale break" in the sticky time column, at the row where a long roomless
+   session's (e.g. a meal break) excess duration beyond 1 hour was cut from the
+   grid entirely (computeDanceScheduleTimeAxis.ts's elisionMarkers) — everything
+   below sits closer than real elapsed time would suggest, reducing how far the
+   grid scrolls. Only the time column carries this indicator; a session's own
+   card (roomless or not) is never clipped or otherwise decorated — its rowSpan
+   is simply however many (already-compressed) rows its real start/end maps to.
+   A jagged strip straddling the row boundary (negative margin-top), built the
+   same way as a "torn paper edge" (two 45deg-repeating gradients cutting white
+   notches into a solid-color fill) — reads as a literal break in the ruler,
+   mirroring the broken-axis convention common in charts. Scoped to the time
+   column only (gridColumn 1, sized to it, sticky like .timeLabel/.halfHourTick),
+   not spanning into the room/level columns. */
+.elisionMarker {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  height: 8px;
+  margin-top: -4px;
   background:
-    linear-gradient(45deg, #fff 8px, transparent 0) 0 100% / 16px 16px repeat-x,
-    linear-gradient(-45deg, #fff 8px, transparent 0) 0 100% / 16px 16px repeat-x,
-    rgb(0 0 0 / 6%);
+    linear-gradient(45deg, #fff 4px, transparent 0) 0 0 / 8px 8px repeat-x,
+    linear-gradient(-45deg, #fff 4px, transparent 0) 0 0 / 8px 8px repeat-x,
+    var(--color-border);
 }
 
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"

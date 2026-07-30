@@ -32,6 +32,7 @@ describe('computeDanceScheduleLayout', () => {
       totalRowUnits: 0,
       hourMarks: [],
       halfHourMarks: [],
+      elisionMarkers: [],
       placements: [],
     })
   })
@@ -327,7 +328,9 @@ describe('computeDanceScheduleLayout', () => {
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 1 })
   })
 
-  it('caps a roomless session over 1 hour to 4 row units and flags it compressed', () => {
+  it("elides a roomless session's excess duration beyond 1 hour, and surfaces the elision marker", () => {
+    // See computeDanceScheduleTimeAxis.test.ts for the underlying axis-compression
+    // math this relies on — this just confirms the layout actually propagates it.
     const dinner = makeSession(
       '2026-07-02T18:00:00.000Z',
       '2026-07-02T20:30:00.000Z', // 2.5 hours
@@ -336,10 +339,11 @@ describe('computeDanceScheduleLayout', () => {
     )
     const layout = computeDanceScheduleLayout([dinner], [dinner])
 
-    expect(layout.placements[0]).toMatchObject({ rowSpan: 4, isDurationCompressed: true })
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 4 })
+    expect(layout.elisionMarkers).toEqual([5])
   })
 
-  it('does not compress a roomless session of 1 hour or less', () => {
+  it('does not elide a roomless session of 1 hour or less', () => {
     const lunch = makeSession(
       '2026-07-02T12:00:00.000Z',
       '2026-07-02T13:00:00.000Z',
@@ -348,7 +352,8 @@ describe('computeDanceScheduleLayout', () => {
     )
     const layout = computeDanceScheduleLayout([lunch], [lunch])
 
-    expect(layout.placements[0]).toMatchObject({ rowSpan: 4, isDurationCompressed: false })
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 4 })
+    expect(layout.elisionMarkers).toEqual([])
   })
 
   it('sorts placements by rowStart then columnStart', () => {

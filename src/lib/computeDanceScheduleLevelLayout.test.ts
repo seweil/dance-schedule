@@ -36,6 +36,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       totalRowUnits: 0,
       hourMarks: [],
       halfHourMarks: [],
+      elisionMarkers: [],
       placements: [],
     })
   })
@@ -55,7 +56,6 @@ describe('computeDanceScheduleLevelLayout', () => {
         columnSpan: 1,
         lane: 0,
         laneCount: 1,
-        isDurationCompressed: false,
       },
     ])
   })
@@ -114,7 +114,6 @@ describe('computeDanceScheduleLevelLayout', () => {
         columnSpan: 1,
         lane: 0,
         laneCount: 1,
-        isDurationCompressed: false,
       },
     ])
   })
@@ -133,7 +132,9 @@ describe('computeDanceScheduleLevelLayout', () => {
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 4 })
   })
 
-  it('caps a floating roomless session over 1 hour to 4 row units and flags it compressed', () => {
+  it("elides a floating roomless session's excess duration beyond 1 hour, and surfaces the elision marker", () => {
+    // See computeDanceScheduleTimeAxis.test.ts for the underlying axis-compression
+    // math this relies on — this just confirms the level layout propagates it too.
     const dinner: DanceSession = {
       kind: 'freeform',
       date: new Date('2026-07-02T00:00:00.000Z'),
@@ -144,7 +145,8 @@ describe('computeDanceScheduleLevelLayout', () => {
     }
     const layout = computeDanceScheduleLevelLayout([dinner], [dinner], SLOTS, 0, SLOTS.length - 1)
 
-    expect(layout.placements[0]).toMatchObject({ rowSpan: 4, isDurationCompressed: true })
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 4 })
+    expect(layout.elisionMarkers).toEqual([5])
   })
 
   it('floats a structured session tagged only Advanced/Intro/Various across every visible slot column', () => {
