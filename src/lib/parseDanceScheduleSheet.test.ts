@@ -124,6 +124,22 @@ describe('parseDanceScheduleSheet', () => {
     expect(errors[0]).toMatch(/Unexpected extra line/)
   })
 
+  it('aggregates an error for content in a column beyond the header row width', () => {
+    const rows = [
+      ['Time', 'Ballroom Centre'],
+      [
+        '12:30p-1:30p',
+        'SSD : Dancing - Vic Ceder',
+        'Plus : Dancing - Kris Jensen',
+      ],
+    ]
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    expect(sessions).toHaveLength(1)
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatch(/cell C2/)
+    expect(errors[0]).toMatch(/beyond the header row's 1 room\(s\)/)
+  })
+
   it('aggregates an error for an unparseable time-slot row', () => {
     const rows = [
       ['Time', 'Ballroom Centre'],

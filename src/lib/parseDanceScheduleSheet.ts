@@ -266,6 +266,19 @@ export function parseDanceScheduleSheet(
       )
     }
 
+    // A data row with more filled cells than the header row is wide would otherwise
+    // silently never be read (the loops below only ever iterate over `rooms`) — flag
+    // it instead of dropping that content with no error.
+    row.slice(rooms.length + 1).forEach((raw, extraIdx) => {
+      if (raw === null || raw === undefined || raw === '') {
+        return
+      }
+      const roomIdx = rooms.length + extraIdx
+      errors.push(
+        `Sheet "${sheetName}", cell ${cellRef(roomIdx)} (time "${timeRangeRaw}"): content in a column beyond the header row's ${rooms.length} room(s)`,
+      )
+    })
+
     // First pass: classify each room's cell as empty, real content, or a ditto mark
     // chained to the nearest content cell to its left (a blank cell breaks the chain).
     const cellKinds: CellKind[] = []

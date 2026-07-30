@@ -22,26 +22,6 @@ warning anywhere.
 **Fix direction:** flip both defaults in `vite-plugin-content-config.ts` to
 `true`, matching the docs.
 
-## Dance-schedule row parsing silently drops cells beyond the header's width
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-`parseDanceScheduleSheet.ts`'s per-row cell scan iterates only over `rooms`
-(derived from the header row's own width) — a data row with *more* filled
-cells than the header row silently never reads, parses, or reports the
-extra ones.
-
-**Failure scenario:** header row is `['Time', 'Ballroom Centre']` (1 room)
-but a data row has content typed one column too far right, e.g.
-`['12:30p-1:30p', 'SSD : Dancing - Vic Ceder', 'Plus : Dancing - Kris
-Jensen']`. The whole session in the extra column silently vanishes with no
-error, even though the project's design goal is that anything unparseable
-fails the build with the offending cell identified.
-
-**Fix direction:** after building `rooms`, also check each data row's own
-length against the header width and raise a named error (sheet/row/column)
-for any populated cell beyond it.
-
 ## Level taxonomy is hardcoded to modern western square dance only
 
 **Found:** 2026-07-29, deep code review for correctness/generality bugs.
