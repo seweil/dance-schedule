@@ -1,6 +1,5 @@
-import { useState, type ImgHTMLAttributes } from 'react'
-import Lightbox from 'yet-another-react-lightbox'
-import 'yet-another-react-lightbox/styles.css'
+import { useEffect, useId, type ImgHTMLAttributes } from 'react'
+import { useImageGallery } from '../hooks/useImageGallery'
 import styles from './ZoomableImage.module.css'
 
 type ZoomableImageProps = ImgHTMLAttributes<HTMLImageElement>
@@ -21,7 +20,16 @@ const SIZE_CLASSES: Record<string, string | undefined> = {
 }
 
 export function ZoomableImage({ src, alt = '', title, ...rest }: ZoomableImageProps) {
-  const [open, setOpen] = useState(false)
+  const id = useId()
+  const { register, unregister, openAt } = useImageGallery()
+
+  useEffect(() => {
+    if (!src) {
+      return
+    }
+    register({ id, src, alt })
+    return () => unregister(id)
+  }, [id, src, alt, register, unregister])
 
   if (!src) {
     return null
@@ -31,16 +39,13 @@ export function ZoomableImage({ src, alt = '', title, ...rest }: ZoomableImagePr
   const className = sizeClass ? `${styles.zoomable} ${sizeClass}` : styles.zoomable
 
   return (
-    <>
-      <img
-        src={src}
-        alt={alt}
-        {...rest}
-        title={sizeClass ? undefined : title}
-        onClick={() => setOpen(true)}
-        className={className}
-      />
-      <Lightbox open={open} close={() => setOpen(false)} slides={[{ src, alt }]} />
-    </>
+    <img
+      src={src}
+      alt={alt}
+      {...rest}
+      title={sizeClass ? undefined : title}
+      onClick={() => openAt(id)}
+      className={className}
+    />
   )
 }

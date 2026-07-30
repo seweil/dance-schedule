@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, useRoutes, type RouteObject } from 'react-rout
 import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
 import { ClearStorageAction } from './components/ClearStorageAction'
+import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { UpdatePrompt } from './components/UpdatePrompt'
@@ -49,9 +50,11 @@ export function App() {
       <MDXProvider components={mdxComponents}>
         <Nav />
         <UpdatePrompt />
-        <Suspense fallback={<p>Loading…</p>}>
-          <Pages />
-        </Suspense>
+        <ImageGalleryProvider>
+          <Suspense fallback={<p>Loading…</p>}>
+            <Pages />
+          </Suspense>
+        </ImageGalleryProvider>
         <ScrollToTopButton />
       </MDXProvider>
     </BrowserRouter>
