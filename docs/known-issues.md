@@ -49,25 +49,6 @@ hand-duplicated array. Making the taxonomy itself content-set-configurable
 a `docs/design/` entry of its own if a real round-dance or contra event is
 ever added, rather than a quick fix here.
 
-## Blank/undefined dance-schedule header cell becomes the literal room "undefined"
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-`parseDanceScheduleSheet.ts` builds room names via
-`headerRow.slice(1).map((cell) => String(cell))` — an empty/undefined
-header cell becomes the literal string `"undefined"` (or `"null"`) instead
-of being rejected.
-
-**Failure scenario:** an accidentally-empty header cell between two real
-room columns (e.g. from a deleted column in Excel) produces
-`rooms = ['Ballroom Centre', 'undefined', 'Ballroom East']` — a phantom
-column literally labeled "undefined" renders in the UI, and content typed
-under it parses successfully against that nonsense room name instead of
-failing the build.
-
-**Fix direction:** reject (throw a named, cell-identifying error for) any
-header cell that's `null`/`undefined`/empty string before building `rooms`.
-
 ## Dance-schedule time range with no AM/PM on either side isn't cross-checked
 
 **Found:** 2026-07-29, deep code review for correctness/generality bugs.
@@ -107,24 +88,6 @@ reserved-name check exists to catch.
 
 **Fix direction:** add `debug` and `clear-storage` to `RESERVED_NAMES` and
 to the doc's matching list.
-
-## Dance-schedule header room names aren't trimmed before `ROOMS:` validation
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-Room names built from the header row (`parseDanceScheduleSheet.ts`) are
-never trimmed, so an invisible trailing space in a header cell breaks an
-otherwise-correct `ROOMS:` reference to that same room.
-
-**Failure scenario:** a header cell is typed as `Ballroom Centre ` (trailing
-space, invisible in Excel). `allRooms` retains the trailing space verbatim,
-but a `ROOMS: Ballroom Centre, Ballroom East` line trims each entry to
-`Ballroom Centre` before checking `allRooms.includes(...)` — the check
-fails and throws `names unrecognized room "Ballroom Centre"` even though
-the room visibly matches in the spreadsheet.
-
-**Fix direction:** `.trim()` each header cell when building `rooms`, same as
-the `ROOMS:` line's own entries already are.
 
 ## Dance-schedule sheet-name weekday regex rejects a comma after the weekday
 

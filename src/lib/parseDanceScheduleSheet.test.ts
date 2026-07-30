@@ -89,6 +89,29 @@ describe('parseDanceScheduleSheet', () => {
     ])
   })
 
+  it('aggregates an error for a blank/undefined header cell instead of naming a room "undefined"', () => {
+    const rows = [
+      ['Time', 'Ballroom Centre', null, 'Ballroom East'],
+      ['12:30p-1:30p', 'SSD : Dancing - Ted Lizotte', null, 'Plus : Dancing - Kris Jensen'],
+    ]
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    expect(sessions).toEqual([])
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatch(/header cell C1: room name is blank/)
+  })
+
+  it('trims header room names so a trailing space does not break "ROOMS:" validation', () => {
+    const rows = [
+      ['Time', 'Ballroom Centre ', 'Ballroom West'],
+      ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre, Ballroom West', null],
+    ]
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({
+      location: { kind: 'located', rooms: ['Ballroom Centre', 'Ballroom West'] },
+    })
+  })
+
   it('skips null/empty cells without producing a session or error', () => {
     const rows = [
       ['Time', 'Ballroom Centre', 'Ballroom East'],

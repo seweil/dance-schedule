@@ -238,7 +238,22 @@ export function parseDanceScheduleSheet(
     return { sessions, errors: [`Sheet "${sheetName}" has no header row`] }
   }
 
-  const rooms = headerRow.slice(1).map((cell) => String(cell))
+  // Rejected up front (rather than left as a literal "undefined"/"null" room name,
+  // or left untrimmed to silently mismatch a trimmed "ROOMS:" reference to the same
+  // room) since every downstream pass trusts `rooms` as the sheet's real room list.
+  const headerErrors: string[] = []
+  const rawHeaderCells = headerRow.slice(1)
+  const rooms = rawHeaderCells.map((cell, idx) => {
+    const room = cell === null || cell === undefined ? '' : String(cell).trim()
+    if (room === '') {
+      headerErrors.push(`Sheet "${sheetName}", header cell ${columnLetter(idx + 1)}1: room name is blank`)
+    }
+    return room
+  })
+  if (headerErrors.length > 0) {
+    return { sessions, errors: headerErrors }
+  }
+
   const date = parseSheetDate(sheetName, referenceDate)
 
   dataRows.forEach((row, rowIdx) => {
