@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
 import { BrowserRouter, Navigate, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
-import { useRegisterSW } from 'virtual:pwa-register/react'
 import routes from '~react-pages'
 import { ClearStorageAction } from './components/ClearStorageAction'
 import { Nav } from './components/Nav'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { ZoomableImage } from './components/ZoomableImage'
 import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
 import { useLastPagePersistence } from './hooks/useLastPagePersistence'
@@ -43,51 +43,15 @@ function Pages() {
   return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes, notFoundRoute])
 }
 
-// Without this, an already-open tab only checks for a new service worker on its
-// next navigation/registration — so a deployed update goes undetected until the
-// user manually reloads. Polling registration.update() surfaces the "new version
-// available" prompt on its own; the user still has to click Reload to apply it
-// (per CLAUDE.md: never swap content out from under them silently).
-const UPDATE_CHECK_INTERVAL_MS = 60_000
-
-function UpdatePrompt() {
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegisteredSW(_swScriptUrl, registration) {
-      if (!registration) {
-        return
-      }
-      setInterval(() => {
-        void registration.update()
-      }, UPDATE_CHECK_INTERVAL_MS)
-    },
-  })
-
-  if (!needRefresh) {
-    return null
-  }
-
-  return (
-    <div role="alert">
-      <p>A new version is available.</p>
-      <button type="button" onClick={() => updateServiceWorker(true)}>
-        Reload
-      </button>
-    </div>
-  )
-}
-
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <MDXProvider components={mdxComponents}>
         <Nav />
+        <UpdatePrompt />
         <Suspense fallback={<p>Loading…</p>}>
           <Pages />
         </Suspense>
-        <UpdatePrompt />
         <ScrollToTopButton />
       </MDXProvider>
     </BrowserRouter>
