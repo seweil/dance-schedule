@@ -191,4 +191,24 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     ])
     expect(axis?.elisionMarkers).toEqual([3])
   })
+
+  it('drops an hour mark that lands exactly on the elision boundary too, not just strictly inside it', () => {
+    // A 90-minute lunch: budget splits into 30 min visible at noon, 30 min
+    // visible at 1:00-1:30, with the middle 12:30-1:00 elided. 1:00 PM is
+    // exactly the elision's trailing edge (not strictly "inside" it) — but it
+    // still compresses to the identical row as the marker itself (every point
+    // in an elided interval collapses to one row), so showing it would stack a
+    // text label directly onto the marker. Dropping it avoids that crowding.
+    const lunch = makeRoomless('2026-07-02T12:00:00.000Z', '2026-07-02T13:30:00.000Z', 'Lunch Break')
+    const axis = computeDanceScheduleTimeAxis([lunch], [lunch])
+
+    expect(axis?.hourMarks.map((mark) => mark.label)).toEqual(['12:00 PM', '2:00 PM'])
+    expect(axis?.elisionMarkers).toEqual([3])
+    // The marker's row and every kept mark's row are all distinct — nothing
+    // shares a row with the marker.
+    const markerRows = new Set(axis?.elisionMarkers)
+    for (const mark of axis?.hourMarks ?? []) {
+      expect(markerRows.has(mark.rowStart)).toBe(false)
+    }
+  })
 })

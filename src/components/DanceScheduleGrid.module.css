@@ -180,7 +180,7 @@
   color: var(--color-text);
 }
 
-/* A "scale break" in the sticky time column, at the row where a long roomless
+/* A subtle "scale break" in the time column, at the row where a long roomless
    session's (e.g. a meal break) excess duration beyond 1 hour was cut from the
    grid entirely (computeDanceScheduleTimeAxis.ts's elisionMarkers) — the break's
    visible budget splits evenly before/after the cut, so this sits in the middle
@@ -192,21 +192,24 @@
    block with one jagged edge rather than a break) — an inline SVG polyline,
    pointed evenly up and down, tiled with background-repeat. `currentColor`
    inside the embedded SVG resolves against this element's own `color`, so it
-   still tracks the shared border-color token without hardcoding it twice.
-   Centered on the row boundary via a negative margin half its own height, the
-   same straddling technique as before. Scoped to the time column only
-   (gridColumn 1, sized to it, sticky like .timeLabel/.halfHourTick), not
-   spanning into the room/level columns. */
+   still tracks a shared token rather than hardcoding a shade twice; a lighter,
+   more muted gray than `--color-border` itself, and a thin stroke, so it reads
+   as a quiet ruler notch rather than competing with real content. Centered on
+   the row boundary via a negative margin half its own height, the same
+   straddling technique as before.
+
+   NOT sticky (unlike .timeLabel/.halfHourTick) — scrolls with the grid's own
+   horizontal position rather than staying pinned to the time column, per
+   explicit request; scrolled fully out of view once the room columns are
+   scrolled far enough left, whereas the real time labels remain visible. Still
+   scoped to the time column's width (gridColumn 1) for its resting position. */
 .elisionMarker {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  height: 12px;
-  margin-top: -6px;
-  color: var(--color-border);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' viewBox='0 0 16 12'%3E%3Cpolyline points='0,10 4,2 8,10 12,2 16,10' fill='none' stroke='currentColor' stroke-width='2'/%3E%3C/svg%3E");
+  height: 8px;
+  margin-top: -4px;
+  color: #eee;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8' viewBox='0 0 16 8'%3E%3Cpolyline points='0,6 4,1 8,6 12,1 16,6' fill='none' stroke='currentColor' stroke-width='1.25'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
-  background-size: 16px 12px;
+  background-size: 16px 8px;
 }
 
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"

@@ -456,29 +456,54 @@ The corrected design elides the excess time from the time axis
 day's sessions for any roomless one whose duration exceeds
 `MAX_ROOMLESS_VISIBLE_UNITS` (1 hour), and — as long as no other session
 overlaps that excess stretch, which would corrupt its own position — marks
-the excess `[start, end)` interval for removal. `compress()` then maps every
-raw row position through these intervals, subtracting elided rows that fall
-before it, so `rowStartFor`/`rowSpanFor`/`totalRowUnits` all shrink together:
-a session scheduled after a long dinner break genuinely shifts up the page,
-reducing real scroll distance, not just the break's own card height. Hour/
-half-hour marks that would otherwise land inside an elided stretch are
-deduped so no duplicate label stacks at the compressed boundary.
+an interval for removal. That interval sits in the *middle* of the session,
+not tacked onto its end: the visible 1-hour budget splits evenly, half kept
+at the start and half at the end, so the row immediately following a break
+lines up with whatever real event actually comes next, rather than an
+arbitrary point mid-break (e.g. a 12-2pm lunch shows 12:00-12:30 and
+1:30-2:00, eliding the 12:30-1:30 middle — not "the first hour, then
+nothing"). `compress()` then maps every raw row position through these
+intervals, subtracting elided rows that fall before it, so
+`rowStartFor`/`rowSpanFor`/`totalRowUnits` all shrink together: a session
+scheduled after a long dinner break genuinely shifts up the page, reducing
+real scroll distance, not just the break's own card height.
+
+Every point within an elided interval — including both of its exact
+start/end boundaries — compresses to the identical single row (the marker's
+own row), so an hour/half-hour mark landing anywhere in that range, boundary
+included, is dropped outright rather than merely deduped against its
+neighbor: a mark can coincide with the *marker's* row without colliding with
+another mark earlier in the same list (e.g. an hour mark landing exactly on
+an elision's trailing edge, which happens whenever that edge falls on a
+whole hour — a 90-minute break starting on the hour is a real example of
+this, not just a hypothetical), so dedup-against-the-previous-entry alone
+isn't sufficient.
 
 The roomless card itself is never decorated or clipped — its own rowSpan is
 just whatever the (now-compressed) axis naturally gives it, and its
 time-range text still states the real start/end unchanged
-(`formatSessionTimeRange`). The jagged "something was omitted here" signal
-lives instead on a new `elisionMarker` rendered directly in the sticky time
-column (`gridColumn: 1`) at each compressed boundary — a torn-paper zigzag
-(two 45°-repeating gradients tiling over the column's background) built with
-tiling background gradients rather than `clip-path`, for the same
-arbitrary-width reasons as originally reasoned through. `DanceScheduleLayout`/
-`DanceLevelScheduleLayout` both carry an `elisionMarkers: number[]` (row
-positions) propagated straight from the shared time axis, so the two grids
-can't drift out of sync on where a break's excess time got elided. Exactly 1
-hour is left un-elided (only *greater than* 1 hour triggers it) — the real
-`content/automated-testing/` "Lunch Break" (90 minutes) and a
-"Dinner Break"-style 2.5-hour session both demonstrate this live.
+(`formatSessionTimeRange`). The "something was omitted here" signal lives
+instead on a new `elisionMarker` rendered in the time column (`gridColumn:
+1`) at each compressed boundary — a genuine zigzag (an inline SVG polyline,
+pointed evenly up and down, tiled via `background-repeat`) rather than the
+one-sided "torn paper" gradient cut first tried, which read as a solid block
+with a jagged top edge instead of a break in the ruler. Deliberately subtle
+(light gray, thin stroke, short) so it reads as a quiet ruler notch, not
+competing with real content — by construction it lands exactly on the
+compressed roomless card's own vertical midpoint (half the visible budget
+before it, half after), matching "the middle of remaining space" rather than
+the label-to-label distance, which can include real, un-elided gap time
+after the break's actual end. Unlike `.timeLabel`/`.halfHourTick`, it is
+*not* sticky — it scrolls with the grid's horizontal position rather than
+staying pinned to the time column, so it scrolls out of view once the room
+columns scroll far enough left, where the real time labels remain visible.
+`DanceScheduleLayout`/`DanceLevelScheduleLayout` both carry an
+`elisionMarkers: number[]` (row positions) propagated straight from the
+shared time axis, so the two grids can't drift out of sync on where a
+break's excess time got elided. Exactly 1 hour is left un-elided (only
+*greater than* 1 hour triggers it) — the real `content/automated-testing/`
+"Lunch Break" (90 minutes) and a "Dinner Break"-style 2.5-hour session both
+demonstrate this live.
 
 ## Open questions
 

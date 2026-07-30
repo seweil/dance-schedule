@@ -211,17 +211,19 @@ export function computeDanceScheduleTimeAxis(
   const rowSpanFor = (start: Date, end: Date): number =>
     Math.max(1, compress(rawUnitFor(end)) - compress(rawUnitFor(start)))
 
-  // True when `rawUnits` falls strictly inside an elided stretch — a moment of
-  // real time that's been compressed away entirely, not merely a boundary of it.
-  // A mark at exactly an interval's start/end still lands on a genuine, single
-  // row (where the elision itself renders) and is kept; one strictly between
-  // them has no row of its own at all and must be dropped outright, not just
-  // deduped against its neighbor — dedup alone only catches two marks that
-  // happen to compress to the same row as each other, which misses this case
-  // whenever the enclosing mark isn't the immediately adjacent one in the same
-  // list (e.g. an hour mark landing inside a half-hour-offset elision window).
+  // True when `rawUnits` falls inside an elided stretch, INCLUDING its exact
+  // start/end boundary — compress() maps every point in [rawStart, rawEnd] to
+  // the identical single row (where the elision marker itself renders), so an
+  // hour/half-hour mark landing on either edge is just as redundant with the
+  // marker as one landing in the true middle: both would stack a text label
+  // directly onto the marker's row. Dropping the mark outright (rather than
+  // just deduping it against its neighbor) also matters because dedup alone
+  // only catches two marks that happen to compress to the same row as EACH
+  // OTHER, which misses this whenever the enclosing mark isn't the immediately
+  // adjacent one in the same list (e.g. an hour mark colliding with the
+  // elision boundary itself, not with another hour mark).
   const isElided = (rawUnits: number): boolean =>
-    rawElisions.some((elision) => rawUnits > elision.rawStart && rawUnits < elision.rawEnd)
+    rawElisions.some((elision) => rawUnits >= elision.rawStart && rawUnits <= elision.rawEnd)
 
   const hourMarks: HourMark[] = []
   for (let t = dayStart.getTime(); t <= dayEnd.getTime(); t += MS_PER_HOUR) {
