@@ -1,3 +1,32 @@
+/* max-width/height rather than a fixed size — content images come from
+   arbitrary, author-supplied source files (content/<set>/pages/assets/) at
+   whatever native resolution they were saved at, so this is the only sizing
+   rule that reliably keeps every one of them from overflowing a narrow
+   (especially mobile) viewport regardless of its actual pixel dimensions. */
 .zoomable {
   cursor: zoom-in;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Opt-in smaller display sizes for an image whose natural resolution doesn't
+   suit full-width display in the flow of a content page (e.g. a caller
+   headshot) — requested via a markdown image's standard `title` string, see
+   ZoomableImage.tsx's SIZE_CLASSES. `min()`, not a plain fixed width, so
+   `.zoomable`'s max-width: 100% overflow protection above still holds on a
+   viewport narrower than the class's own target width. */
+.thumbnail {
+  width: min(100px, 100%);
+}
+
+.small {
+  width: min(200px, 100%);
+}
+
+.medium {
+  width: min(350px, 100%);
+}
+
+.large {
+  width: min(500px, 100%);
 }

@@ -73,7 +73,13 @@ needed.
   (title-cased automatically: `getting-started.md` → "Getting Started").
 - **Images:** put them in a `pages/assets/` subfolder and reference them as
   `![alt text](./assets/your-image.png)`. They're automatically made
-  clickable/zoomable — no extra markup needed.
+  clickable/zoomable, and never render wider than the page no matter how
+  large the source file is — no extra markup needed. For a photo that looks
+  better small in the flow of the page (e.g. a caller headshot) — full size
+  is still one tap away — add a standard markdown title of `thumbnail`,
+  `small`, `medium`, or `large`:
+  `![Jane Doe](./assets/caller-jane-doe.jpg "thumbnail")`. Any other title
+  text is left alone as a normal image tooltip.
 - **Numbering convention:** keep your own page numbers below 10 — number 10
   is reserved for the automatically-generated "Event Schedule" page (see
   step 3), and 12/13 for "Dance Schedule" / "Dance by Level" (step 4). Those

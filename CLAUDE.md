@@ -159,7 +159,13 @@ picks up the `.md` extension.
 - **Image zoom**: every rendered `<img>` is automatically replaced with
   `src/components/ZoomableImage.tsx` (a `yet-another-react-lightbox` wrapper) via a
   global `MDXProvider` override in `App.tsx` — content authors don't add any markup
-  for this, it's automatic.
+  for this, it's automatic. It also caps every content image at the page's own width
+  (never wider, regardless of the source file's native resolution) and supports an
+  opt-in smaller display size via a markdown image's standard `title` string —
+  `![alt](./assets/photo.jpg "thumbnail")` — one of `thumbnail`/`small`/`medium`/
+  `large` (`ZoomableImage.tsx`'s `SIZE_CLASSES`); any other title is left alone as an
+  ordinary tooltip. Full size is still one tap away via the lightbox regardless of
+  display size.
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
   routes `vite-plugin-pages` generates — title = Title-cased filename (after
   stripping the order prefix), order = the numeric prefix (see Naming above), Home

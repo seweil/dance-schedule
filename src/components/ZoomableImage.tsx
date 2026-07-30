@@ -5,12 +5,30 @@ import styles from './ZoomableImage.module.css'
 
 type ZoomableImageProps = ImgHTMLAttributes<HTMLImageElement>
 
-export function ZoomableImage({ src, alt = '', ...rest }: ZoomableImageProps) {
+// Reserved `title` values a content author can set via standard markdown
+// image syntax — `![alt](./assets/photo.jpg "small")` is plain CommonMark,
+// no custom syntax — to request a smaller-than-natural display size (e.g. a
+// caller headshot looks better as a small tappable thumbnail than at full
+// native resolution; the full image is still one tap away via the lightbox
+// below). Consumed here as a size directive rather than passed through as a
+// literal HTML `title` (browser tooltip); any other title value is left
+// alone and rendered as a real tooltip.
+const SIZE_CLASSES: Record<string, string | undefined> = {
+  thumbnail: styles.thumbnail,
+  small: styles.small,
+  medium: styles.medium,
+  large: styles.large,
+}
+
+export function ZoomableImage({ src, alt = '', title, ...rest }: ZoomableImageProps) {
   const [open, setOpen] = useState(false)
 
   if (!src) {
     return null
   }
+
+  const sizeClass = title ? SIZE_CLASSES[title.toLowerCase()] : undefined
+  const className = sizeClass ? `${styles.zoomable} ${sizeClass}` : styles.zoomable
 
   return (
     <>
@@ -18,8 +36,9 @@ export function ZoomableImage({ src, alt = '', ...rest }: ZoomableImageProps) {
         src={src}
         alt={alt}
         {...rest}
+        title={sizeClass ? undefined : title}
         onClick={() => setOpen(true)}
-        className={styles.zoomable}
+        className={className}
       />
       <Lightbox open={open} close={() => setOpen(false)} slides={[{ src, alt }]} />
     </>
