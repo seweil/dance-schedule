@@ -239,15 +239,27 @@ export function parseDanceScheduleSheet(
   }
 
   // Rejected up front (rather than left as a literal "undefined"/"null" room name,
-  // or left untrimmed to silently mismatch a trimmed "ROOMS:" reference to the same
-  // room) since every downstream pass trusts `rooms` as the sheet's real room list.
+  // left untrimmed to silently mismatch a trimmed "ROOMS:" reference to the same
+  // room, or left duplicated so `rooms.indexOf()` elsewhere always resolves to the
+  // first occurrence) since every downstream pass trusts `rooms` as the sheet's real,
+  // unambiguous room list.
   const headerErrors: string[] = []
+  const seenRoomColumns = new Map<string, number>()
   const rawHeaderCells = headerRow.slice(1)
   const rooms = rawHeaderCells.map((cell, idx) => {
     const room = cell === null || cell === undefined ? '' : String(cell).trim()
     if (room === '') {
       headerErrors.push(`Sheet "${sheetName}", header cell ${columnLetter(idx + 1)}1: room name is blank`)
+      return room
     }
+    const firstIdx = seenRoomColumns.get(room)
+    if (firstIdx !== undefined) {
+      headerErrors.push(
+        `Sheet "${sheetName}", header cell ${columnLetter(idx + 1)}1: room ${JSON.stringify(room)} duplicates header cell ${columnLetter(firstIdx + 1)}1`,
+      )
+      return room
+    }
+    seenRoomColumns.set(room, idx)
     return room
   })
   if (headerErrors.length > 0) {

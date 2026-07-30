@@ -108,27 +108,6 @@ date format," failing that entire sheet.
 **Fix direction:** allow an optional comma in `WEEKDAY_PREFIX`, e.g.
 `/^\w+day,?\s+/i`.
 
-## Duplicate dance-schedule header room names break `ROOMS:` conflict detection
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-`rooms.indexOf(room)` (used when validating a `ROOMS:` line's other claimed
-rooms) always resolves to the *first* matching header column, so two header
-columns sharing the same room name silently break the "claimed room's cell
-must be blank" check for the second occurrence.
-
-**Failure scenario:** a header row accidentally has two columns both named
-`Overflow` (e.g. a copy-paste mistake when adding a room). A `ROOMS:` line
-elsewhere claims `Overflow`; `rooms.indexOf('Overflow')` always returns the
-first column's index, so if that one is blank but the second `Overflow`
-column has real, independent content in that time slot, the conflict is
-never detected — that second room's actual session is silently dropped from
-the row with no error.
-
-**Fix direction:** reject duplicate room names in the header row outright
-(a named build-time error), same category as the existing reserved-name/
-collision checks elsewhere in the pipeline.
-
 ## Flaky: "nav links to the schedule page, which renders events"
 
 **Found:** 2026-07-26, same verification pass.

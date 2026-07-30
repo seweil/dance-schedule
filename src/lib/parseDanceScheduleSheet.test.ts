@@ -100,6 +100,17 @@ describe('parseDanceScheduleSheet', () => {
     expect(errors[0]).toMatch(/header cell C1: room name is blank/)
   })
 
+  it('aggregates an error for duplicate header room names', () => {
+    const rows = [
+      ['Time', 'Overflow', 'Overflow'],
+      ['12:30p-1:30p', 'SSD : Dancing - Ted Lizotte', null],
+    ]
+    const { sessions, errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+    expect(sessions).toEqual([])
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatch(/header cell C1: room "Overflow" duplicates header cell B1/)
+  })
+
   it('trims header room names so a trailing space does not break "ROOMS:" validation', () => {
     const rows = [
       ['Time', 'Ballroom Centre ', 'Ballroom West'],
