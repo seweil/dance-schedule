@@ -34,8 +34,16 @@ export function DanceScheduleLevelsPage() {
   } = useDanceScheduleFilters(sessions, contentConfig.features.combineA1A2)
 
   const layout = useMemo(
-    () => computeDanceScheduleLevelLayout(dateSessions, visibleSessions, slots, minLevelIndex, maxLevelIndex),
-    [dateSessions, visibleSessions, slots, minLevelIndex, maxLevelIndex],
+    () =>
+      computeDanceScheduleLevelLayout(
+        dateSessions,
+        visibleSessions,
+        slots,
+        minLevelIndex,
+        maxLevelIndex,
+        showGca,
+      ),
+    [dateSessions, visibleSessions, slots, minLevelIndex, maxLevelIndex, showGca],
   )
 
   return (

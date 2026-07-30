@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
-import type {
-  DanceLevelSessionPlacement,
-  DanceScheduleLevelLayout,
+import {
+  levelTextWidthPx,
+  LEVEL_COLUMN_WIDTH,
+  type DanceLevelSessionPlacement,
+  type DanceScheduleLevelLayout,
 } from '../lib/computeDanceScheduleLevelLayout'
 import { detailsContent, detailsPlainText } from '../lib/danceScheduleCardContent'
 import {
-  CARD_HORIZONTAL_OVERHEAD_PX,
-  CARD_PADDING_PX,
   DETAILS_MEASUREMENT_FONT,
   UNIT_HEIGHT_PX_WITH_GCA,
   UNIT_HEIGHT_PX_WITHOUT_GCA,
@@ -27,13 +27,6 @@ import { measureTextWidth } from '../lib/measureTextWidth'
 import styles from './DanceScheduleGrid.module.css'
 
 const TIME_COLUMN_WIDTH = '70px'
-// Same 150px starting point as the room-columns grid's own column width — room
-// names (this grid's second card line) aren't reliably shorter than level codes
-// were, so there's no a priori reason to start narrower. Kept independent of the
-// room grid's own constant (not shared) since the two may need to diverge with
-// real-world tuning.
-const LEVEL_COLUMN_WIDTH_PX = 150
-const LEVEL_COLUMN_WIDTH = `${LEVEL_COLUMN_WIDTH_PX}px`
 
 function SessionCard({
   placement,
@@ -87,17 +80,7 @@ function SessionCard({
   const slot = !isRoomless ? slots[columnStart] : undefined
   const levelPrefix = slot && slot.levels.length > 1 ? formatSessionLevels(session) : undefined
 
-  // A lane-split card's own box width is track/laneCount exactly (an explicit
-  // percentage width, not grid-stretch-filled — see the style block above), so its
-  // usable text width is that minus just the padding, not the combined margin+
-  // padding overhead: margin sits outside a border-box element and doesn't shrink
-  // its content area the way padding does. Only the ordinary (laneCount === 1,
-  // grid-stretch-filled) case uses CARD_HORIZONTAL_OVERHEAD_PX, same as the
-  // room-columns grid.
-  const textWidthPx =
-    laneCount > 1
-      ? (columnSpan * LEVEL_COLUMN_WIDTH_PX) / laneCount - CARD_PADDING_PX
-      : columnSpan * LEVEL_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX
+  const textWidthPx = levelTextWidthPx(columnSpan, laneCount)
 
   // Cards are a fixed, time-proportional height (rowSpan * unitHeightPx) that never
   // grows to fit content — see docs/known-issues.md's "long wrapping text clips on
@@ -155,7 +138,8 @@ export function DanceScheduleLevelGrid({
   layout: DanceScheduleLevelLayout
   showGca: boolean
 }) {
-  const { visibleSlots, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } = layout
+  const { visibleSlots, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } =
+    layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -209,7 +193,11 @@ export function DanceScheduleLevelGrid({
         <div className={styles.grid} style={{ gridTemplateColumns }}>
           <div className={styles.corner} style={{ gridRow: 1, gridColumn: 1 }} />
           {visibleSlots.map((slot, index) => (
-            <div key={slot.label} className={styles.roomHeader} style={{ gridRow: 1, gridColumn: index + 2 }}>
+            <div
+              key={slot.label}
+              className={styles.roomHeader}
+              style={{ gridRow: 1, gridColumn: index + 2 }}
+            >
               {slot.label}
             </div>
           ))}
@@ -218,7 +206,10 @@ export function DanceScheduleLevelGrid({
       <div className={styles.bodyWrapper} ref={setBodyRef}>
         <div
           className={styles.grid}
-          style={{ gridTemplateColumns, gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)` }}
+          style={{
+            gridTemplateColumns,
+            gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)`,
+          }}
         >
           {hourMarks.map((mark) => (
             <div

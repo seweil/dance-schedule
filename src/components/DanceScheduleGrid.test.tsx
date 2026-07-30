@@ -40,7 +40,10 @@ function makeLayout(overrides: Partial<DanceScheduleLayout> = {}): DanceSchedule
     ],
     halfHourMarks: [3],
     elisionMarkers: [],
-    placements: [{ session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 0, columnSpan: 1 }],
+    expansionMarkers: [],
+    placements: [
+      { session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 0, columnSpan: 1 },
+    ],
     ...overrides,
   }
 }
@@ -115,7 +118,9 @@ describe('DanceScheduleGrid', () => {
       <DanceScheduleGrid
         layout={makeLayout({
           visibleRooms: [],
-          placements: [{ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 }],
+          placements: [
+            { session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 },
+          ],
         })}
         showGca
       />,
@@ -128,7 +133,9 @@ describe('DanceScheduleGrid', () => {
     // The marker lives on the time axis, not the card — a roomless card never
     // carries any compression-related styling of its own (see
     // computeDanceScheduleTimeAxis.ts's elisionMarkers).
-    const { container } = render(<DanceScheduleGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />)
+    const { container } = render(
+      <DanceScheduleGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />,
+    )
     const marker = container.querySelector('.elisionMarker') as HTMLElement
     expect(marker).toBeInTheDocument()
     expect(marker).toHaveStyle({ gridRow: '5' })
@@ -137,6 +144,13 @@ describe('DanceScheduleGrid', () => {
   it('renders no elision marker when nothing was compressed', () => {
     const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
     expect(container.querySelector('.elisionMarker')).not.toBeInTheDocument()
+  })
+
+  it('renders no visual marker for a stretched row (expansion is silent, unlike elision)', () => {
+    const { container } = render(
+      <DanceScheduleGrid layout={makeLayout({ expansionMarkers: [7] })} showGca />,
+    )
+    expect(container.querySelector('.expansionMarker')).not.toBeInTheDocument()
   })
 
   it('renders a half-hour tick between the hour marks', () => {
@@ -185,7 +199,9 @@ describe('DanceScheduleGrid', () => {
       <DanceScheduleGrid
         layout={makeLayout({
           visibleRooms: [],
-          placements: [{ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 }],
+          placements: [
+            { session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 },
+          ],
         })}
         showGca
       />,
@@ -197,7 +213,9 @@ describe('DanceScheduleGrid', () => {
 
   it('uses a shorter row height (all rows uniformly, not just cards with GCA) when showGca is false', () => {
     const { container: shown } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
-    const { container: hidden } = render(<DanceScheduleGrid layout={makeLayout()} showGca={false} />)
+    const { container: hidden } = render(
+      <DanceScheduleGrid layout={makeLayout()} showGca={false} />,
+    )
 
     const bodyGridShown = shown.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
     const bodyGridHidden = hidden.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
@@ -205,7 +223,8 @@ describe('DanceScheduleGrid', () => {
     // Both extract the per-unit pixel value from "repeat(N, <px>px)" and compare —
     // asserting hidden < shown, not exact numbers, so this doesn't need updating
     // every time the actual pixel values are retuned.
-    const unitPx = (grid: HTMLElement) => Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
+    const unitPx = (grid: HTMLElement) =>
+      Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
     expect(unitPx(bodyGridHidden)).toBeLessThan(unitPx(bodyGridShown))
   })
 
@@ -221,7 +240,9 @@ describe('DanceScheduleGrid', () => {
           // A 2-row-unit (30-minute) card is too short for "SSD" plus a wrapping
           // caller name as two separate lines, even with the roomier
           // showGca-true 20px/unit row height.
-          placements: [{ session: longCallerSession, rowStart: 3, rowSpan: 2, columnStart: 0, columnSpan: 1 }],
+          placements: [
+            { session: longCallerSession, rowStart: 3, rowSpan: 2, columnStart: 0, columnSpan: 1 },
+          ],
         })}
         showGca
       />,
@@ -244,7 +265,9 @@ describe('DanceScheduleGrid', () => {
         layout={makeLayout({
           // A tall (2-hour, 8-row-unit) card has plenty of vertical room even if the
           // caller name wraps to a second line.
-          placements: [{ session: longCallerSession, rowStart: 3, rowSpan: 8, columnStart: 0, columnSpan: 1 }],
+          placements: [
+            { session: longCallerSession, rowStart: 3, rowSpan: 8, columnStart: 0, columnSpan: 1 },
+          ],
         })}
         showGca
       />,

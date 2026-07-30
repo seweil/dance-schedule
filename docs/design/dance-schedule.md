@@ -505,6 +505,54 @@ break's excess time got elided. Exactly 1 hour is left un-elided (only
 "Lunch Break" (90 minutes) and a "Dinner Break"-style 2.5-hour session both
 demonstrate this live.
 
+### A card whose content overflows stretches the time axis, the expansion counterpart to elision above
+**Why:** `docs/known-issues.md` documented a separate, pre-existing bug: a
+short (~30min) session's card is a fixed, time-proportional height with
+`overflow: hidden`, so a long details line (event type + caller name(s))
+could wrap to more lines than the card actually had room for and get
+visibly clipped — a partial mitigation (combining the level/room and
+details text onto one line when estimated to help) resolved some but not
+all real cases. Growing the card itself taller than its row span would
+break "vertical position exactly encodes time" for every session below it
+on the page; the elision mechanism above already establishes the right
+place to make that kind of change safely — the shared time axis itself,
+not a single card's own box.
+
+`expandDanceScheduleTimeAxis` (`computeDanceScheduleTimeAxis.ts`) is
+`compress()`'s direct mirror image: instead of removing rows for
+known-empty roomless excess time, it inserts extra rows right after an
+overflowing placement's own trailing edge (`rowStart + rowSpan`), never
+at its start — the same reasoning as elision's own "adjust the axis, not
+the card" principle, just run in the opposite direction. Layered as an
+independent second pass on top of the ordinary (elision-compressed) axis:
+each grid's layout function (`computeDanceScheduleLayout.ts`/
+`computeDanceScheduleLevelLayout.ts`) places sessions exactly as before,
+then — now knowing each placement's real column width (`roomTextWidthPx`/
+`levelTextWidthPx`, lane-aware for the level-columns view) — estimates a
+deficit via `estimateCardFit.ts`'s `estimateCardFit` (extended to report a
+real `neededHeightPx`, crediting the combine mitigation first) and
+`estimateCardExpansion.ts`'s `estimateCardRowExpansion`, capped at
+`MAX_EXPANSION_ROWS_PER_SESSION` (4 — a defensive ceiling against one
+pathological details string stretching the whole page's scroll length,
+not a "just enough" tuning). `expandDanceScheduleTimeAxis` composes all of
+a day's expansions into one remap, so every consumer (later placements,
+hour marks, `totalRowUnits`) stays self-consistent, mirroring elision's
+own guarantee.
+
+Two accepted, deliberate tradeoffs, not defects: a stretch adds harmless
+shared vertical slack to every other room/lane's card at that same moment
+too (row heights are shared across the whole grid), even ones whose own
+text already fit fine — unlike elision, which only ever touches provably-
+empty time, this one necessarily touches a real, occupied moment. And
+unlike elision, a stretch renders with **no visual marker** — an initial
+version added a zigzag in the opposite orientation/tint from elision's,
+but real data (a run of several consecutive short overflowing cards, e.g.
+a block of `GCA Caller Showcase Dance - <name>` sessions) produced a
+dense, distracting run of markers, so it was removed; a stretched row is
+silent. The underlying row positions are still exposed as
+`expansionMarkers: number[]` on both layouts (parallel to
+`elisionMarkers`) for potential future use, just not rendered today.
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't

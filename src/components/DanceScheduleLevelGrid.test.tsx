@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { DanceScheduleLevelGrid } from './DanceScheduleLevelGrid'
-import type { DanceLevelSessionPlacement, DanceScheduleLevelLayout } from '../lib/computeDanceScheduleLevelLayout'
+import type {
+  DanceLevelSessionPlacement,
+  DanceScheduleLevelLayout,
+} from '../lib/computeDanceScheduleLevelLayout'
 import { getLevelSlots } from '../lib/levelOrder'
 import { colorForSession, NEUTRAL_CARD_COLOR } from '../lib/levelColors'
 import type { DanceSession } from '../types/danceSchedule'
@@ -35,7 +38,9 @@ const ROOMLESS_SESSION: DanceSession = {
   description: 'Lunch Break',
 }
 
-function placement(overrides: Partial<DanceLevelSessionPlacement> = {}): DanceLevelSessionPlacement {
+function placement(
+  overrides: Partial<DanceLevelSessionPlacement> = {},
+): DanceLevelSessionPlacement {
   return {
     session: STRUCTURED_SESSION,
     rowStart: 3,
@@ -58,6 +63,7 @@ function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceSch
     ],
     halfHourMarks: [3],
     elisionMarkers: [],
+    expansionMarkers: [],
     placements: [placement()],
     ...overrides,
   }
@@ -162,7 +168,9 @@ describe('DanceScheduleLevelGrid', () => {
       <DanceScheduleLevelGrid
         layout={makeLayout({
           visibleSlots: [],
-          placements: [placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnSpan: 1 })],
+          placements: [
+            placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnSpan: 1 }),
+          ],
         })}
         showGca
       />,
@@ -175,7 +183,9 @@ describe('DanceScheduleLevelGrid', () => {
     // The marker lives on the time axis, not the card — a roomless card never
     // carries any compression-related styling of its own (see
     // computeDanceScheduleTimeAxis.ts's elisionMarkers).
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />)
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />,
+    )
     const marker = container.querySelector('.elisionMarker') as HTMLElement
     expect(marker).toBeInTheDocument()
     expect(marker).toHaveStyle({ gridRow: '5' })
@@ -184,6 +194,13 @@ describe('DanceScheduleLevelGrid', () => {
   it('renders no elision marker when nothing was compressed', () => {
     const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
     expect(container.querySelector('.elisionMarker')).not.toBeInTheDocument()
+  })
+
+  it('renders no visual marker for a stretched row (expansion is silent, unlike elision)', () => {
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout({ expansionMarkers: [7] })} showGca />,
+    )
+    expect(container.querySelector('.expansionMarker')).not.toBeInTheDocument()
   })
 
   it('renders a half-hour tick between the hour marks', () => {
@@ -237,12 +254,15 @@ describe('DanceScheduleLevelGrid', () => {
 
   it('uses a shorter row height when showGca is false', () => {
     const { container: shown } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
-    const { container: hidden } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca={false} />)
+    const { container: hidden } = render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca={false} />,
+    )
 
     const bodyGridShown = shown.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
     const bodyGridHidden = hidden.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
 
-    const unitPx = (grid: HTMLElement) => Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
+    const unitPx = (grid: HTMLElement) =>
+      Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
     expect(unitPx(bodyGridHidden)).toBeLessThan(unitPx(bodyGridShown))
   })
 
@@ -282,7 +302,7 @@ describe('DanceScheduleLevelGrid', () => {
       expect(card.style.marginLeft).toBe('50%')
     })
 
-    it('estimates a lane-split card\'s text width from its own (halved) box, not the full track', () => {
+    it("estimates a lane-split card's text width from its own (halved) box, not the full track", () => {
       // With the 150px column split into 2 lanes, a lane's actual box is 75px wide
       // (border-box) with 16px padding -> 59px usable. The bug this guards against
       // used (150 - 18) / 2 = 66px instead -- wide enough that "Jane Ross" (63px in
@@ -299,7 +319,9 @@ describe('DanceScheduleLevelGrid', () => {
       // formulas disagree on whether this card needs combining.
       const { container } = render(
         <DanceScheduleLevelGrid
-          layout={makeLayout({ placements: [placement({ session, rowStart: 3, rowSpan: 3, lane: 1, laneCount: 2 })] })}
+          layout={makeLayout({
+            placements: [placement({ session, rowStart: 3, rowSpan: 3, lane: 1, laneCount: 2 })],
+          })}
           showGca
         />,
       )
@@ -327,10 +349,7 @@ describe('DanceScheduleLevelGrid', () => {
       <DanceScheduleLevelGrid
         layout={makeLayout({
           visibleSlots: SLOTS.slice(0, 2),
-          placements: [
-            placement({ columnStart: 0 }),
-            placement({ columnStart: 1 }),
-          ],
+          placements: [placement({ columnStart: 0 }), placement({ columnStart: 1 })],
         })}
         showGca
       />,

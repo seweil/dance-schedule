@@ -1,31 +1,27 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
-import type { DanceScheduleLayout, DanceSessionPlacement } from '../lib/computeDanceScheduleLayout'
+import {
+  roomTextWidthPx,
+  ROOM_COLUMN_WIDTH,
+  type DanceScheduleLayout,
+  type DanceSessionPlacement,
+} from '../lib/computeDanceScheduleLayout'
 import { detailsContent, detailsPlainText } from '../lib/danceScheduleCardContent'
 import {
-  CARD_HORIZONTAL_OVERHEAD_PX,
   DETAILS_MEASUREMENT_FONT,
   UNIT_HEIGHT_PX_WITH_GCA,
   UNIT_HEIGHT_PX_WITHOUT_GCA,
 } from '../lib/danceScheduleCardSizing'
 import { shouldCombinePrimaryAndDetails } from '../lib/estimateCardFit'
-import { formatSessionGca, formatSessionLevels, formatSessionTimeRange } from '../lib/formatDanceSession'
+import {
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionTimeRange,
+} from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import { measureTextWidth } from '../lib/measureTextWidth'
 import styles from './DanceScheduleGrid.module.css'
 
 const TIME_COLUMN_WIDTH = '70px'
-// Fixed, not minmax(150px, 1fr) — headerGrid and bodyGrid are separate grid
-// containers that only share this computed string, not actual measured layout, so a
-// flexible 1fr track can resolve to a different pixel width in each (each grid's own
-// content — short room names vs. longer session-card text — independently drives its
-// intrinsic sizing once the box has to be at least content-sized; see the .grid
-// comment in the CSS module). A fixed width guarantees both grids agree exactly,
-// keeping header and body columns aligned at any scroll position. Tradeoff: room
-// columns no longer stretch to fill extra width on desktop when there are few rooms
-// (blank space to the right instead) — acceptable for now; revisit with a measured
-// (ResizeObserver-driven) shared width if that space needs to be reclaimed later.
-const ROOM_COLUMN_WIDTH_PX = 150
-const ROOM_COLUMN_WIDTH = `${ROOM_COLUMN_WIDTH_PX}px`
 
 function SessionCard({
   placement,
@@ -66,7 +62,7 @@ function SessionCard({
         detailsText: detailsPlainText(session),
         hasGcaLine: showGcaLine,
         availableHeightPx: rowSpan * unitHeightPx,
-        textWidthPx: columnSpan * ROOM_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX,
+        textWidthPx: roomTextWidthPx(columnSpan),
       },
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
     )
@@ -101,8 +97,15 @@ function SessionCard({
 // of its own — see the CSS module). Above the mobile breakpoint, both wrappers sit
 // inside one shared scrollable panel exactly like the single grid this replaced —
 // same visual result, no JS involved (the listener below is naturally inert there).
-export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLayout; showGca: boolean }) {
-  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } = layout
+export function DanceScheduleGrid({
+  layout,
+  showGca,
+}: {
+  layout: DanceScheduleLayout
+  showGca: boolean
+}) {
+  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } =
+    layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -155,7 +158,11 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
         <div className={styles.grid} style={{ gridTemplateColumns }}>
           <div className={styles.corner} style={{ gridRow: 1, gridColumn: 1 }} />
           {visibleRooms.map((room, index) => (
-            <div key={room} className={styles.roomHeader} style={{ gridRow: 1, gridColumn: index + 2 }}>
+            <div
+              key={room}
+              className={styles.roomHeader}
+              style={{ gridRow: 1, gridColumn: index + 2 }}
+            >
               {room}
             </div>
           ))}
@@ -164,7 +171,10 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
       <div className={styles.bodyWrapper} ref={setBodyRef}>
         <div
           className={styles.grid}
-          style={{ gridTemplateColumns, gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)` }}
+          style={{
+            gridTemplateColumns,
+            gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)`,
+          }}
         >
           {hourMarks.map((mark) => (
             <div
@@ -196,7 +206,12 @@ export function DanceScheduleGrid({ layout, showGca }: { layout: DanceScheduleLa
           {placements.map((placement, index) => (
             // Placements have no stable id of their own (a non-contiguous multi-room
             // session produces several for the same session) — index is stable per render.
-            <SessionCard key={index} placement={placement} showGca={showGca} unitHeightPx={unitHeightPx} />
+            <SessionCard
+              key={index}
+              placement={placement}
+              showGca={showGca}
+              unitHeightPx={unitHeightPx}
+            />
           ))}
         </div>
       </div>

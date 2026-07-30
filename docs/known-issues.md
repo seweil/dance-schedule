@@ -192,25 +192,52 @@ cards, 16 still overflow and all 16 were correctly flagged and combined
 Caller Showcase Dance - <name>" cards, whose combined text still needs 3
 wrapped lines in a 2-row-unit card) still clip, just by less than before.
 
-**Fix direction for the remaining cases (undecided):** either let cards
-grow taller than their strict time-proportional row span when their
-content demands it (breaks the "vertical position exactly encodes time"
-property elsewhere in the grid, needs a real design decision, not a quick
-tweak), or accept truncation with a `title` tooltip showing the full text
-on hover/tap. Decide the intended UX before implementing.
+**Fix shipped (2026-07-30): the axis is stretched to make room, instead of
+clipping.** The remaining cases needed a real design decision (recorded
+above as undecided) between growing a card taller than its strict
+time-proportional row span, or accepting truncation with a `title`
+tooltip. Landed on the former, implemented as the direct expansion
+counterpart to this same file's existing elision mechanism (a long
+roomless session's excess *empty* time already got compressed *out* of
+the axis — see `docs/design/dance-schedule.md`'s "elided from the time
+axis itself" decision) — run in reverse: `src/lib/estimateCardFit.ts`'s
+`estimateCardFit` now also reports a real `neededHeightPx` (crediting the
+combine mitigation first), `src/lib/estimateCardExpansion.ts` turns a
+positive deficit into a capped row count (`MAX_EXPANSION_ROWS_PER_SESSION
+= 4`, a defensive ceiling, not a "just enough" tuning), and
+`computeDanceScheduleTimeAxis.ts`'s `expandDanceScheduleTimeAxis` inserts
+those extra rows right after the overflowing placement's own trailing
+edge — shifting every later row (and any concurrent placement in another
+room/lane sharing that same row) down with it, the same "adjust the axis
+itself so every consumer stays self-consistent" property elision already
+had. Live-verified against the real Saturday data: both previously-cited
+cards ("GCA Caller Showcase Dance - Michael Maltenfort" and the
+overlap-lane case below) now render their full text with no clipping.
 
-**Compounded by overlap lanes in the level-columns view (2026-07-28):**
-`DanceScheduleLevelGrid.tsx`'s side-by-side lane rendering (see
-`docs/design/dance-schedule.md`'s Overlap lanes decision) halves a card's
-width whenever it shares a level at an overlapping time — the same
-overflow mechanism as above, just triggered by less horizontal room
-instead of less vertical room. Confirmed live: "Ballroom West Skirt Work
-Hour - Wendy VanderMeulen" in a 2-lane SSD column still clips even after
-the primary+details combine heuristic correctly triggers (its
-`textWidthPx` estimate now correctly accounts for the halved width — see
-below), because the combined text itself still needs more lines than a
-75px-wide, 1-hour-tall card has room for. Same undecided fix direction as
-above; no additional lane-specific mitigation attempted.
+Two accepted, deliberate consequences of this design (not defects): a
+stretch adds harmless shared vertical slack to every other room/lane's
+card at that same moment, even ones whose own text already fit fine
+(unlike elision, which only ever touches provably-empty time); and no
+visual marker renders at a stretch point (unlike elision's zigzag) — an
+initial version added one, but it read as too noisy/frequent against real
+data (many consecutive short overflowing cards in a row) and was removed,
+so a stretched row is currently silent. A session whose deficit exceeds
+the per-session cap still clips its residual overflow, same as before
+this fix — a strict improvement (less clipping), not a guarantee of zero
+clipping in every case.
+
+**Compounded by overlap lanes in the level-columns view (2026-07-28,
+covered by the same fix above):** `DanceScheduleLevelGrid.tsx`'s
+side-by-side lane rendering (see `docs/design/dance-schedule.md`'s
+Overlap lanes decision) halves a card's width whenever it shares a level
+at an overlapping time — the same overflow mechanism as above, just
+triggered by less horizontal room instead of less vertical room.
+Confirmed live: "Ballroom West Skirt Work Hour - Wendy VanderMeulen" in a
+2-lane SSD column previously still clipped even after the primary+details
+combine heuristic correctly triggered, because the combined text itself
+needed more lines than a 75px-wide, 1-hour-tall card had room for — now
+resolved the same way, since `computeDanceScheduleLevelLayout.ts` runs
+the identical deficit/expansion pass using the lane-aware `textWidthPx`.
 
 **Bug fixed same day:** the lane-split cards were initially rendering
 wider than their actual lane (bleeding into the neighboring lane/column)

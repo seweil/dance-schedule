@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { computeDanceScheduleTimeAxis, isContiguous } from './computeDanceScheduleTimeAxis'
+import {
+  computeDanceScheduleTimeAxis,
+  expandDanceScheduleTimeAxis,
+  isContiguous,
+  type DanceScheduleTimeAxis,
+} from './computeDanceScheduleTimeAxis'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
 function located(...rooms: string[]): SessionLocation {
   return { kind: 'located', rooms }
 }
 
-function makeSession(startTime: string, endTime: string, overrides: Partial<DanceSession> = {}): DanceSession {
+function makeSession(
+  startTime: string,
+  endTime: string,
+  overrides: Partial<DanceSession> = {},
+): DanceSession {
   return {
     kind: 'structured',
     date: new Date('2026-07-02T00:00:00.000Z'),
@@ -20,7 +29,11 @@ function makeSession(startTime: string, endTime: string, overrides: Partial<Danc
   } as DanceSession
 }
 
-function makeRoomless(startTime: string, endTime: string, description = 'Dinner Break'): DanceSession {
+function makeRoomless(
+  startTime: string,
+  endTime: string,
+  description = 'Dinner Break',
+): DanceSession {
   return {
     kind: 'freeform',
     date: new Date('2026-07-02T00:00:00.000Z'),
@@ -80,9 +93,13 @@ describe('computeDanceScheduleTimeAxis', () => {
     )
 
     expect(axis?.rowStartFor(new Date('2026-07-02T12:00:00.000Z'))).toBe(1)
-    expect(axis?.rowSpanFor(new Date('2026-07-02T12:00:00.000Z'), new Date('2026-07-02T12:30:00.000Z'))).toBe(2)
+    expect(
+      axis?.rowSpanFor(new Date('2026-07-02T12:00:00.000Z'), new Date('2026-07-02T12:30:00.000Z')),
+    ).toBe(2)
     expect(axis?.rowStartFor(new Date('2026-07-02T12:30:00.000Z'))).toBe(3)
-    expect(axis?.rowSpanFor(new Date('2026-07-02T12:30:00.000Z'), new Date('2026-07-02T13:15:00.000Z'))).toBe(3)
+    expect(
+      axis?.rowSpanFor(new Date('2026-07-02T12:30:00.000Z'), new Date('2026-07-02T13:15:00.000Z')),
+    ).toBe(3)
   })
 
   it('trims leading/trailing hours entirely empty after filtering, but never past the full day', () => {
@@ -108,7 +125,11 @@ describe('computeDanceScheduleTimeAxis', () => {
 
 describe('eliding a long roomless session (e.g. a meal break)', () => {
   it('does not elide a roomless session of 1 hour or less', () => {
-    const lunch = makeRoomless('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', 'Lunch Break')
+    const lunch = makeRoomless(
+      '2026-07-02T12:00:00.000Z',
+      '2026-07-02T13:00:00.000Z',
+      'Lunch Break',
+    )
     const later = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z')
     const axis = computeDanceScheduleTimeAxis([lunch, later], [lunch, later])
 
@@ -182,7 +203,11 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     // visible at noon, 30 min visible at 1:30, with the 12:30-1:30 middle
     // elided. 1:00 PM falls inside that elided middle; 2:00 PM — the real time
     // the next event starts — does not, and must still be shown.
-    const lunch = makeRoomless('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Lunch Break')
+    const lunch = makeRoomless(
+      '2026-07-02T12:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      'Lunch Break',
+    )
     const axis = computeDanceScheduleTimeAxis([lunch], [lunch])
 
     expect(axis?.hourMarks).toEqual([
@@ -199,7 +224,11 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     // still compresses to the identical row as the marker itself (every point
     // in an elided interval collapses to one row), so showing it would stack a
     // text label directly onto the marker. Dropping it avoids that crowding.
-    const lunch = makeRoomless('2026-07-02T12:00:00.000Z', '2026-07-02T13:30:00.000Z', 'Lunch Break')
+    const lunch = makeRoomless(
+      '2026-07-02T12:00:00.000Z',
+      '2026-07-02T13:30:00.000Z',
+      'Lunch Break',
+    )
     const axis = computeDanceScheduleTimeAxis([lunch], [lunch])
 
     expect(axis?.hourMarks.map((mark) => mark.label)).toEqual(['12:00 PM', '2:00 PM'])
@@ -210,5 +239,100 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     for (const mark of axis?.hourMarks ?? []) {
       expect(markerRows.has(mark.rowStart)).toBe(false)
     }
+  })
+})
+
+describe('expandDanceScheduleTimeAxis', () => {
+  // A plain 2-hour axis (12:00-2:00 PM), no elision — totalRowUnits 8, hourMarks at
+  // rows 1/5/9 (12:00/1:00/2:00, dayEnd is inclusive), halfHourMarks at 3/7. Every
+  // test below layers expansions on top of this same base axis.
+  function baseAxis(): DanceScheduleTimeAxis {
+    const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([session], [session])
+    if (!axis) {
+      throw new Error('expected an axis')
+    }
+    return axis
+  }
+
+  it('is an identity passthrough when there are no expansions', () => {
+    const axis = baseAxis()
+    const expanded = expandDanceScheduleTimeAxis(axis, [])
+
+    expect(expanded.totalRowUnits).toBe(axis.totalRowUnits)
+    expect(expanded.hourMarks).toEqual(axis.hourMarks)
+    expect(expanded.halfHourMarks).toEqual(axis.halfHourMarks)
+    expect(expanded.elisionMarkers).toEqual(axis.elisionMarkers)
+    expect(expanded.expansionMarkers).toEqual([])
+  })
+
+  it('shifts only rows at or after the expansion, leaving earlier rows untouched', () => {
+    const expanded = expandDanceScheduleTimeAxis(baseAxis(), [{ afterRow: 4, rows: 2 }])
+
+    expect(expanded.hourMarks).toEqual([
+      { rowStart: 1, label: '12:00 PM' }, // before the expansion — unaffected
+      { rowStart: 7, label: '1:00 PM' }, // was 5, +2
+      { rowStart: 11, label: '2:00 PM' }, // was 9, +2
+    ])
+    expect(expanded.halfHourMarks).toEqual([3, 9]) // 3 unaffected, 7 -> 9
+    expect(expanded.totalRowUnits).toBe(10) // was 8, +2
+    // The marker itself sits at the FIRST newly-opened row (4), not the row where
+    // old content resumes after the gap (6, which is what hourMarks/totalRowUnits
+    // above correctly use instead).
+    expect(expanded.expansionMarkers).toEqual([4])
+  })
+
+  it('composes two expansions at different points cumulatively', () => {
+    const expanded = expandDanceScheduleTimeAxis(baseAxis(), [
+      { afterRow: 2, rows: 1 },
+      { afterRow: 6, rows: 3 },
+    ])
+
+    expect(expanded.totalRowUnits).toBe(12) // 8 + 1 + 3
+    // First marker: no earlier expansion, so it's unshifted (2). Second marker: the
+    // first expansion's 1 row has already opened up before it, so 6 + 1 = 7.
+    expect(expanded.expansionMarkers).toEqual([2, 7])
+  })
+
+  it('takes the max, not the sum, when two expansions share the same afterRow', () => {
+    const expanded = expandDanceScheduleTimeAxis(baseAxis(), [
+      { afterRow: 4, rows: 2 },
+      { afterRow: 4, rows: 5 },
+    ])
+
+    expect(expanded.totalRowUnits).toBe(13) // 8 + max(2, 5), not 8 + 2 + 5
+    expect(expanded.expansionMarkers).toEqual([4]) // one marker, not two, unshifted (no earlier expansion)
+  })
+
+  it('composes correctly on top of an already-elided axis', () => {
+    const dinner = makeRoomless('2026-07-02T18:00:00.000Z', '2026-07-02T20:30:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([dinner], [dinner])
+    if (!axis) {
+      throw new Error('expected an axis')
+    }
+    // totalRowUnits 6, elisionMarkers [3] (see the elision describe block above).
+    const expanded = expandDanceScheduleTimeAxis(axis, [{ afterRow: 3, rows: 2 }])
+
+    expect(expanded.totalRowUnits).toBe(8) // 6 + 2
+    // The elision marker is an existing boundary being shifted PAST the new gap
+    // (uses the inclusive remapRow, same as any other placement boundary): 3 + 2 = 5.
+    expect(expanded.elisionMarkers).toEqual([5])
+    // The expansion marker is the gap's own opening row, unshifted (no earlier
+    // expansion): 3.
+    expect(expanded.expansionMarkers).toEqual([3])
+  })
+
+  it('keeps an hour/half-hour mark that lands exactly on an expansion boundary, unlike elision', () => {
+    // Unlike isElided (which drops a mark landing on an elision boundary since it'd
+    // stack on the marker), expansion never collapses distinct rows together, so a
+    // mark exactly at the expansion point is simply shifted, never dropped.
+    const expanded = expandDanceScheduleTimeAxis(baseAxis(), [{ afterRow: 5, rows: 2 }])
+
+    expect(expanded.hourMarks).toHaveLength(3)
+    expect(expanded.hourMarks).toEqual([
+      { rowStart: 1, label: '12:00 PM' },
+      { rowStart: 7, label: '1:00 PM' },
+      { rowStart: 11, label: '2:00 PM' },
+    ])
   })
 })

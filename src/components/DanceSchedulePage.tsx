@@ -27,8 +27,8 @@ export function DanceSchedulePage() {
   } = useDanceScheduleFilters(sessions, contentConfig.features.combineA1A2)
 
   const layout = useMemo(
-    () => computeDanceScheduleLayout(dateSessions, visibleSessions),
-    [dateSessions, visibleSessions],
+    () => computeDanceScheduleLayout(dateSessions, visibleSessions, showGca),
+    [dateSessions, visibleSessions, showGca],
   )
 
   return (

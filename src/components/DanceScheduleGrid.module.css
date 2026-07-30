@@ -133,10 +133,7 @@
   left: 0;
   z-index: 1;
   display: flex;
-  /* Flush with the row's top edge, not vertically centered — the tick marks the
-     exact half-hour boundary line, the same line a session card starting then would
-     align its own top edge to (mirrors .timeLabel's border-top for the same reason). */
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
   padding-right: var(--space-sm);
 }

@@ -89,11 +89,15 @@ function trimEmptyDayEdges(
     return { dayStart: fullDayStart, dayEnd: fullDayEnd }
   }
 
-  const earliestVisibleStart = new Date(Math.min(...visibleSessions.map((s) => s.startTime.getTime())))
+  const earliestVisibleStart = new Date(
+    Math.min(...visibleSessions.map((s) => s.startTime.getTime())),
+  )
   const latestVisibleEnd = new Date(Math.max(...visibleSessions.map((s) => s.endTime.getTime())))
 
   return {
-    dayStart: new Date(Math.max(fullDayStart.getTime(), floorToHour(earliestVisibleStart).getTime())),
+    dayStart: new Date(
+      Math.max(fullDayStart.getTime(), floorToHour(earliestVisibleStart).getTime()),
+    ),
     dayEnd: new Date(Math.min(fullDayEnd.getTime(), ceilToHour(latestVisibleEnd).getTime())),
   }
 }
@@ -175,7 +179,8 @@ export function computeDanceScheduleTimeAxis(
   )
   const { dayStart, dayEnd } = trimEmptyDayEdges(fullDayStart, fullDayEnd, visibleSessions)
 
-  const rawUnitFor = (time: Date): number => Math.round((time.getTime() - dayStart.getTime()) / UNIT_MS)
+  const rawUnitFor = (time: Date): number =>
+    Math.round((time.getTime() - dayStart.getTime()) / UNIT_MS)
 
   // Elision intervals, converted into raw row-unit space (rounded the same way
   // every other row computation already is) and clamped to this axis's own
@@ -258,4 +263,111 @@ export function computeDanceScheduleTimeAxis(
   const elisionMarkers = rawElisions.map((elision) => compress(elision.rawStart) + 1)
 
   return { totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, rowStartFor, rowSpanFor }
+}
+
+export interface RowExpansion {
+  // A row position already produced by this axis's own rowStartFor/rowSpanFor — a
+  // placement's rowStart + rowSpan, its trailing edge. Never a session's own
+  // rowStart — see expandDanceScheduleTimeAxis's doc comment for why only the
+  // trailing edge is used.
+  afterRow: number
+  rows: number
+}
+
+export interface DanceScheduleTimeAxisExpansion {
+  totalRowUnits: number
+  hourMarks: HourMark[]
+  halfHourMarks: number[]
+  elisionMarkers: number[]
+  // Row positions (in this expanded axis's own row space) where the axis was
+  // stretched — the expansion counterpart to elisionMarkers above. Not currently
+  // rendered as a visual marker (unlike elisionMarkers), but exposed since it's
+  // still meaningful diagnostic data about where/how much the axis was stretched.
+  expansionMarkers: number[]
+  // Remaps a row-unit value already produced by `axis` (a placement's rowStart, or
+  // rowStart + rowSpan) into this expanded axis's row space.
+  remapRow: (row: number) => number
+}
+
+/**
+ * Layers a second remap on top of an already-computed DanceScheduleTimeAxis to open
+ * up extra, purely-visual rows for a session card whose estimated content needs more
+ * vertical space than its real, time-proportional row span provides (see
+ * docs/known-issues.md's "long wrapping text clips on very short sessions") — the
+ * expansion counterpart to this file's own elision/compress mechanism above, run in
+ * the opposite direction (adding rows instead of removing them).
+ *
+ * Each RowExpansion is anchored at the overflowing placement's own TRAILING edge
+ * (rowStart + rowSpan), never its start: a card's start must stay glued to its real
+ * start time (what every hour-mark-aligned reading of the grid relies on), so the
+ * extra room only ever grows straight down from the card's real content — the same
+ * "adjust the axis, not one card's own box" principle elision already established
+ * (see the abandoned first elision attempt referenced in
+ * docs/design/dance-schedule.md), just with the sign flipped.
+ *
+ * Callers pass row positions already produced by `axis`'s own rowStartFor/
+ * rowSpanFor/totalRowUnits — this never needs to go back through raw Date/ms math,
+ * and knows nothing about session content/text — that estimation lives in
+ * estimateCardExpansion.ts, one layer up.
+ */
+export function expandDanceScheduleTimeAxis(
+  axis: DanceScheduleTimeAxis,
+  expansions: RowExpansion[],
+): DanceScheduleTimeAxisExpansion {
+  // Two different placements can legitimately share the same trailing edge and both
+  // need expansion there — one shared strip is enough for both, sized to the larger
+  // need, not their sum (a non-contiguous multi-room session's several placements,
+  // which always share the same rowStart/rowSpan, emit identical {afterRow, rows}
+  // entries this way — a no-op, not doubled).
+  const maxRowsByAfterRow = new Map<number, number>()
+  for (const expansion of expansions) {
+    const existing = maxRowsByAfterRow.get(expansion.afterRow) ?? 0
+    maxRowsByAfterRow.set(expansion.afterRow, Math.max(existing, expansion.rows))
+  }
+  const sortedExpansions = [...maxRowsByAfterRow.entries()]
+    .map(([afterRow, rows]) => ({ afterRow, rows }))
+    .sort((a, b) => a.afterRow - b.afterRow)
+
+  // Adds however many rows have already opened up at-or-before `row` — the mirror
+  // image of compress() above (adds instead of subtracts, and a point threshold
+  // instead of an interval, since an expansion has no "width" of its own to walk
+  // through). Strictly increasing by construction (row itself is strictly
+  // increasing; the added amount is non-decreasing), unlike compress()'s isElided —
+  // no dedup pass is ever needed on hourMarks/halfHourMarks here, since expansion
+  // only ever spreads distinct rows further apart, never collapses two into one. An
+  // identity (no-op) when sortedExpansions is empty.
+  const remapRow = (row: number): number => {
+    let added = 0
+    for (const expansion of sortedExpansions) {
+      if (expansion.afterRow > row) {
+        break
+      }
+      added += expansion.rows
+    }
+    return row + added
+  }
+
+  // Where a marker itself renders: the FIRST of the newly-opened rows, not the row
+  // where old content resumes after them (that's remapRow(afterRow) above, which
+  // deliberately includes this expansion's own contribution — correct for shifting
+  // a placement boundary or hour mark past the gap, but one expansion too far for
+  // the gap's own opening row). Computed with only the EARLIER expansions' shifts
+  // applied (a running prefix sum, since sortedExpansions is already ascending),
+  // mirroring elisionMarkers' own convention above (compress(rawStart), which
+  // similarly excludes that same elision's own removal before the "+1").
+  let cumulativeRows = 0
+  const expansionMarkers: number[] = []
+  for (const expansion of sortedExpansions) {
+    expansionMarkers.push(expansion.afterRow + cumulativeRows)
+    cumulativeRows += expansion.rows
+  }
+
+  return {
+    totalRowUnits: remapRow(axis.totalRowUnits),
+    hourMarks: axis.hourMarks.map((mark) => ({ ...mark, rowStart: remapRow(mark.rowStart) })),
+    halfHourMarks: axis.halfHourMarks.map(remapRow),
+    elisionMarkers: axis.elisionMarkers.map(remapRow),
+    expansionMarkers,
+    remapRow,
+  }
 }
