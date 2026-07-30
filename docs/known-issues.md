@@ -3,6 +3,211 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
+## `combineA1A2` silently defaults to `false`, opposite of the documented recommendation
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`vite-plugin-content-config.ts`'s `DEFAULT_CONTENT_CONFIG` (used when
+`config.yaml` is absent) and its missing-key fallback (`?? false`) both
+default `features.combineA1A2` to `false`. But `docs/adding-a-new-event.md`
+explicitly documents skipping `config.yaml` entirely as producing "sensible
+defaults," and its own example recommends `combineA1A2: true` ("set to true
+unless yours genuinely needs A1 and A2 kept separate").
+
+**Impact:** any new event that follows the guide and omits `config.yaml` (an
+explicitly encouraged shortcut) silently gets the *opposite* of the
+documented default — a split A1/A2 slider stop instead of combined — with no
+warning anywhere.
+
+**Fix direction:** flip both defaults in `vite-plugin-content-config.ts` to
+`true`, matching the docs.
+
+## No month/day bounds validation before `Date.UTC()` in `parseEventDate`
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+None of `parseEventDate.ts`'s four date-construction branches (ISO,
+`SLASH_DATE`, `LONG_DATE`, and their no-year variants) validate that month is
+1–12 or day is valid for that month before calling `Date.UTC()`, which
+silently normalizes out-of-range components into a different, wrong-but-
+valid date instead of throwing.
+
+**Failure scenario:** a volunteer enters `15/8/2026` meaning Aug 15, 2026
+(day/month order). `SLASH_DATE`'s regex matches (month=15, day=8), and
+`Date.UTC(2026, 14, 8)` silently rolls into March 8, 2027 — no error, no
+build failure, just a wrong event date shipped, contradicting the pipeline's
+stated goal that bad input "fails the build with the offending row
+identified."
+
+**Fix direction:** validate month ∈ [1,12] and day ∈ [1, days-in-that-month]
+(accounting for leap years) in each branch before constructing the `Date`,
+throwing the same kind of named error as the existing "unrecognized format"
+paths.
+
+## Dance-schedule row parsing silently drops cells beyond the header's width
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`parseDanceScheduleSheet.ts`'s per-row cell scan iterates only over `rooms`
+(derived from the header row's own width) — a data row with *more* filled
+cells than the header row silently never reads, parses, or reports the
+extra ones.
+
+**Failure scenario:** header row is `['Time', 'Ballroom Centre']` (1 room)
+but a data row has content typed one column too far right, e.g.
+`['12:30p-1:30p', 'SSD : Dancing - Vic Ceder', 'Plus : Dancing - Kris
+Jensen']`. The whole session in the extra column silently vanishes with no
+error, even though the project's design goal is that anything unparseable
+fails the build with the offending cell identified.
+
+**Fix direction:** after building `rooms`, also check each data row's own
+length against the header width and raise a named error (sheet/row/column)
+for any populated cell beyond it.
+
+## Level taxonomy is hardcoded to modern western square dance only
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`src/types/danceSchedule.ts`'s `LEVEL_CODES` (and `levelOrder.ts`'s
+`LEVEL_ORDER`/`getLevelSlots`) hardcode the square-dance skill taxonomy
+(SSD/MS/Plus/A1/A2/C1–C4) with no config-driven way for a new event to
+define a different one. Compounding this, `getLevelSlots`'s `combineA1A2`
+branch hand-duplicates `LEVEL_ORDER`'s items as a second literal array
+instead of deriving them from it.
+
+**Failure scenario:** both existing real events' own home-page copy
+advertises "square and round dancing," but a round-dance session entered
+with a real round-dance level (e.g. `Bronze` or `Phase 4`) fails
+`isValidLevel` and breaks the entire build with "Unrecognized level code" —
+that content can't be represented at all without a code change. Separately,
+inserting a new level into `LEVEL_ORDER` (e.g. a `C3C`) is easy to forget to
+also add to `getLevelSlots`'s combined-mode list, silently dropping it from
+every `combineA1A2: true` event's slider/filter range with no build error.
+
+**Fix direction:** derive the combined-mode slot list from `LEVEL_ORDER`
+programmatically (e.g. a config-driven merge-pairs list) instead of a
+hand-duplicated array. Making the taxonomy itself content-set-configurable
+(for a genuinely different dance form) is a bigger design question — worth
+a `docs/design/` entry of its own if a real round-dance or contra event is
+ever added, rather than a quick fix here.
+
+## Blank/undefined dance-schedule header cell becomes the literal room "undefined"
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`parseDanceScheduleSheet.ts` builds room names via
+`headerRow.slice(1).map((cell) => String(cell))` — an empty/undefined
+header cell becomes the literal string `"undefined"` (or `"null"`) instead
+of being rejected.
+
+**Failure scenario:** an accidentally-empty header cell between two real
+room columns (e.g. from a deleted column in Excel) produces
+`rooms = ['Ballroom Centre', 'undefined', 'Ballroom East']` — a phantom
+column literally labeled "undefined" renders in the UI, and content typed
+under it parses successfully against that nonsense room name instead of
+failing the build.
+
+**Fix direction:** reject (throw a named, cell-identifying error for) any
+header cell that's `null`/`undefined`/empty string before building `rooms`.
+
+## Dance-schedule time range with no AM/PM on either side isn't cross-checked
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`parseTimeRange.ts`'s meridiem-inference only fires when exactly one side
+of a range has AM/PM and the other doesn't. When *neither* side specifies
+it, both parse as literal 24-hour values with no plausibility check.
+
+**Failure scenario:** a volunteer enters `1-3` meaning 1:00 PM–3:00 PM
+(afternoon session, meridiem omitted as "obviously" afternoon). Both sides
+parse as literal 24-hour (1:00 AM, 3:00 AM); since 1am < 3am the
+start-before-end check doesn't throw — the session is silently scheduled
+at 1–3 AM instead of 1–3 PM, with no build error.
+
+**Fix direction:** undecided — could require at least one side to specify
+AM/PM when both raw hours are ≤12 (failing loudly instead), or restrict the
+literal-24-hour fallback to hours that couldn't plausibly be 12-hour (13–23).
+Needs a decision on which real-world inputs should still be allowed bare.
+
+## `RESERVED_NAMES` omits `debug` and `clear-storage`
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`scripts/build-content-sets.mjs`'s `RESERVED_NAMES` (and the matching list
+in `docs/adding-a-new-event.md`) protects against a content set colliding
+with `assets`/`icons`/`index.html`/`manifest.webmanifest`/`sw.js`/
+`workbox-*`, but omits `debug` and `clear-storage` — both real routes
+hardcoded into every build via `src/App.tsx`'s `debugRoutes`/`utilityRoutes`.
+
+**Failure scenario:** a future event named `content/debug/` (a plausible
+name for a staging/preview set) produces its own `dist/debug/index.html`,
+which is a real static file that permanently shadows the root-mirrored
+build's client-side `/debug` → `/debug/dance-schedule` redirect at that
+exact URL — the root build's own debug page becomes unreachable with no
+build-time error, the same class of silent corruption the existing
+reserved-name check exists to catch.
+
+**Fix direction:** add `debug` and `clear-storage` to `RESERVED_NAMES` and
+to the doc's matching list.
+
+## Dance-schedule header room names aren't trimmed before `ROOMS:` validation
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+Room names built from the header row (`parseDanceScheduleSheet.ts`) are
+never trimmed, so an invisible trailing space in a header cell breaks an
+otherwise-correct `ROOMS:` reference to that same room.
+
+**Failure scenario:** a header cell is typed as `Ballroom Centre ` (trailing
+space, invisible in Excel). `allRooms` retains the trailing space verbatim,
+but a `ROOMS: Ballroom Centre, Ballroom East` line trims each entry to
+`Ballroom Centre` before checking `allRooms.includes(...)` — the check
+fails and throws `names unrecognized room "Ballroom Centre"` even though
+the room visibly matches in the spreadsheet.
+
+**Fix direction:** `.trim()` each header cell when building `rooms`, same as
+the `ROOMS:` line's own entries already are.
+
+## Dance-schedule sheet-name weekday regex rejects a comma after the weekday
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`WEEKDAY_PREFIX` (`/^\w+day\s+/i`) requires whitespace immediately after the
+weekday name, so a naturally-punctuated sheet name like `Thursday, July 2`
+fails to have its weekday stripped, and the whole string then fails every
+format `parseEventDate` accepts.
+
+**Failure scenario:** a content author names a sheet `Thursday, July 2`
+(comma after the weekday — a very natural way to write it, e.g. copy-pasted
+from a calendar app). The regex doesn't match since a comma isn't
+whitespace, so the unmodified string reaches `parseEventDate`, which has no
+format expecting a leading weekday token at all and throws "Unrecognized
+date format," failing that entire sheet.
+
+**Fix direction:** allow an optional comma in `WEEKDAY_PREFIX`, e.g.
+`/^\w+day,?\s+/i`.
+
+## Duplicate dance-schedule header room names break `ROOMS:` conflict detection
+
+**Found:** 2026-07-29, deep code review for correctness/generality bugs.
+
+`rooms.indexOf(room)` (used when validating a `ROOMS:` line's other claimed
+rooms) always resolves to the *first* matching header column, so two header
+columns sharing the same room name silently break the "claimed room's cell
+must be blank" check for the second occurrence.
+
+**Failure scenario:** a header row accidentally has two columns both named
+`Overflow` (e.g. a copy-paste mistake when adding a room). A `ROOMS:` line
+elsewhere claims `Overflow`; `rooms.indexOf('Overflow')` always returns the
+first column's index, so if that one is blank but the second `Overflow`
+column has real, independent content in that time slot, the conflict is
+never detected — that second room's actual session is silently dropped from
+the row with no error.
+
+**Fix direction:** reject duplicate room names in the header row outright
+(a named build-time error), same category as the existing reserved-name/
+collision checks elsewhere in the pipeline.
+
 ## Flaky: "nav links to the schedule page, which renders events"
 
 **Found:** 2026-07-26, same verification pass.
