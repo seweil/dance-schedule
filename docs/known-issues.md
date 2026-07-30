@@ -68,27 +68,6 @@ AM/PM when both raw hours are ≤12 (failing loudly instead), or restrict the
 literal-24-hour fallback to hours that couldn't plausibly be 12-hour (13–23).
 Needs a decision on which real-world inputs should still be allowed bare.
 
-## `RESERVED_NAMES` omits `debug` and `clear-storage`
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-`scripts/build-content-sets.mjs`'s `RESERVED_NAMES` (and the matching list
-in `docs/adding-a-new-event.md`) protects against a content set colliding
-with `assets`/`icons`/`index.html`/`manifest.webmanifest`/`sw.js`/
-`workbox-*`, but omits `debug` and `clear-storage` — both real routes
-hardcoded into every build via `src/App.tsx`'s `debugRoutes`/`utilityRoutes`.
-
-**Failure scenario:** a future event named `content/debug/` (a plausible
-name for a staging/preview set) produces its own `dist/debug/index.html`,
-which is a real static file that permanently shadows the root-mirrored
-build's client-side `/debug` → `/debug/dance-schedule` redirect at that
-exact URL — the root build's own debug page becomes unreachable with no
-build-time error, the same class of silent corruption the existing
-reserved-name check exists to catch.
-
-**Fix direction:** add `debug` and `clear-storage` to `RESERVED_NAMES` and
-to the doc's matching list.
-
 ## Flaky: "nav links to the schedule page, which renders events"
 
 **Found:** 2026-07-26, same verification pass.

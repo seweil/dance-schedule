@@ -30,7 +30,19 @@ const DIST_DIR = path.join(root, 'dist')
 // dist/ tree (e.g. a set literally named "assets" would collide with the default
 // build's own /assets/ directory) — not expected in practice, but fail loudly
 // rather than silently overwrite build output. See docs/design/content-sets.md.
-const RESERVED_NAMES = new Set(['assets', 'icons', 'index.html', 'manifest.webmanifest', 'sw.js'])
+// "debug"/"clear-storage" are included alongside the static asset paths because
+// they're real routes hardcoded into every build (src/App.tsx's debugRoutes/
+// utilityRoutes) — a content set with either name would produce a real
+// dist/<name>/index.html that permanently shadows that hardcoded route.
+const RESERVED_NAMES = new Set([
+  'assets',
+  'icons',
+  'index.html',
+  'manifest.webmanifest',
+  'sw.js',
+  'debug',
+  'clear-storage',
+])
 
 function listContentSets() {
   const contentDir = path.join(root, 'content')
