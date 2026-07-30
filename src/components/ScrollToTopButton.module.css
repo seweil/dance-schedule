@@ -4,7 +4,9 @@
    handling is needed on top of the data-visible attribute. */
 .button {
   position: fixed;
-  right: var(--space-sm);
+  /* Nudged in further than --space-sm alone — flush against the edge, the button
+     sits right under the iPhone's rounded screen corner and is easy to miss/mistap. */
+  right: calc(var(--space-sm) + 10px);
   bottom: var(--space-sm);
   z-index: 10;
   display: flex;
