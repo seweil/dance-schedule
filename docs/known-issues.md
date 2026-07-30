@@ -22,28 +22,6 @@ warning anywhere.
 **Fix direction:** flip both defaults in `vite-plugin-content-config.ts` to
 `true`, matching the docs.
 
-## No month/day bounds validation before `Date.UTC()` in `parseEventDate`
-
-**Found:** 2026-07-29, deep code review for correctness/generality bugs.
-
-None of `parseEventDate.ts`'s four date-construction branches (ISO,
-`SLASH_DATE`, `LONG_DATE`, and their no-year variants) validate that month is
-1–12 or day is valid for that month before calling `Date.UTC()`, which
-silently normalizes out-of-range components into a different, wrong-but-
-valid date instead of throwing.
-
-**Failure scenario:** a volunteer enters `15/8/2026` meaning Aug 15, 2026
-(day/month order). `SLASH_DATE`'s regex matches (month=15, day=8), and
-`Date.UTC(2026, 14, 8)` silently rolls into March 8, 2027 — no error, no
-build failure, just a wrong event date shipped, contradicting the pipeline's
-stated goal that bad input "fails the build with the offending row
-identified."
-
-**Fix direction:** validate month ∈ [1,12] and day ∈ [1, days-in-that-month]
-(accounting for leap years) in each branch before constructing the `Date`,
-throwing the same kind of named error as the existing "unrecognized format"
-paths.
-
 ## Dance-schedule row parsing silently drops cells beyond the header's width
 
 **Found:** 2026-07-29, deep code review for correctness/generality bugs.

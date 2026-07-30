@@ -52,6 +52,30 @@ describe('parseEventDate', () => {
     expect(() => parseEventDate('Augtober 15, 2026')).toThrow()
   })
 
+  it('throws for an out-of-range month instead of silently rolling into a later date', () => {
+    // Day/month transposed, e.g. "15/8/2026" meaning Aug 15 — must not silently
+    // roll into March of the following year via Date.UTC()'s normalization.
+    expect(() => parseEventDate('15/8/2026')).toThrow(/Invalid month/)
+    expect(() => parseEventDate('2026-13-01')).toThrow(/Invalid month/)
+  })
+
+  it('throws for an out-of-range day instead of silently rolling into a later date', () => {
+    expect(() => parseEventDate('2/30/2026')).toThrow(/Invalid day/)
+    expect(() => parseEventDate('2026-02-30')).toThrow(/Invalid day/)
+    expect(() => parseEventDate('February 30, 2026')).toThrow(/Invalid day/)
+  })
+
+  it('rejects Feb 29 in a non-leap year but accepts it in a leap year', () => {
+    expect(() => parseEventDate('2/29/2026')).toThrow(/Invalid day/)
+    expect(parseEventDate('2/29/2028')).toEqual(new Date(Date.UTC(2028, 1, 29)))
+  })
+
+  it('applies the same month/day bounds to year-less dates', () => {
+    const referenceDate = new Date(Date.UTC(2026, 6, 1)) // July 1, 2026
+    expect(() => parseEventDate('15/8', referenceDate)).toThrow(/Invalid month/)
+    expect(() => parseEventDate('2/30', referenceDate)).toThrow(/Invalid day/)
+  })
+
   it('throws for a non-string, non-Date, non-number value', () => {
     expect(() => parseEventDate(null)).toThrow()
     expect(() => parseEventDate(undefined)).toThrow()

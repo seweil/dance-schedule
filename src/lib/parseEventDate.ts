@@ -51,15 +51,40 @@ function normalizeYear(rawYear: string): number {
   return 2000 + Number(rawYear)
 }
 
+function daysInMonth(year: number, month0: number): number {
+  return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate()
+}
+
+// Without these, Date.UTC() silently normalizes an out-of-range month/day into a
+// different, wrong-but-valid date instead of throwing (e.g. month=15 rolls into the
+// following year's March) — the pipeline's stated goal is to fail the build with the
+// offending row identified, not ship a silently-wrong date.
+function assertValidMonth(month0: number, raw: string): void {
+  if (month0 < 0 || month0 > 11) {
+    throw new Error(`Invalid month in date "${raw}"`)
+  }
+}
+
+function assertValidDay(day: number, month0: number, year: number, raw: string): void {
+  const maxDay = daysInMonth(year, month0)
+  if (day < 1 || day > maxDay) {
+    throw new Error(`Invalid day ${day} for month ${month0 + 1} in date "${raw}"`)
+  }
+}
+
 // Assumes the current year (relative to referenceDate); if that produces a date more
 // than ~6 months in the past, assumes next year instead — handles the year-boundary
 // case (e.g. building in December for a January event) without rolling forward
-// recently-past events, which we still want to show.
-function inferYear(month: number, day: number, referenceDate: Date): Date {
+// recently-past events, which we still want to show. Day validity is checked against
+// the current year (not whichever year is ultimately chosen) — the one case this
+// misses is a bare "2/29" that's invalid this year but would become valid next year
+// via the rollover, rare enough not to be worth a second check.
+function inferYear(month0: number, day: number, referenceDate: Date, raw: string): Date {
   const currentYear = referenceDate.getUTCFullYear()
-  const candidate = new Date(Date.UTC(currentYear, month, day))
+  assertValidDay(day, month0, currentYear, raw)
+  const candidate = new Date(Date.UTC(currentYear, month0, day))
   if (referenceDate.getTime() - candidate.getTime() > SIX_MONTHS_MS) {
-    return new Date(Date.UTC(currentYear + 1, month, day))
+    return new Date(Date.UTC(currentYear + 1, month0, day))
   }
   return candidate
 }
@@ -88,31 +113,42 @@ export function parseEventDate(value: unknown, referenceDate: Date = new Date())
   const isoMatch = ISO_DATE.exec(trimmed)
   if (isoMatch) {
     const [, year, month, day] = isoMatch
-    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
+    const month0 = Number(month) - 1
+    assertValidMonth(month0, trimmed)
+    assertValidDay(Number(day), month0, Number(year), trimmed)
+    return new Date(Date.UTC(Number(year), month0, Number(day)))
   }
 
   const slashMatch = SLASH_DATE.exec(trimmed)
   if (slashMatch) {
     const [, month, day, year] = slashMatch
-    return new Date(Date.UTC(normalizeYear(year!), Number(month) - 1, Number(day)))
+    const month0 = Number(month) - 1
+    const normalizedYear = normalizeYear(year!)
+    assertValidMonth(month0, trimmed)
+    assertValidDay(Number(day), month0, normalizedYear, trimmed)
+    return new Date(Date.UTC(normalizedYear, month0, Number(day)))
   }
 
   const longMatch = LONG_DATE.exec(trimmed)
   if (longMatch) {
     const [, monthName, day, year] = longMatch
-    return new Date(Date.UTC(Number(year), resolveMonthName(monthName!), Number(day)))
+    const month0 = resolveMonthName(monthName!)
+    assertValidDay(Number(day), month0, Number(year), trimmed)
+    return new Date(Date.UTC(Number(year), month0, Number(day)))
   }
 
   const slashNoYearMatch = SLASH_DATE_NO_YEAR.exec(trimmed)
   if (slashNoYearMatch) {
     const [, month, day] = slashNoYearMatch
-    return inferYear(Number(month) - 1, Number(day), referenceDate)
+    const month0 = Number(month) - 1
+    assertValidMonth(month0, trimmed)
+    return inferYear(month0, Number(day), referenceDate, trimmed)
   }
 
   const longNoYearMatch = LONG_DATE_NO_YEAR.exec(trimmed)
   if (longNoYearMatch) {
     const [, monthName, day] = longNoYearMatch
-    return inferYear(resolveMonthName(monthName!), Number(day), referenceDate)
+    return inferYear(resolveMonthName(monthName!), Number(day), referenceDate, trimmed)
   }
 
   throw new Error(`Unrecognized date format: "${value}"`)
