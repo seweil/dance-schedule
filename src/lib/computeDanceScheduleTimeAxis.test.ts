@@ -117,9 +117,10 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     expect(axis?.elisionMarkers).toEqual([])
   })
 
-  it("elides a roomless session's excess duration beyond 1 hour, shifting everything after it up", () => {
-    // 6:00-8:30 PM (2.5 hours) — only the first hour (6:00-7:00) stays visible;
-    // 7:00-8:30 is elided.
+  it("elides a roomless session's excess duration beyond 1 hour from its middle, shifting everything after it up", () => {
+    // 6:00-8:30 PM (2.5 hours) — the visible 1-hour budget splits evenly: the
+    // first 30 min (6:00-6:30) and last 30 min (8:00-8:30) stay visible; the
+    // middle 1.5 hours (6:30-8:00) is elided.
     const dinner = makeRoomless('2026-07-02T18:00:00.000Z', '2026-07-02T20:30:00.000Z')
     // A real, un-elided 30-minute gap between the break's actual end (8:30) and
     // this session (9:00) must still show up as a genuine 30-minute gap after
@@ -133,7 +134,9 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     expect(axis?.rowSpanFor(dinner.startTime, dinner.endTime)).toBe(4)
     // 9:00 PM would be row 13 (3 hours * 4 units + 1) with no compression;
     // compressed, it's only 1 hour (dinner's visible portion) + 30 real minutes
-    // (the genuine gap) after dayStart (6:00 PM) = 1.5 hours = row 7.
+    // (the genuine gap) after dayStart (6:00 PM) = 1.5 hours = row 7. The total
+    // elided amount is the same regardless of where in the break it sits, so
+    // this doesn't change from a tail-elision approach.
     expect(axis?.rowStartFor(later.startTime)).toBe(7)
   })
 
@@ -142,18 +145,18 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     const axis = computeDanceScheduleTimeAxis([dinner], [dinner])
 
     // dayEnd ceils 8:30 PM up to 9:00 PM (12 raw units from 6:00 PM) — the 6
-    // elided units (1.5 hours: 7:00-8:30 PM) are gone, but the genuine trailing
+    // elided units (1.5 hours: 6:30-8:00 PM) are gone, but the genuine trailing
     // 8:30-9:00 half hour is real time, not elided, and still counts: 12 - 6 = 6.
     expect(axis?.totalRowUnits).toBe(6)
-    // The break's own visible portion occupies rows 1-4 (1 hour) — the elision
-    // marker sits right after it, at row 5.
-    expect(axis?.elisionMarkers).toEqual([5])
+    // The break's first 30 minutes occupy rows 1-2 — the elision marker sits
+    // right after that, at row 3, marking where the middle of the break was cut.
+    expect(axis?.elisionMarkers).toEqual([3])
   })
 
   it('does not elide when another session overlaps the excess portion', () => {
     const dinner = makeRoomless('2026-07-02T18:00:00.000Z', '2026-07-02T20:30:00.000Z')
     // Overlaps 7:30-8:00 PM, squarely inside dinner's would-be-elided excess
-    // (7:00-8:30 PM) — eliding that stretch would corrupt this session's own
+    // (6:30-8:00 PM) — eliding that stretch would corrupt this session's own
     // position, so neither should be compressed.
     const conflicting = makeSession('2026-07-02T19:30:00.000Z', '2026-07-02T20:00:00.000Z')
     const axis = computeDanceScheduleTimeAxis([dinner, conflicting], [dinner, conflicting])
@@ -162,13 +165,30 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
     expect(axis?.elisionMarkers).toEqual([])
   })
 
-  it('dedupes an hour mark that would otherwise land inside an elided stretch', () => {
+  it('drops an hour mark that falls inside the elided middle stretch entirely, rather than just deduping it against a neighbor', () => {
     const dinner = makeRoomless('2026-07-02T18:00:00.000Z', '2026-07-02T20:30:00.000Z')
     const axis = computeDanceScheduleTimeAxis([dinner], [dinner])
 
-    // Without dedup, 7:00/8:00 PM would both compress to the same row as the
-    // elision boundary, stacking duplicate labels.
+    // 7:00 PM falls strictly inside the elided 6:30-8:00 PM stretch and is
+    // dropped outright — it never even reaches simple adjacent-row dedup, since
+    // it wouldn't collide with the previous kept mark (6:00 PM) at all.
+    expect(axis?.hourMarks.map((mark) => mark.label)).not.toContain('7:00 PM')
     const rowStarts = axis?.hourMarks.map((mark) => mark.rowStart)
     expect(rowStarts).toEqual([...new Set(rowStarts)])
+  })
+
+  it('drops the label that falls inside the elided middle, not the one after it — so the mark right after a break matches when the next event actually starts', () => {
+    // A 2-hour lunch (exactly 1 hour of excess): budget splits into 30 min
+    // visible at noon, 30 min visible at 1:30, with the 12:30-1:30 middle
+    // elided. 1:00 PM falls inside that elided middle; 2:00 PM — the real time
+    // the next event starts — does not, and must still be shown.
+    const lunch = makeRoomless('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Lunch Break')
+    const axis = computeDanceScheduleTimeAxis([lunch], [lunch])
+
+    expect(axis?.hourMarks).toEqual([
+      { rowStart: 1, label: '12:00 PM' },
+      { rowStart: 5, label: '2:00 PM' },
+    ])
+    expect(axis?.elisionMarkers).toEqual([3])
   })
 })

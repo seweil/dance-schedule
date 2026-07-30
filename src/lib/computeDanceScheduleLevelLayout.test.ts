@@ -146,7 +146,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     const layout = computeDanceScheduleLevelLayout([dinner], [dinner], SLOTS, 0, SLOTS.length - 1)
 
     expect(layout.placements[0]).toMatchObject({ rowSpan: 4 })
-    expect(layout.elisionMarkers).toEqual([5])
+    expect(layout.elisionMarkers).toEqual([3])
   })
 
   it('floats a structured session tagged only Advanced/Intro/Various across every visible slot column', () => {

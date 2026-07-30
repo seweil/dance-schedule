@@ -340,7 +340,7 @@ describe('computeDanceScheduleLayout', () => {
     const layout = computeDanceScheduleLayout([dinner], [dinner])
 
     expect(layout.placements[0]).toMatchObject({ rowSpan: 4 })
-    expect(layout.elisionMarkers).toEqual([5])
+    expect(layout.elisionMarkers).toEqual([3])
   })
 
   it('does not elide a roomless session of 1 hour or less', () => {

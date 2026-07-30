@@ -182,27 +182,31 @@
 
 /* A "scale break" in the sticky time column, at the row where a long roomless
    session's (e.g. a meal break) excess duration beyond 1 hour was cut from the
-   grid entirely (computeDanceScheduleTimeAxis.ts's elisionMarkers) — everything
-   below sits closer than real elapsed time would suggest, reducing how far the
-   grid scrolls. Only the time column carries this indicator; a session's own
-   card (roomless or not) is never clipped or otherwise decorated — its rowSpan
-   is simply however many (already-compressed) rows its real start/end maps to.
-   A jagged strip straddling the row boundary (negative margin-top), built the
-   same way as a "torn paper edge" (two 45deg-repeating gradients cutting white
-   notches into a solid-color fill) — reads as a literal break in the ruler,
-   mirroring the broken-axis convention common in charts. Scoped to the time
-   column only (gridColumn 1, sized to it, sticky like .timeLabel/.halfHourTick),
-   not spanning into the room/level columns. */
+   grid entirely (computeDanceScheduleTimeAxis.ts's elisionMarkers) — the break's
+   visible budget splits evenly before/after the cut, so this sits in the middle
+   of the roomless session's own (shortened) visible span, not tacked onto its
+   end. Only the time column carries this indicator; a session's own card
+   (roomless or not) is never clipped or otherwise decorated — its rowSpan is
+   simply however many (already-compressed) rows its real start/end maps to.
+   A genuine zigzag line (not a filled "torn paper" cut, which reads as a solid
+   block with one jagged edge rather than a break) — an inline SVG polyline,
+   pointed evenly up and down, tiled with background-repeat. `currentColor`
+   inside the embedded SVG resolves against this element's own `color`, so it
+   still tracks the shared border-color token without hardcoding it twice.
+   Centered on the row boundary via a negative margin half its own height, the
+   same straddling technique as before. Scoped to the time column only
+   (gridColumn 1, sized to it, sticky like .timeLabel/.halfHourTick), not
+   spanning into the room/level columns. */
 .elisionMarker {
   position: sticky;
   left: 0;
   z-index: 1;
-  height: 8px;
-  margin-top: -4px;
-  background:
-    linear-gradient(45deg, #fff 4px, transparent 0) 0 0 / 8px 8px repeat-x,
-    linear-gradient(-45deg, #fff 4px, transparent 0) 0 0 / 8px 8px repeat-x,
-    var(--color-border);
+  height: 12px;
+  margin-top: -6px;
+  color: var(--color-border);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12' viewBox='0 0 16 12'%3E%3Cpolyline points='0,10 4,2 8,10 12,2 16,10' fill='none' stroke='currentColor' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 16px 12px;
 }
 
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"

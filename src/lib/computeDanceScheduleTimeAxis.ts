@@ -12,17 +12,22 @@ const UNIT_MS = UNIT_MINUTES * MS_PER_MINUTE
 // A roomless session (spans every column — e.g. a meal break) can run much longer
 // than an ordinary dance session. Showing it at full scale would push everything
 // scheduled afterward far down the page for no benefit — there's nothing else to
-// see during it. Beyond this many rows (1 hour) of a roomless session's own span,
-// the *excess* real time is elided entirely from the axis: every later row
-// position on the day shifts up by the elided amount, genuinely reducing how far
-// the grid scrolls, not just how one card looks. A session's own rowSpan is never
-// separately clipped — it's simply however many (already-compressed) rows its
-// real start/end maps to, exactly like any other session; see findElisionIntervals
+// see during it. Only this many rows (1 hour) of a roomless session's own span
+// stay visible; the *excess* real time is elided entirely from the axis: every
+// later row position on the day shifts up by the elided amount, genuinely
+// reducing how far the grid scrolls, not just how one card looks. The visible
+// budget is split evenly — half kept at the start, half at the end, with the
+// excess elided from the *middle* — so the row immediately following the break
+// always lines up with the real time the next event actually starts at, rather
+// than an arbitrary point mid-break. A session's own rowSpan is never separately
+// clipped — it's simply however many (already-compressed) rows its real
+// start/end maps to, exactly like any other session; see findElisionIntervals
 // and the `compress` closure below. A "scale break" zigzag marker renders in the
 // sticky time column at the elision point instead (DanceScheduleGrid.tsx's
 // ElisionMarker, `elisionMarkers` below) — the card itself carries no visual
 // indicator of its own.
 const MAX_ROOMLESS_VISIBLE_UNITS = MS_PER_HOUR / UNIT_MS
+const MAX_ROOMLESS_VISIBLE_MS = MAX_ROOMLESS_VISIBLE_UNITS * UNIT_MS
 
 const hourFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
 
@@ -105,16 +110,20 @@ interface ElisionInterval {
 // row position, so it's safer to leave that one interval un-elided (shown at full
 // scale) than risk that; this is a real possibility this function must guard
 // against, not just a hypothetical, since nothing elsewhere in the pipeline
-// guarantees a roomless session's time range is otherwise empty.
+// guarantees a roomless session's time range is otherwise empty. The excess
+// stretch sits in the *middle* of the session (half the visible budget kept at
+// the start, half at the end) — not tacked onto the end — so the row right
+// after the break lines up with whatever real time actually follows it.
 function findElisionIntervals(dateSessions: DanceSession[]): ElisionInterval[] {
   const intervals: ElisionInterval[] = []
+  const halfBudgetMs = MAX_ROOMLESS_VISIBLE_MS / 2
 
   for (const session of dateSessions) {
     if (session.location.kind !== 'roomless') {
       continue
     }
-    const excessStart = session.startTime.getTime() + MAX_ROOMLESS_VISIBLE_UNITS * UNIT_MS
-    const excessEnd = session.endTime.getTime()
+    const excessStart = session.startTime.getTime() + halfBudgetMs
+    const excessEnd = session.endTime.getTime() - halfBudgetMs
     if (excessEnd <= excessStart) {
       continue // 1 hour or less — nothing to elide
     }
@@ -202,13 +211,29 @@ export function computeDanceScheduleTimeAxis(
   const rowSpanFor = (start: Date, end: Date): number =>
     Math.max(1, compress(rawUnitFor(end)) - compress(rawUnitFor(start)))
 
+  // True when `rawUnits` falls strictly inside an elided stretch — a moment of
+  // real time that's been compressed away entirely, not merely a boundary of it.
+  // A mark at exactly an interval's start/end still lands on a genuine, single
+  // row (where the elision itself renders) and is kept; one strictly between
+  // them has no row of its own at all and must be dropped outright, not just
+  // deduped against its neighbor — dedup alone only catches two marks that
+  // happen to compress to the same row as each other, which misses this case
+  // whenever the enclosing mark isn't the immediately adjacent one in the same
+  // list (e.g. an hour mark landing inside a half-hour-offset elision window).
+  const isElided = (rawUnits: number): boolean =>
+    rawElisions.some((elision) => rawUnits > elision.rawStart && rawUnits < elision.rawEnd)
+
   const hourMarks: HourMark[] = []
   for (let t = dayStart.getTime(); t <= dayEnd.getTime(); t += MS_PER_HOUR) {
     const time = new Date(t)
+    if (isElided(rawUnitFor(time))) {
+      continue
+    }
     const rowStart = rowStartFor(time)
-    // An hour that lands inside an elided stretch compresses to the exact same row
-    // as the elision's own start boundary — dedupe rather than stack duplicate
-    // labels on top of each other at that row.
+    // Two marks can still land on the same row without either being strictly
+    // "inside" an elision — e.g. the boundary just before and just after a
+    // middle-elided stretch both compress to that stretch's single collapsed
+    // row. Dedupe those against each other too.
     if (hourMarks.length > 0 && hourMarks[hourMarks.length - 1]!.rowStart === rowStart) {
       continue
     }
@@ -217,7 +242,11 @@ export function computeDanceScheduleTimeAxis(
 
   const halfHourMarks: number[] = []
   for (let t = dayStart.getTime() + MS_PER_HOUR / 2; t < dayEnd.getTime(); t += MS_PER_HOUR) {
-    const rowStart = rowStartFor(new Date(t))
+    const time = new Date(t)
+    if (isElided(rawUnitFor(time))) {
+      continue
+    }
+    const rowStart = rowStartFor(time)
     if (halfHourMarks.length > 0 && halfHourMarks[halfHourMarks.length - 1] === rowStart) {
       continue
     }
