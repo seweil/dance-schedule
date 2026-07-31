@@ -16,8 +16,13 @@ export interface ContentConfigPluginOptions {
   dataDir: string
 }
 
+// true for both — docs/adding-a-new-event.md documents omitting config.yaml
+// entirely as producing "sensible defaults," and recommends combining both pairs
+// unless an event genuinely needs them split, so the default must match that
+// recommendation rather than silently doing the opposite (see docs/known-issues.md's
+// now-resolved "combineA1A2 silently defaults to false" item).
 const DEFAULT_CONTENT_CONFIG: ContentConfigData = {
-  features: { combineA1A2: false, combineC3BC4: false },
+  features: { combineA1A2: true, combineC3BC4: true },
 }
 
 function readBooleanFeatureFlag(
@@ -25,7 +30,7 @@ function readBooleanFeatureFlag(
   features: Record<string, unknown>,
   key: 'combineA1A2' | 'combineC3BC4',
 ): boolean {
-  const value = features[key] ?? false
+  const value = features[key] ?? true
   if (typeof value !== 'boolean') {
     throw new Error(`${configFile}'s "features.${key}" must be a boolean, got ${JSON.stringify(value)}`)
   }

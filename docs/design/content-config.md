@@ -87,15 +87,19 @@ and `src/types/virtual-content-config.d.ts` — mirrors how
 `src/types/danceSchedule.ts` is shared between
 `vite-plugin-dance-schedule.ts` and `virtual-dance-schedule.d.ts`). Missing
 `content/<set>/config.yaml` → falls back to `{ features: { combineA1A2:
-false, combineC3BC4: false } }`; malformed, or either `features.combineA1A2`/
+true, combineC3BC4: true } }` — matching `docs/adding-a-new-event.md`'s
+documented recommendation to combine both pairs unless an event genuinely
+needs them split, so omitting `config.yaml` (an explicitly encouraged
+shortcut) doesn't silently produce the opposite of that recommendation (see
+`docs/known-issues.md`'s now-resolved "combineA1A2 silently defaults to
+false" item). Malformed, or either `features.combineA1A2`/
 `features.combineC3BC4` not a boolean → throws.
 
 ### `content/automated-testing/config.yaml` and `content/test/config.yaml` intentionally differ
-**Why:** Both combine A1/A2 (`combineA1A2: true`) — the recommended default
-per `docs/adding-a-new-event.md`, and long-standing behavior for this sample
-set. Only `test`'s `combineC3BC4: true` additionally exercises the "C3B+"
-merged-slot behavior; `automated-testing`'s `combineC3BC4: false` keeps that
-one flag off specifically so `e2e/dance-schedule.spec.ts`'s hardcoded C3B/C4
+**Why:** Both combine A1/A2 (`combineA1A2: true`, matching the built-in
+default). Only `automated-testing` explicitly *overrides* `combineC3BC4` down
+to `false` — every other set, including `test`, leaves it at its true
+default — specifically so `e2e/dance-schedule.spec.ts`'s hardcoded C3B/C4
 slot indices stay stable, rather than needing a second Playwright project —
 see `docs/design/dance-schedule.md` for the slider-side design (the
 `LevelSlot` concept these flags drive).

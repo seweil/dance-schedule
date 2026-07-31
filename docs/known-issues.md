@@ -19,8 +19,15 @@ explicitly encouraged shortcut) silently gets the *opposite* of the
 documented default — a split A1/A2 slider stop instead of combined — with no
 warning anywhere.
 
-**Fix direction:** flip both defaults in `vite-plugin-content-config.ts` to
-`true`, matching the docs.
+**Fixed (2026-07-30):** both `DEFAULT_CONTENT_CONFIG` and the missing-key
+fallback in `vite-plugin-content-config.ts` now default `combineA1A2` (and
+the newer `combineC3BC4`, added the same day — see
+`docs/design/dance-schedule.md`'s "second merge flag" decision) to `true`,
+matching the docs. `content/automated-testing/config.yaml` explicitly
+overrides `combineC3BC4` back down to `false` (see that file's own comment)
+so `e2e/dance-schedule.spec.ts`'s hardcoded slot indices stay stable —
+everything else, including a `config.yaml`-less event, now gets the
+documented recommendation by default.
 
 ## Level taxonomy is hardcoded to modern western square dance only
 

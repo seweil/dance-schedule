@@ -95,20 +95,22 @@ Dates, location, and anything else you want visitors to see first.
 
 ## Step 2: Feature flags and manifest info (`config.yaml`)
 
-`content/<your-event-name>/config.yaml` is optional — if you skip it, sensible
-defaults apply. It has two independent sections:
+`content/<your-event-name>/config.yaml` is optional — if you skip it, both
+flags below default to `true` already. It has two independent sections:
 
 ```yaml
 features:
   # Whether the Dance Schedule level slider treats A1 and A2 as one combined
   # stop, instead of two separate ones. Most events have too few A1-only
-  # dances to bother distinguishing — set to true unless yours genuinely
-  # needs A1 and A2 kept separate.
+  # dances to bother distinguishing — set to false only if yours genuinely
+  # needs A1 and A2 kept separate. (Defaults to true — shown explicitly here
+  # for clarity.)
   combineA1A2: true
   # Same idea, for C3B and C4 — the combined stop is labeled "C3B+" (square-
-  # dance convention for "C3B and above"). Set to true unless your event has
+  # dance convention for "C3B and above"). Set to false only if your event has
   # enough distinct C3B-only and C4-only sessions to be worth splitting.
-  combineC3BC4: false
+  # (Also defaults to true.)
+  combineC3BC4: true
 
 manifest:
   # What shows up as the installed app's name/home-screen label. Defaults to

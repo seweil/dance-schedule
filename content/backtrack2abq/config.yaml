@@ -2,12 +2,11 @@
 # docs/design/content-config.md.
 
 features:
-  # Crawled schedule has no A1-only sessions distinct from A2, so keep them
-  # combined (the recommended default per docs/adding-a-new-event.md).
+  # Both true — the recommended default per docs/adding-a-new-event.md (also this
+  # repo's built-in default when a config.yaml omits `features` entirely — spelled
+  # out explicitly here anyway for clarity alongside `manifest` below).
   combineA1A2: true
-  # Unlike A1/A2 above, the crawled schedule has distinct standalone C3B and C4
-  # sessions (never combined), so keep them split.
-  combineC3BC4: false
+  combineC3BC4: true
 
 manifest:
   name: Back Track 2 ABQ (44th IAGSDC Convention)
