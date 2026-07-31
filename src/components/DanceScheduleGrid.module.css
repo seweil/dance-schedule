@@ -138,6 +138,10 @@
 
 .halfHourLabel {
   font-weight: 400;
+  /* Same muted tone as .elisionMarker's own de-emphasized ruler line (`color: #eee`
+     below), much fainter than .timeLabel's default border-top — the half-hour
+     boundary should barely register next to an hour mark's. */
+  border-top-color: #eee;
 }
 
 /* border-box, not the default content-box — .card's own margin+padding needs to be
