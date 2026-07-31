@@ -128,12 +128,17 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* align-items: flex-start (not center) so the dash sits at the row's TOP edge —
+   the actual half-hour boundary, matching where a card/hour-label starting at that
+   time begins (.timeLabel's border-top line is drawn at the same edge). Centering
+   it within the row instead visually placed the mark ~7.5 minutes' worth of pixels
+   below the boundary it's meant to mark. */
 .halfHourTick {
   position: sticky;
   left: 0;
   z-index: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   padding-right: var(--space-sm);
 }
