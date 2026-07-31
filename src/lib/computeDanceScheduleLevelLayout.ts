@@ -1,31 +1,16 @@
-import {
-  computeDanceScheduleTimeAxis,
-  expandDanceScheduleTimeAxis,
-  isContiguous,
-  type HourMark,
-  type RowExpansion,
-} from './computeDanceScheduleTimeAxis'
-import { detailsPlainText } from './danceScheduleCardContent'
-import {
-  CARD_HORIZONTAL_OVERHEAD_PX,
-  CARD_PADDING_PX,
-  DETAILS_MEASUREMENT_FONT,
-  UNIT_HEIGHT_PX_WITH_GCA,
-  UNIT_HEIGHT_PX_WITHOUT_GCA,
-} from './danceScheduleCardSizing'
-import { estimateCardRowExpansion } from './estimateCardExpansion'
-import { formatSessionGca, formatSessionLevels, formatSessionRoom } from './formatDanceSession'
+import { computeDanceScheduleTimeAxis, isContiguous, type TimeMark } from './computeDanceScheduleTimeAxis'
+import { CARD_HORIZONTAL_OVERHEAD_PX, CARD_PADDING_PX } from './danceScheduleCardSizing'
 import { isOrderedLevel, type LevelSlot } from './levelOrder'
-import { measureTextWidth } from './measureTextWidth'
 import type { DanceSession } from '../types/danceSchedule'
 
 // Same 150px starting point as the room-columns grid's own column width — room
 // names (this grid's second card line) aren't reliably shorter than level codes
 // were, so there's no a priori reason to start narrower. Kept independent of the
 // room grid's own constant (not shared) since the two may need to diverge with
-// real-world tuning. Lives here (not the component) so this lib's own text-fit/
-// expansion pass and the component's render-time recheck share one formula. This
-// is the 1x (no-overlap) base width — see levelColumnWidthPx below for how a
+// real-world tuning. Lives here (not the component) so the component's combine-
+// text-onto-one-line check uses the same formula this file's own lane-width math
+// does, not two copies that could drift. This is the 1x (no-overlap) base width —
+// see levelColumnWidthPx below for how a
 // column's actual rendered width grows past this when it has concurrent lanes
 // somewhere in its own time range.
 export const LEVEL_COLUMN_WIDTH_PX = 150
@@ -106,77 +91,19 @@ export interface DanceScheduleLevelLayout {
   // levelColumnWidthPx. Equal to LEVEL_COLUMN_WIDTH_PX for a column with no
   // overlap anywhere in its own day, wider otherwise.
   columnWidthsPx: number[]
-  totalRowUnits: number
-  hourMarks: HourMark[]
-  // Half-hour labels — conditional, not unconditional like hourMarks. See
-  // computeDanceScheduleTimeAxis.ts's DanceScheduleTimeAxis.halfHourMarks.
-  halfHourMarks: HourMark[]
-  // Row-start positions where a "scale break" marker renders in the sticky time
-  // column — see computeDanceScheduleTimeAxis.ts's elisionMarkers.
-  elisionMarkers: number[]
-  // Row-start positions where the axis was stretched to fit overflowing card
-  // content — the expansion counterpart to elisionMarkers, see
-  // expandDanceScheduleTimeAxis. Not currently rendered as a visual marker (unlike
-  // elisionMarkers) — kept on the layout since it's still meaningful diagnostic
-  // data about where/how much the axis was stretched.
-  expansionMarkers: number[]
+  totalRows: number
+  // One mark per distinct time some visible session starts/ends at — see
+  // computeDanceScheduleTimeAxis.ts's DanceScheduleTimeAxis.timeMarks.
+  timeMarks: TimeMark[]
   placements: DanceLevelSessionPlacement[]
 }
 
 const EMPTY_LEVEL_LAYOUT: DanceScheduleLevelLayout = {
   visibleSlots: [],
   columnWidthsPx: [],
-  totalRowUnits: 0,
-  hourMarks: [],
-  halfHourMarks: [],
-  elisionMarkers: [],
-  expansionMarkers: [],
+  totalRows: 0,
+  timeMarks: [],
   placements: [],
-}
-
-const measureWidth = (text: string) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT)
-
-// The level-view counterpart of computeDanceScheduleLayout.ts's collectRowExpansions
-// — same idea (a placement's card estimated to need more vertical space than its
-// real, time-proportional rowSpan provides), but derives primaryText/detailsText/
-// textWidthPx the level grid's own way (room as the primary line, lane-aware column
-// width) — mirrors DanceScheduleLevelGrid.tsx's SessionCard exactly. Roomless cards
-// are out of scope for the same reason as the room-columns view.
-function collectRowExpansions(
-  placements: DanceLevelSessionPlacement[],
-  slots: readonly LevelSlot[],
-  columnWidthsPx: number[],
-  showGca: boolean,
-  unitHeightPx: number,
-): RowExpansion[] {
-  const expansions: RowExpansion[] = []
-  for (const placement of placements) {
-    const { session, rowStart, rowSpan, columnStart, columnSpan, laneCount } = placement
-    if (session.location.kind === 'roomless') {
-      continue
-    }
-    const room = formatSessionRoom(session)
-    const gca = formatSessionGca(session)
-    const slot = slots[columnStart]
-    const levelPrefix = slot && slot.levels.length > 1 ? formatSessionLevels(session) : undefined
-    const expansion = estimateCardRowExpansion(
-      {
-        primaryText: room,
-        detailsText: detailsPlainText(session, levelPrefix),
-        hasGcaLine: showGca && !!gca,
-        availableHeightPx: rowSpan * unitHeightPx,
-        textWidthPx: levelTextWidthPx(columnWidthsPx, columnStart, columnSpan, laneCount),
-      },
-      rowStart,
-      rowSpan,
-      unitHeightPx,
-      measureWidth,
-    )
-    if (expansion) {
-      expansions.push(expansion)
-    }
-  }
-  return expansions
 }
 
 // One entry per (session, occupied slot index) pair — always decomposed to this
@@ -400,7 +327,8 @@ function mergeIntoPlacements(
  * [minLevelIndex, maxLevelIndex] range) instead of rooms. Unlike rooms, the column
  * set is NOT derived from the data — it's exactly the filter's own range, always
  * shown even for a slot with nothing scheduled that day (see
- * docs/design/dance-schedule.md).
+ * docs/design/dance-schedule.md) — so unlike computeDanceScheduleLayout, this never
+ * needs the unfiltered `dateSessions` list at all, only `visibleSessions`.
  *
  * A session with a real room but no ordered level (freeform, or structured with only
  * Advanced/Intro/Various tags) gets its own dedicated "Other" column, appended after
@@ -415,19 +343,16 @@ function mergeIntoPlacements(
  * silently overlapping — see assignLanesPerSlot above.
  */
 export function computeDanceScheduleLevelLayout(
-  dateSessions: DanceSession[],
   visibleSessions: DanceSession[],
   slots: readonly LevelSlot[],
   minLevelIndex: number,
   maxLevelIndex: number,
-  showGca: boolean,
 ): DanceScheduleLevelLayout {
-  const timeAxis = computeDanceScheduleTimeAxis(dateSessions, visibleSessions)
+  const timeAxis = computeDanceScheduleTimeAxis(visibleSessions)
   if (!timeAxis) {
     return EMPTY_LEVEL_LAYOUT
   }
   const { rowStartFor, rowSpanFor } = timeAxis
-  const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
 
   const visibleSlots = [...slots.slice(minLevelIndex, maxLevelIndex + 1), OTHER_LEVEL_SLOT]
 
@@ -445,30 +370,11 @@ export function computeDanceScheduleLevelLayout(
 
   placements.sort((a, b) => a.rowStart - b.rowStart || a.columnStart - b.columnStart)
 
-  const expansions = collectRowExpansions(
-    placements,
-    visibleSlots,
-    columnWidthsPx,
-    showGca,
-    unitHeightPx,
-  )
-  const expanded = expandDanceScheduleTimeAxis(timeAxis, expansions)
-  const expandedPlacements = placements.map((placement) => ({
-    ...placement,
-    rowStart: expanded.remapRow(placement.rowStart),
-    rowSpan:
-      expanded.remapRow(placement.rowStart + placement.rowSpan) -
-      expanded.remapRow(placement.rowStart),
-  }))
-
   return {
     visibleSlots,
     columnWidthsPx,
-    totalRowUnits: expanded.totalRowUnits,
-    hourMarks: expanded.hourMarks,
-    halfHourMarks: expanded.halfHourMarks,
-    elisionMarkers: expanded.elisionMarkers,
-    expansionMarkers: expanded.expansionMarkers,
-    placements: expandedPlacements,
+    totalRows: timeAxis.totalRows,
+    timeMarks: timeAxis.timeMarks,
+    placements,
   }
 }

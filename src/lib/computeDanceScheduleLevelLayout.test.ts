@@ -36,14 +36,11 @@ function makeSession(
 
 describe('computeDanceScheduleLevelLayout', () => {
   it('returns an empty layout for no sessions', () => {
-    expect(computeDanceScheduleLevelLayout([], [], SLOTS, 0, SLOTS.length - 1, false)).toEqual({
+    expect(computeDanceScheduleLevelLayout([], SLOTS, 0, SLOTS.length - 1)).toEqual({
       visibleSlots: [],
       columnWidthsPx: [],
-      totalRowUnits: 0,
-      hourMarks: [],
-      halfHourMarks: [],
-      elisionMarkers: [],
-      expansionMarkers: [],
+      totalRows: 0,
+      timeMarks: [],
       placements: [],
     })
   })
@@ -57,20 +54,13 @@ describe('computeDanceScheduleLevelLayout', () => {
         levels: ['Plus'],
       },
     )
-    const layout = computeDanceScheduleLevelLayout(
-      [session],
-      [session],
-      SLOTS,
-      0,
-      SLOTS.length - 1,
-      false,
-    )
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, SLOTS.length - 1)
 
     expect(layout.placements).toEqual([
       {
         session,
         rowStart: 1,
-        rowSpan: 4,
+        rowSpan: 1,
         columnStart: 2,
         columnSpan: 1,
         lane: 0,
@@ -91,7 +81,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         levels: ['Plus'],
       },
     )
-    const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 2, 5, false)
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 2, 5)
 
     // "Other" (for no-ordered-level, real-room sessions) is always appended after
     // the ordered-level slice — see OTHER_LEVEL_SLOT.
@@ -108,7 +98,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         levels: ['SSD'],
       },
     )
-    const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, 3, false)
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, 3)
 
     expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'A1', 'Other'])
   })
@@ -122,14 +112,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         levels: ['C1', 'C2'],
       },
     )
-    const layout = computeDanceScheduleLevelLayout(
-      [session],
-      [session],
-      SLOTS,
-      0,
-      SLOTS.length - 1,
-      false,
-    )
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, SLOTS.length - 1)
 
     expect(layout.placements).toHaveLength(1)
     expect(layout.placements[0]).toMatchObject({ columnStart: 5, columnSpan: 2 })
@@ -146,11 +129,9 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout(
       [session],
-      [session],
       COMBINED_SLOTS,
       0,
       COMBINED_SLOTS.length - 1,
-      false,
     )
 
     expect(layout.visibleSlots[3]!.label).toBe('A1/A2')
@@ -158,7 +139,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       {
         session,
         rowStart: 1,
-        rowSpan: 4,
+        rowSpan: 1,
         columnStart: 3,
         columnSpan: 1,
         lane: 0,
@@ -178,11 +159,9 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout(
       [session],
-      [session],
       C3B_PLUS_SLOTS,
       0,
       C3B_PLUS_SLOTS.length - 1,
-      false,
     )
 
     expect(layout.visibleSlots[8]!.label).toBe('C3B+')
@@ -190,7 +169,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       {
         session,
         rowStart: 1,
-        rowSpan: 4,
+        rowSpan: 1,
         columnStart: 8,
         columnSpan: 1,
         lane: 0,
@@ -208,15 +187,16 @@ describe('computeDanceScheduleLevelLayout', () => {
       location: { kind: 'roomless' },
       description: 'Lunch Break',
     }
-    const layout = computeDanceScheduleLevelLayout([lunch], [lunch], SLOTS, 2, 5, false)
+    const layout = computeDanceScheduleLevelLayout([lunch], SLOTS, 2, 5)
 
     // 4 ordered slots (Plus, A1, A2, C1) + Other = 5.
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 5 })
   })
 
-  it("elides a floating roomless session's excess duration beyond 1 hour, and surfaces the elision marker", () => {
-    // See computeDanceScheduleTimeAxis.test.ts for the underlying axis-compression
-    // math this relies on — this just confirms the level layout propagates it too.
+  it('collapses a long floating roomless session with nothing else scheduled during it to rowSpan 1', () => {
+    // No elision/compression pass needed to achieve this — it falls straight out of
+    // the tick-based axis. See computeDanceScheduleTimeAxis.test.ts for the
+    // underlying rule's own tests.
     const dinner: DanceSession = {
       kind: 'freeform',
       date: new Date('2026-07-02T00:00:00.000Z'),
@@ -225,17 +205,9 @@ describe('computeDanceScheduleLevelLayout', () => {
       location: { kind: 'roomless' },
       description: 'Dinner Break',
     }
-    const layout = computeDanceScheduleLevelLayout(
-      [dinner],
-      [dinner],
-      SLOTS,
-      0,
-      SLOTS.length - 1,
-      false,
-    )
+    const layout = computeDanceScheduleLevelLayout([dinner], SLOTS, 0, SLOTS.length - 1)
 
-    expect(layout.placements[0]).toMatchObject({ rowSpan: 4 })
-    expect(layout.elisionMarkers).toEqual([3])
+    expect(layout.placements[0]).toMatchObject({ rowSpan: 1 })
   })
 
   it('gives a structured session tagged only Advanced/Intro/Various its own Other column, not a float across everything', () => {
@@ -252,7 +224,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         levels: ['Intro'],
       },
     )
-    const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, 2, false)
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, 2)
 
     // SSD, MS, Plus (0,1,2) + Other (3).
     expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'Other'])
@@ -270,7 +242,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       location: { kind: 'located', rooms: ['Drummond Ballroom'] },
       description: 'Country Western Dance - until 1am',
     }
-    const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, 2, false)
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, 2)
 
     expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'Other'])
     expect(layout.placements[0]).toMatchObject({ columnStart: 3, columnSpan: 1 })
@@ -288,13 +260,43 @@ describe('computeDanceScheduleLevelLayout', () => {
     const b = makeSession('2026-07-02T21:00:00.000Z', '2026-07-02T22:00:00.000Z', 'Salon A-C', {
       levels: ['Intro'],
     })
-    const layout = computeDanceScheduleLevelLayout([a, b], [a, b], SLOTS, 0, 2, false)
+    const layout = computeDanceScheduleLevelLayout([a, b], SLOTS, 0, 2)
 
     const placementA = layout.placements.find((p) => p.session === a)
     const placementB = layout.placements.find((p) => p.session === b)
     expect(placementA).toMatchObject({ columnStart: 3, lane: 0, laneCount: 2 })
     expect(placementB).toMatchObject({ columnStart: 3, lane: 1, laneCount: 2 })
     expect(layout.columnWidthsPx[3]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // Other's own 2-lane peak
+  })
+
+  it('gives a long event a taller rowSpan than several shorter concurrent events in another column', () => {
+    // The stress case this rework was designed around, at the level-columns layer —
+    // see computeDanceScheduleTimeAxis.test.ts and computeDanceScheduleLayout.test.ts
+    // for the same case at the axis/room-layout layers.
+    const long = makeSession(
+      '2026-07-02T09:00:00.000Z',
+      '2026-07-02T12:00:00.000Z',
+      'Test Room D',
+      { levels: ['Plus'], eventType: 'Long Workshop', callers: ['Test Caller Eight'] },
+    )
+    const first = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', 'Test Room A', {
+      levels: ['C1'],
+    })
+    const second = makeSession('2026-07-02T10:00:00.000Z', '2026-07-02T11:00:00.000Z', 'Test Room A', {
+      levels: ['C2'],
+    })
+    const third = makeSession('2026-07-02T11:00:00.000Z', '2026-07-02T12:00:00.000Z', 'Test Room A', {
+      levels: ['C3A'],
+    })
+    const sessions = [long, first, second, third]
+
+    const layout = computeDanceScheduleLevelLayout(sessions, SLOTS, 0, SLOTS.length - 1)
+
+    const longPlacement = layout.placements.find((p) => p.session === long)
+    expect(longPlacement).toMatchObject({ rowStart: 1, rowSpan: 3 })
+    for (const shortSession of [first, second, third]) {
+      expect(layout.placements.find((p) => p.session === shortSession)).toMatchObject({ rowSpan: 1 })
+    }
   })
 
   describe('overlap lanes', () => {
@@ -315,14 +317,7 @@ describe('computeDanceScheduleLevelLayout', () => {
           levels: ['C1'],
         },
       )
-      const layout = computeDanceScheduleLevelLayout(
-        [a, b],
-        [a, b],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
+      const layout = computeDanceScheduleLevelLayout([a, b], SLOTS, 0, SLOTS.length - 1)
 
       const placementA = layout.placements.find((p) => p.session === a)
       const placementB = layout.placements.find((p) => p.session === b)
@@ -340,14 +335,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       const c = makeSession('2026-07-02T09:30:00.000Z', '2026-07-02T10:30:00.000Z', 'Room C', {
         levels: ['C1'],
       })
-      const layout = computeDanceScheduleLevelLayout(
-        [a, b, c],
-        [a, b, c],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
+      const layout = computeDanceScheduleLevelLayout([a, b, c], SLOTS, 0, SLOTS.length - 1)
 
       const lanes = [a, b, c].map((s) => layout.placements.find((p) => p.session === s)?.lane)
       expect(new Set(lanes).size).toBe(3)
@@ -375,11 +363,9 @@ describe('computeDanceScheduleLevelLayout', () => {
       )
       const layout = computeDanceScheduleLevelLayout(
         [morning, afternoon],
-        [morning, afternoon],
         SLOTS,
         0,
         SLOTS.length - 1,
-        false,
       )
 
       for (const placement of layout.placements) {
@@ -394,14 +380,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       const second = makeSession('2026-07-02T10:00:00.000Z', '2026-07-02T11:00:00.000Z', 'Room B', {
         levels: ['C1'],
       })
-      const layout = computeDanceScheduleLevelLayout(
-        [first, second],
-        [first, second],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
+      const layout = computeDanceScheduleLevelLayout([first, second], SLOTS, 0, SLOTS.length - 1)
 
       for (const placement of layout.placements) {
         expect(placement).toMatchObject({ lane: 0, laneCount: 1 })
@@ -430,11 +409,9 @@ describe('computeDanceScheduleLevelLayout', () => {
       )
       const layout = computeDanceScheduleLevelLayout(
         [combined, conflict],
-        [combined, conflict],
         SLOTS,
         0,
         SLOTS.length - 1,
-        false,
       )
 
       const combinedPlacements = layout.placements.filter((p) => p.session === combined)
@@ -456,136 +433,9 @@ describe('computeDanceScheduleLevelLayout', () => {
     const earlier = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Room A', {
       levels: ['C1'],
     })
-    const layout = computeDanceScheduleLevelLayout(
-      [later, earlier],
-      [later, earlier],
-      SLOTS,
-      0,
-      SLOTS.length - 1,
-      false,
-    )
+    const layout = computeDanceScheduleLevelLayout([later, earlier], SLOTS, 0, SLOTS.length - 1)
 
     expect(layout.placements.map((p) => p.session)).toEqual([earlier, later])
-  })
-
-  describe('stretching the axis to fit overflowing card content', () => {
-    it("stretches a short session's row span when its room + details text is estimated to overflow", () => {
-      const session = makeSession(
-        '2026-07-02T12:00:00.000Z',
-        '2026-07-02T12:30:00.000Z',
-        'Ballroom West',
-        { eventType: 'Skirt Work Hour', callers: ['Wendy VanderMeulen'] },
-      )
-      const layout = computeDanceScheduleLevelLayout(
-        [session],
-        [session],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
-
-      expect(layout.placements[0]).toMatchObject({ rowStart: 1, rowSpan: 4 })
-      expect(layout.expansionMarkers).toEqual([3])
-    })
-
-    it('does not stretch the axis for a session whose text is estimated to fit comfortably', () => {
-      const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
-      const layout = computeDanceScheduleLevelLayout(
-        [session],
-        [session],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
-
-      expect(layout.placements[0]).toMatchObject({ rowStart: 1, rowSpan: 2 })
-      expect(layout.expansionMarkers).toEqual([])
-    })
-
-    it('inflates a concurrent, non-overflowing placement in a different slot by the same shared expansion', () => {
-      const overflowing = makeSession(
-        '2026-07-02T12:00:00.000Z',
-        '2026-07-02T12:30:00.000Z',
-        'Ballroom West',
-        { eventType: 'Skirt Work Hour', callers: ['Wendy VanderMeulen'] },
-      )
-      const comfortable = makeSession(
-        '2026-07-02T12:00:00.000Z',
-        '2026-07-02T12:30:00.000Z',
-        'Room A',
-        {
-          levels: ['C1'],
-        },
-      )
-      const layout = computeDanceScheduleLevelLayout(
-        [overflowing, comfortable],
-        [overflowing, comfortable],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
-
-      const comfortablePlacement = layout.placements.find((p) => p.session === comfortable)
-      expect(comfortablePlacement).toMatchObject({ rowStart: 1, rowSpan: 4 })
-    })
-
-    it('changes the expansion outcome when toggling showGca', () => {
-      const session = makeSession(
-        '2026-07-02T12:00:00.000Z',
-        '2026-07-02T12:30:00.000Z',
-        'Room A',
-        {
-          gca: 'Tim Stephens',
-        },
-      )
-      const withoutGca = computeDanceScheduleLevelLayout(
-        [session],
-        [session],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
-      const withGca = computeDanceScheduleLevelLayout(
-        [session],
-        [session],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        true,
-      )
-
-      expect(withoutGca.placements[0]).toMatchObject({ rowSpan: 2 })
-      expect(withGca.placements[0]?.rowSpan).toBeGreaterThan(2)
-    })
-
-    it('triggers expansion at a lane-split (narrower) width where a full-width lane would not overflow', () => {
-      // Two SSD sessions in different rooms, overlapping in time -> assigned
-      // side-by-side overlap lanes (laneCount 2), roughly halving the usable text
-      // width for both (partially clawed back by the SSD column itself growing 1.5x
-      // for its 2-lane peak concurrency — see columnWidthsPx below — but not all the
-      // way back to the full 150px a single, non-overlapping lane would get). Same
-      // room/caller text that fits comfortably at full width (see the "does not
-      // stretch" case above) still overflows once lane-split, just by less than it
-      // would have at a fixed, non-growing column width.
-      const a = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
-      const b = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
-      const layout = computeDanceScheduleLevelLayout(
-        [a, b],
-        [a, b],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
-
-      expect(layout.columnWidthsPx[0]).toBe(225) // SSD column: 150 * 1.5 for its 2-lane peak
-      const placementA = layout.placements.find((p) => p.session === a)
-      expect(placementA).toMatchObject({ laneCount: 2, rowSpan: 3 })
-    })
   })
 
   describe('column width growth for concurrent overlap lanes', () => {
@@ -598,14 +448,7 @@ describe('computeDanceScheduleLevelLayout', () => {
 
     it('keeps a column at its ordinary width when nothing in it ever overlaps', () => {
       const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', 'Room A')
-      const layout = computeDanceScheduleLevelLayout(
-        [session],
-        [session],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
+      const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, SLOTS.length - 1)
 
       expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX)
     })
@@ -618,14 +461,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       const a = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
       const b = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
       const c = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T13:30:00.000Z', 'Room A')
-      const layout = computeDanceScheduleLevelLayout(
-        [a, b, c],
-        [a, b, c],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
+      const layout = computeDanceScheduleLevelLayout([a, b, c], SLOTS, 0, SLOTS.length - 1)
 
       expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5)
       const placementC = layout.placements.find((p) => p.session === c)
@@ -636,14 +472,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       const a = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
       const b = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
       const c = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room C')
-      const layout = computeDanceScheduleLevelLayout(
-        [a, b, c],
-        [a, b, c],
-        SLOTS,
-        0,
-        SLOTS.length - 1,
-        false,
-      )
+      const layout = computeDanceScheduleLevelLayout([a, b, c], SLOTS, 0, SLOTS.length - 1)
 
       expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 2)
     })
@@ -658,11 +487,9 @@ describe('computeDanceScheduleLevelLayout', () => {
       })
       const layout = computeDanceScheduleLevelLayout(
         [overlapA, overlapB, other],
-        [overlapA, overlapB, other],
         SLOTS,
         0,
         SLOTS.length - 1,
-        false,
       )
 
       expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // SSD

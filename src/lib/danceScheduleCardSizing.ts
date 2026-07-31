@@ -4,19 +4,21 @@
 // here — each grid tunes its own (room names vs. level codes differ enough in
 // typical length that the two views may want different values).
 
-// One 15-minute row unit's pixel height — see computeDanceScheduleTimeAxis.ts for
-// why 15 minutes is the grid's time granularity. Two values, not one: showGca is a
-// single global toggle (not per-card), so hiding it uniformly drops one line of
-// content from every card that has GCA data — the whole grid can compact to match,
-// not just cards that happen to lose a line. 18, not a more aggressive 16 — chosen
-// live: 16 visibly compresses the common (1hr/45min) case just as well, but also
-// measurably worsens a separate, pre-existing overflow issue (very short sessions
-// with long wrapping text clip regardless of this toggle — see
-// docs/known-issues.md) for cards that don't even have GCA data to hide in the
-// first place. 18 keeps that collateral impact smaller while still delivering
-// visible compaction for the common case this feature is actually for.
-export const UNIT_HEIGHT_PX_WITH_GCA = 20
-export const UNIT_HEIGHT_PX_WITHOUT_GCA = 18
+// One grid row's fixed pixel height — a row is NOT a fixed span of real time (see
+// computeDanceScheduleTimeAxis.ts's "the axis is not a clock" decision), so this is
+// just "how tall should the next-thing-that-happens step be," not "pixels per
+// minute." Two values, not one: showGca is a single global toggle (not per-card), so
+// hiding it uniformly drops one line of content from every card that has GCA data —
+// the whole grid can compact to match, not just cards that happen to lose a line.
+// 18, not a more aggressive 16 — chosen live: 16 visibly compresses the common
+// (1hr/45min) case just as well, but also measurably worsens a separate, pre-
+// existing overflow issue (very short sessions with long wrapping text clip
+// regardless of this toggle — see docs/known-issues.md) for cards that don't even
+// have GCA data to hide in the first place. 18 keeps that collateral impact smaller
+// while still delivering visible compaction for the common case this feature is
+// actually for.
+export const ROW_HEIGHT_PX_WITH_GCA = 20
+export const ROW_HEIGHT_PX_WITHOUT_GCA = 18
 
 // .card's own horizontal padding (8px each side, --space-sm) — the difference
 // between the card's own box width and the usable text width inside it. Use this

@@ -642,6 +642,70 @@ already used for `${styles.field} ${styles.levelField}`) that overrides only
 `font-weight` back down from `.timeLabel`'s new bold default — `.halfHourTick`/
 `.halfHourTick::after` are deleted entirely, no replacement dash needed.
 
+### The axis is not a clock: dropped the linear time-proportional scale entirely, superseding elision, expansion, and the half-hour-label rules above
+**Why:** Even after the half-hour-label rework immediately above, live
+feedback was still "too technical." The real problem wasn't any one rule —
+it was the underlying model: a fixed clock grid (hour/half-hour positions)
+with progressively more special-case logic bolted on to patch its edge
+cases (elision to compress dead time, expansion to grow rows for overflowing
+text, off-grid forcing to cover :15/:45 boundaries, a bold/dim hierarchy to
+tell hour and half-hour marks apart). Each patch was locally justified but
+the sum reads as complex machinery for what should be a simple idea.
+
+The reset: **the vertical axis is not a clock at all.** It's just the
+ordered sequence of distinct times some currently-visible event actually
+starts or ends at (`computeDanceScheduleTimeAxis.ts`'s `tickTimes`, built
+directly from `visibleSessions.flatMap(s => [s.startTime, s.endTime])`,
+deduped and sorted). Every tick is, by construction, a real event boundary —
+so every tick gets a label, always, with no conditional-inclusion logic of
+any kind (`timeMarks: TimeMark[]`, one unified list, replacing `hourMarks`/
+`halfHourMarks`). Consecutive ticks become one grid row each — **not scaled
+to real elapsed minutes**: a 3-hour gap with nothing scheduled in it and a
+15-minute gap are both just "the next thing that happens," one row apiece.
+
+This single change directly eliminates three previous mechanisms rather than
+adapting them:
+- **Elision** (`findElisionIntervals`/`compress`/`isElided`, the zigzag
+  `elisionMarker`) — a long roomless break with nothing else scheduled
+  during it now naturally collapses to one row, with no compression math
+  and no "give up if another session overlaps the excess" edge case; that
+  entire problem class doesn't exist once there's no compression happening.
+- **Expansion** (`expandDanceScheduleTimeAxis`/`estimateCardExpansion.ts`)
+  — row height was only being stretched to satisfy a *proportional* scale's
+  promise that height ∝ duration; once that promise is gone, there's
+  nothing left to defend by growing one card's row. A proper fix for card
+  text overflow — rows that grow via native HTML/CSS sizing (e.g.
+  `grid-auto-rows`/table-like natural height) instead of a JS heuristic
+  layered on a fixed-height grid — is deliberately deferred future work,
+  not reintroduced here. Accepted, explicit tradeoff: text may clip again on
+  short/text-heavy cards in the interim — see `docs/known-issues.md`.
+- **The conditional half-hour/off-grid-forcing rules and the bold/dim
+  hierarchy** (immediately above) — superseded outright, not merely
+  extended: under the new model every tick is *already* a real boundary, so
+  there's nothing left to be conditional about, and no more hour-vs-half-
+  hour distinction to visually draw (all labels render identically).
+
+A useful emergent property, not something coded for directly: a single long
+event in one room, while several separate shorter events run in *another*
+room during that same span, naturally gets a taller `rowSpan` than any one
+of the short ones — the other room's own boundaries are additional ticks
+that land inside the long event's span, since ticks are shared across every
+column, not per-room. See `computeDanceScheduleTimeAxis.test.ts`'s "spans
+several other events" case, and the demonstration row added to
+`content/test/data/dance-schedule.xlsx` (`scripts/edit-test-data.mjs`) for
+live/visual review.
+
+`computeDanceScheduleTimeAxis(visibleSessions)` also drops the `dateSessions`
+parameter entirely — the axis was the only thing in `computeDanceScheduleLayout.ts`
+that ever used it for anything beyond `deriveRoomOrder` (a separate, unrelated
+concern that still needs the unfiltered list, unchanged). `computeDanceScheduleLevelLayout.ts`
+never needed `dateSessions` for anything else in the first place (level
+columns are filter-derived, not data-derived — see the "Level-columns view"
+decision above), so it drops the parameter entirely too, along with the
+`showGca` parameter both layout functions took solely to feed the now-deleted
+expansion pass — `showGca` still reaches each grid component directly as its
+own prop, for row-height selection, which is unrelated to the time axis.
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't

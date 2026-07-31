@@ -332,3 +332,23 @@ only reasons about whitespace-delimited words), so a case like this can
 still end up needing more vertical space than estimated — falls into the
 same already-documented, accepted vertical-overflow category above, just
 no longer silently clipped horizontally with no wrap at all.
+
+**The 2026-07-30 axis-stretch fix above was reverted 2026-07-31, deliberately
+— vertical clipping is expected to return until real future work lands.**
+Live feedback on the sticky time column (see `docs/design/dance-schedule.md`'s
+"the axis is not a clock" decision) concluded the whole fixed-height,
+linear-time-proportional row model was itself the underlying problem, not
+just its overflow edge case — `expandDanceScheduleTimeAxis`/
+`estimateCardExpansion.ts` (the expansion mechanism this fix added) only
+existed to defend a *proportional* scale's promise that row height ∝ real
+duration; once that promise was dropped in favor of an ordinal "one row per
+distinct event boundary" axis, there was nothing left for expansion to
+defend, so it was deleted rather than adapted. The horizontal-overflow fix
+(`overflow-wrap: anywhere`) and the primary+details combine mitigation
+(`shouldCombinePrimaryAndDetails`) are both untouched and still active — only
+the vertical row-growing mechanism is gone. A short/text-heavy card can once
+again clip vertically in the interim. The real fix — rows that grow via
+native HTML/CSS sizing (e.g. `grid-auto-rows`/table-like natural height,
+matching actual content instead of a JS heuristic guessing at a fixed-height
+box) — is explicit, deliberately deferred future work, not done as part of
+this change.

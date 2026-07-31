@@ -57,14 +57,12 @@ function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceSch
   return {
     visibleSlots: SLOTS.slice(0, 1), // just "SSD"
     columnWidthsPx: [150],
-    totalRowUnits: 8,
-    hourMarks: [
+    totalRows: 8,
+    timeMarks: [
       { rowStart: 1, label: '12:00 PM' },
+      { rowStart: 3, label: '12:30 PM' },
       { rowStart: 5, label: '1:00 PM' },
     ],
-    halfHourMarks: [{ rowStart: 3, label: '12:30 PM' }],
-    elisionMarkers: [],
-    expansionMarkers: [],
     placements: [placement()],
     ...overrides,
   }
@@ -87,10 +85,16 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('MS')).toBeInTheDocument()
   })
 
-  it('renders hour-mark labels for the time axis', () => {
+  it('renders one label per time-axis mark, all styled uniformly', () => {
     render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
-    expect(screen.getByText('12:00 PM')).toBeInTheDocument()
+    const noon = screen.getByText('12:00 PM')
+    const thirty = screen.getByText('12:30 PM')
+    expect(noon).toBeInTheDocument()
     expect(screen.getByText('1:00 PM')).toBeInTheDocument()
+    // No more hour-vs-half-hour distinction — every mark is just "a real event
+    // boundary," so every label shares the same class, no modifier.
+    expect(noon).toHaveClass('timeLabel')
+    expect(thirty).toHaveClass('timeLabel')
   })
 
   it('shows the caller/details line above the room line, with the room not bold', () => {
@@ -180,42 +184,6 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
   })
 
-  it('renders an elision marker in the time column at the row a long roomless session was compressed at', () => {
-    // The marker lives on the time axis, not the card — a roomless card never
-    // carries any compression-related styling of its own (see
-    // computeDanceScheduleTimeAxis.ts's elisionMarkers).
-    const { container } = render(
-      <DanceScheduleLevelGrid layout={makeLayout({ elisionMarkers: [5] })} showGca />,
-    )
-    const marker = container.querySelector('.elisionMarker') as HTMLElement
-    expect(marker).toBeInTheDocument()
-    expect(marker).toHaveStyle({ gridRow: '5' })
-  })
-
-  it('renders no elision marker when nothing was compressed', () => {
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
-    expect(container.querySelector('.elisionMarker')).not.toBeInTheDocument()
-  })
-
-  it('renders no visual marker for a stretched row (expansion is silent, unlike elision)', () => {
-    const { container } = render(
-      <DanceScheduleLevelGrid layout={makeLayout({ expansionMarkers: [7] })} showGca />,
-    )
-    expect(container.querySelector('.expansionMarker')).not.toBeInTheDocument()
-  })
-
-  it('renders a half-hour label with the halfHourLabel modifier class, distinct from an hour mark', () => {
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
-    const label = screen.getByText('12:30 PM')
-    expect(label).toHaveClass('timeLabel', 'halfHourLabel')
-    expect(label).toHaveStyle({ gridRow: '3' })
-
-    const hourMark = screen.getByText('12:00 PM')
-    expect(hourMark).toHaveClass('timeLabel')
-    expect(hourMark).not.toHaveClass('halfHourLabel')
-    expect(container.querySelector('.halfHourTick')).not.toBeInTheDocument()
-  })
-
   it('renders header content and body content in separate grids', () => {
     const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
     const roomHeader = container.querySelector('.roomHeader')
@@ -279,9 +247,9 @@ describe('DanceScheduleLevelGrid', () => {
     const bodyGridShown = shown.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
     const bodyGridHidden = hidden.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
 
-    const unitPx = (grid: HTMLElement) =>
+    const rowPx = (grid: HTMLElement) =>
       Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
-    expect(unitPx(bodyGridHidden)).toBeLessThan(unitPx(bodyGridShown))
+    expect(rowPx(bodyGridHidden)).toBeLessThan(rowPx(bodyGridShown))
   })
 
   it('combines the room and details lines onto one <p> when the card is too short for both', () => {
@@ -293,8 +261,8 @@ describe('DanceScheduleLevelGrid', () => {
     const { container } = render(
       <DanceScheduleLevelGrid
         layout={makeLayout({
-          // A 2-row-unit (30-minute) card is too short for "Ballroom Centre" plus a
-          // wrapping caller name as two separate lines.
+          // A 2-row card is too short for "Ballroom Centre" plus a wrapping caller
+          // name as two separate lines.
           placements: [placement({ session: longCallerSession, rowStart: 3, rowSpan: 2 })],
         })}
         showGca

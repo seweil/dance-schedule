@@ -71,8 +71,7 @@
   /* Without this, a block-level grid's own box shrinks to fit its (scrolling)
      ancestor's width rather than its actual (wider) column content — content still
      visibly overflows either way, but position: sticky's containing block is this
-     box, not the overflow, so a sticky item (.corner/.roomHeader/.timeLabel —
-     .halfHourLabel is a modifier on .timeLabel, not a separate sticky rule)
+     box, not the overflow, so a sticky item (.corner/.roomHeader/.timeLabel)
      unsticks and scrolls away once past that narrower width instead
      of the grid's real scrollable width. Confirmed with a minimal repro outside this
      app: breakAt was reproducibly wrapperWidth - stickyWidth + 1, and
@@ -113,12 +112,10 @@
   border-left: 1px solid var(--color-border);
 }
 
-/* Shared by both hour marks and half-hour marks (.halfHourLabel below layers on
-   top of this, not a separate rule) — hour marks are bold by default so they read
-   as the primary reference; .halfHourLabel dials that back down for the
-   secondary/conditional ones. See docs/design/dance-schedule.md's "half-hour
-   labels are conditional" decision for why half-hour marks are text labels at
-   all now, not a fixed dash tick. */
+/* One label per time-axis mark — every mark is, by construction, a real event
+   boundary (see docs/design/dance-schedule.md's "the axis is not a clock"
+   decision), so there's no primary/secondary distinction to draw between them
+   anymore — every label renders identically. */
 .timeLabel {
   position: sticky;
   left: 0;
@@ -130,18 +127,9 @@
   padding: 0 var(--space-sm);
   border-radius: 6px;
   font-size: 0.75rem;
-  font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
   border-top: 1px solid var(--color-border);
-}
-
-.halfHourLabel {
-  font-weight: 400;
-  /* Same muted tone as .elisionMarker's own de-emphasized ruler line (`color: #eee`
-     below), much fainter than .timeLabel's default border-top — the half-hour
-     boundary should barely register next to an hour mark's. */
-  border-top-color: #eee;
 }
 
 /* border-box, not the default content-box — .card's own margin+padding needs to be
@@ -173,39 +161,6 @@
   text-align: center;
   font-style: italic;
   color: var(--color-text);
-}
-
-/* A subtle "scale break" in the time column, at the row where a long roomless
-   session's (e.g. a meal break) excess duration beyond 1 hour was cut from the
-   grid entirely (computeDanceScheduleTimeAxis.ts's elisionMarkers) — the break's
-   visible budget splits evenly before/after the cut, so this sits in the middle
-   of the roomless session's own (shortened) visible span, not tacked onto its
-   end. Only the time column carries this indicator; a session's own card
-   (roomless or not) is never clipped or otherwise decorated — its rowSpan is
-   simply however many (already-compressed) rows its real start/end maps to.
-   A genuine zigzag line (not a filled "torn paper" cut, which reads as a solid
-   block with one jagged edge rather than a break) — an inline SVG polyline,
-   pointed evenly up and down, tiled with background-repeat. `currentColor`
-   inside the embedded SVG resolves against this element's own `color`, so it
-   still tracks a shared token rather than hardcoding a shade twice; a lighter,
-   more muted gray than `--color-border` itself, and a thin stroke, so it reads
-   as a quiet ruler notch rather than competing with real content. Centered on
-   the row boundary via a negative margin half its own height, the same
-   straddling technique as before.
-
-   NOT sticky (unlike .timeLabel, shared by both hour and half-hour marks) —
-   scrolls with the grid's own horizontal position rather than staying pinned
-   to the time column, per explicit request; scrolled fully out of view once
-   the room columns are scrolled far enough left, whereas the real time labels
-   remain visible. Still
-   scoped to the time column's width (gridColumn 1) for its resting position. */
-.elisionMarker {
-  height: 8px;
-  margin-top: -4px;
-  color: #eee;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8' viewBox='0 0 16 8'%3E%3Cpolyline points='0,6 4,1 8,6 12,1 16,6' fill='none' stroke='currentColor' stroke-width='1.25'/%3E%3C/svg%3E");
-  background-repeat: repeat-x;
-  background-size: 16px 8px;
 }
 
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"

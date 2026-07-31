@@ -8,8 +8,8 @@ import {
 import { detailsContent, detailsPlainText } from '../lib/danceScheduleCardContent'
 import {
   DETAILS_MEASUREMENT_FONT,
-  UNIT_HEIGHT_PX_WITH_GCA,
-  UNIT_HEIGHT_PX_WITHOUT_GCA,
+  ROW_HEIGHT_PX_WITH_GCA,
+  ROW_HEIGHT_PX_WITHOUT_GCA,
 } from '../lib/danceScheduleCardSizing'
 import { shouldCombinePrimaryAndDetails } from '../lib/estimateCardFit'
 import {
@@ -31,13 +31,13 @@ const TIME_COLUMN_WIDTH = '70px'
 function SessionCard({
   placement,
   showGca,
-  unitHeightPx,
+  rowHeightPx,
   slots,
   columnWidthsPx,
 }: {
   placement: DanceLevelSessionPlacement
   showGca: boolean
-  unitHeightPx: number
+  rowHeightPx: number
   slots: readonly LevelSlot[]
   columnWidthsPx: number[]
 }) {
@@ -45,7 +45,7 @@ function SessionCard({
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
-    // already 1-based for the first time unit (see computeDanceScheduleTimeAxis.ts
+    // already 1-based for the axis's first row (see computeDanceScheduleTimeAxis.ts
     // and docs/design/dance-schedule-mobile-scroll.md).
     gridRow: `${rowStart} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
@@ -84,13 +84,15 @@ function SessionCard({
 
   const textWidthPx = levelTextWidthPx(columnWidthsPx, columnStart, columnSpan, laneCount)
 
-  // Cards are a fixed, time-proportional height (rowSpan * unitHeightPx) that never
-  // grows to fit content — see docs/known-issues.md's "long wrapping text clips on
-  // very short sessions" entry. When a room line exists and the estimate says the
-  // room + details (+ GCA) lines won't fit separately, combine them onto one line to
-  // save the line break, rather than risk clipping. A lane-split card has less
-  // actual width than its column's full track (see textWidthPx above), so it's more
-  // likely to need combining, not less.
+  // Cards are a fixed height (rowSpan * rowHeightPx, a uniform per-row pixel value —
+  // rowSpan reflects how many other events happen during this one, not real elapsed
+  // minutes, see docs/design/dance-schedule.md) that never grows to fit content —
+  // see docs/known-issues.md's "long wrapping text clips on very short sessions"
+  // entry. When a room line exists and the estimate says the room + details (+ GCA)
+  // lines won't fit separately, combine them onto one line to save the line break,
+  // rather than risk clipping. A lane-split card has less actual width than its
+  // column's full track (see textWidthPx above), so it's more likely to need
+  // combining, not less.
   const combineRoomAndDetails =
     !isRoomless &&
     !!room &&
@@ -99,7 +101,7 @@ function SessionCard({
         primaryText: room,
         detailsText: detailsPlainText(session, levelPrefix),
         hasGcaLine: showGcaLine,
-        availableHeightPx: rowSpan * unitHeightPx,
+        availableHeightPx: rowSpan * rowHeightPx,
         textWidthPx,
       },
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
@@ -140,15 +142,7 @@ export function DanceScheduleLevelGrid({
   layout: DanceScheduleLevelLayout
   showGca: boolean
 }) {
-  const {
-    visibleSlots,
-    columnWidthsPx,
-    totalRowUnits,
-    hourMarks,
-    halfHourMarks,
-    elisionMarkers,
-    placements,
-  } = layout
+  const { visibleSlots, columnWidthsPx, totalRows, timeMarks, placements } = layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -202,7 +196,7 @@ export function DanceScheduleLevelGrid({
       ? columnWidthsPx.map((width) => `${width}px`).join(' ')
       : LEVEL_COLUMN_WIDTH
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} ${columnTracks}`
-  const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
+  const rowHeightPx = showGca ? ROW_HEIGHT_PX_WITH_GCA : ROW_HEIGHT_PX_WITHOUT_GCA
 
   return (
     <div className={styles.panelWrapper}>
@@ -225,10 +219,10 @@ export function DanceScheduleLevelGrid({
           className={styles.grid}
           style={{
             gridTemplateColumns,
-            gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)`,
+            gridTemplateRows: `repeat(${totalRows}, ${rowHeightPx}px)`,
           }}
         >
-          {hourMarks.map((mark) => (
+          {timeMarks.map((mark) => (
             <div
               key={mark.rowStart}
               className={styles.timeLabel}
@@ -236,24 +230,6 @@ export function DanceScheduleLevelGrid({
             >
               {mark.label}
             </div>
-          ))}
-          {halfHourMarks.map((mark) => (
-            <div
-              key={mark.rowStart}
-              className={`${styles.timeLabel} ${styles.halfHourLabel}`}
-              style={{ gridRow: mark.rowStart, gridColumn: 1 }}
-            >
-              {mark.label}
-            </div>
-          ))}
-          {elisionMarkers.map((rowStart) => (
-            // A "scale break" in the time axis itself — see DanceScheduleGrid.tsx's
-            // identical marker and computeDanceScheduleTimeAxis.ts's elisionMarkers.
-            <div
-              key={rowStart}
-              className={styles.elisionMarker}
-              style={{ gridRow: rowStart, gridColumn: 1 }}
-            />
           ))}
           {placements.map((placement, index) => (
             // Placements have no stable id of their own (a non-contiguous multi-
@@ -263,7 +239,7 @@ export function DanceScheduleLevelGrid({
               key={index}
               placement={placement}
               showGca={showGca}
-              unitHeightPx={unitHeightPx}
+              rowHeightPx={rowHeightPx}
               slots={visibleSlots}
               columnWidthsPx={columnWidthsPx}
             />

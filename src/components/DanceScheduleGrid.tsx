@@ -8,8 +8,8 @@ import {
 import { detailsContent, detailsPlainText } from '../lib/danceScheduleCardContent'
 import {
   DETAILS_MEASUREMENT_FONT,
-  UNIT_HEIGHT_PX_WITH_GCA,
-  UNIT_HEIGHT_PX_WITHOUT_GCA,
+  ROW_HEIGHT_PX_WITH_GCA,
+  ROW_HEIGHT_PX_WITHOUT_GCA,
 } from '../lib/danceScheduleCardSizing'
 import { shouldCombinePrimaryAndDetails } from '../lib/estimateCardFit'
 import {
@@ -26,18 +26,18 @@ const TIME_COLUMN_WIDTH = '70px'
 function SessionCard({
   placement,
   showGca,
-  unitHeightPx,
+  rowHeightPx,
 }: {
   placement: DanceSessionPlacement
   showGca: boolean
-  unitHeightPx: number
+  rowHeightPx: number
 }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
-    // already 1-based for the first time unit (see computeDanceScheduleLayout.ts and
-    // docs/design/dance-schedule-mobile-scroll.md).
+    // already 1-based for the axis's first row (see computeDanceScheduleLayout.ts
+    // and docs/design/dance-schedule-mobile-scroll.md).
     gridRow: `${rowStart} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
     // Roomless cards keep their own neutral/centered treatment from the CSS module —
@@ -48,11 +48,13 @@ function SessionCard({
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
 
-  // Cards are a fixed, time-proportional height (rowSpan * unitHeightPx) that never
-  // grows to fit content — see docs/known-issues.md's "long wrapping text clips on
-  // very short sessions" entry. When a level line exists and the estimate says the
-  // level + details (+ GCA) lines won't fit separately, combine level and details
-  // onto one line to save the line break, rather than risk clipping.
+  // Cards are a fixed height (rowSpan * rowHeightPx, a uniform per-row pixel value —
+  // rowSpan reflects how many other events happen during this one, not real elapsed
+  // minutes, see docs/design/dance-schedule.md) that never grows to fit content —
+  // see docs/known-issues.md's "long wrapping text clips on very short sessions"
+  // entry. When a level line exists and the estimate says the level + details
+  // (+ GCA) lines won't fit separately, combine level and details onto one line to
+  // save the line break, rather than risk clipping.
   const combineLevelAndDetails =
     !isRoomless &&
     !!levels &&
@@ -61,7 +63,7 @@ function SessionCard({
         primaryText: levels,
         detailsText: detailsPlainText(session),
         hasGcaLine: showGcaLine,
-        availableHeightPx: rowSpan * unitHeightPx,
+        availableHeightPx: rowSpan * rowHeightPx,
         textWidthPx: roomTextWidthPx(columnSpan),
       },
       (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
@@ -104,8 +106,7 @@ export function DanceScheduleGrid({
   layout: DanceScheduleLayout
   showGca: boolean
 }) {
-  const { visibleRooms, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } =
-    layout
+  const { visibleRooms, totalRows, timeMarks, placements } = layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -150,7 +151,7 @@ export function DanceScheduleGrid({
   }
 
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, ${ROOM_COLUMN_WIDTH})`
-  const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
+  const rowHeightPx = showGca ? ROW_HEIGHT_PX_WITH_GCA : ROW_HEIGHT_PX_WITHOUT_GCA
 
   return (
     <div className={styles.panelWrapper}>
@@ -173,10 +174,10 @@ export function DanceScheduleGrid({
           className={styles.grid}
           style={{
             gridTemplateColumns,
-            gridTemplateRows: `repeat(${totalRowUnits}, ${unitHeightPx}px)`,
+            gridTemplateRows: `repeat(${totalRows}, ${rowHeightPx}px)`,
           }}
         >
-          {hourMarks.map((mark) => (
+          {timeMarks.map((mark) => (
             <div
               key={mark.rowStart}
               className={styles.timeLabel}
@@ -185,26 +186,6 @@ export function DanceScheduleGrid({
               {mark.label}
             </div>
           ))}
-          {halfHourMarks.map((mark) => (
-            <div
-              key={mark.rowStart}
-              className={`${styles.timeLabel} ${styles.halfHourLabel}`}
-              style={{ gridRow: mark.rowStart, gridColumn: 1 }}
-            >
-              {mark.label}
-            </div>
-          ))}
-          {elisionMarkers.map((rowStart) => (
-            // A "scale break" in the time axis itself — a long roomless session's
-            // excess duration (beyond 1 hour) was cut from the grid entirely, so
-            // everything after it sits closer than real elapsed time would suggest.
-            // See computeDanceScheduleTimeAxis.ts's elisionMarkers.
-            <div
-              key={rowStart}
-              className={styles.elisionMarker}
-              style={{ gridRow: rowStart, gridColumn: 1 }}
-            />
-          ))}
           {placements.map((placement, index) => (
             // Placements have no stable id of their own (a non-contiguous multi-room
             // session produces several for the same session) — index is stable per render.
@@ -212,7 +193,7 @@ export function DanceScheduleGrid({
               key={index}
               placement={placement}
               showGca={showGca}
-              unitHeightPx={unitHeightPx}
+              rowHeightPx={rowHeightPx}
             />
           ))}
         </div>

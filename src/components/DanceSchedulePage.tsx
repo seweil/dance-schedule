@@ -32,8 +32,8 @@ export function DanceSchedulePage() {
   )
 
   const layout = useMemo(
-    () => computeDanceScheduleLayout(dateSessions, visibleSessions, showGca),
-    [dateSessions, visibleSessions, showGca],
+    () => computeDanceScheduleLayout(dateSessions, visibleSessions),
+    [dateSessions, visibleSessions],
   )
 
   return (
