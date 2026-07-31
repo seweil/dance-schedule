@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { computeDanceScheduleLevelLayout } from './computeDanceScheduleLevelLayout'
+import {
+  computeDanceScheduleLevelLayout,
+  levelColumnWidthPx,
+  LEVEL_COLUMN_WIDTH_PX,
+} from './computeDanceScheduleLevelLayout'
 import { getLevelSlots } from './levelOrder'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
@@ -33,6 +37,7 @@ describe('computeDanceScheduleLevelLayout', () => {
   it('returns an empty layout for no sessions', () => {
     expect(computeDanceScheduleLevelLayout([], [], SLOTS, 0, SLOTS.length - 1, false)).toEqual({
       visibleSlots: [],
+      columnWidthsPx: [],
       totalRowUnits: 0,
       hourMarks: [],
       halfHourMarks: [],
@@ -479,8 +484,12 @@ describe('computeDanceScheduleLevelLayout', () => {
     it('triggers expansion at a lane-split (narrower) width where a full-width lane would not overflow', () => {
       // Two SSD sessions in different rooms, overlapping in time -> assigned
       // side-by-side overlap lanes (laneCount 2), roughly halving the usable text
-      // width for both. Same room/caller text that fits comfortably at full width
-      // (see the "does not stretch" case above) overflows once lane-split.
+      // width for both (partially clawed back by the SSD column itself growing 1.5x
+      // for its 2-lane peak concurrency — see columnWidthsPx below — but not all the
+      // way back to the full 150px a single, non-overlapping lane would get). Same
+      // room/caller text that fits comfortably at full width (see the "does not
+      // stretch" case above) still overflows once lane-split, just by less than it
+      // would have at a fixed, non-growing column width.
       const a = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
       const b = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
       const layout = computeDanceScheduleLevelLayout(
@@ -492,8 +501,91 @@ describe('computeDanceScheduleLevelLayout', () => {
         false,
       )
 
+      expect(layout.columnWidthsPx[0]).toBe(225) // SSD column: 150 * 1.5 for its 2-lane peak
       const placementA = layout.placements.find((p) => p.session === a)
-      expect(placementA).toMatchObject({ laneCount: 2, rowSpan: 4 })
+      expect(placementA).toMatchObject({ laneCount: 2, rowSpan: 3 })
+    })
+  })
+
+  describe('column width growth for concurrent overlap lanes', () => {
+    it('grows a column by 50% per additional lane past the first (1x/1.5x/2x/2.5x)', () => {
+      expect(levelColumnWidthPx(1)).toBe(LEVEL_COLUMN_WIDTH_PX) // 150 * 1
+      expect(levelColumnWidthPx(2)).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // 225
+      expect(levelColumnWidthPx(3)).toBe(LEVEL_COLUMN_WIDTH_PX * 2) // 300
+      expect(levelColumnWidthPx(4)).toBe(LEVEL_COLUMN_WIDTH_PX * 2.5) // 375
+    })
+
+    it('keeps a column at its ordinary width when nothing in it ever overlaps', () => {
+      const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', 'Room A')
+      const layout = computeDanceScheduleLevelLayout(
+        [session],
+        [session],
+        SLOTS,
+        0,
+        SLOTS.length - 1,
+        false,
+      )
+
+      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX)
+    })
+
+    it('sizes a column for its peak concurrency across the whole day, not just one moment', () => {
+      // Two SSD sessions overlap at 12:00-12:30 (2 lanes); a third, later SSD
+      // session at 1:00-1:30 doesn't overlap anything (back to 1 lane) — the
+      // column's width is fixed for its entire height, so it's sized for the
+      // 2-lane peak throughout, even during the later, non-overlapping row range.
+      const a = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
+      const b = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
+      const c = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T13:30:00.000Z', 'Room A')
+      const layout = computeDanceScheduleLevelLayout(
+        [a, b, c],
+        [a, b, c],
+        SLOTS,
+        0,
+        SLOTS.length - 1,
+        false,
+      )
+
+      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5)
+      const placementC = layout.placements.find((p) => p.session === c)
+      expect(placementC).toMatchObject({ laneCount: 1 })
+    })
+
+    it('grows a 3-way overlap column by a full 2x, not just 1.5x', () => {
+      const a = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
+      const b = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
+      const c = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room C')
+      const layout = computeDanceScheduleLevelLayout(
+        [a, b, c],
+        [a, b, c],
+        SLOTS,
+        0,
+        SLOTS.length - 1,
+        false,
+      )
+
+      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 2)
+    })
+
+    it('does not grow a different column that has no overlap of its own', () => {
+      // SSD (index 0) has a 2-lane overlap; MS (index 1) has one ordinary session —
+      // each column's width reflects only its own peak concurrency.
+      const overlapA = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room A')
+      const overlapB = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room B')
+      const other = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room C', {
+        levels: ['MS'],
+      })
+      const layout = computeDanceScheduleLevelLayout(
+        [overlapA, overlapB, other],
+        [overlapA, overlapB, other],
+        SLOTS,
+        0,
+        SLOTS.length - 1,
+        false,
+      )
+
+      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // SSD
+      expect(layout.columnWidthsPx[1]).toBe(LEVEL_COLUMN_WIDTH_PX) // MS, unaffected
     })
   })
 })

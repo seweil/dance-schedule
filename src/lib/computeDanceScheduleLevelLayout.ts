@@ -24,20 +24,49 @@ import type { DanceSession } from '../types/danceSchedule'
 // were, so there's no a priori reason to start narrower. Kept independent of the
 // room grid's own constant (not shared) since the two may need to diverge with
 // real-world tuning. Lives here (not the component) so this lib's own text-fit/
-// expansion pass and the component's render-time recheck share one formula.
+// expansion pass and the component's render-time recheck share one formula. This
+// is the 1x (no-overlap) base width — see levelColumnWidthPx below for how a
+// column's actual rendered width grows past this when it has concurrent lanes
+// somewhere in its own time range.
 export const LEVEL_COLUMN_WIDTH_PX = 150
 export const LEVEL_COLUMN_WIDTH = `${LEVEL_COLUMN_WIDTH_PX}px`
 
-// A lane-split card's own box width is track/laneCount exactly (an explicit
-// percentage width, not grid-stretch-filled), so its usable text width is that
-// minus just the padding, not the combined margin+padding overhead: margin sits
-// outside a border-box element and doesn't shrink its content area the way padding
-// does. Only the ordinary (laneCount === 1, grid-stretch-filled) case uses
-// CARD_HORIZONTAL_OVERHEAD_PX, same as the room-columns grid.
-export function levelTextWidthPx(columnSpan: number, laneCount: number): number {
+// A column whose peak concurrency (maxLaneCount, across its whole day — a CSS Grid
+// column has one width for its entire height, so it's sized for its worst case, not
+// per-row) is N lanes gets 50% more width per additional lane past the first: 1x at
+// 1 (no overlap), 1.5x at 2, 2x at 3, and so on. Splitting a column into more lanes
+// narrows each lane's own share of it (see levelTextWidthPx below), which otherwise
+// increases word-wrap/clipping risk — this claws back some (not all — an ever-
+// growing column would defeat the point of a fixed-width grid) of that lost width
+// by growing the column itself, proportional to how many lanes are actually sharing
+// it.
+export function levelColumnWidthPx(maxLaneCount: number): number {
+  return LEVEL_COLUMN_WIDTH_PX * (1 + 0.5 * (maxLaneCount - 1))
+}
+
+// `columnWidthsPx` is one actual (possibly grown, per levelColumnWidthPx above)
+// pixel width per visible slot column — summed across `columnSpan` columns here
+// since a conflict-free multi-level placement (see mergeIntoPlacements) can span
+// several, each independently possibly grown by unrelated overlaps elsewhere in
+// that column's own day. A lane-split card's own box width is trackWidthPx/
+// laneCount exactly (an explicit percentage width, not grid-stretch-filled), so its
+// usable text width is that minus just the padding, not the combined margin+padding
+// overhead: margin sits outside a border-box element and doesn't shrink its content
+// area the way padding does. Only the ordinary (laneCount === 1, grid-stretch-
+// filled) case uses CARD_HORIZONTAL_OVERHEAD_PX, same as the room-columns grid.
+export function levelTextWidthPx(
+  columnWidthsPx: number[],
+  columnStart: number,
+  columnSpan: number,
+  laneCount: number,
+): number {
+  let trackWidthPx = 0
+  for (let i = columnStart; i < columnStart + columnSpan; i++) {
+    trackWidthPx += columnWidthsPx[i] ?? LEVEL_COLUMN_WIDTH_PX
+  }
   return laneCount > 1
-    ? (columnSpan * LEVEL_COLUMN_WIDTH_PX) / laneCount - CARD_PADDING_PX
-    : columnSpan * LEVEL_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX
+    ? trackWidthPx / laneCount - CARD_PADDING_PX
+    : trackWidthPx - CARD_HORIZONTAL_OVERHEAD_PX
 }
 
 export interface DanceLevelSessionPlacement {
@@ -57,6 +86,10 @@ export interface DanceLevelSessionPlacement {
 
 export interface DanceScheduleLevelLayout {
   visibleSlots: readonly LevelSlot[]
+  // One actual pixel width per visible slot, parallel to visibleSlots — see
+  // levelColumnWidthPx. Equal to LEVEL_COLUMN_WIDTH_PX for a column with no
+  // overlap anywhere in its own day, wider otherwise.
+  columnWidthsPx: number[]
   totalRowUnits: number
   hourMarks: HourMark[]
   halfHourMarks: number[]
@@ -74,6 +107,7 @@ export interface DanceScheduleLevelLayout {
 
 const EMPTY_LEVEL_LAYOUT: DanceScheduleLevelLayout = {
   visibleSlots: [],
+  columnWidthsPx: [],
   totalRowUnits: 0,
   hourMarks: [],
   halfHourMarks: [],
@@ -93,6 +127,7 @@ const measureWidth = (text: string) => measureTextWidth(text, DETAILS_MEASUREMEN
 function collectRowExpansions(
   placements: DanceLevelSessionPlacement[],
   slots: readonly LevelSlot[],
+  columnWidthsPx: number[],
   showGca: boolean,
   unitHeightPx: number,
 ): RowExpansion[] {
@@ -112,7 +147,7 @@ function collectRowExpansions(
         detailsText: detailsPlainText(session, levelPrefix),
         hasGcaLine: showGca && !!gca,
         availableHeightPx: rowSpan * unitHeightPx,
-        textWidthPx: levelTextWidthPx(columnSpan, laneCount),
+        textWidthPx: levelTextWidthPx(columnWidthsPx, columnStart, columnSpan, laneCount),
       },
       rowStart,
       rowSpan,
@@ -245,6 +280,24 @@ function assignLanesPerSlot(entries: RawEntry[]): void {
   }
 }
 
+// Each column's width is sized for its own PEAK concurrency (the largest laneCount
+// any cluster of overlapping entries in that column ever reaches across the whole
+// day) — a CSS Grid column has one fixed width for its entire height, so it can't
+// vary row-by-row with however many lanes a given moment happens to need. Slots
+// with no entries at all (including every slot when entries is empty) default to a
+// laneCount of 1 (the plain, ungrown width) — must run after assignLanesPerSlot,
+// which is what actually populates each entry's real laneCount.
+function computeColumnWidthsPx(entries: RawEntry[], visibleSlotCount: number): number[] {
+  const maxLaneCounts = new Array<number>(visibleSlotCount).fill(1)
+  for (const entry of entries) {
+    if (entry.slotIndex === null) {
+      continue
+    }
+    maxLaneCounts[entry.slotIndex] = Math.max(maxLaneCounts[entry.slotIndex]!, entry.laneCount)
+  }
+  return maxLaneCounts.map(levelColumnWidthPx)
+}
+
 // Merges a session's per-slot entries back into one wide spanning placement when
 // its slots are contiguous AND none of them had an overlap conflict (laneCount ===
 // 1 everywhere) — reproducing today's room-view multi-room-span behavior for the
@@ -359,11 +412,18 @@ export function computeDanceScheduleLevelLayout(
     rowSpanFor,
   )
   assignLanesPerSlot(rawEntries)
+  const columnWidthsPx = computeColumnWidthsPx(rawEntries, visibleSlots.length)
   const placements = mergeIntoPlacements(rawEntries, visibleSlots.length)
 
   placements.sort((a, b) => a.rowStart - b.rowStart || a.columnStart - b.columnStart)
 
-  const expansions = collectRowExpansions(placements, visibleSlots, showGca, unitHeightPx)
+  const expansions = collectRowExpansions(
+    placements,
+    visibleSlots,
+    columnWidthsPx,
+    showGca,
+    unitHeightPx,
+  )
   const expanded = expandDanceScheduleTimeAxis(timeAxis, expansions)
   const expandedPlacements = placements.map((placement) => ({
     ...placement,
@@ -375,6 +435,7 @@ export function computeDanceScheduleLevelLayout(
 
   return {
     visibleSlots,
+    columnWidthsPx,
     totalRowUnits: expanded.totalRowUnits,
     hourMarks: expanded.hourMarks,
     halfHourMarks: expanded.halfHourMarks,

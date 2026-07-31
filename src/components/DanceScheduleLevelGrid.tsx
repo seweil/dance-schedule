@@ -33,11 +33,13 @@ function SessionCard({
   showGca,
   unitHeightPx,
   slots,
+  columnWidthsPx,
 }: {
   placement: DanceLevelSessionPlacement
   showGca: boolean
   unitHeightPx: number
   slots: readonly LevelSlot[]
+  columnWidthsPx: number[]
 }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
   const isRoomless = session.location.kind === 'roomless'
@@ -80,7 +82,7 @@ function SessionCard({
   const slot = !isRoomless ? slots[columnStart] : undefined
   const levelPrefix = slot && slot.levels.length > 1 ? formatSessionLevels(session) : undefined
 
-  const textWidthPx = levelTextWidthPx(columnSpan, laneCount)
+  const textWidthPx = levelTextWidthPx(columnWidthsPx, columnStart, columnSpan, laneCount)
 
   // Cards are a fixed, time-proportional height (rowSpan * unitHeightPx) that never
   // grows to fit content — see docs/known-issues.md's "long wrapping text clips on
@@ -138,8 +140,15 @@ export function DanceScheduleLevelGrid({
   layout: DanceScheduleLevelLayout
   showGca: boolean
 }) {
-  const { visibleSlots, totalRowUnits, hourMarks, halfHourMarks, elisionMarkers, placements } =
-    layout
+  const {
+    visibleSlots,
+    columnWidthsPx,
+    totalRowUnits,
+    hourMarks,
+    halfHourMarks,
+    elisionMarkers,
+    placements,
+  } = layout
 
   const headerRef = useRef<HTMLDivElement | null>(null)
   const bodyRef = useRef<HTMLDivElement | null>(null)
@@ -184,7 +193,15 @@ export function DanceScheduleLevelGrid({
     return <p className={styles.empty}>No sessions match the current filters.</p>
   }
 
-  const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleSlots.length, 1)}, ${LEVEL_COLUMN_WIDTH})`
+  // One explicit track per column (not a uniform repeat()) since each column's
+  // width can differ — see computeDanceScheduleLevelLayout.ts's columnWidthsPx.
+  // Falls back to a single ordinary-width track when there are no visible slots at
+  // all, matching the previous Math.max(visibleSlots.length, 1) behavior.
+  const columnTracks =
+    columnWidthsPx.length > 0
+      ? columnWidthsPx.map((width) => `${width}px`).join(' ')
+      : LEVEL_COLUMN_WIDTH
+  const gridTemplateColumns = `${TIME_COLUMN_WIDTH} ${columnTracks}`
   const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
 
   return (
@@ -246,6 +263,7 @@ export function DanceScheduleLevelGrid({
               showGca={showGca}
               unitHeightPx={unitHeightPx}
               slots={visibleSlots}
+              columnWidthsPx={columnWidthsPx}
             />
           ))}
         </div>
