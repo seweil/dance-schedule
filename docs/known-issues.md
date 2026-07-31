@@ -23,11 +23,15 @@ warning anywhere.
 fallback in `vite-plugin-content-config.ts` now default `combineA1A2` (and
 the newer `combineC3BC4`, added the same day — see
 `docs/design/dance-schedule.md`'s "second merge flag" decision) to `true`,
-matching the docs. `content/automated-testing/config.yaml` explicitly
-overrides `combineC3BC4` back down to `false` (see that file's own comment)
-so `e2e/dance-schedule.spec.ts`'s hardcoded slot indices stay stable —
-everything else, including a `config.yaml`-less event, now gets the
-documented recommendation by default.
+matching the docs — including `content/automated-testing/config.yaml`, which
+briefly overrode `combineC3BC4` back to `false` to keep
+`e2e/dance-schedule.spec.ts`'s hardcoded slot indices stable, then dropped
+that override in favor of updating the test's indices instead (that set is
+never deployed to a real event, so there's no reason for its config to differ
+from the recommended default — see `docs/design/content-config.md`'s
+"both combine both pairs" decision). The uncombined case still has full
+coverage, just in unit tests (`src/lib/levelOrder.test.ts` and friends)
+rather than a live content set.
 
 ## Level taxonomy is hardcoded to modern western square dance only
 

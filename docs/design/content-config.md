@@ -95,14 +95,24 @@ shortcut) doesn't silently produce the opposite of that recommendation (see
 false" item). Malformed, or either `features.combineA1A2`/
 `features.combineC3BC4` not a boolean → throws.
 
-### `content/automated-testing/config.yaml` and `content/test/config.yaml` intentionally differ
-**Why:** Both combine A1/A2 (`combineA1A2: true`, matching the built-in
-default). Only `automated-testing` explicitly *overrides* `combineC3BC4` down
-to `false` — every other set, including `test`, leaves it at its true
-default — specifically so `e2e/dance-schedule.spec.ts`'s hardcoded C3B/C4
-slot indices stay stable, rather than needing a second Playwright project —
-see `docs/design/dance-schedule.md` for the slider-side design (the
-`LevelSlot` concept these flags drive).
+### `content/automated-testing/config.yaml` and `content/test/config.yaml` both combine both pairs — the *uncombined* case is unit-test-only
+**Why:** Every real content set (including `automated-testing`, which despite
+its name is never deployed to a real event — see its own `config.yaml`
+comment) combines both pairs, matching the built-in default and
+`docs/adding-a-new-event.md`'s recommendation. An earlier version of
+`automated-testing/config.yaml` explicitly overrode `combineC3BC4` to `false`
+specifically so `e2e/dance-schedule.spec.ts` could exercise the *uncombined*
+slot-index case live — but that made an artificial, never-real-event
+combination a load-bearing part of the sample set's config purely to serve
+one test file, and `e2e/dance-schedule.spec.ts`'s own slot-index assertions
+are written against whatever `getLevelSlots` produces for these flags, not a
+guarantee of any particular flag value. The uncombined case (and the
+individually-combined and both-combined cases) has thorough, faster-running
+coverage already in `src/lib/levelOrder.test.ts`,
+`src/lib/computeDanceScheduleLevelLayout.test.ts`, and
+`src/hooks/useDanceScheduleFilters.test.ts` — see
+`docs/design/dance-schedule.md` for the slider-side design (the `LevelSlot`
+concept these flags drive).
 
 ## Decisions (continued)
 

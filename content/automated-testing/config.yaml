@@ -6,11 +6,11 @@
 # loadContentManifestStrings); content/test/config.yaml shows an explicit override.
 
 features:
-  # Whether the dance-schedule level slider treats A1 and A2 as a single
-  # combined stop (see docs/design/dance-schedule.md's LevelSlot decision).
+  # Both true — this set is never deployed to a real event (see the
+  # "automated-testing" doc comment in CLAUDE.md's Project structure), so there's
+  # no reason to keep either pair split here; e2e/dance-schedule.spec.ts's own
+  # slot-index assertions are written against whatever getLevelSlots produces for
+  # these flags, not the other way around (see docs/design/dance-schedule.md's
+  # LevelSlot decision).
   combineA1A2: true
-  # Explicit false override (the built-in default is true — see
-  # vite-plugin-content-config.ts) so e2e/dance-schedule.spec.ts's hardcoded
-  # C3B/C4 slot indices stay stable — that test exercises the uncombined case;
-  # content/test/config.yaml exercises the combined one.
-  combineC3BC4: false
+  combineC3BC4: true

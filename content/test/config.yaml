@@ -4,15 +4,12 @@
 # used to construct vite.config.ts's per-set PWA manifest.
 
 features:
-  # Both true (the built-in default — see vite-plugin-content-config.ts) so the
-  # "test" content set exercises both merged-slot behaviors — see
-  # docs/design/dance-schedule.md's LevelSlot decision. Spelled out explicitly
-  # here anyway, alongside `manifest` below, rather than relying on the default.
+  # Both true (the built-in default — see vite-plugin-content-config.ts, and also
+  # content/automated-testing/config.yaml's own setting) so the "test" content set
+  # exercises both merged-slot behaviors too — see docs/design/dance-schedule.md's
+  # LevelSlot decision. Spelled out explicitly here anyway, alongside `manifest`
+  # below, rather than relying on the default.
   combineA1A2: true
-  # Unlike content/automated-testing/config.yaml, which explicitly overrides this
-  # one to false so e2e/dance-schedule.spec.ts's hardcoded slot indices stay
-  # stable — this set is where the "C3B+" merged slot gets manual/live coverage
-  # (pnpm build:test && pnpm preview) instead.
   combineC3BC4: true
 
 manifest:

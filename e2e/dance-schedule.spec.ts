@@ -101,16 +101,16 @@ test('narrowing the level slider hides out-of-range sessions and their now-empty
 
   const minThumb = page.getByRole('slider', { name: /minimum level/i })
   await minThumb.focus()
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 7; i++) {
     await page.keyboard.press('ArrowRight')
   }
-  // 8 — C4's slot index once combineA1A2 merges A1/A2 into one stop (see
-  // getLevelSlots in src/lib/levelOrder.ts), the last of 9 slots — not 9, which
-  // would be C4's index in the raw, uncombined LEVEL_ORDER.
-  await expect(minThumb).toHaveAttribute('aria-valuenow', '8')
+  // 7 — "C3B+"'s slot index once combineA1A2 and combineC3BC4 each merge their
+  // pair into one stop (see getLevelSlots in src/lib/levelOrder.ts), the last of
+  // 8 slots — not 9, which would be C4's index in the raw, uncombined LEVEL_ORDER.
+  await expect(minThumb).toHaveAttribute('aria-valuenow', '7')
 
-  // Only C4 sessions remain — everything else, and any room column that had nothing
-  // in C4, disappears.
+  // Only C3B/C4 sessions remain — everything else, and any room column that had
+  // nothing at that level, disappears.
   const columnCountAfter = await page.locator('[class*="roomHeader"]').count()
   expect(columnCountAfter).toBeLessThan(columnCountBefore)
   await expect(page.getByText('All Callers Dance - All Callers')).not.toBeVisible()
@@ -121,20 +121,20 @@ test('clicking a level tick label sets the range directly, without using the sli
 }) => {
   await page.goto('/automated-testing/dance-schedule')
   const maxThumb = page.getByRole('slider', { name: /maximum level/i })
-  // 8 — C4's slot index (getLevelSlots merges A1/A2 into one stop when
-  // combineA1A2 is true, src/lib/levelOrder.ts): the default range starts at the
-  // full SSD-C4 span, 9 slots wide (indices 0-8).
-  await expect(maxThumb).toHaveAttribute('aria-valuenow', '8')
+  // 7 — "C3B+"'s slot index (getLevelSlots merges A1/A2 and C3B/C4 each into one
+  // stop when combineA1A2/combineC3BC4 are both true, src/lib/levelOrder.ts): the
+  // default range starts at the full SSD-"C3B+" span, 8 slots wide (indices 0-7).
+  await expect(maxThumb).toHaveAttribute('aria-valuenow', '7')
 
   // Clicking a tick close to the current max (but not at either thumb's own
   // position) moves the *nearer* thumb to it — no drag, no keyboard, just a click
-  // on the label itself. C3B (index 7) is nearer the max end (distance 1) than the
-  // min end (distance 7), so this unambiguously moves the max thumb inward to meet
+  // on the label itself. C3A (index 6) is nearer the max end (distance 1) than the
+  // min end (distance 6), so this unambiguously moves the max thumb inward to meet
   // it (see moveNearestThumb's interior-click branch, src/lib/moveNearestThumb.ts).
-  await page.getByRole('button', { name: 'C3B', exact: true }).click()
+  await page.getByRole('button', { name: 'C3A', exact: true }).click()
 
-  // 7 — C3B's slot index.
-  await expect(maxThumb).toHaveAttribute('aria-valuenow', '7')
+  // 6 — C3A's slot index.
+  await expect(maxThumb).toHaveAttribute('aria-valuenow', '6')
 })
 
 test('unchecking "Show GCA callers" hides the GCA line without hiding the session', async ({
