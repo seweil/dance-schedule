@@ -92,7 +92,9 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 2, 5, false)
 
-    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['Plus', 'A1', 'A2', 'C1'])
+    // "Other" (for no-ordered-level, real-room sessions) is always appended after
+    // the ordered-level slice — see OTHER_LEVEL_SLOT.
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['Plus', 'A1', 'A2', 'C1', 'Other'])
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 1 })
   })
 
@@ -107,7 +109,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, 3, false)
 
-    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'A1'])
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'A1', 'Other'])
   })
 
   it('gives a contiguous multi-level session a single spanning placement', () => {
@@ -164,7 +166,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     ])
   })
 
-  it('floats a freeform roomless session across every visible slot column', () => {
+  it('floats a freeform roomless session across every visible slot column, including Other', () => {
     const lunch: DanceSession = {
       kind: 'freeform',
       date: new Date('2026-07-02T00:00:00.000Z'),
@@ -175,7 +177,8 @@ describe('computeDanceScheduleLevelLayout', () => {
     }
     const layout = computeDanceScheduleLevelLayout([lunch], [lunch], SLOTS, 2, 5, false)
 
-    expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 4 })
+    // 4 ordered slots (Plus, A1, A2, C1) + Other = 5.
+    expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 5 })
   })
 
   it("elides a floating roomless session's excess duration beyond 1 hour, and surfaces the elision marker", () => {
@@ -202,7 +205,12 @@ describe('computeDanceScheduleLevelLayout', () => {
     expect(layout.elisionMarkers).toEqual([3])
   })
 
-  it('floats a structured session tagged only Advanced/Intro/Various across every visible slot column', () => {
+  it('gives a structured session tagged only Advanced/Intro/Various its own Other column, not a float across everything', () => {
+    // Has a real room (Salon A-C), just no ordered level — this used to float across
+    // every column like a roomless session, which silently rendered underneath
+    // whichever single column's cards happened to occupy the same row range (CSS
+    // Grid allows overlapping items with no collision detection). Now it gets the
+    // same dedicated-column treatment as any other level.
     const session = makeSession(
       '2026-07-02T13:00:00.000Z',
       '2026-07-02T14:00:00.000Z',
@@ -213,7 +221,47 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, 2, false)
 
-    expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 3 })
+    // SSD, MS, Plus (0,1,2) + Other (3).
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'Other'])
+    expect(layout.placements[0]).toMatchObject({ columnStart: 3, columnSpan: 1 })
+  })
+
+  it('gives a freeform session with a real room its own Other column too (not roomless, no ordered level)', () => {
+    // The motivating real-world case: a freeform entry like "Country Western Dance"
+    // scheduled in a real venue but with no square-dance skill level at all.
+    const session: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T21:00:00.000Z'),
+      endTime: new Date('2026-07-02T22:00:00.000Z'),
+      location: { kind: 'located', rooms: ['Drummond Ballroom'] },
+      description: 'Country Western Dance - until 1am',
+    }
+    const layout = computeDanceScheduleLevelLayout([session], [session], SLOTS, 0, 2, false)
+
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'Other'])
+    expect(layout.placements[0]).toMatchObject({ columnStart: 3, columnSpan: 1 })
+  })
+
+  it('lane-splits two overlapping Other-column sessions just like any real level column', () => {
+    const a: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T21:00:00.000Z'),
+      endTime: new Date('2026-07-02T22:00:00.000Z'),
+      location: { kind: 'located', rooms: ['Drummond Ballroom'] },
+      description: 'Country Western Dance',
+    }
+    const b = makeSession('2026-07-02T21:00:00.000Z', '2026-07-02T22:00:00.000Z', 'Salon A-C', {
+      levels: ['Intro'],
+    })
+    const layout = computeDanceScheduleLevelLayout([a, b], [a, b], SLOTS, 0, 2, false)
+
+    const placementA = layout.placements.find((p) => p.session === a)
+    const placementB = layout.placements.find((p) => p.session === b)
+    expect(placementA).toMatchObject({ columnStart: 3, lane: 0, laneCount: 2 })
+    expect(placementB).toMatchObject({ columnStart: 3, lane: 1, laneCount: 2 })
+    expect(layout.columnWidthsPx[3]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // Other's own 2-lane peak
   })
 
   describe('overlap lanes', () => {

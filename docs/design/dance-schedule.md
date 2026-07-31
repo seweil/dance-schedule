@@ -361,23 +361,47 @@ now that it's shared by both grids with different bold-label semantics.
 
 **Columns are the filter's own range, not data-derived:** unlike rooms
 (discovered per-date via `deriveRoomOrder`, hidden once nothing in a room
-is visible), a level-columns view's columns are exactly
-`getLevelSlots(combineA1A2).slice(minLevelIndex, maxLevelIndex + 1)` — the
-level-range slider directly picks the visible column range, always shown in
+is visible), a level-columns view's ordered-level columns are exactly
+`getLevelSlots(combineA1A2).slice(minLevelIndex, maxLevelIndex + 1)`, plus
+one more fixed `"Other"` column always appended after them (see below) — the
+level-range slider directly picks the ordered-level range, always shown in
 full even for a slot with nothing scheduled that day. This is a genuine
 simplification versus the room view (no "hide an empty column" logic needed
 at all) and matches what a level-range selection should mean in this view:
 "show me these levels," not "show me these levels, except any with nothing
-in it."
+in it." `"Other"` sits outside the slider's own range entirely (not a
+selectable/filterable position) — matching that a no-ordered-level session
+was already unconditionally visible regardless of the level-range filter
+before this column existed.
 
 **A session with no ordered level** (a freeform session, or a structured
 session tagged only `Advanced`/`Intro`/`Various` — not in `LEVEL_ORDER`)
-floats across every visible slot column, exactly mirroring how a roomless
-session already floats across every visible room column today. A
-contiguous multi-level session (today only ever `A1, A2` or `C1, C2`) gets
-one spanning placement across its columns, same as a contiguous multi-room
-session — reusing the same `isContiguous` check, just applied to
-(`minLevelIndex`-relative) slot indices instead of room indices.
+gets its own dedicated `"Other"` column (a synthetic `LevelSlot` appended
+after the ordered-level slice — `OTHER_LEVEL_SLOT`,
+`computeDanceScheduleLevelLayout.ts`) if it has a real room, or floats
+across every visible column (including `"Other"`) if it's genuinely
+roomless — mirroring roomless-session treatment in the room-columns view for
+that latter case only. Originally *every* no-ordered-level session floated
+across every column, unconditionally, but that broke for the common
+real-room case: CSS Grid allows multiple items to occupy overlapping grid
+cells with no collision detection, so a full-width card with a normal,
+opaque background was simply painted over by any neighboring single-column
+card sharing its row range — visually indistinguishable from the session
+having rendered *inside* whichever single column happened to be empty at
+that moment (reported live as a freeform "Country Western Dance" entry
+appearing to render inside the "MS" column). A genuinely roomless session
+(no location at all, e.g. a meal break) keeps the original floats-across-
+everything treatment, since "nothing else happening in any room" is still
+the correct thing to communicate for that case — only a real-room session
+needed to stop floating. Once assigned `"Other"`'s fixed slot index, such a
+session flows through the exact same per-slot pipeline as any real level
+(lane assignment for concurrent overlaps, column-width growth, the
+axis-stretch text-fit estimate) with no special-casing needed beyond
+computing that one index. A contiguous multi-level session (today only ever
+`A1, A2` or `C1, C2`) gets one spanning placement across its columns, same
+as a contiguous multi-room session — reusing the same `isContiguous` check,
+just applied to (`minLevelIndex`-relative) slot indices instead of room
+indices.
 
 **Cards stay colored by level** (`colorForSession`, unchanged), even though
 level is already encoded by the column in this view and the coloring is

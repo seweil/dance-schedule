@@ -69,6 +69,22 @@ export function levelTextWidthPx(
     : trackWidthPx - CARD_HORIZONTAL_OVERHEAD_PX
 }
 
+// A session with a real room but no ordered level (e.g. a freeform "Country Western
+// Dance" entry, or a structured session tagged only Advanced/Intro/Various) gets its
+// own dedicated column, appended after every ordered-level column — see
+// buildRawEntries and computeDanceScheduleLevelLayout below. It used to float across
+// every visible column instead (mirroring roomless-session treatment in the
+// room-columns view), but that silently rendered *underneath* whichever single-
+// column cards happened to occupy the same row range: CSS Grid allows overlapping
+// items with no collision detection, so a full-width card with a normal, opaque
+// background is simply painted over by any neighboring single-column card sharing
+// its row range, leaving only the portion over a genuinely empty column visible —
+// which looked like the session had rendered *inside* that one column instead of
+// spanning everything. A genuinely roomless session (no location at all, e.g. a meal
+// break) keeps the old floats-across-everything treatment — that one's still
+// correct, since it really does mean "nothing else happening in any room."
+const OTHER_LEVEL_SLOT: LevelSlot = { label: 'Other', levels: [] }
+
 export interface DanceLevelSessionPlacement {
   session: DanceSession
   rowStart: number
@@ -165,8 +181,10 @@ function collectRowExpansions(
 // single-slot granularity first, mirroring how the room algorithm's non-contiguous
 // multi-room fallback already works; entries get merged back into a wider span in
 // mergeIntoPlacements below, only for the common conflict-free case. `slotIndex:
-// null` marks a "floating" entry (a session with no ordered level at all), handled
-// separately — it never participates in overlap-lane assignment.
+// null` marks a genuinely roomless "floating" entry, handled separately — it never
+// participates in overlap-lane assignment. A no-ordered-level entry with a real room
+// instead gets OTHER_LEVEL_SLOT's own fixed index (see buildRawEntries) and flows
+// through the ordinary per-slot pipeline just like any real level.
 interface RawEntry {
   session: DanceSession
   rowStart: number
@@ -192,7 +210,13 @@ function buildRawEntries(
 
     const orderedLevels = session.kind === 'structured' ? session.levels.filter(isOrderedLevel) : []
     if (orderedLevels.length === 0) {
-      entries.push({ session, rowStart, rowSpan, slotIndex: null, lane: 0, laneCount: 1 })
+      // OTHER_LEVEL_SLOT is always appended immediately after the ordered-level
+      // slice (see computeDanceScheduleLevelLayout below), at this fixed index
+      // regardless of the day's actual content — same "columns aren't data-derived"
+      // property every other slot already has.
+      const slotIndex =
+        session.location.kind === 'roomless' ? null : maxLevelIndex - minLevelIndex + 1
+      entries.push({ session, rowStart, rowSpan, slotIndex, lane: 0, laneCount: 1 })
       continue
     }
 
@@ -376,8 +400,10 @@ function mergeIntoPlacements(
  * shown even for a slot with nothing scheduled that day (see
  * docs/design/dance-schedule.md).
  *
- * A session with no ordered level (freeform, or structured with only
- * Advanced/Intro/Various tags) floats across every visible slot column, mirroring
+ * A session with a real room but no ordered level (freeform, or structured with only
+ * Advanced/Intro/Various tags) gets its own dedicated "Other" column, appended after
+ * every ordered-level column (see OTHER_LEVEL_SLOT). A genuinely roomless session
+ * (no location at all) instead floats across every visible column, mirroring
  * roomless-session treatment in the room-columns view. A multi-level session (e.g.
  * "C1, C2") gets one spanning placement when its slots are contiguous and conflict-
  * free, same as a contiguous multi-room session today; otherwise it decomposes into
@@ -401,7 +427,7 @@ export function computeDanceScheduleLevelLayout(
   const { rowStartFor, rowSpanFor } = timeAxis
   const unitHeightPx = showGca ? UNIT_HEIGHT_PX_WITH_GCA : UNIT_HEIGHT_PX_WITHOUT_GCA
 
-  const visibleSlots = slots.slice(minLevelIndex, maxLevelIndex + 1)
+  const visibleSlots = [...slots.slice(minLevelIndex, maxLevelIndex + 1), OTHER_LEVEL_SLOT]
 
   const rawEntries = buildRawEntries(
     visibleSessions,
