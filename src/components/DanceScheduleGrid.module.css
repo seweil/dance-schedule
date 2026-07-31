@@ -115,13 +115,20 @@
 /* One label per time-axis mark — every mark is, by construction, a real event
    boundary (see docs/design/dance-schedule.md's "the axis is not a clock"
    decision), so there's no primary/secondary distinction to draw between them
-   anymore — every label renders identically. */
+   anymore — every label renders identically.
+
+   align-items: flex-start (not center) — a label marks when its row STARTS
+   (the border-top line above is that exact boundary), not the row's midpoint.
+   Centering read fine back when rows were a short, fairly uniform ~18-20px, but
+   now that a row is sized to fit a full card's content (danceScheduleCardSizing.ts,
+   often 60-100+px, and variable per row when rowSpan > 1), a centered label
+   visually floats away from the boundary it's actually labeling. */
 .timeLabel {
   position: sticky;
   left: 0;
   z-index: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   background: #fff;
   padding: 0 var(--space-sm);
