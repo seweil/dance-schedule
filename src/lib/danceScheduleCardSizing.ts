@@ -5,20 +5,27 @@
 // typical length that the two views may want different values).
 
 // One grid row's fixed pixel height — a row is NOT a fixed span of real time (see
-// computeDanceScheduleTimeAxis.ts's "the axis is not a clock" decision), so this is
-// just "how tall should the next-thing-that-happens step be," not "pixels per
-// minute." Two values, not one: showGca is a single global toggle (not per-card), so
-// hiding it uniformly drops one line of content from every card that has GCA data —
-// the whole grid can compact to match, not just cards that happen to lose a line.
-// 18, not a more aggressive 16 — chosen live: 16 visibly compresses the common
-// (1hr/45min) case just as well, but also measurably worsens a separate, pre-
-// existing overflow issue (very short sessions with long wrapping text clip
-// regardless of this toggle — see docs/known-issues.md) for cards that don't even
-// have GCA data to hide in the first place. 18 keeps that collateral impact smaller
-// while still delivering visible compaction for the common case this feature is
-// actually for.
-export const ROW_HEIGHT_PX_WITH_GCA = 20
-export const ROW_HEIGHT_PX_WITHOUT_GCA = 18
+// computeDanceScheduleTimeAxis.ts's "the axis is not a clock" decision), and most
+// sessions now get rowSpan 1 (nothing else happens at the same moment often enough
+// to create a second tick) — so unlike the old per-15-real-minutes value this
+// replaced, a single row now has to comfortably fit a TYPICAL full card's content on
+// its own, not a quarter of it. Live-measured against the real automated-testing
+// data, not derived from estimateCardFit.ts's line-height constants alone — an
+// initial pass computed from those constants (padding + line heights) undercounted
+// by ~12-14px, since it missed .levels' own 2px top/bottom margin and the
+// margin-bottom the last line in a card gets (`.card > div > p:last-child`) — both
+// real box-model contributors estimateCardFit.ts's own combine/overflow *decision*
+// already accounts for (via PRIMARY_DETAILS_LINE_HEIGHT_PX etc.), but this constant
+// didn't. Confirmed live: with these values, only ~10-15% of real cards still clip
+// (all long-text cases the combine mitigation can't fully resolve), down from
+// nearly all of them at the first-pass numbers. Two values, not one: showGca is a
+// single global toggle (not per-card), so hiding it uniformly drops one line of
+// content from every card that has GCA data — the whole grid can compact to match,
+// not just cards that happen to lose a line. Residual clipping on long-text cards
+// falls to the existing shouldCombinePrimaryAndDetails mitigation, and beyond that,
+// accepted — see docs/known-issues.md.
+export const ROW_HEIGHT_PX_WITH_GCA = 76
+export const ROW_HEIGHT_PX_WITHOUT_GCA = 62
 
 // .card's own horizontal padding (8px each side, --space-sm) — the difference
 // between the card's own box width and the usable text width inside it. Use this

@@ -253,17 +253,19 @@ describe('DanceScheduleLevelGrid', () => {
   })
 
   it('combines the room and details lines onto one <p> when the card is too short for both', () => {
+    // A genuinely long, multi-word caller name — under the new row-height scale
+    // (sized to comfortably fit typical content, see danceScheduleCardSizing.ts),
+    // rowSpan alone can no longer make a card "too short" for ordinary text; only
+    // unusually long content can still trigger combining.
     const longCallerSession: DanceSession = {
       ...STRUCTURED_SESSION,
       eventType: 'Dancing',
-      callers: ['Michael Maltenfort'],
+      callers: ['Bartholomew Alexander Montgomery Wellington-Smythe'],
     }
     const { container } = render(
       <DanceScheduleLevelGrid
         layout={makeLayout({
-          // A 2-row card is too short for "Ballroom Centre" plus a wrapping caller
-          // name as two separate lines.
-          placements: [placement({ session: longCallerSession, rowStart: 3, rowSpan: 2 })],
+          placements: [placement({ session: longCallerSession, rowStart: 3, rowSpan: 1 })],
         })}
         showGca
       />,
@@ -272,7 +274,7 @@ describe('DanceScheduleLevelGrid', () => {
     expect(container.querySelector('p.levels')).not.toBeInTheDocument()
     expect(container.querySelector('span.levels')).not.toBeInTheDocument()
     const combined = container.querySelector('p.details') as HTMLElement
-    expect(combined.textContent).toBe('Michael Maltenfort Ballroom Centre')
+    expect(combined.textContent).toBe('Bartholomew Alexander Montgomery Wellington-Smythe Ballroom Centre')
   })
 
   describe('overlap lanes', () => {
@@ -289,32 +291,43 @@ describe('DanceScheduleLevelGrid', () => {
     })
 
     it("estimates a lane-split card's text width from its own (halved) box, not the full track", () => {
-      // With the 150px column split into 2 lanes, a lane's actual box is 75px wide
-      // (border-box) with 16px padding -> 59px usable. The bug this guards against
-      // used (150 - 18) / 2 = 66px instead -- wide enough that "Jane Ross" (63px in
-      // the jsdom fallback measurer's 7px/char) fits on one line, when it shouldn't
-      // (63 > 59, so it should wrap to two lines and trigger combining).
+      // A lane-split card has roughly half the usable width of a non-split one (see
+      // levelTextWidthPx) — the bug this guards against used the full, un-halved
+      // track width instead, silently making a lane-split card look like it had
+      // more room than it really does. Same session, same rowSpan (so height is
+      // identical in both renders) — only laneCount/lane differ, isolating the
+      // width estimate as the only variable. A long-enough details line stays
+      // uncombined at the full (non-split) width but needs combining once the
+      // width is correctly halved.
       const session: DanceSession = {
         ...STRUCTURED_SESSION,
         eventType: 'Dancing',
-        callers: ['Jane Ross'],
+        callers: ['Alexander Bartholomew Montgomery'],
         gca: undefined,
       }
-      // 16 padding + 15 room + 15*2 details (wraps at 59px) = 61, over a 60px card;
-      // 16 + 15 + 15*1 (fits at the old, wrong 66px) = 46, under 60 -- the two
-      // formulas disagree on whether this card needs combining.
-      const { container } = render(
+      const { container: fullWidth } = render(
         <DanceScheduleLevelGrid
           layout={makeLayout({
-            placements: [placement({ session, rowStart: 3, rowSpan: 3, lane: 1, laneCount: 2 })],
+            placements: [placement({ session, rowStart: 3, rowSpan: 1, lane: 0, laneCount: 1 })],
+          })}
+          showGca
+        />,
+      )
+      const { container: laneSplit } = render(
+        <DanceScheduleLevelGrid
+          layout={makeLayout({
+            placements: [placement({ session, rowStart: 3, rowSpan: 1, lane: 1, laneCount: 2 })],
           })}
           showGca
         />,
       )
 
-      expect(container.querySelector('p.levels')).not.toBeInTheDocument()
-      const combined = container.querySelector('p.details') as HTMLElement
-      expect(combined.textContent).toBe('Jane Ross Ballroom Centre')
+      expect(fullWidth.querySelector('p.details')?.textContent).toBe('Alexander Bartholomew Montgomery')
+      expect(fullWidth.querySelector('span.levels')).not.toBeInTheDocument()
+
+      expect(laneSplit.querySelector('p.levels')).not.toBeInTheDocument()
+      const combined = laneSplit.querySelector('p.details') as HTMLElement
+      expect(combined.textContent).toBe('Alexander Bartholomew Montgomery Ballroom Centre')
     })
 
     it('does not override width/marginLeft when laneCount is 1', () => {

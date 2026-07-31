@@ -200,18 +200,20 @@ describe('DanceScheduleGrid', () => {
   })
 
   it('combines the level and details lines onto one <p> when the card is too short for both', () => {
+    // A genuinely long, multi-word caller name — under the new row-height scale
+    // (sized to comfortably fit typical content, see danceScheduleCardSizing.ts),
+    // rowSpan alone can no longer make a card "too short" for ordinary text; only
+    // unusually long content can still trigger combining.
     const longCallerSession: DanceSession = {
       ...STRUCTURED_SESSION,
       eventType: 'Dancing',
-      callers: ['Michael Maltenfort'],
+      callers: ['Bartholomew Alexander Montgomery Wellington-Smythe'],
     }
     const { container } = render(
       <DanceScheduleGrid
         layout={makeLayout({
-          // A 2-row card is too short for "SSD" plus a wrapping caller name as two
-          // separate lines, even with the roomier showGca-true row height.
           placements: [
-            { session: longCallerSession, rowStart: 3, rowSpan: 2, columnStart: 0, columnSpan: 1 },
+            { session: longCallerSession, rowStart: 3, rowSpan: 1, columnStart: 0, columnSpan: 1 },
           ],
         })}
         showGca
@@ -221,7 +223,7 @@ describe('DanceScheduleGrid', () => {
     expect(container.querySelector('p.levels')).not.toBeInTheDocument()
     const combined = container.querySelector('p.details') as HTMLElement
     expect(combined.querySelector('span.levels')?.textContent).toContain('SSD')
-    expect(combined.textContent).toBe('SSD Michael Maltenfort')
+    expect(combined.textContent).toBe('SSD Bartholomew Alexander Montgomery Wellington-Smythe')
   })
 
   it('keeps the level and details lines separate when the card has plenty of room', () => {
