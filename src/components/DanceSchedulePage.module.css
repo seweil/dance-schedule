@@ -1,11 +1,13 @@
 /* Subtle, matching BuildInfo.tsx's own muted fine-print treatment — a secondary
    discovery path, not something meant to compete visually with the filters/grid
-   above it. Right-aligned (not the page's default left-aligned flow) so it reads
-   as an aside rather than part of the schedule content itself. */
+   above it. Centered (not the page's default left-aligned flow) so it reads as
+   an aside rather than part of the schedule content itself — right-aligned was
+   tried first, but ScrollToTopButton.module.css's fixed-position button sits in
+   that same bottom-right corner and covered it. */
 .debugLink {
   margin: var(--space-sm) 0 0;
   font-size: 0.75rem;
-  text-align: right;
+  text-align: center;
 }
 
 .debugLink a {
