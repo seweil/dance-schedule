@@ -1,0 +1,92 @@
+name: CI
+
+# The only automated pipeline this repo had was amplify.yml's deploy build
+# (`pnpm build` — typecheck + content build-time validation only, no lint, no
+# unit tests, no e2e). This workflow is what actually runs the rest, on every
+# push and PR, so a broken test/lint doesn't first surface in production. See
+# docs/testing.md for the full "what runs where" picture and how to read a
+# run's results (Summary page → Artifacts).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Fast feedback: lint, typecheck, and unit tests (with coverage). Doesn't
+  # depend on the e2e job below — they run in parallel since neither needs the
+  # other's output.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Prepare pnpm
+        # Pinned version matches package.json's own packageManager field and
+        # amplify.yml's deploy build, so CI and prod use the identical toolchain.
+        run: corepack prepare pnpm@11.15.1 --activate
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests (with coverage)
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+
+  # Full production build (every content set, via playwright.config.ts's own
+  # `webServer: pnpm build && pnpm preview`) plus every Playwright spec against
+  # it. Runs on ubuntu-latest, not inside any nested sandbox, so — unlike a
+  # Claude Code session in this repo (see docs/known-issues.md) — Chromium
+  # launches here without issue.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Prepare pnpm
+        run: corepack prepare pnpm@11.15.1 --activate
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

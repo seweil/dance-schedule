@@ -177,6 +177,26 @@ export default defineConfig(async () => {
       // anything unexpected.
       include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts'],
       css: true,
+      // Informational only (pnpm test:coverage) — nothing enforces a threshold, and
+      // CI just uploads the html report as an artifact rather than failing a build
+      // on it. Excludes the same root-level Vite plugins the `include` comment above
+      // already calls out as covered live rather than by a dedicated test, plus
+      // config/type/generated files that aren't meaningfully "coverable" logic.
+      coverage: {
+        provider: 'v8' as const,
+        reporter: ['text', 'html'],
+        include: ['src/**/*.{ts,tsx}', '*.ts'],
+        exclude: [
+          'src/**/*.{test,spec}.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test-setup.ts',
+          'src/pages/**',
+          '*.config.ts',
+          'vite-plugin-*.ts',
+          'scripts/**',
+        ],
+      },
     },
   }
 })

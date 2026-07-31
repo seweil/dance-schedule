@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "CONTENT_SET=automated-testing vitest run",
     "test:watch": "CONTENT_SET=automated-testing vitest",
+    "test:coverage": "CONTENT_SET=automated-testing vitest run --coverage",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

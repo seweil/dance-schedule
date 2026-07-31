@@ -265,6 +265,10 @@ The short version:
 
 ## Testing
 
+See `docs/testing.md` for the fuller picture: what each test layer catches,
+what runs where (local/CI/Amplify), how to read CI results, and current
+coverage/organization notes. Below is just guidance on how to write tests.
+
 - Unit test hooks and `lib/` utilities directly with Vitest.
 - Component tests use `@testing-library/react` — test behavior/output, not
   implementation details (avoid snapshot tests for anything with real logic).
