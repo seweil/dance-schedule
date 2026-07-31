@@ -140,25 +140,27 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Very subtle background gridlines, one per row/column boundary, spanning the
-   grid's full width/height (gridColumn/gridRow: "1 / -1", set inline where
-   rendered) — rowLine and columnLine both render before .timeLabel/.card/
-   .roomlessCard in the DOM (DanceScheduleGrid.tsx/DanceScheduleLevelGrid.tsx),
-   and none of the three has an explicit z-index, so plain DOM-order stacking
-   already puts every occupied cell's own opaque background on top — a line only
-   actually shows through where a cell has nothing covering it, giving the eye
-   something to track row/column alignment by even where the schedule is empty.
-   10% black, not var(--color-border) — that token's opaque #ddd would read as a
-   real border, not a faint hint; a hairline this low-contrast couldn't be
-   confirmed visually via screenshot (JPEG compression washes out low-alpha 1px
-   lines almost entirely) — verified correct instead via computed style/
-   getBoundingClientRect against the live DOM, and by temporarily swapping in an
-   opaque color to confirm placement, then reverting. */
-.rowLine {
+/* Very subtle background gridlines — one small border per genuinely EMPTY grid
+   cell only (computeEmptyGridCells.ts, one div per cell, positioned inline via
+   gridRow/gridColumn in DanceScheduleGrid.tsx/DanceScheduleLevelGrid.tsx), never
+   spanning into a cell a placement covers. Each cell only draws the specific
+   side(s) (top/left) whose neighbor is ALSO empty — a line sitting right against
+   an occupied cell would run straight into that card's own rounded corner
+   (.card's border-radius below), reading as a stray straight-edge artifact
+   rather than a deliberate line. This is also why a spanning placement (multi-
+   row or multi-column) never gets internal lines: every cell it covers is
+   excluded from the empty set entirely, span or no span. 10% black, not
+   var(--color-border) — that token's opaque #ddd would read as a real border,
+   not a faint hint; a hairline this low-contrast couldn't be confirmed visually
+   via screenshot (JPEG compression washes out low-alpha 1px lines almost
+   entirely) — verified correct instead via computed style/getBoundingClientRect
+   against the live DOM, and by temporarily swapping in an opaque color to
+   confirm placement, then reverting. */
+.emptyCellTop {
   border-top: 1px solid rgb(0 0 0 / 10%);
 }
 
-.columnLine {
+.emptyCellLeft {
   border-left: 1px solid rgb(0 0 0 / 10%);
 }
 

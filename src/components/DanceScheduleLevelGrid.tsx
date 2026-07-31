@@ -4,6 +4,7 @@ import {
   type DanceLevelSessionPlacement,
   type DanceScheduleLevelLayout,
 } from '../lib/computeDanceScheduleLevelLayout'
+import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent } from '../lib/danceScheduleCardContent'
 import { formatSessionGca, formatSessionLevels, formatSessionRoom, formatSessionTimeRange } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
@@ -145,6 +146,7 @@ export function DanceScheduleLevelGrid({
       ? columnWidthsPx.map((width) => `${width}px`).join(' ')
       : LEVEL_COLUMN_WIDTH
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} ${columnTracks}`
+  const emptyCells = computeEmptyGridCells(totalRows, visibleSlots.length, placements)
 
   return (
     <div className={styles.panelWrapper}>
@@ -173,21 +175,15 @@ export function DanceScheduleLevelGrid({
             gridTemplateRows: `repeat(${totalRows}, minmax(28px, auto))`,
           }}
         >
-          {/* Subtle background gridlines, painted first so every occupied cell's
-              own opaque background covers the segment running through it — see
-              .rowLine/.columnLine's shared comment in the CSS module. */}
-          {timeMarks.map((mark) => (
+          {/* Subtle background gridlines — one per genuinely empty cell, never a
+              cell a placement covers or one bordering an occupied neighbor (see
+              computeEmptyGridCells.ts and .emptyCellTop/.emptyCellLeft's shared
+              comment in the CSS module). */}
+          {emptyCells.map((cell) => (
             <div
-              key={`row-${mark.rowStart}`}
-              className={styles.rowLine}
-              style={{ gridRow: mark.rowStart, gridColumn: '1 / -1' }}
-            />
-          ))}
-          {visibleSlots.map((slot, index) => (
-            <div
-              key={`col-${slot.label}`}
-              className={styles.columnLine}
-              style={{ gridRow: '1 / -1', gridColumn: index + 2 }}
+              key={`empty-${cell.row}-${cell.column}`}
+              className={`${cell.showTop ? styles.emptyCellTop : ''} ${cell.showLeft ? styles.emptyCellLeft : ''}`.trim()}
+              style={{ gridRow: cell.row, gridColumn: cell.column + 2 }}
             />
           ))}
           {timeMarks.map((mark) => (
