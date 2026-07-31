@@ -206,19 +206,31 @@
    (columnSpan set in computeDanceScheduleLayout.ts/computeDanceScheduleLevelLayout.ts)
    — often much wider than the viewport. justify-content: center above only
    centers this within the FULL span's own width, which sits at that span's true
-   midpoint — invisible until the user happens to scroll there. position: sticky
-   with BOTH left: 0 and right: 0 (not left-only, unlike .timeLabel's sticky) is
-   the standard "sticky-centered" trick: the browser continuously recomputes the
-   allowed offset range from both edges as the user scrolls, so this stays
-   visible within whatever part of the wide card is currently in the scrollport,
-   instead of only appearing once scrolled to the literal center of the whole
-   span. width: fit-content, not the flex parent's stretched default — sticky
-   with both left/right set would otherwise stretch to fill the full span,
-   defeating the point. */
+   midpoint, out of view until the user happens to scroll there. position: sticky
+   with both left and right set (not left-only, unlike .timeLabel's sticky) keeps
+   this within the visible scrollport throughout the ENTIRE horizontal scroll
+   range instead — NOT continuously re-centered (sticky offsets are one-sided
+   thresholds, not a live "always centered" constraint), but pinned to whichever
+   edge it would otherwise scroll past: right-pinned near the start of the
+   range, tracking normally through the middle, left-pinned near the end. Live-
+   verified across the full scroll range via getBoundingClientRect at several
+   scrollLeft values.
+
+   left is 70px (TIME_COLUMN_WIDTH, duplicated from the .tsx constant — no
+   shared CSS variable exists for it, same duplication this file already has
+   elsewhere) plus --space-sm, not plain 0 — .timeLabel is ALSO sticky-pinned to
+   the scrollport's true left edge with its own opaque background and
+   z-index: 1, so a plain left: 0 here let the two collide once left-clamped:
+   confirmed live (scrolled to the end of the range), the sticky time label
+   painted over and hid the first several characters of the roomless text
+   sitting right underneath it. Offsetting past the time column's own width
+   avoids the overlap instead of trying to out-stack it with z-index — this
+   card's text has no reason to render behind the sticky corner/label furniture.
+   right keeps the same --space-sm breathing room against the opposite edge. */
 .roomlessCardContent {
   position: sticky;
-  left: 0;
-  right: 0;
+  left: calc(70px + var(--space-sm));
+  right: var(--space-sm);
   width: fit-content;
 }
 
