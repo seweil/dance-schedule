@@ -1,12 +1,8 @@
 import contentSets from 'virtual:content-sets'
 import danceSessionsData from 'virtual:dance-schedule'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
+import { BuildInfo } from './BuildInfo'
 import { RawDanceScheduleTable } from './RawDanceScheduleTable'
-
-const buildTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'medium',
-  timeStyle: 'medium',
-})
 
 // The extra `: string[]` annotation works around a TS inference quirk (observed
 // with this repo's tsconfig) where `contentSets.sets.map(...)` chained directly,
@@ -43,9 +39,7 @@ export function RawDanceScheduleDebugPage() {
         ))}
       </p>
       <h1>Dance Schedule — Debug ({contentSets.activeSet})</h1>
-      <p>
-        Build {__BUILD_NUMBER__} · Compiled {buildTimeFormatter.format(new Date(__BUILD_TIME__))}
-      </p>
+      <BuildInfo />
       <RawDanceScheduleTable sessions={buildDanceSchedule(danceSessionsData)} />
     </>
   )

@@ -1,7 +1,8 @@
 import { Suspense } from 'react'
-import { BrowserRouter, Navigate, useRoutes, type RouteObject } from 'react-router-dom'
+import { BrowserRouter, Navigate, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
+import { BuildInfo } from './components/BuildInfo'
 import { ClearStorageAction } from './components/ClearStorageAction'
 import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
@@ -44,6 +45,16 @@ function Pages() {
   return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes, notFoundRoute])
 }
 
+// Fine print at the bottom of the home page only — not global chrome like Nav/
+// UpdatePrompt, so it's gated on the route here rather than baked into BuildInfo
+// itself (which stays route-agnostic — see the debug page's own, separate use of
+// it). `pathname` is basename-relative (BrowserRouter's `basename` below), same
+// convention Nav.tsx's own `end={item.href === '/'}` Home check relies on.
+function HomeBuildInfo() {
+  const location = useLocation()
+  return location.pathname === '/' ? <BuildInfo /> : null
+}
+
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
@@ -55,6 +66,7 @@ export function App() {
             <Pages />
           </Suspense>
         </ImageGalleryProvider>
+        <HomeBuildInfo />
         <ScrollToTopButton />
       </MDXProvider>
     </BrowserRouter>

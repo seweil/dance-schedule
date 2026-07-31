@@ -1,0 +1,8 @@
+.buildInfo {
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+  color: #888;
+  font-size: 0.75rem;
+  text-align: center;
+}
