@@ -121,8 +121,11 @@ export function DanceScheduleFilters({
           <Slider.Track className={styles.sliderTrack}>
             <Slider.Range className={styles.sliderRange} />
           </Slider.Track>
-          <Slider.Thumb className={styles.sliderThumb} aria-label="Minimum level" />
-          <Slider.Thumb className={styles.sliderThumb} aria-label="Maximum level" />
+          {/* Triangles pointing at each other (not identical circles) so the pair
+              itself reads as "the ends of a range," not just two independent
+              handles — see .sliderThumbMin/.sliderThumbMax. */}
+          <Slider.Thumb className={`${styles.sliderThumb} ${styles.sliderThumbMin}`} aria-label="Minimum level" />
+          <Slider.Thumb className={`${styles.sliderThumb} ${styles.sliderThumbMax}`} aria-label="Maximum level" />
         </Slider.Root>
       </div>
     </div>

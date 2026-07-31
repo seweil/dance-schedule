@@ -43,15 +43,17 @@
    other, breaking the tick-alignment math below, which assumes they're identical).
    This has to be set on .field itself, which every descendant (.sliderRoot at
    width: 100%, .ticks via flex stretch) then reliably sizes from consistently.
-   17rem, not 15rem — 15rem was sized for the uncombined 10-slot case's widest
+   18rem, not 15rem — 15rem was sized for the uncombined 10-slot case's widest
    adjacent pair (C3A/C3B); combining A1/A2 (getLevelSlots(true, false)) produces a
    wider "A1/A2" label than any single-level label, and at 15rem its gap to "Plus"
    measured a bare ~1.85px live — technically not touching, but not the comfortable
-   margin every other pair gets. 17rem covers both the base and combined cases with
-   a similar margin, confirmed live after raising it. combineC3BC4's merged "C3B+"
-   label is narrower than "A1/A2", so it doesn't push this further. */
+   margin every other pair gets. 18rem covers both the base and combined cases with
+   a similar margin, confirmed live after raising it (re-measured and bumped again,
+   17rem → 18rem, once .tick's labels became bold/larger — the same "Plus"/"A1/A2"
+   pair dropped back to a tight ~5px at 17rem with the wider bold text). combineC3BC4's
+   merged "C3B+" label is narrower than "A1/A2", so it doesn't push this further. */
 .levelField {
-  min-width: 17rem;
+  min-width: 18rem;
   /* Grows to fill whatever width is left in its line — once it wraps onto its own
      line below dateGcaRow (the common case on a narrow phone), that means the full
      available content width instead of sitting fixed at the 17rem floor with dead
@@ -146,20 +148,46 @@
   background: var(--color-border);
 }
 
+/* Explicit height (not 100%, unlike before) and vertically centered — deliberately
+   thicker than .sliderTrack itself (4px), not just matching it, so the selected
+   range visibly bulges out from the thin unselected ends either side of it. The
+   goal (per explicit request) is for the selected span to read unmistakably as
+   "a range," not just a differently-colored segment the same thickness as the
+   rest of the line. */
 .sliderRange {
   position: absolute;
-  height: 100%;
-  border-radius: 2px;
+  top: 50%;
+  height: 8px;
+  border-radius: 4px;
   background: var(--color-accent);
+  transform: translateY(-50%);
 }
 
+/* Triangles, not circles — width/height: 0 plus a colored border on one side is
+   the standard CSS triangle technique (the other three border sides stay
+   transparent, so only the colored one renders, tapering to the shared corner).
+   Radix still centers each thumb correctly over its exact value position from
+   its own rendered bounding box, whatever shape that box actually is — no extra
+   positioning math needed here beyond the border values themselves. */
 .sliderThumb {
-  display: block;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  background: var(--color-accent);
+  width: 0;
+  height: 0;
   cursor: pointer;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+
+/* Right-pointing (▶) — the min thumb sits at the LEFT end of the selected range,
+   so pointing right means pointing INTO it, toward the max thumb. */
+.sliderThumbMin {
+  border-left: 12px solid var(--color-accent);
+}
+
+/* Left-pointing (◀) — the max thumb sits at the RIGHT end of the selected range,
+   so pointing left means pointing INTO it, toward the min thumb. Together the
+   pair reads as inward-pointing brackets around the range: ▶───◀. */
+.sliderThumbMax {
+  border-right: 12px solid var(--color-accent);
 }
 
 .sliderThumb:focus-visible {
@@ -178,8 +206,8 @@
 .ticks {
   position: relative;
   /* Tall enough for the mark (6px) + the gap between mark and text (2px, see .tick)
-     + one line of 0.7rem text (~14px), with a little slack. */
-  height: 1.5rem;
+     + one line of .tick's (bold, 0.8rem) text (~16px), with a little slack. */
+  height: 1.625rem;
   /* .levelField's gap is already 0, but .sliderRoot's own box (1.25rem tall) is
      taller than its 1rem thumb, leaving ~2px of built-in slack above the thumb even
      with zero gap between the two elements — confirmed live. This closes that
@@ -202,7 +230,8 @@
   border: none;
   background: none;
   padding: 0;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--color-text);
   white-space: nowrap;
   cursor: pointer;
