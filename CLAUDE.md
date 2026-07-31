@@ -151,6 +151,15 @@ picks up the `.md` extension.
   custom watch code.
 - **Compilation**: `@mdx-js/rollup` compiles each `.md` into a React component
   (`format: 'md'` keeps JSX-in-content disabled — authors write plain markdown only).
+- **Tables and other GFM syntax**: `remark-gfm` is enabled (`vite.config.ts`), so
+  content authors can use standard GitHub-Flavored Markdown pipe tables (and
+  strikethrough, autolinks, etc.) on top of plain CommonMark — no JSX or raw HTML
+  needed. `src/index.css` gives every table a minimal, borderless default look
+  (centered/padded cells, no grid lines) rather than a bordered spreadsheet — a
+  table cell can only hold a single line of inline content each, so a multi-line
+  "card" (e.g. a photo + name) needs one row per line, not one row per item; see
+  `content/backtrack2abq/pages/3 callers.md` for a worked example (a 2-column
+  photo roster: one row of photos, the row below it their names).
 - **Images**: write standard `![alt](./assets/relative.png)` — `rehype-mdx-import-media`
   rewrites relative paths into real Vite asset imports so they're hashed/optimized in
   the build (required for the PWA precache to work correctly). Content images live in

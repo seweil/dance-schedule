@@ -28,3 +28,31 @@ body {
   --space-sm: 0.5rem;
   --space-md: 1rem;
 }
+
+/* Minimal default styling for a GFM markdown table (vite.config.ts's
+   `remark-gfm` — see CLAUDE.md's "Content pipeline" section) — no explicit
+   border anywhere, browsers don't draw one by default without it, so this
+   isn't stripping anything, just never adding it; keeps a table reading as a
+   clean grid (e.g. a photo roster) rather than a bordered spreadsheet. A
+   content author who wants visible grid lines can still add their own via a
+   future page-specific need — this is only the shared, minimal baseline. */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-md) 0;
+}
+
+th,
+td {
+  padding: var(--space-sm);
+  text-align: center;
+  vertical-align: top;
+}
+
+/* GFM table syntax requires a header row even when a table (like a photo
+   roster) has nothing worth labeling — collapses an intentionally-empty one
+   down to nothing rather than leaving a blank padded bar above the content.
+   Doesn't touch a REAL header's own padding elsewhere. */
+th:empty {
+  padding: 0;
+}

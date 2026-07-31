@@ -46,6 +46,7 @@
     "prettier": "^3.9.6",
     "read-excel-file": "^9.3.4",
     "rehype-mdx-import-media": "^1.4.0",
+    "remark-gfm": "^4.0.1",
     "sharp": "^0.35.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",

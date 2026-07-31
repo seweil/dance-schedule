@@ -6,6 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import Pages from 'vite-plugin-pages'
 import mdx from '@mdx-js/rollup'
 import rehypeMdxImportMedia from 'rehype-mdx-import-media'
+import remarkGfm from 'remark-gfm'
 import { schedulePlugin } from './vite-plugin-schedule'
 import { danceSchedulePlugin } from './vite-plugin-dance-schedule'
 import { contentConfigPlugin } from './vite-plugin-content-config'
@@ -76,6 +77,9 @@ export default defineConfig(async () => {
           // markdown, and any accidental JSX in content fails the build loudly instead
           // of silently working.
           format: 'md',
+          // GFM adds (among other things) pipe-table syntax on top of plain
+          // CommonMark — see CLAUDE.md's "Content pipeline" section.
+          remarkPlugins: [remarkGfm],
           rehypePlugins: [rehypeMdxImportMedia],
           // Required for the global <img> (and any other element) override via
           // MDXProvider in App.tsx to actually take effect — without this, compiled
