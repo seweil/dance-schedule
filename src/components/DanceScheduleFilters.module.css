@@ -43,17 +43,19 @@
    other, breaking the tick-alignment math below, which assumes they're identical).
    This has to be set on .field itself, which every descendant (.sliderRoot at
    width: 100%, .ticks via flex stretch) then reliably sizes from consistently.
-   18rem, not 15rem — 15rem was sized for the uncombined 10-slot case's widest
+   17rem, not 15rem — 15rem was sized for the uncombined 10-slot case's widest
    adjacent pair (C3A/C3B); combining A1/A2 (getLevelSlots(true, false)) produces a
    wider "A1/A2" label than any single-level label, and at 15rem its gap to "Plus"
    measured a bare ~1.85px live — technically not touching, but not the comfortable
-   margin every other pair gets. 18rem covers both the base and combined cases with
-   a similar margin, confirmed live after raising it (re-measured and bumped again,
-   17rem → 18rem, once .tick's labels became bold/larger — the same "Plus"/"A1/A2"
-   pair dropped back to a tight ~5px at 17rem with the wider bold text). combineC3BC4's
+   margin every other pair gets. 17rem covers both the base and combined cases with
+   a similar margin — re-measured after .tick's labels became bold/larger (that pair
+   dropped to a tight ~5px at 17rem with the wider bold text, prompting a bump to
+   18rem at the time) and dropped back down to 17rem once .dateGcaRow needed more
+   room of its own for the longer "Show GCA callers" label — still a confirmed-live,
+   non-touching ~5px at this floor, just snugger than 18rem's ~7px. combineC3BC4's
    merged "C3B+" label is narrower than "A1/A2", so it doesn't push this further. */
 .levelField {
-  min-width: 18rem;
+  min-width: 17rem;
   /* Grows to fill whatever width is left in its line — once it wraps onto its own
      line below dateGcaRow (the common case on a narrow phone), that means the full
      available content width instead of sitting fixed at the 17rem floor with dead
@@ -103,11 +105,13 @@
   border: 0;
 }
 
-/* More horizontal than vertical padding — a comfortably wide touch target and a
-   bit of visual breathing room around the date text, without inflating the
-   control's height. */
+/* Was more horizontal than vertical padding (--space-md L/R) — trimmed to match
+   --space-sm on every side: still a comfortably wide touch target and real
+   breathing room around the date text, just not padded out further than that,
+   which was costing .dateGcaRow (and so the level field sharing its row —
+   see .levelField) more width than the date text itself needed. */
 .select {
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-sm);
   font: inherit;
 }
 

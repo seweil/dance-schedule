@@ -72,7 +72,7 @@ export function DanceScheduleFilters({
 
         <label className={styles.checkboxField}>
           <input type="checkbox" checked={showGca} onChange={(event) => onShowGcaChange(event.target.checked)} />
-          GCA callers
+          Show GCA callers
         </label>
       </div>
 
