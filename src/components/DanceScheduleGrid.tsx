@@ -31,7 +31,7 @@ function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement;
 
   return (
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
-      <div>
+      <div className={isRoomless ? styles.roomlessCardContent : undefined}>
         {levels && <p className={styles.levels}>{levels}</p>}
         <p className={styles.details}>{detailsContent(session)}</p>
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}

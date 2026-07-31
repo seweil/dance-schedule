@@ -149,7 +149,7 @@
    (.card's border-radius below), reading as a stray straight-edge artifact
    rather than a deliberate line. This is also why a spanning placement (multi-
    row or multi-column) never gets internal lines: every cell it covers is
-   excluded from the empty set entirely, span or no span. 10% black, not
+   excluded from the empty set entirely, span or no span. 5% black, not
    var(--color-border) — that token's opaque #ddd would read as a real border,
    not a faint hint; a hairline this low-contrast couldn't be confirmed visually
    via screenshot (JPEG compression washes out low-alpha 1px lines almost
@@ -157,11 +157,11 @@
    against the live DOM, and by temporarily swapping in an opaque color to
    confirm placement, then reverting. */
 .emptyCellTop {
-  border-top: 1px solid rgb(0 0 0 / 10%);
+  border-top: 1px solid rgb(0 0 0 / 5%);
 }
 
 .emptyCellLeft {
-  border-left: 1px solid rgb(0 0 0 / 10%);
+  border-left: 1px solid rgb(0 0 0 / 5%);
 }
 
 /* border-box, not the default content-box — .card's own margin+padding needs to be
@@ -200,6 +200,26 @@
   text-align: center;
   font-style: italic;
   color: var(--color-text);
+}
+
+/* A roomless session (e.g. a meal break) spans every visible room/level column
+   (columnSpan set in computeDanceScheduleLayout.ts/computeDanceScheduleLevelLayout.ts)
+   — often much wider than the viewport. justify-content: center above only
+   centers this within the FULL span's own width, which sits at that span's true
+   midpoint — invisible until the user happens to scroll there. position: sticky
+   with BOTH left: 0 and right: 0 (not left-only, unlike .timeLabel's sticky) is
+   the standard "sticky-centered" trick: the browser continuously recomputes the
+   allowed offset range from both edges as the user scrolls, so this stays
+   visible within whatever part of the wide card is currently in the scrollport,
+   instead of only appearing once scrolled to the literal center of the whole
+   span. width: fit-content, not the flex parent's stretched default — sticky
+   with both left/right set would otherwise stretch to fill the full span,
+   defeating the point. */
+.roomlessCardContent {
+  position: sticky;
+  left: 0;
+  right: 0;
+  width: fit-content;
 }
 
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"

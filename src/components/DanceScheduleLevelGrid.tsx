@@ -68,7 +68,7 @@ function SessionCard({
 
   return (
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
-      <div>
+      <div className={isRoomless ? styles.roomlessCardContent : undefined}>
         <p className={styles.details}>{detailsContent(session, levelPrefix)}</p>
         {room && <p className={styles.details}>{room}</p>}
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
