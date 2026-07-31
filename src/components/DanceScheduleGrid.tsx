@@ -1,37 +1,17 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
 import {
-  roomTextWidthPx,
   ROOM_COLUMN_WIDTH,
   type DanceScheduleLayout,
   type DanceSessionPlacement,
 } from '../lib/computeDanceScheduleLayout'
-import { detailsContent, detailsPlainText } from '../lib/danceScheduleCardContent'
-import {
-  DETAILS_MEASUREMENT_FONT,
-  ROW_HEIGHT_PX_WITH_GCA,
-  ROW_HEIGHT_PX_WITHOUT_GCA,
-} from '../lib/danceScheduleCardSizing'
-import { shouldCombinePrimaryAndDetails } from '../lib/estimateCardFit'
-import {
-  formatSessionGca,
-  formatSessionLevels,
-  formatSessionTimeRange,
-} from '../lib/formatDanceSession'
+import { detailsContent } from '../lib/danceScheduleCardContent'
+import { formatSessionGca, formatSessionLevels, formatSessionTimeRange } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
-import { measureTextWidth } from '../lib/measureTextWidth'
 import styles from './DanceScheduleGrid.module.css'
 
 const TIME_COLUMN_WIDTH = '70px'
 
-function SessionCard({
-  placement,
-  showGca,
-  rowHeightPx,
-}: {
-  placement: DanceSessionPlacement
-  showGca: boolean
-  rowHeightPx: number
-}) {
+function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement; showGca: boolean }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
@@ -48,41 +28,11 @@ function SessionCard({
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
 
-  // Cards are a fixed height (rowSpan * rowHeightPx, a uniform per-row pixel value —
-  // rowSpan reflects how many other events happen during this one, not real elapsed
-  // minutes, see docs/design/dance-schedule.md) that never grows to fit content —
-  // see docs/known-issues.md's "long wrapping text clips on very short sessions"
-  // entry. When a level line exists and the estimate says the level + details
-  // (+ GCA) lines won't fit separately, combine level and details onto one line to
-  // save the line break, rather than risk clipping.
-  const combineLevelAndDetails =
-    !isRoomless &&
-    !!levels &&
-    shouldCombinePrimaryAndDetails(
-      {
-        primaryText: levels,
-        detailsText: detailsPlainText(session),
-        hasGcaLine: showGcaLine,
-        availableHeightPx: rowSpan * rowHeightPx,
-        textWidthPx: roomTextWidthPx(columnSpan),
-      },
-      (text) => measureTextWidth(text, DETAILS_MEASUREMENT_FONT),
-    )
-
   return (
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div>
-        {combineLevelAndDetails ? (
-          <p className={styles.details}>
-            <span className={styles.levels}>{levels} </span>
-            {detailsContent(session)}
-          </p>
-        ) : (
-          <>
-            {levels && <p className={styles.levels}>{levels}</p>}
-            <p className={styles.details}>{detailsContent(session)}</p>
-          </>
-        )}
+        {levels && <p className={styles.levels}>{levels}</p>}
+        <p className={styles.details}>{detailsContent(session)}</p>
         {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
@@ -151,7 +101,6 @@ export function DanceScheduleGrid({
   }
 
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, ${ROOM_COLUMN_WIDTH})`
-  const rowHeightPx = showGca ? ROW_HEIGHT_PX_WITH_GCA : ROW_HEIGHT_PX_WITHOUT_GCA
 
   return (
     <div className={styles.panelWrapper}>
@@ -174,7 +123,17 @@ export function DanceScheduleGrid({
           className={styles.grid}
           style={{
             gridTemplateColumns,
-            gridTemplateRows: `repeat(${totalRows}, ${rowHeightPx}px)`,
+            // auto, not a fixed px value — a row sizes to the tallest content
+            // actually touching it (including correctly distributing a row-
+            // spanning card's height need across the rows it spans, standard CSS
+            // Grid track-sizing behavior). The 28px floor keeps a row carrying
+            // only a time label (no card) from collapsing to a cramped sliver.
+            // The actual growth ceiling lives on the card text itself (line-clamp
+            // in DanceScheduleGrid.module.css), not here — a max on the track
+            // can't prevent overflow (a track's min-content floor wins over its
+            // own max in CSS Grid's sizing algorithm), so capping has to happen
+            // on the content, not the track.
+            gridTemplateRows: `repeat(${totalRows}, minmax(28px, auto))`,
           }}
         >
           {timeMarks.map((mark) => (
@@ -189,12 +148,7 @@ export function DanceScheduleGrid({
           {placements.map((placement, index) => (
             // Placements have no stable id of their own (a non-contiguous multi-room
             // session produces several for the same session) — index is stable per render.
-            <SessionCard
-              key={index}
-              placement={placement}
-              showGca={showGca}
-              rowHeightPx={rowHeightPx}
-            />
+            <SessionCard key={index} placement={placement} showGca={showGca} />
           ))}
         </div>
       </div>

@@ -352,3 +352,47 @@ native HTML/CSS sizing (e.g. `grid-auto-rows`/table-like natural height,
 matching actual content instead of a JS heuristic guessing at a fixed-height
 box) — is explicit, deliberately deferred future work, not done as part of
 this change.
+
+**Resolved 2026-07-31 — rows now grow via native CSS sizing, the deferred
+fix above.** `DanceScheduleGrid.tsx`/`DanceScheduleLevelGrid.tsx`'s
+`gridTemplateRows` changed from a fixed `repeat(N, <px>px)` (live-tuned
+constants, `danceScheduleCardSizing.ts`) to `repeat(N, minmax(28px, auto))`
+— a row now sizes to whatever content is actually inside it, including
+correctly distributing a row-spanning card's height need across the rows it
+spans (standard CSS Grid track-sizing behavior, no JS involved). This closes
+the vertical-clipping gap for ordinary content; live-verified against real
+data (`automated-testing` and `dance-by-level`) with zero clipped cards.
+
+The whole `shouldCombinePrimaryAndDetails`/`estimateCardFit.ts`/
+`estimateWrappedLineCount.ts`/`measureTextWidth.ts` combine-onto-one-line
+mitigation (and the parallel `roomTextWidthPx`/`levelTextWidthPx` text-width
+plumbing) is deleted, not adapted — it only ever existed to dodge a *fixed*
+row height, and there's no "will this fit?" decision left to make once a row
+grows to match its content.
+
+Growth needed a heuristic ceiling, though: every row is a shared ordinal
+tick (`docs/design/dance-schedule.md`'s "the axis is not a clock" decision),
+so one pathological card (e.g. a session listing ten callers) growing its
+row would force every OTHER card sharing that row — in every other room or
+level column — to stretch to match, even though their own content is short.
+A `max-height` on the row track itself can't prevent that without
+reintroducing clipping (a track's min-content floor wins over its own max in
+CSS Grid's sizing algorithm), so the cap lives on the card text instead:
+`.levels`/`.details`/`.gca` (`DanceScheduleGrid.module.css`) get a
+`-webkit-line-clamp`/`line-clamp` (2/4/2 lines respectively) with
+`text-overflow: ellipsis`. An element with `overflow: hidden` reports its
+own clamped box height to the grid track sizing algorithm, not its unclamped
+content height, so the row never needs to grow past what the clamp allows.
+This is strictly better than the old plain `overflow: hidden` clipping it
+replaces: a genuinely-too-long line now truncates visibly (a "…"), not
+silently mid-line — live-verified with a deliberately pathological
+ten-caller test entry (`scripts/edit-test-data.mjs`, reverted after
+checking): the card truncated cleanly at 4 lines with a visible ellipsis,
+and its row-sharing neighbors stayed their normal short height.
+
+Not unit-tested directly — jsdom (Vitest) doesn't run real CSS layout, so
+neither intrinsic row growth nor line-clamp truncation can be asserted by a
+unit test; coverage is the live verification above plus a Playwright e2e
+test would be the natural next step for durable regression coverage (not
+added here — Playwright can't be run from this project's sandbox to
+validate it; flagged as a possible follow-up).

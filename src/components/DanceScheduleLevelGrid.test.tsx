@@ -238,25 +238,22 @@ describe('DanceScheduleLevelGrid', () => {
     expect(colorForSession(ROOMLESS_SESSION)).toBe(NEUTRAL_CARD_COLOR)
   })
 
-  it('uses a shorter row height when showGca is false', () => {
-    const { container: shown } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
-    const { container: hidden } = render(
-      <DanceScheduleLevelGrid layout={makeLayout()} showGca={false} />,
-    )
-
-    const bodyGridShown = shown.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
-    const bodyGridHidden = hidden.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
-
-    const rowPx = (grid: HTMLElement) =>
-      Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
-    expect(rowPx(bodyGridHidden)).toBeLessThan(rowPx(bodyGridShown))
+  it('uses grid rows that size to their content, not a fixed pixel value', () => {
+    // Rows grow to fit real card content now (DanceScheduleLevelGrid.tsx's
+    // gridTemplateRows) instead of a JS-computed fixed height per showGca state —
+    // jsdom doesn't run real CSS layout, so the actual intrinsic height can't be
+    // asserted here (see docs/design/dance-schedule.md); this only confirms the
+    // track-sizing function itself, not a numeric pixel comparison.
+    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const bodyGrid = container.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
+    expect(bodyGrid.style.gridTemplateRows).toMatch(/^repeat\(\d+, minmax\(\d+px, auto\)\)$/)
   })
 
-  it('combines the room and details lines onto one <p> when the card is too short for both', () => {
-    // A genuinely long, multi-word caller name — under the new row-height scale
-    // (sized to comfortably fit typical content, see danceScheduleCardSizing.ts),
-    // rowSpan alone can no longer make a card "too short" for ordinary text; only
-    // unusually long content can still trigger combining.
+  it('always renders the room and details lines separately, even for long text', () => {
+    // The old "combine onto one line" workaround only existed to dodge a fixed row
+    // height — rows grow to fit content now, so there's no more combining; a long
+    // caller name just wraps and grows its row instead (a CSS line-clamp caps
+    // genuinely pathological text — see DanceScheduleGrid.module.css).
     const longCallerSession: DanceSession = {
       ...STRUCTURED_SESSION,
       eventType: 'Dancing',
@@ -271,10 +268,9 @@ describe('DanceScheduleLevelGrid', () => {
       />,
     )
 
-    expect(container.querySelector('p.levels')).not.toBeInTheDocument()
-    expect(container.querySelector('span.levels')).not.toBeInTheDocument()
-    const combined = container.querySelector('p.details') as HTMLElement
-    expect(combined.textContent).toBe('Bartholomew Alexander Montgomery Wellington-Smythe Ballroom Centre')
+    const detailsParagraphs = container.querySelectorAll('p.details')
+    expect(detailsParagraphs[0]?.textContent).toBe('Bartholomew Alexander Montgomery Wellington-Smythe')
+    expect(detailsParagraphs[1]?.textContent).toBe('Ballroom Centre')
   })
 
   describe('overlap lanes', () => {
@@ -288,46 +284,6 @@ describe('DanceScheduleLevelGrid', () => {
       const card = container.querySelector('.card') as HTMLElement
       expect(card.style.width).toBe('50%')
       expect(card.style.marginLeft).toBe('50%')
-    })
-
-    it("estimates a lane-split card's text width from its own (halved) box, not the full track", () => {
-      // A lane-split card has roughly half the usable width of a non-split one (see
-      // levelTextWidthPx) — the bug this guards against used the full, un-halved
-      // track width instead, silently making a lane-split card look like it had
-      // more room than it really does. Same session, same rowSpan (so height is
-      // identical in both renders) — only laneCount/lane differ, isolating the
-      // width estimate as the only variable. A long-enough details line stays
-      // uncombined at the full (non-split) width but needs combining once the
-      // width is correctly halved.
-      const session: DanceSession = {
-        ...STRUCTURED_SESSION,
-        eventType: 'Dancing',
-        callers: ['Alexander Bartholomew Montgomery'],
-        gca: undefined,
-      }
-      const { container: fullWidth } = render(
-        <DanceScheduleLevelGrid
-          layout={makeLayout({
-            placements: [placement({ session, rowStart: 3, rowSpan: 1, lane: 0, laneCount: 1 })],
-          })}
-          showGca
-        />,
-      )
-      const { container: laneSplit } = render(
-        <DanceScheduleLevelGrid
-          layout={makeLayout({
-            placements: [placement({ session, rowStart: 3, rowSpan: 1, lane: 1, laneCount: 2 })],
-          })}
-          showGca
-        />,
-      )
-
-      expect(fullWidth.querySelector('p.details')?.textContent).toBe('Alexander Bartholomew Montgomery')
-      expect(fullWidth.querySelector('span.levels')).not.toBeInTheDocument()
-
-      expect(laneSplit.querySelector('p.levels')).not.toBeInTheDocument()
-      const combined = laneSplit.querySelector('p.details') as HTMLElement
-      expect(combined.textContent).toBe('Alexander Bartholomew Montgomery Ballroom Centre')
     })
 
     it('does not override width/marginLeft when laneCount is 1', () => {

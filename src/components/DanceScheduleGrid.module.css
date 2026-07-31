@@ -146,7 +146,14 @@
    DanceScheduleLevelGrid.tsx's overlap-lane cards set an explicit percentage width,
    and without this, that width was CONTENT width only, so the actual rendered box
    (content + 16px padding) came out wider than intended and bled into the next
-   lane/column — the bug this comment is here to prevent regressing. */
+   lane/column — the bug this comment is here to prevent regressing.
+
+   A card's row is no longer a fixed height (DanceScheduleGrid.tsx's
+   gridTemplateRows) — it grows to fit whatever's actually inside it. overflow:
+   hidden here is now just a backstop; the real growth ceiling is the line-clamp on
+   .levels/.details/.gca below, since without SOME cap, one long-text card would
+   force every other card sharing its row (across every other room/level column) to
+   stretch to match — rows are shared ordinal ticks, not per-card. */
 .card {
   box-sizing: border-box;
   margin: 1px;
@@ -173,23 +180,54 @@
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"
    has no space to break at, and browsers don't reliably treat "/" as a break
    opportunity either, so without this a long unbreakable run just overflows the
-   card horizontally (silently clipped by .card's overflow: hidden) instead of
-   wrapping the way estimateCardFit.ts's line-count estimate assumes it will. */
+   card horizontally instead of wrapping onto a second line the way a normal word
+   would.
+
+   The line-clamp trio (display/box-orient/line-clamp) is the actual growth
+   ceiling for a card's row (see .card's comment above) — a level list or details
+   line is virtually always 1-2 lines in real data, but nothing stops a
+   pathological one (e.g. a session with ten callers) from being much longer, and
+   since every row is shared across every column, that one card's height would
+   otherwise force ALL its row's siblings to stretch to match. Capping each text
+   block itself (not the row) means a genuinely-too-long line truncates with a
+   visible "…" — an honest, visible truncation, unlike the plain overflow: hidden
+   clipping this replaces, which cut off content silently mid-line with no
+   indication anything was missing. The unprefixed `line-clamp` is included
+   alongside the -webkit- form for forward compatibility as browser support for
+   the standard property lands. */
 .levels {
   margin: 2px 0;
   font-weight: bold;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .details {
   margin: 0;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gca {
   margin: 0;
   font-size: 0.75rem;
   color: var(--color-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Whichever line of text ends up last in a card (details, GCA, or the roomless

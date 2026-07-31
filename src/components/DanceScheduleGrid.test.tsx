@@ -182,28 +182,22 @@ describe('DanceScheduleGrid', () => {
     expect(colorForSession(ROOMLESS_SESSION)).toBe(NEUTRAL_CARD_COLOR)
   })
 
-  it('uses a shorter row height (all rows uniformly, not just cards with GCA) when showGca is false', () => {
-    const { container: shown } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
-    const { container: hidden } = render(
-      <DanceScheduleGrid layout={makeLayout()} showGca={false} />,
-    )
-
-    const bodyGridShown = shown.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
-    const bodyGridHidden = hidden.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
-
-    // Both extract the per-row pixel value from "repeat(N, <px>px)" and compare —
-    // asserting hidden < shown, not exact numbers, so this doesn't need updating
-    // every time the actual pixel values are retuned.
-    const rowPx = (grid: HTMLElement) =>
-      Number(grid.style.gridTemplateRows.match(/, (\d+)px/)?.[1])
-    expect(rowPx(bodyGridHidden)).toBeLessThan(rowPx(bodyGridShown))
+  it('uses grid rows that size to their content, not a fixed pixel value', () => {
+    // Rows grow to fit real card content now (DanceScheduleGrid.tsx's
+    // gridTemplateRows) instead of a JS-computed fixed height per showGca state —
+    // jsdom doesn't run real CSS layout, so the actual intrinsic height can't be
+    // asserted here (see docs/design/dance-schedule.md); this only confirms the
+    // track-sizing function itself, not a numeric pixel comparison.
+    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const bodyGrid = container.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
+    expect(bodyGrid.style.gridTemplateRows).toMatch(/^repeat\(\d+, minmax\(\d+px, auto\)\)$/)
   })
 
-  it('combines the level and details lines onto one <p> when the card is too short for both', () => {
-    // A genuinely long, multi-word caller name — under the new row-height scale
-    // (sized to comfortably fit typical content, see danceScheduleCardSizing.ts),
-    // rowSpan alone can no longer make a card "too short" for ordinary text; only
-    // unusually long content can still trigger combining.
+  it('always renders the level and details lines separately, even for long text', () => {
+    // The old "combine onto one line" workaround only existed to dodge a fixed row
+    // height — rows grow to fit content now, so there's no more combining; a long
+    // caller name just wraps and grows its row instead (a CSS line-clamp caps
+    // genuinely pathological text — see DanceScheduleGrid.module.css).
     const longCallerSession: DanceSession = {
       ...STRUCTURED_SESSION,
       eventType: 'Dancing',
@@ -220,10 +214,10 @@ describe('DanceScheduleGrid', () => {
       />,
     )
 
-    expect(container.querySelector('p.levels')).not.toBeInTheDocument()
-    const combined = container.querySelector('p.details') as HTMLElement
-    expect(combined.querySelector('span.levels')?.textContent).toContain('SSD')
-    expect(combined.textContent).toBe('SSD Bartholomew Alexander Montgomery Wellington-Smythe')
+    expect(container.querySelector('p.levels')?.textContent).toBe('SSD')
+    expect(container.querySelector('p.details')?.textContent).toBe(
+      'Bartholomew Alexander Montgomery Wellington-Smythe',
+    )
   })
 
   it('keeps the level and details lines separate when the card has plenty of room', () => {

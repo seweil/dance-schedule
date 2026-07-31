@@ -1,5 +1,4 @@
 import { computeDanceScheduleTimeAxis, isContiguous, type TimeMark } from './computeDanceScheduleTimeAxis'
-import { CARD_HORIZONTAL_OVERHEAD_PX, CARD_PADDING_PX } from './danceScheduleCardSizing'
 import { isOrderedLevel, type LevelSlot } from './levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
 
@@ -27,31 +26,6 @@ export const LEVEL_COLUMN_WIDTH = `${LEVEL_COLUMN_WIDTH_PX}px`
 // it.
 export function levelColumnWidthPx(maxLaneCount: number): number {
   return LEVEL_COLUMN_WIDTH_PX * (1 + 0.5 * (maxLaneCount - 1))
-}
-
-// `columnWidthsPx` is one actual (possibly grown, per levelColumnWidthPx above)
-// pixel width per visible slot column — summed across `columnSpan` columns here
-// since a conflict-free multi-level placement (see mergeIntoPlacements) can span
-// several, each independently possibly grown by unrelated overlaps elsewhere in
-// that column's own day. A lane-split card's own box width is trackWidthPx/
-// laneCount exactly (an explicit percentage width, not grid-stretch-filled), so its
-// usable text width is that minus just the padding, not the combined margin+padding
-// overhead: margin sits outside a border-box element and doesn't shrink its content
-// area the way padding does. Only the ordinary (laneCount === 1, grid-stretch-
-// filled) case uses CARD_HORIZONTAL_OVERHEAD_PX, same as the room-columns grid.
-export function levelTextWidthPx(
-  columnWidthsPx: number[],
-  columnStart: number,
-  columnSpan: number,
-  laneCount: number,
-): number {
-  let trackWidthPx = 0
-  for (let i = columnStart; i < columnStart + columnSpan; i++) {
-    trackWidthPx += columnWidthsPx[i] ?? LEVEL_COLUMN_WIDTH_PX
-  }
-  return laneCount > 1
-    ? trackWidthPx / laneCount - CARD_PADDING_PX
-    : trackWidthPx - CARD_HORIZONTAL_OVERHEAD_PX
 }
 
 // A session with a real room but no ordered level (e.g. a freeform "Country Western

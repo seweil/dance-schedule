@@ -704,7 +704,77 @@ columns are filter-derived, not data-derived — see the "Level-columns view"
 decision above), so it drops the parameter entirely too, along with the
 `showGca` parameter both layout functions took solely to feed the now-deleted
 expansion pass — `showGca` still reaches each grid component directly as its
-own prop, for row-height selection, which is unrelated to the time axis.
+own prop, purely to decide whether the `.gca` paragraph renders at all (see
+the next decision for why that alone is now enough to size the row).
+
+### Rows grow to fit real content, capped by a line-clamp instead of a track-level max
+**Why:** The "axis is not a clock" decision above explicitly deferred a
+proper fix for card text overflow — rows that grow via native HTML/CSS
+sizing instead of a JS heuristic on a fixed-height grid — as future work,
+accepting that a short/text-heavy card could clip in the interim (see
+`docs/known-issues.md`). This closes that gap.
+
+`DanceScheduleGrid.tsx`/`DanceScheduleLevelGrid.tsx`'s `gridTemplateRows`
+changed from `repeat(N, <px>px)` (`ROW_HEIGHT_PX_WITH_GCA`/`WITHOUT_GCA`,
+live-tuned constants) to `repeat(N, minmax(28px, auto))`: `auto` lets each
+row size to the tallest content actually touching it — including correctly
+distributing a row-spanning card's height need across the rows it spans,
+standard CSS Grid track-sizing behavior, no JS involved — and the `28px`
+floor keeps a row carrying only a time label (no card) from collapsing to a
+cramped sliver. `showGca` no longer needs any JS-side row-height branching
+at all: it just controls whether the `.gca` paragraph renders, and the row
+auto-sizes to match.
+
+Every row is a shared ordinal tick (the decision above), so unconstrained
+growth was a real risk: one pathological card (e.g. a session listing ten
+callers) growing its row would force every OTHER card sharing that row — in
+every other room or level column — to stretch to match, even though their
+own content is short. A `max-height` on the row *track* can't prevent that
+without reintroducing clipping — a track's min-content floor wins over its
+own max in CSS Grid's sizing algorithm, so if an item's unclamped content
+needs more room than the max, the track grows past the max anyway. The cap
+has to live on the *content* instead: `.levels`/`.details`/`.gca`
+(`DanceScheduleGrid.module.css`) get a `-webkit-line-clamp`/`line-clamp` (2,
+4, and 2 lines respectively — `.details` is the real risk area; the other
+two are reliably short in practice but get a defensive clamp too) with
+`overflow: hidden` and `text-overflow: ellipsis`. An element with
+`overflow: hidden` reports its own clamped box height to the grid's track
+sizing algorithm, not its unclamped content height, so a row never needs to
+grow past what the clamp allows. Live-verified with a deliberately
+pathological ten-caller test entry (`scripts/edit-test-data.mjs`, reverted
+after checking): the card truncated cleanly at 4 lines with a visible "…",
+and its row-sharing neighbors stayed their normal short height.
+
+This removes the reason the "combine primary and details onto one line"
+estimate existed at all — it only ever existed to dodge a *fixed* row
+height, and there's no "will this fit?" decision left to make once ordinary
+content sizes the row and pathological content is handled by the clamp
+instead. Deleted rather than kept as a compactness optimization:
+`src/lib/estimateCardFit.ts`, `estimateWrappedLineCount.ts`,
+`measureTextWidth.ts` (all three, plus tests), `roomTextWidthPx`
+(`computeDanceScheduleLayout.ts`), `levelTextWidthPx`
+(`computeDanceScheduleLevelLayout.ts`), and the `combineLevelAndDetails`/
+`combineRoomAndDetails` branches in both grid components — a card always
+renders its level/room line and details line as two separate paragraphs
+now. `danceScheduleCardSizing.ts` itself is deleted too: every constant it
+exported (`ROW_HEIGHT_PX_WITH_GCA`/`WITHOUT_GCA`, `CARD_PADDING_PX`,
+`CARD_HORIZONTAL_OVERHEAD_PX`, `DETAILS_MEASUREMENT_FONT`) existed only to
+serve the now-deleted mechanisms. `levelColumnWidthPx`
+(`computeDanceScheduleLevelLayout.ts`, actual per-lane column pixel width)
+is unrelated and untouched.
+
+Not unit-tested directly — jsdom (Vitest) doesn't run real CSS layout, so
+neither intrinsic row growth nor line-clamp truncation can be asserted by a
+unit test. The `DanceScheduleGrid.test.tsx`/`DanceScheduleLevelGrid.test.tsx`
+tests that used to assert a specific `showGca`-driven pixel value (parsed
+out of the JS-computed `gridTemplateRows` string) or specific combine
+behavior were replaced with tests that only confirm the track-sizing
+function's shape (`minmax(\d+px, auto)`) and that level/room and details
+always render as two separate lines — real coverage for the growth/clamp
+behavior itself is the live verification described above. A Playwright e2e
+test would be the natural next step for durable regression coverage; not
+added here since Playwright can't be run from this project's sandbox to
+validate it.
 
 ## Open questions
 

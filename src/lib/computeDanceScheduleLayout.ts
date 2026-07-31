@@ -1,19 +1,11 @@
 import { computeDanceScheduleTimeAxis, isContiguous, type TimeMark } from './computeDanceScheduleTimeAxis'
-import { CARD_HORIZONTAL_OVERHEAD_PX } from './danceScheduleCardSizing'
 import type { DanceSession } from '../types/danceSchedule'
 
 // Fixed, not minmax(150px, 1fr) — see the .grid comment in DanceScheduleGrid.module.css
 // for why a flexible track can't be trusted to resolve identically across that
-// component's two separate grid containers (header vs. body). Lives here (not the
-// component) so the component's combine-text-onto-one-line check uses the same
-// formula this file would if it ever needed the width itself, not two copies that
-// could drift.
+// component's two separate grid containers (header vs. body).
 export const ROOM_COLUMN_WIDTH_PX = 150
 export const ROOM_COLUMN_WIDTH = `${ROOM_COLUMN_WIDTH_PX}px`
-
-export function roomTextWidthPx(columnSpan: number): number {
-  return columnSpan * ROOM_COLUMN_WIDTH_PX - CARD_HORIZONTAL_OVERHEAD_PX
-}
 
 export interface DanceSessionPlacement {
   session: DanceSession
