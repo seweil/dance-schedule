@@ -35,7 +35,12 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 1;
+  /* Higher than every other stacking value in the app (DanceScheduleGrid.module.css's
+     sticky headers top out at 4, ScrollToTopButton is 10) — this is a dropdown menu
+     overlay, so it needs to sit above ALL page content when open, not just whatever
+     happened to be nearby. Was 1, which let the dance-schedule grid's sticky column
+     headers (z-index up to 4) poke through it. */
+  z-index: 20;
   padding: var(--space-sm) var(--space-md);
   background: #fff;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
