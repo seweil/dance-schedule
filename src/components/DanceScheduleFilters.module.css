@@ -251,10 +251,14 @@
   cursor: pointer;
 }
 
+/* var(--color-text), not --color-border (#ddd) — the latter reads as barely
+   visible against the page background, too subtle to register as a real tick
+   mark at a glance. 2px, not 1px, for the same reason — thicker and darker
+   together instead of just one or the other. */
 .tickMark {
-  width: 1px;
+  width: 2px;
   height: 6px;
-  background: var(--color-border);
+  background: var(--color-text);
 }
 
 .tick:hover {
