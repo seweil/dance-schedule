@@ -1,9 +1,11 @@
 /* Subtle, matching BuildInfo.tsx's own muted fine-print treatment — a secondary
    discovery path, not something meant to compete visually with the filters/grid
-   below it. */
+   above it. Right-aligned (not the page's default left-aligned flow) so it reads
+   as an aside rather than part of the schedule content itself. */
 .debugLink {
-  margin: 0 0 var(--space-sm);
+  margin: var(--space-sm) 0 0;
   font-size: 0.75rem;
+  text-align: right;
 }
 
 .debugLink a {

@@ -41,13 +41,6 @@ export function DanceSchedulePage() {
   return (
     <>
       <PageHeader title="Dance Schedule" />
-      {/* This page's own data (virtual:dance-schedule) is exactly what the debug
-          page renders raw — a react-router Link since /debug/dance-schedule is a
-          route within this same build, resolves correctly under whichever
-          content set's prefix is currently active. */}
-      <p className={styles.debugLink}>
-        <Link to="/debug/dance-schedule">View raw debug data</Link>
-      </p>
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}
@@ -60,6 +53,15 @@ export function DanceSchedulePage() {
         onShowGcaChange={setShowGca}
       />
       <DanceScheduleGrid layout={layout} showGca={showGca} />
+      {/* This page's own data (virtual:dance-schedule) is exactly what the debug
+          page renders raw — a react-router Link since /debug/dance-schedule is a
+          route within this same build, resolves correctly under whichever
+          content set's prefix is currently active. Right-aligned at the very
+          bottom, out of the filters/grid's visual flow — a secondary discovery
+          path, not a primary control. */}
+      <p className={styles.debugLink}>
+        <Link to="/debug/dance-schedule">Raw data</Link>
+      </p>
     </>
   )
 }
