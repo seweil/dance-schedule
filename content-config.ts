@@ -129,3 +129,34 @@ export function loadContentManifestStrings(root: string, contentDir: string): Co
 
   return { name, shortName }
 }
+
+// Reads content/<set>/config.yaml's top-level `testFixture` — a sibling of
+// `features:`/`manifest:`. Real events never set this (defaults to `false`);
+// it's only ever `true` for `automated-testing`/`test`, so the events landing
+// page (vite-plugin-content-sets.ts's virtual:content-sets, EventsListPage.tsx)
+// can sort them last without hardcoding those two literal names. Missing file
+// or missing key → `false`, same zero-config-parity fallback style as
+// loadContentManifestStrings above.
+export function isTestFixtureContentSet(root: string, contentDir: string): boolean {
+  const configFile = path.resolve(root, contentDir, CONTENT_SET_CONFIG_FILENAME)
+
+  if (!fs.existsSync(configFile)) {
+    return false
+  }
+
+  const raw = fs.readFileSync(configFile, 'utf-8')
+  let parsed: unknown
+  try {
+    parsed = parse(raw)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
+  }
+
+  const testFixture = (parsed as Record<string, unknown> | null)?.testFixture ?? false
+  if (typeof testFixture !== 'boolean') {
+    throw new Error(`${configFile}'s "testFixture" must be a boolean, got ${JSON.stringify(testFixture)}`)
+  }
+
+  return testFixture
+}

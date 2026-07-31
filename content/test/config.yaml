@@ -18,3 +18,8 @@ manifest:
   # docs/design/content-config.md.
   name: Dance Schedule (Test)
   shortName: DS Test
+
+# Sorted last (and flagged as a fixture, not a real event) on the /events
+# landing page — see EventsListPage.tsx/sortContentSets.ts and
+# docs/design/content-config.md.
+testFixture: true

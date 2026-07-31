@@ -195,12 +195,40 @@ real source image would go through. Dropping in a real
 `content/<set>/icon.png` later requires no pipeline changes; the real file
 is simply preferred whenever present.
 
+### `testFixture` marks a set as a fixture, not a real event — an explicit flag, not a hardcoded name check
+**Why:** The `/events` landing page (`docs/design/content-sets.md`) needs to
+sort test-flavored sets (`automated-testing`, `test`) after real ones. Those
+two are special today purely by *naming convention*, documented in
+`CLAUDE.md` but not machine-readable — hardcoding those two literal strings
+in the sort logic would work today but silently misclassify any future
+differently-named fixture set. `isTestFixtureContentSet(root, contentDir)`
+(`content-config.ts`, sibling to `loadContentManifestStrings`) reads a new
+optional top-level `testFixture: true` key from `content/<set>/config.yaml`
+— missing file or missing key → `false`, same zero-config-parity fallback
+style as every other value this file reads. Set `true` only in
+`content/automated-testing/config.yaml` and `content/test/config.yaml`; a
+real event's `config.yaml` never needs it.
+
+### The events landing page reads every set's config via `virtual:content-sets`, not the build orchestrator
+**Why:** No single `vite build` invocation loads another content set's
+*pages/data* (each is scoped to one `CONTENT_SET`) — but `config.yaml` reads
+are cheap and already happen per-set for the PWA manifest, so
+`vite-plugin-content-sets.ts`'s `virtual:content-sets` module (previously
+just directory names, `docs/design/content-sets.md`) now also calls
+`loadContentManifestStrings`/`isTestFixtureContentSet` for every listed set,
+not just the active one — giving every build (any one of the N+1 `vite
+build` runs) the same complete, display-ready list. This closes the
+discoverability open question below without touching
+`scripts/build-content-sets.mjs` at all: the orchestrator still just runs
+one `vite build` per set and merges output, unaware of the landing page's
+existence.
+
 ## Open questions
 
 - Should there be more feature flags of this shape in the future, and if
   so, does `ContentFeatures` need a more general/extensible shape than one
   boolean field per flag? Deferred until a second real flag exists.
-- Should `content/config.yaml` also support content-set discovery (list
-  known sets), tying into the still-open discoverability question in
-  `docs/design/content-sets.md`? Not addressed here — this doc only closes
-  the "validate the target exists" half of that question.
+- ~~Should `content/config.yaml` also support content-set discovery~~ —
+  resolved above: discovery lives in `virtual:content-sets`
+  (`vite-plugin-content-sets.ts`), enriched with per-set `displayName`/
+  `testFixture`, not in `content/config.yaml` itself.

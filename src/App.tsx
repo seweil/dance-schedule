@@ -4,6 +4,7 @@ import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
 import { BuildInfo } from './components/BuildInfo'
 import { ClearStorageAction } from './components/ClearStorageAction'
+import { EventsListPage } from './components/EventsListPage'
 import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
 import { PageHeader } from './components/PageHeader'
@@ -40,6 +41,12 @@ const debugRoutes: RouteObject[] = [
 // a page worth a permanent nav entry.
 const utilityRoutes: RouteObject[] = [{ path: '/clear-storage', element: <ClearStorageAction /> }]
 
+// Real, user-facing page (unlike debugRoutes/utilityRoutes above) — deliberately
+// kept out of ~react-pages/Nav anyway, since it's meant to be a subtle, secondary
+// discovery path (linked from BuildInfo.tsx, right after the build date), not a
+// primary nav destination for a page that's about every OTHER event, not this one.
+const eventsRoutes: RouteObject[] = [{ path: '/events', element: <EventsListPage /> }]
+
 // Without this, any unmatched path (typo, stale link, or — now that every content
 // set publishes under its own "/<set>/" prefix, see docs/design/content-sets.md —
 // a path that happens to look like another set's name, e.g. "/real/test") rendered
@@ -50,7 +57,7 @@ const notFoundRoute: RouteObject = { path: '*', element: <Navigate to="/" replac
 
 function Pages() {
   useLastPagePersistence()
-  return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes, notFoundRoute])
+  return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes, ...eventsRoutes, notFoundRoute])
 }
 
 // Fine print at the bottom of the home page only — not global chrome like Nav/

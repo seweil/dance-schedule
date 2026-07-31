@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { assertContentSetExists, listContentSets, loadContentManifestStrings, loadTopLevelContentConfig } from './content-config'
+import {
+  assertContentSetExists,
+  isTestFixtureContentSet,
+  listContentSets,
+  loadContentManifestStrings,
+  loadTopLevelContentConfig,
+} from './content-config'
 
 let root: string
 
@@ -126,5 +132,37 @@ describe('loadContentManifestStrings', () => {
   it('throws when manifest.shortName is present but not a string', () => {
     writeContentSetConfig(root, 'real', 'manifest:\n  shortName: 42\n')
     expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/"manifest\.shortName" must be a string/)
+  })
+})
+
+describe('isTestFixtureContentSet', () => {
+  it('defaults to false when content/<set>/config.yaml is missing', () => {
+    makeContentSetDir(root, 'real')
+    expect(isTestFixtureContentSet(root, 'content/real')).toBe(false)
+  })
+
+  it('defaults to false when config.yaml has no testFixture key', () => {
+    writeContentSetConfig(root, 'real', 'features:\n  combineA1A2: false\n')
+    expect(isTestFixtureContentSet(root, 'content/real')).toBe(false)
+  })
+
+  it('reads an explicit testFixture: true', () => {
+    writeContentSetConfig(root, 'test', 'testFixture: true\n')
+    expect(isTestFixtureContentSet(root, 'content/test')).toBe(true)
+  })
+
+  it('reads an explicit testFixture: false', () => {
+    writeContentSetConfig(root, 'real', 'testFixture: false\n')
+    expect(isTestFixtureContentSet(root, 'content/real')).toBe(false)
+  })
+
+  it('throws on malformed YAML', () => {
+    writeContentSetConfig(root, 'real', 'testFixture: [unterminated\n')
+    expect(() => isTestFixtureContentSet(root, 'content/real')).toThrow(/Failed to parse/)
+  })
+
+  it('throws when testFixture is present but not a boolean', () => {
+    writeContentSetConfig(root, 'real', 'testFixture: yes-please\n')
+    expect(() => isTestFixtureContentSet(root, 'content/real')).toThrow(/"testFixture" must be a boolean/)
   })
 })

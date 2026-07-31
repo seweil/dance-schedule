@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import danceSessionsData from 'virtual:dance-schedule'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
@@ -6,6 +7,7 @@ import { computeDanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { DanceScheduleGrid } from './DanceScheduleGrid'
+import styles from './DanceSchedulePage.module.css'
 import { PageHeader } from './PageHeader'
 
 // Computed once at module load — the virtual module's data is static, so there's no
@@ -39,6 +41,13 @@ export function DanceSchedulePage() {
   return (
     <>
       <PageHeader title="Dance Schedule" />
+      {/* This page's own data (virtual:dance-schedule) is exactly what the debug
+          page renders raw — a react-router Link since /debug/dance-schedule is a
+          route within this same build, resolves correctly under whichever
+          content set's prefix is currently active. */}
+      <p className={styles.debugLink}>
+        <Link to="/debug/dance-schedule">View raw debug data</Link>
+      </p>
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}

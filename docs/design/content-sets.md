@@ -224,6 +224,37 @@ NetworkFirst `runtimeCaching` rule instead, which correctly reaches the
 network. Non-root builds don't need this: a service worker scoped to
 `/backtrack2abq/` can't shadow `/test/` in the first place.
 
+### An `/events` landing page lists every published set, linking to each one's home page
+**Why:** Every set publishes independently, but nothing previously listed
+them all for a real visitor — only the internal `/debug/dance-schedule`
+page enumerated sets at all (unstyled developer tooling, not meant for real
+users). `src/components/EventsListPage.tsx`, routed at `/events`
+(`src/App.tsx`, added the same "outside `~react-pages`, reachable but never
+in `Nav`" way as `debugRoutes`/`utilityRoutes` — subtle by design, reached
+via a link `BuildInfo.tsx` adds right after the build date, not a primary
+nav destination), reads the same `virtual:content-sets` module the debug
+page already used, now enriched with per-set `displayName`/`testFixture`
+(see `docs/design/content-config.md`'s `testFixture` decision). Sorted via
+`src/lib/sortContentSets.ts` — real events alphabetically first, then
+test-fixture sets alphabetically. `'events'` was added to
+`scripts/build-content-sets.mjs`'s `RESERVED_NAMES` alongside `debug`/
+`clear-storage`, for the same reason those are there: a future content set
+literally named `events` would produce a real `dist/events/index.html` that
+permanently shadows this hardcoded route.
+
+Each entry links via a plain `<a href="/<set>/">`, not a `react-router`
+`Link` — same reasoning as the debug page's existing cross-set links:
+crossing to another content set is a full separate app/build (a real page
+navigation, not a client-side route change), and only a set's home page is
+guaranteed to resolve without an extra per-set Amplify rewrite rule
+(`docs/design/hosting.md`). The two *within-build* discovery links this
+same change adds (`BuildInfo.tsx`'s link to `/events`; `DanceSchedulePage.tsx`'s
+link to `/debug/dance-schedule`) are the opposite case — real `react-router`
+`<Link>`s, since both targets are routes within the *current* build, and
+`App.tsx`'s `<BrowserRouter basename={import.meta.env.BASE_URL}>` already
+makes those resolve correctly under whichever prefix that build is served
+at, with no manual path-prefixing needed.
+
 ## Open questions
 
 - Content-set names are not currently checked against a reserved list

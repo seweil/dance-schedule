@@ -14,3 +14,8 @@ features:
   # LevelSlot decision).
   combineA1A2: true
   combineC3BC4: true
+
+# Sorted last (and flagged as a fixture, not a real event) on the /events
+# landing page — see EventsListPage.tsx/sortContentSets.ts and
+# docs/design/content-config.md.
+testFixture: true

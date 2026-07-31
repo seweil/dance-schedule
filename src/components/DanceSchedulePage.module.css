@@ -1,0 +1,11 @@
+/* Subtle, matching BuildInfo.tsx's own muted fine-print treatment — a secondary
+   discovery path, not something meant to compete visually with the filters/grid
+   below it. */
+.debugLink {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.75rem;
+}
+
+.debugLink a {
+  color: #888;
+}

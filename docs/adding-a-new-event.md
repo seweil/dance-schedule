@@ -122,6 +122,11 @@ manifest:
 `shortName` is what appears under the home-screen icon — keep it short
 (roughly 12 characters or fewer) or it may get truncated.
 
+There's also a `testFixture: true` key this file's schema supports — you
+won't need it for a real event. It only exists to mark the two built-in
+fixture sets (`automated-testing`, `test`) so they sort to the bottom of
+the `/events` landing page instead of alphabetically alongside real events.
+
 ## Step 3: The simple event list (`event-schedule.xlsx`)
 
 This is a flat, one-row-per-event spreadsheet for the "Event Schedule" page

@@ -6,3 +6,10 @@
   font-size: 0.75rem;
   text-align: center;
 }
+
+/* Inherit the muted color rather than the browser's default link blue — kept
+   visually as subtle as the rest of this fine print, per the "subtle link"
+   request; still underlined so it still reads as a link. */
+.buildInfo a {
+  color: inherit;
+}

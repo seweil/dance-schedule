@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite'
-import { listContentSets } from './content-config'
-import type { ContentSetsData } from './src/types/contentSets'
+import { isTestFixtureContentSet, listContentSets, loadContentManifestStrings } from './content-config'
+import type { ContentSetInfo, ContentSetsData } from './src/types/contentSets'
 
 export const CONTENT_SETS_VIRTUAL_MODULE_ID = 'virtual:content-sets'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + CONTENT_SETS_VIRTUAL_MODULE_ID
@@ -52,8 +52,20 @@ export function contentSetsPlugin(options: ContentSetsPluginOptions): Plugin {
     },
     load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
+        // Each set's own manifest name + test-fixture flag are cheap config.yaml
+        // reads (no pages/data loaded) — safe to do for every OTHER set here too,
+        // not just the active one, unlike the rest of this build's content
+        // pipeline (see this file's own top comment).
+        const sets: ContentSetInfo[] = listContentSets(root).map((name) => {
+          const contentDir = `content/${name}`
+          return {
+            name,
+            displayName: loadContentManifestStrings(root, contentDir).name,
+            testFixture: isTestFixtureContentSet(root, contentDir),
+          }
+        })
         const data: ContentSetsData = {
-          sets: listContentSets(root),
+          sets,
           defaultSet: options.defaultSet,
           activeSet: options.activeSet,
         }
