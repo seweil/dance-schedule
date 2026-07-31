@@ -542,7 +542,7 @@ competing with real content — by construction it lands exactly on the
 compressed roomless card's own vertical midpoint (half the visible budget
 before it, half after), matching "the middle of remaining space" rather than
 the label-to-label distance, which can include real, un-elided gap time
-after the break's actual end. Unlike `.timeLabel`/`.halfHourTick`, it is
+after the break's actual end. Unlike `.timeLabel`/`.halfHourLabel`, it is
 *not* sticky — it scrolls with the grid's horizontal position rather than
 staying pinned to the time column, so it scrolls out of view once the room
 columns scroll far enough left, where the real time labels remain visible.
@@ -601,6 +601,46 @@ dense, distracting run of markers, so it was removed; a stretched row is
 silent. The underlying row positions are still exposed as
 `expansionMarkers: number[]` on both layouts (parallel to
 `elisionMarkers`) for potential future use, just not rendered today.
+
+### Half-hour marks are conditional, forced around off-grid boundaries, and visually secondary to hour marks
+**Why:** The sticky time column originally showed an hour label every hour
+unconditionally, plus a small dash tick (`.halfHourTick`) at every half hour
+unconditionally too. Live feedback: "technically correct" but a usability
+failure — the dashes carried no time information and were always present
+regardless of whether anything actually started or ended there, pure visual
+noise most of the time.
+
+Fixed by making a half-hour position a real formatted label
+(`hourFormatter.format(time)`, the same formatter hour marks already use),
+shown only when it's meaningful, in `computeDanceScheduleTimeAxis.ts`:
+- **Base rule:** a half-hour candidate gets a label only if some
+  `visibleSessions` session's `startTime`/`endTime` lands there exactly —
+  not merely a session spanning through it.
+- **Off-grid forcing:** a session boundary that's itself neither hour- nor
+  half-hour-aligned (only possible at :15/:45, given this file's 15-minute
+  grid) floors/ceils to its two surrounding half-hour positions; whichever
+  of those two ISN'T already an hour (always unconditionally shown) gets
+  force-included as a label even though no session starts/ends exactly
+  there. Net effect: every off-grid boundary always has a labeled reference
+  point immediately before and after it, never an unlabeled gap wider than
+  one 30-minute step — one side from the pre-existing unconditional hour
+  mark, the other from this forcing rule.
+- **`visibleSessions`, not `dateSessions`,** drives both rules above (same
+  reasoning throughout this file: a label should only ever correspond to
+  something the user can actually see) — a session the level filter hides
+  triggers no half-hour label, forced or otherwise.
+
+`DanceScheduleTimeAxis.halfHourMarks` changed shape to match `hourMarks`
+exactly (`HourMark[]`, not `number[]`) as a result — both are now genuinely
+the same kind of thing (a labeled row position), just with different
+inclusion rules, so `DanceScheduleGrid.tsx`/`DanceScheduleLevelGrid.tsx`
+render both through the same `.timeLabel` markup. Hour marks stay visually
+primary and half-hour marks secondary via a `.halfHourLabel` CSS modifier
+class layered on top (`` `${styles.timeLabel} ${styles.halfHourLabel}` ``,
+the same base-class-plus-modifier composition `DanceScheduleFilters.tsx`
+already used for `${styles.field} ${styles.levelField}`) that overrides only
+`font-weight` back down from `.timeLabel`'s new bold default — `.halfHourTick`/
+`.halfHourTick::after` are deleted entirely, no replacement dash needed.
 
 ## Open questions
 

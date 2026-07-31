@@ -108,7 +108,9 @@ export interface DanceScheduleLevelLayout {
   columnWidthsPx: number[]
   totalRowUnits: number
   hourMarks: HourMark[]
-  halfHourMarks: number[]
+  // Half-hour labels — conditional, not unconditional like hourMarks. See
+  // computeDanceScheduleTimeAxis.ts's DanceScheduleTimeAxis.halfHourMarks.
+  halfHourMarks: HourMark[]
   // Row-start positions where a "scale break" marker renders in the sticky time
   // column — see computeDanceScheduleTimeAxis.ts's elisionMarkers.
   elisionMarkers: number[]

@@ -71,8 +71,9 @@
   /* Without this, a block-level grid's own box shrinks to fit its (scrolling)
      ancestor's width rather than its actual (wider) column content — content still
      visibly overflows either way, but position: sticky's containing block is this
-     box, not the overflow, so a sticky item (.corner/.roomHeader/.timeLabel/
-     .halfHourTick) unsticks and scrolls away once past that narrower width instead
+     box, not the overflow, so a sticky item (.corner/.roomHeader/.timeLabel —
+     .halfHourLabel is a modifier on .timeLabel, not a separate sticky rule)
+     unsticks and scrolls away once past that narrower width instead
      of the grid's real scrollable width. Confirmed with a minimal repro outside this
      app: breakAt was reproducibly wrapperWidth - stickyWidth + 1, and
      getBoundingClientRect().width on the grid matched the wrapper's clientWidth,
@@ -112,6 +113,12 @@
   border-left: 1px solid var(--color-border);
 }
 
+/* Shared by both hour marks and half-hour marks (.halfHourLabel below layers on
+   top of this, not a separate rule) — hour marks are bold by default so they read
+   as the primary reference; .halfHourLabel dials that back down for the
+   secondary/conditional ones. See docs/design/dance-schedule.md's "half-hour
+   labels are conditional" decision for why half-hour marks are text labels at
+   all now, not a fixed dash tick. */
 .timeLabel {
   position: sticky;
   left: 0;
@@ -123,32 +130,14 @@
   padding: 0 var(--space-sm);
   border-radius: 6px;
   font-size: 0.75rem;
+  font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
   border-top: 1px solid var(--color-border);
 }
 
-/* align-items: flex-start (not center) so the dash sits at the row's TOP edge —
-   the actual half-hour boundary, matching where a card/hour-label starting at that
-   time begins (.timeLabel's border-top line is drawn at the same edge). Centering
-   it within the row instead visually placed the mark ~7.5 minutes' worth of pixels
-   below the boundary it's meant to mark. */
-.halfHourTick {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding-right: var(--space-sm);
-}
-
-.halfHourTick::after {
-  content: '';
-  display: block;
-  width: 6px;
-  height: 1px;
-  background: var(--color-border);
+.halfHourLabel {
+  font-weight: 400;
 }
 
 /* border-box, not the default content-box — .card's own margin+padding needs to be
@@ -200,10 +189,11 @@
    the row boundary via a negative margin half its own height, the same
    straddling technique as before.
 
-   NOT sticky (unlike .timeLabel/.halfHourTick) — scrolls with the grid's own
-   horizontal position rather than staying pinned to the time column, per
-   explicit request; scrolled fully out of view once the room columns are
-   scrolled far enough left, whereas the real time labels remain visible. Still
+   NOT sticky (unlike .timeLabel, shared by both hour and half-hour marks) —
+   scrolls with the grid's own horizontal position rather than staying pinned
+   to the time column, per explicit request; scrolled fully out of view once
+   the room columns are scrolled far enough left, whereas the real time labels
+   remain visible. Still
    scoped to the time column's width (gridColumn 1) for its resting position. */
 .elisionMarker {
   height: 8px;

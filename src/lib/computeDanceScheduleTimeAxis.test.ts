@@ -78,12 +78,77 @@ describe('computeDanceScheduleTimeAxis', () => {
     ])
   })
 
-  it('places one half-hour tick between each pair of hour marks', () => {
+  it('shows no half-hour mark when nothing starts or ends on a half hour', () => {
+    // 12:00-2:00, both boundaries on the hour — half-hour candidates exist
+    // (12:30, 1:30) but nothing triggers either.
+    const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([session], [session])
+
+    expect(axis?.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5, 9])
+    expect(axis?.halfHourMarks).toEqual([])
+  })
+
+  it('shows a half-hour mark exactly where a session starts or ends', () => {
+    const session = makeSession('2026-07-02T12:30:00.000Z', '2026-07-02T13:30:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([session], [session])
+
+    expect(axis?.halfHourMarks).toEqual([
+      { rowStart: 3, label: '12:30 PM' },
+      { rowStart: 7, label: '1:30 PM' },
+    ])
+  })
+
+  it('does not mark a half hour for a session present only in dateSessions, not visibleSessions', () => {
+    const session = makeSession('2026-07-02T12:30:00.000Z', '2026-07-02T13:30:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([session], [])
+
+    // hourMarks are unaffected by the level filter — still the full day's range.
+    expect(axis?.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5, 9])
+    expect(axis?.halfHourMarks).toEqual([])
+  })
+
+  it('forces the open half-hour neighbor of an off-grid (:15) session start', () => {
+    // 12:15 is neither hour- nor half-hour-aligned. Its floor (12:00) is an
+    // hour — already unconditional — so only its ceil (12:30) needs forcing.
+    const session = makeSession('2026-07-02T12:15:00.000Z', '2026-07-02T13:00:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([session], [session])
+
+    expect(axis?.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5])
+    expect(axis?.halfHourMarks).toEqual([{ rowStart: 3, label: '12:30 PM' }])
+  })
+
+  it('forces the open half-hour neighbor of an off-grid (:45) session end', () => {
+    // 12:45's ceil (1:00) is an hour — already unconditional — so only its
+    // floor (12:30) needs forcing.
+    const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:45:00.000Z')
+    const axis = computeDanceScheduleTimeAxis([session], [session])
+
+    expect(axis?.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5])
+    expect(axis?.halfHourMarks).toEqual([{ rowStart: 3, label: '12:30 PM' }])
+  })
+
+  it('dedupes two different off-grid sessions that force the same half-hour neighbor', () => {
+    // Each session's OTHER boundary is deliberately hour-aligned, so it forces
+    // nothing on its own — isolates the dedup itself from unrelated forcing.
+    const early = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:15:00.000Z') // end 12:15 -> forces 12:30
+    const late = makeSession('2026-07-02T12:45:00.000Z', '2026-07-02T13:00:00.000Z') // start 12:45 -> forces 12:30
+    const axis = computeDanceScheduleTimeAxis([early, late], [early, late])
+
+    expect(axis?.halfHourMarks).toEqual([{ rowStart: 3, label: '12:30 PM' }])
+  })
+
+  it('combines conditional-absence and off-grid-forcing across a whole day', () => {
+    // 12:15-2:45: the start forces 12:30 (its ceil), the end forces 2:30 (its
+    // floor), but the middle half-hour (1:30) gets nothing — no boundary is
+    // anywhere near it.
     const session = makeSession('2026-07-02T12:15:00.000Z', '2026-07-02T14:45:00.000Z')
     const axis = computeDanceScheduleTimeAxis([session], [session])
 
     expect(axis?.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5, 9, 13])
-    expect(axis?.halfHourMarks).toEqual([3, 7, 11])
+    expect(axis?.halfHourMarks).toEqual([
+      { rowStart: 3, label: '12:30 PM' },
+      { rowStart: 11, label: '2:30 PM' },
+    ])
   })
 
   it('computes rowStart/rowSpan for 30- and 45-minute sessions relative to dayStart', () => {
@@ -244,11 +309,16 @@ describe('eliding a long roomless session (e.g. a meal break)', () => {
 
 describe('expandDanceScheduleTimeAxis', () => {
   // A plain 2-hour axis (12:00-2:00 PM), no elision — totalRowUnits 8, hourMarks at
-  // rows 1/5/9 (12:00/1:00/2:00, dayEnd is inclusive), halfHourMarks at 3/7. Every
-  // test below layers expansions on top of this same base axis.
+  // rows 1/5/9 (12:00/1:00/2:00, dayEnd is inclusive). Two sessions (not one) so
+  // halfHourMarks is non-empty at 3/7 (12:30/1:30) too, under the now-conditional
+  // rule — each session's boundary lands exactly on one of those half hours.
+  // Every test below layers expansions on top of this same base axis.
   function baseAxis(): DanceScheduleTimeAxis {
-    const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z')
-    const axis = computeDanceScheduleTimeAxis([session], [session])
+    const sessions = [
+      makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z'),
+      makeSession('2026-07-02T13:30:00.000Z', '2026-07-02T14:00:00.000Z'),
+    ]
+    const axis = computeDanceScheduleTimeAxis(sessions, sessions)
     if (!axis) {
       throw new Error('expected an axis')
     }
@@ -274,7 +344,10 @@ describe('expandDanceScheduleTimeAxis', () => {
       { rowStart: 7, label: '1:00 PM' }, // was 5, +2
       { rowStart: 11, label: '2:00 PM' }, // was 9, +2
     ])
-    expect(expanded.halfHourMarks).toEqual([3, 9]) // 3 unaffected, 7 -> 9
+    expect(expanded.halfHourMarks).toEqual([
+      { rowStart: 3, label: '12:30 PM' }, // unaffected
+      { rowStart: 9, label: '1:30 PM' }, // was 7, +2
+    ])
     expect(expanded.totalRowUnits).toBe(10) // was 8, +2
     // The marker itself sits at the FIRST newly-opened row (4), not the row where
     // old content resumes after the gap (6, which is what hourMarks/totalRowUnits

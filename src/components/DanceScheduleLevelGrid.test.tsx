@@ -62,7 +62,7 @@ function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceSch
       { rowStart: 1, label: '12:00 PM' },
       { rowStart: 5, label: '1:00 PM' },
     ],
-    halfHourMarks: [3],
+    halfHourMarks: [{ rowStart: 3, label: '12:30 PM' }],
     elisionMarkers: [],
     expansionMarkers: [],
     placements: [placement()],
@@ -204,11 +204,16 @@ describe('DanceScheduleLevelGrid', () => {
     expect(container.querySelector('.expansionMarker')).not.toBeInTheDocument()
   })
 
-  it('renders a half-hour tick between the hour marks', () => {
+  it('renders a half-hour label with the halfHourLabel modifier class, distinct from an hour mark', () => {
     const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
-    const tick = container.querySelector('.halfHourTick')
-    expect(tick).toBeInTheDocument()
-    expect(tick).toHaveStyle({ gridRow: '3' })
+    const label = screen.getByText('12:30 PM')
+    expect(label).toHaveClass('timeLabel', 'halfHourLabel')
+    expect(label).toHaveStyle({ gridRow: '3' })
+
+    const hourMark = screen.getByText('12:00 PM')
+    expect(hourMark).toHaveClass('timeLabel')
+    expect(hourMark).not.toHaveClass('halfHourLabel')
+    expect(container.querySelector('.halfHourTick')).not.toBeInTheDocument()
   })
 
   it('renders header content and body content in separate grids', () => {

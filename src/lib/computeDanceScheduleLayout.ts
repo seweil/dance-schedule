@@ -48,9 +48,9 @@ export interface DanceScheduleLayout {
   visibleRooms: string[]
   totalRowUnits: number
   hourMarks: HourMark[]
-  // Row-start positions only (no label) for the half-hour tick between each pair of
-  // hour marks in the sticky time axis.
-  halfHourMarks: number[]
+  // Half-hour labels — conditional, not unconditional like hourMarks. See
+  // computeDanceScheduleTimeAxis.ts's DanceScheduleTimeAxis.halfHourMarks.
+  halfHourMarks: HourMark[]
   // Row-start positions where a "scale break" marker renders in the sticky time
   // column — see computeDanceScheduleTimeAxis.ts's elisionMarkers.
   elisionMarkers: number[]

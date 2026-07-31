@@ -7,7 +7,14 @@ import type { DanceSession } from '../types/danceSchedule'
 const UNIT_MINUTES = 15
 const MS_PER_MINUTE = 60_000
 const MS_PER_HOUR = 60 * MS_PER_MINUTE
+const MS_PER_HALF_HOUR = MS_PER_HOUR / 2
 const UNIT_MS = UNIT_MINUTES * MS_PER_MINUTE
+
+// Whole-minute UTC timestamps, so plain modulo correctly detects hour/half-hour
+// alignment regardless of which day/hour it falls in — the epoch itself
+// (1970-01-01T00:00:00.000Z) is hour-aligned, and 30/60 minutes divide it evenly.
+const isHourAligned = (ms: number): boolean => ms % MS_PER_HOUR === 0
+const isHalfHourAligned = (ms: number): boolean => ms % MS_PER_HALF_HOUR === 0
 
 // A roomless session (spans every column — e.g. a meal break) can run much longer
 // than an ordinary dance session. Showing it at full scale would push everything
@@ -39,9 +46,12 @@ export interface HourMark {
 export interface DanceScheduleTimeAxis {
   totalRowUnits: number
   hourMarks: HourMark[]
-  // Row-start positions only (no label) for the half-hour tick between each pair of
-  // hour marks in the sticky time axis.
-  halfHourMarks: number[]
+  // Half-hour labels — unlike hourMarks, NOT unconditional. A half-hour position
+  // only gets an entry when some visible session's start/end actually lands there,
+  // or (see the candidate-collection pass below) when it's the nearest labeled
+  // neighbor of an off-grid (:15/:45) session boundary. See
+  // docs/design/dance-schedule.md's "half-hour labels are conditional" decision.
+  halfHourMarks: HourMark[]
   // Row-start positions (in this axis's own, already-compressed row space) where a
   // "scale break" marker should render in the sticky time column — one per elided
   // roomless session. Always empty when nothing qualifies for elision.
@@ -247,17 +257,55 @@ export function computeDanceScheduleTimeAxis(
     hourMarks.push({ rowStart, label: hourFormatter.format(time) })
   }
 
-  const halfHourMarks: number[] = []
-  for (let t = dayStart.getTime() + MS_PER_HOUR / 2; t < dayEnd.getTime(); t += MS_PER_HOUR) {
+  // Raw (pre-elision) ms timestamps that should get a half-hour label — collected
+  // from two sources, not the unconditional every-half-hour cadence hourMarks uses:
+  //   1. Every :30 position some visible session actually starts or ends at.
+  //   2. For a visible session boundary that ISN'T itself hour- or half-hour-
+  //      aligned (only possible at :15/:45, given this file's 15-minute grid):
+  //      whichever of its immediately-surrounding half-hour positions isn't
+  //      already an (always-shown) hour mark. This guarantees an off-grid
+  //      boundary always has a labeled reference point on both sides — one from
+  //      the unconditional hour mark, one forced in here — never an unlabeled gap.
+  // A Set so the two sources (and multiple sessions forcing the same neighbor)
+  // dedupe for free before the elision/row-dedup pass below.
+  const halfHourCandidateTimes = new Set<number>()
+
+  for (let t = dayStart.getTime() + MS_PER_HALF_HOUR; t < dayEnd.getTime(); t += MS_PER_HOUR) {
+    if (visibleSessions.some((s) => s.startTime.getTime() === t || s.endTime.getTime() === t)) {
+      halfHourCandidateTimes.add(t)
+    }
+  }
+
+  for (const session of visibleSessions) {
+    for (const boundary of [session.startTime.getTime(), session.endTime.getTime()]) {
+      if (isHalfHourAligned(boundary)) {
+        continue // on-grid already — handled by the loop above, or is itself an hour
+      }
+      const flooredHalfHour = Math.floor(boundary / MS_PER_HALF_HOUR) * MS_PER_HALF_HOUR
+      const ceiledHalfHour = flooredHalfHour + MS_PER_HALF_HOUR
+      for (const candidate of [flooredHalfHour, ceiledHalfHour]) {
+        if (
+          !isHourAligned(candidate) &&
+          candidate >= dayStart.getTime() &&
+          candidate < dayEnd.getTime()
+        ) {
+          halfHourCandidateTimes.add(candidate)
+        }
+      }
+    }
+  }
+
+  const halfHourMarks: HourMark[] = []
+  for (const t of [...halfHourCandidateTimes].sort((a, b) => a - b)) {
     const time = new Date(t)
     if (isElided(rawUnitFor(time))) {
       continue
     }
     const rowStart = rowStartFor(time)
-    if (halfHourMarks.length > 0 && halfHourMarks[halfHourMarks.length - 1] === rowStart) {
+    if (halfHourMarks.length > 0 && halfHourMarks[halfHourMarks.length - 1]!.rowStart === rowStart) {
       continue
     }
-    halfHourMarks.push(rowStart)
+    halfHourMarks.push({ rowStart, label: hourFormatter.format(time) })
   }
 
   const elisionMarkers = rawElisions.map((elision) => compress(elision.rawStart) + 1)
@@ -277,7 +325,7 @@ export interface RowExpansion {
 export interface DanceScheduleTimeAxisExpansion {
   totalRowUnits: number
   hourMarks: HourMark[]
-  halfHourMarks: number[]
+  halfHourMarks: HourMark[]
   elisionMarkers: number[]
   // Row positions (in this expanded axis's own row space) where the axis was
   // stretched — the expansion counterpart to elisionMarkers above. Not currently
@@ -365,7 +413,7 @@ export function expandDanceScheduleTimeAxis(
   return {
     totalRowUnits: remapRow(axis.totalRowUnits),
     hourMarks: axis.hourMarks.map((mark) => ({ ...mark, rowStart: remapRow(mark.rowStart) })),
-    halfHourMarks: axis.halfHourMarks.map(remapRow),
+    halfHourMarks: axis.halfHourMarks.map((mark) => ({ ...mark, rowStart: remapRow(mark.rowStart) })),
     elisionMarkers: axis.elisionMarkers.map(remapRow),
     expansionMarkers,
     remapRow,

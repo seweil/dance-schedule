@@ -237,12 +237,14 @@ export function DanceScheduleLevelGrid({
               {mark.label}
             </div>
           ))}
-          {halfHourMarks.map((rowStart) => (
+          {halfHourMarks.map((mark) => (
             <div
-              key={rowStart}
-              className={styles.halfHourTick}
-              style={{ gridRow: rowStart, gridColumn: 1 }}
-            />
+              key={mark.rowStart}
+              className={`${styles.timeLabel} ${styles.halfHourLabel}`}
+              style={{ gridRow: mark.rowStart, gridColumn: 1 }}
+            >
+              {mark.label}
+            </div>
           ))}
           {elisionMarkers.map((rowStart) => (
             // A "scale break" in the time axis itself — see DanceScheduleGrid.tsx's

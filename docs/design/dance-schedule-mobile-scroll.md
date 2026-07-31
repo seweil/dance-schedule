@@ -105,7 +105,7 @@ elements: the header, and the body.
   horizontally, but has **no visible/user-operable scrollbar** (`hidden`,
   not `auto`); its horizontal position is driven entirely by JS (below),
   never by direct touch/scroll input on the header itself.
-- **`bodyGrid`** — everything else (`.timeLabel`/`.halfHourTick`/session
+- **`bodyGrid`** — everything else (`.timeLabel`/`.halfHourLabel`/session
   cards), on its own grid with `gridTemplateRows: repeat(totalRowUnits,
   ...)` (no leading `auto` row — see the row-index Decision below). Wrapped
   in a `bodyWrapper` div that is `overflow-x: auto` below the breakpoint —
@@ -306,7 +306,7 @@ overflow there, so it never fires its own `scroll` event (only
 
 ### The sticky corner/time-axis pattern is unchanged, just re-homed
 **Why:** `.corner` (`position: sticky; left: 0`) now lives inside
-`headerGrid`/`headerWrapper`; `.timeLabel`/`.halfHourTick` (`position:
+`headerGrid`/`headerWrapper`; `.timeLabel`/`.halfHourLabel` (`position:
 sticky; left: 0`) stay inside `bodyGrid`/`bodyWrapper`. In both cases their
 relevant "nearest scrolling ancestor" is their own immediate wrapper — on
 desktop that's `panelWrapper` (via inheritance, since neither `headerWrapper`
@@ -322,14 +322,14 @@ elements that now live in one of two wrappers instead of one.
 counting from the first 15-minute unit (`rowStartFor` returns `... + 1`) —
 its doc comment already calls this out as "header-row-agnostic... a CSS
 grid row (with a header row above the time axis) is this value + 1." Today,
-`SessionCard`/`.timeLabel`/`.halfHourTick` all add that extra `+ 1` in
+`SessionCard`/`.timeLabel`/`.halfHourLabel` all add that extra `+ 1` in
 `DanceScheduleGrid.tsx` because they share `.grid` with `.roomHeader`,
 which occupies row 1. In the split design, `bodyGrid` has **no** header row
 of its own (`gridTemplateRows: repeat(totalRowUnits, ...)`, no leading
 `auto`) — row 1 of `bodyGrid` *is* the first time unit. So every place that
 currently computes `rowStart + 1` for body content becomes plain `rowStart`
 (three call sites: `SessionCard`'s `gridRow`, `.timeLabel`'s `gridRow`,
-`.halfHourTick`'s `gridRow`). `headerGrid` keeps `.corner`/`.roomHeader`
+`.halfHourLabel`'s `gridRow`). `headerGrid` keeps `.corner`/`.roomHeader`
 at their current hardcoded `gridRow: 1` unchanged.
 
 ### Considered during review, no change needed

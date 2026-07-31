@@ -54,7 +54,12 @@ describe('computeDanceScheduleLayout', () => {
     ])
   })
 
-  it('places one half-hour tick between each pair of hour marks', () => {
+  it('shows a half-hour label only where a session boundary needs one', () => {
+    // dayStart 12:00, dayEnd 15:00 -> hour marks at rows 1/5/9/13. The session's
+    // off-grid start (12:15) forces its ceil neighbor (12:30, row 3); its off-grid
+    // end (2:45) forces its floor neighbor (2:30, row 11). The middle half hour
+    // (1:30) gets nothing — no boundary is anywhere near it. See
+    // computeDanceScheduleTimeAxis.test.ts for the underlying rule's own tests.
     const session = makeSession(
       '2026-07-02T12:15:00.000Z',
       '2026-07-02T14:45:00.000Z',
@@ -62,10 +67,11 @@ describe('computeDanceScheduleLayout', () => {
     )
     const layout = computeDanceScheduleLayout([session], [session], false)
 
-    // dayStart 12:00, dayEnd 15:00 -> hour marks at rows 1/5/9/13, half-hour ticks
-    // (12:30/1:30/2:30) fall exactly between each consecutive pair.
     expect(layout.hourMarks.map((mark) => mark.rowStart)).toEqual([1, 5, 9, 13])
-    expect(layout.halfHourMarks).toEqual([3, 7, 11])
+    expect(layout.halfHourMarks).toEqual([
+      { rowStart: 3, label: '12:30 PM' },
+      { rowStart: 11, label: '2:30 PM' },
+    ])
   })
 
   it('computes rowStart/rowSpan for 30- and 45-minute sessions', () => {

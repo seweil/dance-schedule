@@ -38,7 +38,7 @@ function makeLayout(overrides: Partial<DanceScheduleLayout> = {}): DanceSchedule
       { rowStart: 1, label: '12:00 PM' },
       { rowStart: 5, label: '1:00 PM' },
     ],
-    halfHourMarks: [3],
+    halfHourMarks: [{ rowStart: 3, label: '12:30 PM' }],
     elisionMarkers: [],
     expansionMarkers: [],
     placements: [
@@ -153,13 +153,18 @@ describe('DanceScheduleGrid', () => {
     expect(container.querySelector('.expansionMarker')).not.toBeInTheDocument()
   })
 
-  it('renders a half-hour tick between the hour marks', () => {
+  it('renders a half-hour label with the halfHourLabel modifier class, distinct from an hour mark', () => {
     const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
-    const tick = container.querySelector('.halfHourTick')
-    expect(tick).toBeInTheDocument()
+    const label = screen.getByText('12:30 PM')
+    expect(label).toHaveClass('timeLabel', 'halfHourLabel')
     // No header row in bodyGrid to offset past anymore — layout.rowStart (3 here, per
     // makeLayout's halfHourMarks) maps directly to the CSS grid row.
-    expect(tick).toHaveStyle({ gridRow: '3' })
+    expect(label).toHaveStyle({ gridRow: '3' })
+
+    const hourMark = screen.getByText('12:00 PM')
+    expect(hourMark).toHaveClass('timeLabel')
+    expect(hourMark).not.toHaveClass('halfHourLabel')
+    expect(container.querySelector('.halfHourTick')).not.toBeInTheDocument()
   })
 
   it('renders header content (corner, room headers) and body content (time labels, cards) in separate grids', () => {

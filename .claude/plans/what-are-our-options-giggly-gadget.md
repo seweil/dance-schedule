@@ -1,136 +1,172 @@
-# CI (GitHub Actions) + testing-strategy doc + known-issue for the sandbox limitation
+# Half-hour time labels: conditional on a real boundary, with off-grid coverage and visual hierarchy
 
 ## Context
 
-This session repeatedly hit a wall: `pnpm test:e2e` can never run inside Claude
-Code's Bash sandbox in this environment — Chromium fails to launch with a
-`mach_port_rendezvous`/`Permission denied (1100)` error, and the sandbox
-separately blocks reading anything outside the project directory (confirmed:
-`ls /Applications/...` was rejected), so pointing Playwright at a
-system-installed browser isn't a workaround either. Research this session
-also surfaced that **nothing today automatically runs lint, unit tests, or
-e2e tests anywhere** — `amplify.yml` (the only pipeline that exists) runs
-only `pnpm build` (which is `tsc --noEmit && node scripts/build-content-sets.mjs`)
-on deploy. There's no `.github/workflows/`, no pre-commit hooks. Every other
-check (`pnpm lint`, `pnpm test`, `pnpm test:e2e`) is 100% manual, human-run.
+The dance-schedule grid's sticky time column currently shows an hour label
+every hour unconditionally (e.g. "12:00 PM"), plus a small dash tick at every
+half hour unconditionally too (`.halfHourTick`). The user reports this is
+"technically correct" but fails usability: the half-hour dashes carry no
+time information, and they're always present regardless of whether anything
+actually starts or ends there — pure visual noise most of the time.
 
-Additionally, `@vitest/coverage-v8` is already an installed devDependency but
-is completely unwired — no `test.coverage` config, no npm script.
+The fix, refined through discussion: remove the unconditional half-hour dash
+entirely. Show a real formatted time label (e.g. "12:30 PM") at a half hour
+only when some session's start or end actually lands there. Additionally:
+(1) when a session's boundary is off the hour/half-hour grid entirely (e.g.
+3:45), force a label on whichever neighboring half-hour position isn't
+already covered by an (always-shown) hour mark, so no off-grid event is ever
+left with an unlabeled gap on either side; (2) hour marks render visually
+bolder than half-hour marks, via distinct CSS, so the two remain easy to
+tell apart at a glance now that both are text (not dash vs. label).
 
-Given all that, "improve the dev cycle" resolves to three concrete, additive
-pieces of work: (1) give the repo a real CI pipeline so lint/typecheck/unit/
-e2e actually run automatically somewhere, even though Claude still can't run
-Playwright itself in this chat; (2) document, for both humans and future
-Claude sessions, what test layer runs when/where and how to see results; (3)
-record the sandbox limitation as a known issue so a future session doesn't
-waste time re-discovering or re-attempting it, and instead knows immediately
-to rely on CI results, the `claude-in-chrome` MCP tool for live manual
-verification, or asking the user to run `pnpm test:e2e` locally.
+## Design decisions
 
-## Approach
+- **Which sessions "count":** `visibleSessions` (the level-filtered subset
+  actually rendered), not `dateSessions`. Applies to both the base rule and
+  the off-grid forcing rule below — a label (forced or not) should only ever
+  correspond to something the user can actually see. Roomless/freeform
+  sessions are already unconditionally in `visibleSessions` regardless of
+  the filter, so unaffected by this.
+- **Boundary match, not containment:** a half-hour candidate gets a label
+  only if some session's `startTime` or `endTime` — not merely a point it
+  spans through — equals that exact timestamp.
+- **Off-grid boundaries force their nearest half-hour neighbor.** For a
+  session boundary that is itself neither hour- nor half-hour-aligned (only
+  possible at :15/:45 given the existing 15-minute grid), floor and ceil it
+  to the surrounding half-hour positions. Exactly one of those two is an
+  hour (`:00`, already unconditionally shown) and the other is a half-hour
+  (`:30`); force-include that half-hour one as a label even though no
+  session starts/ends exactly there. Net effect: every off-grid boundary
+  always has a labeled reference point immediately before and after it —
+  one side from the pre-existing unconditional hour mark, the other from
+  this forced half-hour mark.
+- **Reuse `.timeLabel`'s positioning wholesale**, adding a `.halfHourLabel`
+  modifier class (composed on top, same pattern `DanceScheduleFilters.tsx`
+  already uses for `${styles.field} ${styles.levelField}`) that overrides
+  just `font-weight` back down from `.timeLabel`'s (now bold) base — so hour
+  marks read as the primary/bold reference and half-hour marks (base rule or
+  forced) read as the secondary one. `.halfHourTick`/`.halfHourTick::after`
+  are deleted entirely, no longer needed.
+- `halfHourMarks`'s type changes from `number[]` to `HourMark[]` (same shape
+  as `hourMarks`) either way.
 
-### 1. `.github/workflows/ci.yml` — two parallel jobs, triggered on push + PR
+## Implementation
 
-Mirrors `amplify.yml`'s own pnpm setup (`corepack enable` →
-`corepack prepare pnpm@11.15.1 --activate` → `pnpm install --frozen-lockfile`)
-so CI and the real deploy build use the identical toolchain, on `ubuntu-latest`
-with `actions/setup-node` (Node 24, matching this dev machine — no `.nvmrc`
-exists to pin otherwise) and an `actions/cache` step keyed on
-`pnpm-lock.yaml` for the pnpm store.
+### `src/lib/computeDanceScheduleTimeAxis.ts`
 
-- **Job `checks`** (fast feedback): install deps → `pnpm lint` → `pnpm typecheck`
-  → `pnpm test:coverage` (new script, see below) → upload the `coverage/`
-  directory as a build artifact (`actions/upload-artifact`, always runs via
-  `if: always()` so a failing test run still surfaces its coverage).
-- **Job `e2e`** (independent, runs in parallel — not gated on `checks`):
-  install deps → `npx playwright install --with-deps chromium` → `pnpm test:e2e`
-  (its own `webServer` config already runs `pnpm build && pnpm preview`, so
-  this also exercises the full multi-content-set production build, the same
-  path Amplify uses) → upload `playwright-report/` as an artifact with
-  `if: always()` (so a failure's HTML report — screenshots/traces on retry —
-  is still downloadable, not just the pass/fail badge).
+- `DanceScheduleTimeAxis.halfHourMarks`: `number[]` → `HourMark[]`.
+- New constant `MS_PER_HALF_HOUR = 30 * MS_PER_MINUTE` and two tiny
+  alignment predicates, `isHourAligned(ms)`/`isHalfHourAligned(ms)` (plain
+  `ms % MS_PER_HOUR === 0` / `ms % MS_PER_HALF_HOUR === 0` — safe without
+  timezone concerns since every real boundary is a whole-minute UTC
+  timestamp and 30/60 minutes divide the UTC epoch evenly).
+- Replace the current unconditional half-hour loop with a two-part
+  candidate-collection pass into a `Set<number>` of raw (pre-elision) ms
+  timestamps:
+  1. The existing fixed-cadence loop (`dayStart + 30min`, step 1 hour),
+     keeping a candidate only when `hasSessionBoundaryAt(visibleSessions, t)`
+     (new small helper, `sessions.some(s => s.startTime.getTime() === t || s.endTime.getTime() === t)`).
+  2. For every `visibleSessions` boundary (start and end) that is *not*
+     `isHalfHourAligned`: floor/ceil it to the surrounding half-hour
+     positions; add whichever of the two is *not* `isHourAligned` to the
+     set (the other side needs no action — it's already covered by the
+     unconditional hour-mark loop).
+  Then: sort the set ascending, and for each timestamp run the same
+  `isElided` skip and adjacent-row dedup the current code already does,
+  pushing `{ rowStart, label: hourFormatter.format(time) }` (reusing the
+  existing `hourFormatter`, already the right "h:mm a" shape).
+- `expandDanceScheduleTimeAxis`'s `halfHourMarks` line changes from
+  `axis.halfHourMarks.map(remapRow)` to
+  `axis.halfHourMarks.map((mark) => ({ ...mark, rowStart: remapRow(mark.rowStart) }))`
+  — identical to how `hourMarks` already remaps.
 
-No enforced coverage threshold and no `forbidOnly`/branch-protection wiring in
-this change — purely additive visibility. Both `coverage/` and
-`playwright-report/` are already in `.gitignore`, so no gitignore changes
-needed.
+### `src/components/DanceScheduleGrid.tsx` / `DanceScheduleLevelGrid.tsx`
 
-### 2. `pnpm test:coverage` script + Vitest coverage config
+Both have an identical `halfHourMarks.map((rowStart) => <div className={styles.halfHourTick} .../>)`
+block. Replace with:
+```tsx
+{halfHourMarks.map((mark) => (
+  <div
+    key={mark.rowStart}
+    className={`${styles.timeLabel} ${styles.halfHourLabel}`}
+    style={{ gridRow: mark.rowStart, gridColumn: 1 }}
+  >
+    {mark.label}
+  </div>
+))}
+```
+(The `hourMarks.map` block right above stays exactly as-is, `className={styles.timeLabel}` alone.)
 
-- `package.json`: add `"test:coverage": "CONTENT_SET=automated-testing vitest run --coverage"`.
-- `vite.config.ts`'s existing `test` block: add a `coverage` key —
-  `provider: 'v8'`, `reporter: ['text', 'html']`, excluding config/build
-  files, `*.d.ts`, and the two intentionally-untested root Vite plugins
-  (already called out by name in that block's own existing comment).
-- Report the resulting numbers back in this session's summary once run (not
-  hardcoded into the doc — coverage % will drift as the codebase grows, so
-  the doc explains *how* to generate a fresh number, not a stale snapshot).
+### `src/components/DanceScheduleGrid.module.css`
 
-### 3. New `docs/testing.md` — practical reference doc
+- Delete `.halfHourTick` and `.halfHourTick::after`.
+- Add `font-weight: 600` (or `bold`) to `.timeLabel` — this is the new
+  "hour marks are bolder" baseline, applied to every time label by default.
+- Add a new `.halfHourLabel` modifier rule with just `font-weight: 400` (or
+  `normal`), composed alongside `.timeLabel` per the component change above
+  — the minimal CSS needed to make half-hour marks read as secondary,
+  without touching the shared positioning/border/padding both already
+  inherit from `.timeLabel`.
 
-Sibling to `docs/adding-a-new-event.md`/`docs/known-issues.md` (not a
-`docs/design/` decision doc — this is a "what runs when" reference, not a
-single architectural decision). Cross-linked from CLAUDE.md's existing
-Testing section (add one pointer line there, no restructuring of that
-section). Contents:
+### Tests
 
-- **Test layers table**: Unit (Vitest/jsdom, colocated `*.test.ts(x)`) / E2E
-  (Playwright, `e2e/*.spec.ts`, requires a real build+preview) / Build-time
-  validation (schedule & content-config parsing — a bad spreadsheet row or
-  malformed `config.yaml` fails `pnpm build` itself with a named error,
-  functioning as a de facto data-validation test layer) / Lint. For each:
-  what it catches, where the files live, the exact command.
-- **Where each one runs** table: local dev loop (manual) vs. the new GitHub
-  Actions CI (push/PR, both jobs) vs. Amplify's deploy build (`pnpm build`
-  only — typecheck + build-time validation, no lint/unit/e2e — so a lint
-  failure or a broken e2e flow can still reach production undetected by the
-  deploy pipeline itself, only caught by CI on the PR/push that introduced
-  it).
-- **How to see CI results**: GitHub → Actions tab → the workflow run → Summary
-  page's Artifacts section → download `playwright-report` (open its
-  `index.html`) or `coverage` (open `coverage/index.html`).
-- **Test organization**: the colocation convention (test next to source),
-  the two root-level exceptions (`content-config.test.ts`,
-  `content-icons.test.ts`), the `e2e/` directory, and a short *current*
-  snapshot (counts, not an enumerated file table that will drift) — e.g.
-  "~39 unit test files, 3 e2e spec files" — plus a short "known gaps" list
-  pulled from this session's coverage-gap research (e.g.
-  `DanceScheduleLevelsPage.tsx`/`/dance-by-level` has no e2e coverage at all;
-  `BuildInfo.tsx`/`UpdatePrompt.tsx` have no test coverage of any kind).
-- Pointer to the new known-issues.md entry (below) explaining why Claude
-  itself can't run `pnpm test:e2e` in this sandbox.
+- **`src/lib/computeDanceScheduleTimeAxis.test.ts`**: rewrite the "places
+  one half-hour tick between each pair of hour marks" test (its
+  always-present premise is being removed) into focused cases: no mark when
+  nothing starts/ends on a half hour; a mark when a session starts/ends
+  exactly on one; no mark for a boundary present only in `dateSessions`
+  (filtered out of `visibleSessions`); a forced mark on the correct side for
+  an off-grid (:15 or :45) start; a forced mark for an off-grid end; dedup
+  when two different off-grid sessions would force the same half-hour
+  position. Update `expandDanceScheduleTimeAxis`'s `baseAxis()` fixture
+  (currently one 12:00–14:00 session, which produces zero half-hour marks
+  under the new rule) to use two sessions with real half-hour boundaries
+  (e.g. 12:00–12:30 and 13:30–14:00) so the remap assertions stay
+  meaningful. Update every `halfHourMarks` assertion's shape from bare
+  numbers to `{ rowStart, label }` objects.
+- **`src/lib/computeDanceScheduleLayout.test.ts`**: same rework for its
+  "places one half-hour tick..." test.
+- **`src/components/DanceScheduleGrid.test.tsx` / `DanceScheduleLevelGrid.test.tsx`**:
+  update `makeLayout()`'s `halfHourMarks: [3]` fixture to
+  `[{ rowStart: 3, label: '12:30 PM' }]`; rewrite the
+  `container.querySelector('.halfHourTick')` render test to assert a
+  `.halfHourLabel` element with text "12:30 PM" at the right `gridRow`
+  instead; add an assertion that an hour-mark element does *not* carry
+  `.halfHourLabel` (confirms the bold/non-bold class split renders
+  correctly, not just that text shows up).
+- `computeDanceScheduleLevelLayout.test.ts`'s `halfHourMarks: []` empty
+  fixture needs no change.
 
-### 4. New `docs/known-issues.md` entry: sandbox can't execute Playwright
+### Docs
 
-Documents the `mach_port_rendezvous`/`Permission denied (1100)` Chromium
-launch failure and the separate outside-project-directory filesystem
-restriction, both confirmed this session, as an environment limitation (not
-a repo bug — no "fix direction" naming a code change). Explicitly spells out
-the workaround path for a future Claude session: check the GitHub Actions
-run for the PR/branch in question first; failing that, use `claude-in-chrome`
-MCP browser automation against a real `pnpm build && pnpm preview` for
-manual/live verification (as done throughout this session); failing that,
-ask the user to run `pnpm test:e2e` locally and report back.
+- `docs/design/dance-schedule.md`: add a short new decision entry covering
+  both refinements (conditional + off-grid forcing + bold/non-bold
+  hierarchy) and why. Fix the one place still naming `.halfHourTick` as a
+  class (the elision-marker section's `"Unlike .timeLabel/.halfHourTick, it is *not* sticky..."`)
+  to `.timeLabel`/`.halfHourLabel`.
+- `docs/design/dance-schedule-mobile-scroll.md`: three incidental
+  `.halfHourTick` mentions (describing the unrelated, already-shipped
+  header/body grid split) — update to `.timeLabel` for accuracy only, no
+  narrative changes.
 
 ## Verification
 
-- `pnpm lint && pnpm typecheck && pnpm test:coverage` run locally to confirm
-  the new script/config work and report the real coverage numbers.
-- Validate `.github/workflows/ci.yml`'s YAML structure locally (no GitHub
-  Actions runner available in this sandbox to actually execute it) — closest
-  available check is `actions/checkout`-style syntax review plus confirming
-  the job steps' commands are exactly the same ones already verified to work
-  in this session (`pnpm lint`, `pnpm typecheck`, `pnpm test:coverage`,
-  `pnpm build`, `pnpm preview`).
-- After pushing, the user should confirm the workflow actually runs green (or
-  investigate a failure) from the GitHub Actions tab — I cannot observe that
-  from within this sandbox.
+- `pnpm typecheck && pnpm lint && pnpm test` must pass, including every
+  rewritten/new test above.
+- Live-verify via `pnpm dev` + `claude-in-chrome` against real data:
+  confirm a half hour with a real session boundary shows a (non-bold) time
+  label; confirm a half hour with nothing there shows nothing; confirm an
+  off-grid (:15/:45) session boundary gets a forced label on its open side
+  (find or construct such a case in the sample data, or verify via a
+  temporary edge-case row if none exists); confirm hour marks visibly read
+  bolder than half-hour marks side by side; confirm toggling the level
+  slider makes a half-hour label appear/disappear with the session it
+  belongs to. Check both `/dance-schedule` and `/dance-by-level`.
 
 ## Critical files
 
-- `.github/workflows/ci.yml` — new
-- `package.json` — add `test:coverage` script
-- `vite.config.ts` — add `test.coverage` config block
-- `docs/testing.md` — new
-- `docs/known-issues.md` — new entry
-- `CLAUDE.md` — one cross-reference line in the existing Testing section
+- `src/lib/computeDanceScheduleTimeAxis.ts` — `halfHourMarks` type, conditional + off-grid-forcing generation
+- `src/components/DanceScheduleGrid.tsx` / `DanceScheduleLevelGrid.tsx` — render with `.halfHourLabel` modifier
+- `src/components/DanceScheduleGrid.module.css` — delete `.halfHourTick`, add bold `.timeLabel` + `.halfHourLabel` modifier
+- `src/lib/computeDanceScheduleTimeAxis.test.ts` / `computeDanceScheduleLayout.test.ts` / `DanceScheduleGrid.test.tsx` / `DanceScheduleLevelGrid.test.tsx` — test updates
+- `docs/design/dance-schedule.md` / `docs/design/dance-schedule-mobile-scroll.md` — doc updates
