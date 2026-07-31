@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
@@ -6,6 +6,7 @@ import { BuildInfo } from './components/BuildInfo'
 import { ClearStorageAction } from './components/ClearStorageAction'
 import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
+import { PageHeader } from './components/PageHeader'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { ZoomableImage } from './components/ZoomableImage'
@@ -13,7 +14,14 @@ import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPag
 import { useLastPagePersistence } from './hooks/useLastPagePersistence'
 import { normalizeRoutes } from './lib/buildNavTree'
 
-const mdxComponents = { img: ZoomableImage }
+// A content page's markdown `# Title` compiles to a plain `<h1>` — this override
+// routes it through PageHeader.tsx too, same as every hand-written page already
+// does, so its mobile kebab toggle shares a row with the title here as well.
+function MdxH1({ children }: { children?: ReactNode }) {
+  return <PageHeader title={children} />
+}
+
+const mdxComponents = { img: ZoomableImage, h1: MdxH1 }
 
 // Registered routes must match the clean hrefs buildNavTree computes for the nav
 // (order prefixes like "2 " are stripped from the URL, not just the label).

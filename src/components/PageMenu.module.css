@@ -1,0 +1,80 @@
+/* Hidden entirely at desktop widths — Nav.tsx's own bar is the visible equivalent
+   there instead. Below the breakpoint, `position: relative` makes this the
+   positioning context for .list's dropdown below. */
+.nav {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .nav {
+    display: block;
+    position: relative;
+  }
+}
+
+.toggle {
+  border: none;
+  border-radius: 4px;
+  background: none;
+  padding: var(--space-sm);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.toggle[aria-expanded='true'] {
+  background: #e6e6e6;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-0.25rem);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 150ms;
+}
+
+.list[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.link {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--color-accent);
+}
+
+/* Bold + accent color is the only "current page" treatment here (unlike Nav.tsx's
+   tab-shaped desktop version) — a plain vertical link list has no tab shape to
+   apply a selected-background/border to in the first place. */
+.link[aria-current='page'] {
+  font-weight: bold;
+  color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list {
+    transition: none;
+  }
+}

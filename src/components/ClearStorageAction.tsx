@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clearAllStorage } from '../lib/appStorage'
+import { PageHeader } from './PageHeader'
 
 // Reachable from a plain link on the Installation page (see content/*/pages), not
 // linked from the nav — a small utility page, not a real destination, so it's
@@ -15,8 +16,10 @@ export function ClearStorageAction() {
   if (cleared) {
     return (
       <>
-        <h1>Clear saved settings</h1>
-        <p>Done — your saved date, filters, GCA setting, and last-visited page have all been cleared.</p>
+        <PageHeader title="Clear saved settings" />
+        <p>
+          Done — your saved date, filters, GCA setting, and last-visited page have all been cleared.
+        </p>
         <p>
           <Link to="/">Go home</Link>
         </p>
@@ -26,8 +29,11 @@ export function ClearStorageAction() {
 
   return (
     <>
-      <h1>Clear saved settings</h1>
-      <p>This resets your saved date, level filters, GCA setting, and last-visited page back to their defaults.</p>
+      <PageHeader title="Clear saved settings" />
+      <p>
+        This resets your saved date, level filters, GCA setting, and last-visited page back to their
+        defaults.
+      </p>
       <button
         type="button"
         onClick={() => {

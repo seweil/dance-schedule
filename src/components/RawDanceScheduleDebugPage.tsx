@@ -2,6 +2,7 @@ import contentSets from 'virtual:content-sets'
 import danceSessionsData from 'virtual:dance-schedule'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
 import { BuildInfo } from './BuildInfo'
+import { PageHeader } from './PageHeader'
 import { RawDanceScheduleTable } from './RawDanceScheduleTable'
 
 // The extra `: string[]` annotation works around a TS inference quirk (observed
@@ -38,7 +39,7 @@ export function RawDanceScheduleDebugPage() {
           </span>
         ))}
       </p>
-      <h1>Dance Schedule — Debug ({contentSets.activeSet})</h1>
+      <PageHeader title={`Dance Schedule — Debug (${contentSets.activeSet})`} />
       <BuildInfo />
       <RawDanceScheduleTable sessions={buildDanceSchedule(danceSessionsData)} />
     </>

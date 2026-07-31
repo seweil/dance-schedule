@@ -1,20 +1,4 @@
-.toggle {
-  display: none;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  padding: var(--space-sm);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.toggle[aria-expanded='true'] {
-  background: #e6e6e6;
-}
-
-/* The tab bar's shared baseline — each .link's own border sits on top of this
-   (desktop only; the mobile media query below removes it, since a bare line under
-   just the hamburger toggle would look like a stray underline, not a tab strip). */
+/* The tab bar's shared baseline — each .link's own border sits on top of this. */
 .nav {
   border-bottom: 1px solid var(--color-border);
 }
@@ -48,10 +32,7 @@
 /* The current page's tab — set automatically by NavLink, not computed by hand (see
    Nav.tsx). Bordered + white-backgrounded with a white bottom edge that "erases"
    the nav's own baseline right underneath it, the classic look of a selected tab
-   appearing to merge into the page content below. Bold + accent color on top of
-   that so it reads unmistakably even before noticing the shape (also carries
-   through to the mobile dropdown below, which resets the shape but not the text
-   treatment). */
+   appearing to merge into the page content below. */
 .link[aria-current='page'] {
   color: var(--color-accent);
   font-weight: bold;
@@ -60,71 +41,11 @@
   border-bottom: 1px solid #fff;
 }
 
+/* This whole bar is desktop-only — PageMenu.tsx (rendered per-page, next to that
+   page's own title via PageHeader.tsx) is the mobile equivalent instead, so there's
+   nothing left for this component to show below the breakpoint. */
 @media (max-width: 640px) {
   .nav {
-    display: flex;
-    justify-content: flex-end;
-    position: relative;
-    border-bottom: none;
-  }
-
-  .toggle {
-    display: inline-flex;
-  }
-
-  .list {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: var(--space-sm);
-    position: absolute;
-    top: 100%;
-    right: 0;
-    z-index: 1;
-    padding: var(--space-sm) var(--space-md);
-    background: #fff;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(-0.25rem);
-    transition:
-      opacity 150ms ease,
-      transform 150ms ease,
-      visibility 150ms;
-  }
-
-  .list[data-open='true'] {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
-  /* The desktop tab shape (border/background/negative margin) doesn't fit a plain
-     vertical dropdown list — reset to a simple in-line text treatment, keeping the
-     bold + accent-color current-page styling above (not overridden here) as the
-     "clearly selected" cue in this context instead. */
-  .link {
-    display: inline;
-    padding: 0;
-    border: none;
-    border-radius: 0;
-    margin-bottom: 0;
-  }
-
-  .link:hover {
-    background: none;
-    color: var(--color-accent);
-  }
-
-  .link[aria-current='page'] {
-    background: none;
-    border-bottom: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .list {
-      transition: none;
-    }
+    display: none;
   }
 }

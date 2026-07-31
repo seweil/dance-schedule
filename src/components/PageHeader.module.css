@@ -1,0 +1,17 @@
+/* On desktop this row's only visible content is the h1 (PageMenu renders nothing
+   there), so it reads exactly like a bare title always did. On mobile, the kebab
+   toggle sits at the row's other end instead of stacking above the title in its
+   own bar. */
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  /* Replaces the h1's own (zeroed below) top/bottom margin, now that it's sized by
+     this row instead — keeps the same vertical rhythm the page had before. */
+  margin: var(--space-md) 0;
+}
+
+.pageHeader h1 {
+  margin: 0;
+}

@@ -6,6 +6,7 @@ import { computeDanceScheduleLevelLayout } from '../lib/computeDanceScheduleLeve
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { DanceScheduleLevelGrid } from './DanceScheduleLevelGrid'
+import { PageHeader } from './PageHeader'
 
 // Computed once at module load — the virtual module's data is static, so there's no
 // need to re-sort on every filter-driven re-render. A second call to
@@ -48,7 +49,7 @@ export function DanceScheduleLevelsPage() {
 
   return (
     <>
-      <h1>Dance by Level</h1>
+      <PageHeader title="Dance by Level" />
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}
