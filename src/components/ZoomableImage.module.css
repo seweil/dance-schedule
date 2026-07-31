@@ -12,21 +12,32 @@
 /* Opt-in smaller display sizes for an image whose natural resolution doesn't
    suit full-width display in the flow of a content page (e.g. a caller
    headshot) — requested via a markdown image's standard `title` string, see
-   ZoomableImage.tsx's SIZE_CLASSES. `min()`, not a plain fixed width, so
-   `.zoomable`'s max-width: 100% overflow protection above still holds on a
-   viewport narrower than the class's own target width. */
+   ZoomableImage.tsx's SIZE_CLASSES. A plain fixed width, not min(Npx, 100%) —
+   `.zoomable`'s own max-width: 100% above already composes with a plain
+   `width` to produce the exact same clamped-on-narrow-viewports result (both
+   properties apply together, see ZoomableImage.tsx — `width`/`max-width`
+   don't conflict, the used value is just whichever is smaller), so the min()
+   was never actually doing anything `.zoomable` didn't already guarantee on
+   its own. It wasn't just redundant, though — inside a markdown table
+   (content/backtrack2abq/pages/3 callers.md), a WIDTH containing a
+   percentage gets special-cased during the table's own intrinsic-sizing pass
+   (a browser needs the image's "preferred" contribution before it knows the
+   real column width the percentage would resolve against): confirmed live,
+   Chromium fell back to the source photo's full native resolution for that
+   pass instead of 100px, inflating each table column far past the image's
+   actual 100px rendered size. A plain fixed width has no such ambiguity. */
 .thumbnail {
-  width: min(100px, 100%);
+  width: 100px;
 }
 
 .small {
-  width: min(200px, 100%);
+  width: 200px;
 }
 
 .medium {
-  width: min(350px, 100%);
+  width: 350px;
 }
 
 .large {
-  width: min(500px, 100%);
+  width: 500px;
 }

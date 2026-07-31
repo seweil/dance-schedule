@@ -35,11 +35,21 @@ body {
    isn't stripping anything, just never adding it; keeps a table reading as a
    clean grid (e.g. a photo roster) rather than a bordered spreadsheet. A
    content author who wants visible grid lines can still add their own via a
-   future page-specific need — this is only the shared, minimal baseline. */
+   future page-specific need — this is only the shared, minimal baseline.
+
+   width: fit-content, not 100% — a 100%-wide table still respects its own
+   column count, so a table with few/narrow columns (e.g. a 2-column photo
+   roster) had its columns stretched apart across the FULL page width on a
+   wide display, each one centered within its own now-huge share of it —
+   confirmed live, the two columns read as unrelated rather than a pair.
+   fit-content is already clamped to the container's own available width by
+   definition, so this doesn't overflow a narrow viewport either — no
+   separate max-width needed. Centered via margin auto so it doesn't just
+   shrink-wrap flush against the page's own left edge instead. */
 table {
-  width: 100%;
+  width: fit-content;
   border-collapse: collapse;
-  margin: var(--space-md) 0;
+  margin: var(--space-md) auto;
 }
 
 th,
