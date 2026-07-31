@@ -168,8 +168,20 @@
    transparent, so only the colored one renders, tapering to the shared corner).
    Radix still centers each thumb correctly over its exact value position from
    its own rendered bounding box, whatever shape that box actually is — no extra
-   positioning math needed here beyond the border values themselves. */
+   positioning math needed here beyond the border values themselves.
+
+   display: block is load-bearing, not incidental — this rule replaced the old
+   circle thumb's own `display: block; width: 1rem; height: 1rem;`, and dropping
+   it (along with the width/height) left the underlying <span> at its default
+   `display: inline`. An inline non-replaced element ignores width/height (moot
+   here, both are 0 anyway) but ALSO sizes its box from the surrounding inline
+   formatting context (font metrics), not just its own border widths — confirmed
+   live, the rendered box came out 35px tall instead of the intended 16px
+   (8px + 8px borders), and the extra invisible height threw off exactly where
+   the visible triangle sat within it, rendering as a lopsided trapezoid instead
+   of a clean point. */
 .sliderThumb {
+  display: block;
   width: 0;
   height: 0;
   cursor: pointer;
@@ -208,11 +220,13 @@
   /* Tall enough for the mark (6px) + the gap between mark and text (2px, see .tick)
      + one line of .tick's (bold, 0.8rem) text (~16px), with a little slack. */
   height: 1.625rem;
-  /* .levelField's gap is already 0, but .sliderRoot's own box (1.25rem tall) is
-     taller than its 1rem thumb, leaving ~2px of built-in slack above the thumb even
-     with zero gap between the two elements — confirmed live. This closes that
-     residual slack too, so the marks end flush against the thumbs, not just close. */
-  margin-bottom: -2px;
+  /* A deliberate small gap (not flush) between the marks and the thumbs/track
+     below — confirmed live at 0 (this used to be negative, closing .sliderRoot's
+     own ~2px of built-in top slack around its thumb entirely flush): the
+     triangle thumbs' flat top corner (unlike the old circle thumb's rounded top,
+     which visually receded from the mark above even at the same 0px box gap)
+     read as uncomfortably close to the tick row sitting right on top of it. */
+  margin-bottom: 2px;
 }
 
 .tick {
