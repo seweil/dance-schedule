@@ -34,17 +34,21 @@ export interface UseDanceScheduleFiltersResult {
 // CLAUDE.md's "push data-fetching and side effects into hooks" convention. Shared by
 // both pages (same localStorage-persisted state, via danceScheduleFiltersStorage.ts)
 // so switching between the room-columns and level-columns views keeps the same
-// date/level-range/GCA selection rather than resetting it. `combineA1A2` (from the
-// active content set's config.yaml, via virtual:content-config) is a build-time-
-// constant feature flag, not expected to change within a session — see
-// docs/design/dance-schedule.md.
+// date/level-range/GCA selection rather than resetting it. `combineA1A2`/
+// `combineC3BC4` (from the active content set's config.yaml, via
+// virtual:content-config) are build-time-constant feature flags, not expected to
+// change within a session — see docs/design/dance-schedule.md.
 export function useDanceScheduleFilters(
   sessions: DanceSession[],
   combineA1A2: boolean,
+  combineC3BC4: boolean,
 ): UseDanceScheduleFiltersResult {
   const groups = useMemo(() => groupDanceSessionsByDate(sessions), [sessions])
   const dates = useMemo(() => groups.map((group) => group.date), [groups])
-  const slots = useMemo(() => getLevelSlots(combineA1A2), [combineA1A2])
+  const slots = useMemo(
+    () => getLevelSlots(combineA1A2, combineC3BC4),
+    [combineA1A2, combineC3BC4],
+  )
 
   // Read once, at mount — a stable lazy useState initializer, not a plain call, so
   // it doesn't re-read localStorage on every render. See

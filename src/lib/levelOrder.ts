@@ -23,36 +23,71 @@ export function isOrderedLevel(level: LevelCode): level is OrderedLevelCode {
   return (LEVEL_ORDER as readonly string[]).includes(level)
 }
 
-// One position on the level slider. Usually exactly one level; two when
-// combineA1A2 merges A1 and A2 into a single stop (see getLevelSlots below). A
-// session's own `levels` array is unaffected either way — combining only changes
-// which slot a level's index resolves to for slider positioning/filtering, not the
-// underlying data. See docs/design/dance-schedule.md's LevelSlot decision.
+// One position on the level slider. Usually exactly one level; two when a merge
+// (see LevelMerge/getLevelSlots below) combines several adjacent levels into a
+// single stop. A session's own `levels` array is unaffected either way — combining
+// only changes which slot a level's index resolves to for slider positioning/
+// filtering, not the underlying data. See docs/design/dance-schedule.md's LevelSlot
+// decision.
 export interface LevelSlot {
   label: string
   levels: readonly OrderedLevelCode[]
 }
 
-// The slider's positions, in order, depending on the combineA1A2 feature flag
-// (content/<set>/config.yaml, threaded down via virtual:content-config). When
-// combined, A1's and A2's two separate slots become one "A1/A2" slot in their
-// place — a session tagged only A1, only A2, or both all resolve to that same slot
-// index, a real merge for filtering purposes, not just a display relabel.
-export function getLevelSlots(combineA1A2: boolean): readonly LevelSlot[] {
-  if (!combineA1A2) {
-    return LEVEL_ORDER.map((level) => ({ label: level, levels: [level] }))
+// Collapses one or more *adjacent* LEVEL_ORDER entries into a single labeled slot,
+// in their place. buildLevelSlots below derives every merge's members from
+// LEVEL_ORDER itself (asserting contiguity) rather than a hand-duplicated slot
+// array — the previous single-flag implementation hand-wrote a whole second array
+// for the combined case, which docs/known-issues.md flagged as silently
+// dropping any future LEVEL_ORDER insertion that a combined-mode branch forgot to
+// also update; that failure mode gets worse, not better, once a second
+// independent merge exists, so it's fixed here rather than copied.
+interface LevelMerge {
+  label: string
+  levels: readonly [OrderedLevelCode, ...OrderedLevelCode[]]
+}
+
+function buildLevelSlots(merges: readonly LevelMerge[]): readonly LevelSlot[] {
+  const slots: LevelSlot[] = []
+  let i = 0
+  while (i < LEVEL_ORDER.length) {
+    const merge = merges.find((m) => m.levels[0] === LEVEL_ORDER[i])
+    if (merge) {
+      const matched = LEVEL_ORDER.slice(i, i + merge.levels.length)
+      const isContiguousMatch =
+        matched.length === merge.levels.length &&
+        matched.every((level, offset) => level === merge.levels[offset])
+      if (!isContiguousMatch) {
+        throw new Error(
+          `Merge "${merge.label}" (${merge.levels.join(', ')}) is not a contiguous run in LEVEL_ORDER`,
+        )
+      }
+      slots.push({ label: merge.label, levels: merge.levels })
+      i += merge.levels.length
+    } else {
+      slots.push({ label: LEVEL_ORDER[i]!, levels: [LEVEL_ORDER[i]!] })
+      i += 1
+    }
   }
-  return [
-    { label: 'SSD', levels: ['SSD'] },
-    { label: 'MS', levels: ['MS'] },
-    { label: 'Plus', levels: ['Plus'] },
-    { label: 'A1/A2', levels: ['A1', 'A2'] },
-    { label: 'C1', levels: ['C1'] },
-    { label: 'C2', levels: ['C2'] },
-    { label: 'C3A', levels: ['C3A'] },
-    { label: 'C3B', levels: ['C3B'] },
-    { label: 'C4', levels: ['C4'] },
-  ]
+  return slots
+}
+
+// The slider's positions, in order, depending on the combineA1A2/combineC3BC4
+// feature flags (content/<set>/config.yaml, threaded down via
+// virtual:content-config). When combined, a merge's levels resolve to one shared
+// slot in their place — a session tagged with any one of them, or several, all
+// resolve to that same slot index, a real merge for filtering purposes, not just a
+// display relabel. combineC3BC4's merged slot is labeled "C3B+" (not "C3B/C4"),
+// matching square-dance convention for "C3B and above."
+export function getLevelSlots(combineA1A2: boolean, combineC3BC4: boolean): readonly LevelSlot[] {
+  const merges: LevelMerge[] = []
+  if (combineA1A2) {
+    merges.push({ label: 'A1/A2', levels: ['A1', 'A2'] })
+  }
+  if (combineC3BC4) {
+    merges.push({ label: 'C3B+', levels: ['C3B', 'C4'] })
+  }
+  return buildLevelSlots(merges)
 }
 
 // True if `session` should be visible under the given [minIndex, maxIndex] slider

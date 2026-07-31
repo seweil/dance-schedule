@@ -29,25 +29,30 @@ warning anywhere.
 `src/types/danceSchedule.ts`'s `LEVEL_CODES` (and `levelOrder.ts`'s
 `LEVEL_ORDER`/`getLevelSlots`) hardcode the square-dance skill taxonomy
 (SSD/MS/Plus/A1/A2/C1–C4) with no config-driven way for a new event to
-define a different one. Compounding this, `getLevelSlots`'s `combineA1A2`
-branch hand-duplicates `LEVEL_ORDER`'s items as a second literal array
-instead of deriving them from it.
+define a different one.
 
 **Failure scenario:** both existing real events' own home-page copy
 advertises "square and round dancing," but a round-dance session entered
 with a real round-dance level (e.g. `Bronze` or `Phase 4`) fails
 `isValidLevel` and breaks the entire build with "Unrecognized level code" —
-that content can't be represented at all without a code change. Separately,
-inserting a new level into `LEVEL_ORDER` (e.g. a `C3C`) is easy to forget to
-also add to `getLevelSlots`'s combined-mode list, silently dropping it from
-every `combineA1A2: true` event's slider/filter range with no build error.
+that content can't be represented at all without a code change.
 
-**Fix direction:** derive the combined-mode slot list from `LEVEL_ORDER`
-programmatically (e.g. a config-driven merge-pairs list) instead of a
-hand-duplicated array. Making the taxonomy itself content-set-configurable
-(for a genuinely different dance form) is a bigger design question — worth
-a `docs/design/` entry of its own if a real round-dance or contra event is
+**Fix direction:** making the taxonomy itself content-set-configurable (for a
+genuinely different dance form) is a bigger design question — worth a
+`docs/design/` entry of its own if a real round-dance or contra event is
 ever added, rather than a quick fix here.
+
+**Partially resolved (2026-07-30):** the *compounding* half of this issue —
+`getLevelSlots`'s combined-mode branch hand-duplicating `LEVEL_ORDER`'s items
+as a second literal array, silently dropping any future `LEVEL_ORDER`
+insertion a combined-mode branch forgot to also update — is fixed. Adding a
+second independent merge flag (`combineC3BC4`, for a "C3B+" slot) was the
+forcing function: `getLevelSlots` now derives every merge's slot from
+`LEVEL_ORDER` programmatically (`buildLevelSlots`, given a list of
+`{ label, levels }` merges, asserting contiguity) instead of hand-writing a
+combined-mode array per flag/flag-combination — see
+`docs/design/dance-schedule.md`'s "second merge flag" decision. The
+broader hardcoded-taxonomy issue above is unaffected by this fix.
 
 ## Dance-schedule time range with no AM/PM on either side isn't cross-checked
 

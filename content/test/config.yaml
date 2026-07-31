@@ -8,6 +8,10 @@ features:
   # "test" content set exercises the combined-slot behavior — see
   # docs/design/dance-schedule.md's LevelSlot decision.
   combineA1A2: true
+  # Same reasoning — exercises the "C3B+" merged slot in the fixture set, covered
+  # by manual/live verification (pnpm build:test && pnpm preview) rather than a
+  # second Playwright project.
+  combineC3BC4: true
 
 manifest:
   # Distinguishes this set's installed icon/app name from "automated-testing"'s, so

@@ -105,6 +105,10 @@ features:
   # dances to bother distinguishing — set to true unless yours genuinely
   # needs A1 and A2 kept separate.
   combineA1A2: true
+  # Same idea, for C3B and C4 — the combined stop is labeled "C3B+" (square-
+  # dance convention for "C3B and above"). Set to true unless your event has
+  # enough distinct C3B-only and C4-only sessions to be worth splitting.
+  combineC3BC4: false
 
 manifest:
   # What shows up as the installed app's name/home-screen label. Defaults to

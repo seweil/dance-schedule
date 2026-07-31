@@ -7,8 +7,9 @@ import {
 import { getLevelSlots } from './levelOrder'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
-const SLOTS = getLevelSlots(false) // SSD, MS, Plus, A1, A2, C1, C2, C3A, C3B, C4
-const COMBINED_SLOTS = getLevelSlots(true) // SSD, MS, Plus, A1/A2, C1, C2, C3A, C3B, C4
+const SLOTS = getLevelSlots(false, false) // SSD, MS, Plus, A1, A2, C1, C2, C3A, C3B, C4
+const COMBINED_SLOTS = getLevelSlots(true, false) // SSD, MS, Plus, A1/A2, C1, C2, C3A, C3B, C4
+const C3B_PLUS_SLOTS = getLevelSlots(false, true) // SSD, MS, Plus, A1, A2, C1, C2, C3A, C3B+
 
 function located(...rooms: string[]): SessionLocation {
   return { kind: 'located', rooms }
@@ -159,6 +160,38 @@ describe('computeDanceScheduleLevelLayout', () => {
         rowStart: 1,
         rowSpan: 4,
         columnStart: 3,
+        columnSpan: 1,
+        lane: 0,
+        laneCount: 1,
+      },
+    ])
+  })
+
+  it('collapses a C3B/C4 session onto the merged "C3B+" slot when combineC3BC4 is on', () => {
+    const session = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      'Salon A-C',
+      {
+        levels: ['C3B', 'C4'],
+      },
+    )
+    const layout = computeDanceScheduleLevelLayout(
+      [session],
+      [session],
+      C3B_PLUS_SLOTS,
+      0,
+      C3B_PLUS_SLOTS.length - 1,
+      false,
+    )
+
+    expect(layout.visibleSlots[8]!.label).toBe('C3B+')
+    expect(layout.placements).toEqual([
+      {
+        session,
+        rowStart: 1,
+        rowSpan: 4,
+        columnStart: 8,
         columnSpan: 1,
         lane: 0,
         laneCount: 1,

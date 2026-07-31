@@ -6,6 +6,9 @@ export interface ContentFeatures {
   // Whether the dance-schedule level slider treats A1 and A2 as one combined slot —
   // see docs/design/dance-schedule.md's LevelSlot decision.
   combineA1A2: boolean
+  // Same mechanism, for C3B and C4 — merged slot is labeled "C3B+" (square-dance
+  // convention for "C3B and above"), not "C3B/C4". See docs/design/dance-schedule.md.
+  combineC3BC4: boolean
 }
 
 export interface ContentConfigData {

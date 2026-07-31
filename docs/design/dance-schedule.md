@@ -331,6 +331,31 @@ already only operates on plain indices. `LEVEL_ORDER` itself, and
 combining on the slider is a filtering/display concern only, not a change
 to the underlying level data or how sessions are colored.
 
+### A second merge flag (`combineC3BC4`, labeled "C3B+") generalized `getLevelSlots` off a hand-duplicated array
+**Why:** Some events also want C3B and C4 treated as one combined slider
+position — same mechanism as `combineA1A2` above, but a second, independent
+per-event flag (`content/<set>/config.yaml`'s `features.combineC3BC4`), since
+an event might want either merge, both, or neither. The merged slot is
+labeled `"C3B+"` (not `"C3B/C4"`), matching square-dance convention for "C3B
+and above." The original single-flag `getLevelSlots(combineA1A2)` hand-wrote
+a second 9-entry array for the combined case — `docs/known-issues.md` had
+already flagged this as fragile (a future `LEVEL_ORDER` insertion could
+silently fall out of sync with that hand-duplicated array), and adding a
+second independent merge would have meant either a third hand-written array
+per flag or a hand-written array per one of the four flag *combinations*,
+multiplying that same risk. `getLevelSlots` now takes both flags
+(`getLevelSlots(combineA1A2, combineC3BC4)`) and builds `LevelSlot`s by
+walking `LEVEL_ORDER` once, splicing in each active merge's labeled slot in
+place of the `LEVEL_ORDER` entries it covers (`buildLevelSlots`, given a list
+of `{ label, levels }` merges) — asserting each merge's levels are a
+contiguous run in `LEVEL_ORDER` (they are: A1/A2 and C3B/C4 are each adjacent
+pairs) rather than trusting that by construction. Every downstream consumer
+(`isSessionInLevelRange`, `filterDanceSessions`, `DanceScheduleFilters`,
+`computeDanceScheduleLevelLayout`) already worked in terms of `slots`/slot
+index, not `LEVEL_ORDER` index or the A1/A2 flag specifically, so none of
+them needed to change for the second flag — exactly the payoff the original
+`LevelSlot` indirection was designed for.
+
 ### Level-columns view: a second grid, same filters, level slots as columns
 
 **Why:** Alongside the room-column × time-row grid (`DanceScheduleGrid.tsx`,
@@ -362,7 +387,7 @@ now that it's shared by both grids with different bold-label semantics.
 **Columns are the filter's own range, not data-derived:** unlike rooms
 (discovered per-date via `deriveRoomOrder`, hidden once nothing in a room
 is visible), a level-columns view's ordered-level columns are exactly
-`getLevelSlots(combineA1A2).slice(minLevelIndex, maxLevelIndex + 1)`, plus
+`getLevelSlots(combineA1A2, combineC3BC4).slice(minLevelIndex, maxLevelIndex + 1)`, plus
 one more fixed `"Other"` column always appended after them (see below) — the
 level-range slider directly picks the ordered-level range, always shown in
 full even for a slot with nothing scheduled that day. This is a genuine

@@ -17,7 +17,19 @@ export interface ContentConfigPluginOptions {
 }
 
 const DEFAULT_CONTENT_CONFIG: ContentConfigData = {
-  features: { combineA1A2: false },
+  features: { combineA1A2: false, combineC3BC4: false },
+}
+
+function readBooleanFeatureFlag(
+  configFile: string,
+  features: Record<string, unknown>,
+  key: 'combineA1A2' | 'combineC3BC4',
+): boolean {
+  const value = features[key] ?? false
+  if (typeof value !== 'boolean') {
+    throw new Error(`${configFile}'s "features.${key}" must be a boolean, got ${JSON.stringify(value)}`)
+  }
+  return value
 }
 
 function loadContentConfigData(configFile: string): ContentConfigData {
@@ -34,15 +46,11 @@ function loadContentConfigData(configFile: string): ContentConfigData {
     throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
   }
 
-  const features = (parsed as Record<string, unknown> | null)?.features ?? {}
-  const combineA1A2 = (features as Record<string, unknown>).combineA1A2 ?? false
-  if (typeof combineA1A2 !== 'boolean') {
-    throw new Error(
-      `${configFile}'s "features.combineA1A2" must be a boolean, got ${JSON.stringify(combineA1A2)}`,
-    )
-  }
+  const features = ((parsed as Record<string, unknown> | null)?.features ?? {}) as Record<string, unknown>
+  const combineA1A2 = readBooleanFeatureFlag(configFile, features, 'combineA1A2')
+  const combineC3BC4 = readBooleanFeatureFlag(configFile, features, 'combineC3BC4')
 
-  return { features: { combineA1A2 } }
+  return { features: { combineA1A2, combineC3BC4 } }
 }
 
 // Resolves virtual:content-config to the active content set's config.yaml — parsed

@@ -5,6 +5,9 @@ features:
   # Crawled schedule has no A1-only sessions distinct from A2, so keep them
   # combined (the recommended default per docs/adding-a-new-event.md).
   combineA1A2: true
+  # Unlike A1/A2 above, the crawled schedule has distinct standalone C3B and C4
+  # sessions (never combined), so keep them split.
+  combineC3BC4: false
 
 manifest:
   name: Back Track 2 ABQ (44th IAGSDC Convention)

@@ -8,8 +8,8 @@ vi.mock('./DanceScheduleFilters.module.css', () => ({
 }))
 
 const DATES = [new Date('2026-07-02T00:00:00.000Z'), new Date('2026-07-03T00:00:00.000Z')]
-const BASE_SLOTS = getLevelSlots(false)
-const COMBINED_SLOTS = getLevelSlots(true)
+const BASE_SLOTS = getLevelSlots(false, false)
+const COMBINED_SLOTS = getLevelSlots(true, false)
 
 function renderFilters(overrides: Partial<React.ComponentProps<typeof DanceScheduleFilters>> = {}) {
   const onDateChange = vi.fn()

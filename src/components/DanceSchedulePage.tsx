@@ -25,7 +25,11 @@ export function DanceSchedulePage() {
     setShowGca,
     dateSessions,
     visibleSessions,
-  } = useDanceScheduleFilters(sessions, contentConfig.features.combineA1A2)
+  } = useDanceScheduleFilters(
+    sessions,
+    contentConfig.features.combineA1A2,
+    contentConfig.features.combineC3BC4,
+  )
 
   const layout = useMemo(
     () => computeDanceScheduleLayout(dateSessions, visibleSessions, showGca),

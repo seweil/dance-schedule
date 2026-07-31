@@ -3,7 +3,7 @@ import { filterDanceSessions } from './filterDanceSessions'
 import { LEVEL_ORDER, getLevelSlots } from './levelOrder'
 import type { StructuredSession } from '../types/danceSchedule'
 
-const BASE_SLOTS = getLevelSlots(false)
+const BASE_SLOTS = getLevelSlots(false, false)
 
 function makeSession(overrides: Partial<StructuredSession> = {}): StructuredSession {
   return {

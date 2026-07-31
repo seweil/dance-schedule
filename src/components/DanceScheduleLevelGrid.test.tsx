@@ -13,8 +13,8 @@ vi.mock('./DanceScheduleGrid.module.css', () => ({
   default: new Proxy({}, { get: (_target, prop) => prop }) as Record<string, string>,
 }))
 
-const SLOTS = getLevelSlots(false)
-const COMBINED_SLOTS = getLevelSlots(true)
+const SLOTS = getLevelSlots(false, false)
+const COMBINED_SLOTS = getLevelSlots(true, false)
 const A1_A2_SLOT_INDEX = COMBINED_SLOTS.findIndex((slot) => slot.label === 'A1/A2')
 
 const STRUCTURED_SESSION: DanceSession = {

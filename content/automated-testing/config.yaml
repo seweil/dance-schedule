@@ -9,3 +9,7 @@ features:
   # Whether the dance-schedule level slider treats A1 and A2 as a single
   # combined stop (see docs/design/dance-schedule.md's LevelSlot decision).
   combineA1A2: true
+  # false here (unlike content/test/config.yaml) so e2e/dance-schedule.spec.ts's
+  # hardcoded C3B/C4 slot indices stay stable — that test exercises the
+  # uncombined case; content/test/config.yaml exercises the combined one.
+  combineC3BC4: false

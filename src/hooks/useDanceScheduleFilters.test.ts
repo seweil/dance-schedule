@@ -52,7 +52,7 @@ const ALL_SESSIONS = [day1Session, day1AdvancedSession, day2Session]
 
 describe('useDanceScheduleFilters', () => {
   it('defaults to the earliest date, the full level range, and showing GCA', () => {
-    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
     expect(result.current.dates).toEqual([
       new Date('2026-07-02T00:00:00.000Z'),
@@ -65,7 +65,7 @@ describe('useDanceScheduleFilters', () => {
   })
 
   it('scopes dateSessions/visibleSessions to the selected date and switches when the date changes', () => {
-    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
     expect(result.current.dateSessions).toEqual([day1Session, day1AdvancedSession])
     expect(result.current.visibleSessions).toEqual([day1Session, day1AdvancedSession])
@@ -78,7 +78,7 @@ describe('useDanceScheduleFilters', () => {
   })
 
   it('narrows visibleSessions (but not dateSessions) when the level range narrows', () => {
-    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
     act(() => result.current.setLevelRange(LEVEL_ORDER.indexOf('SSD'), LEVEL_ORDER.indexOf('Plus')))
 
@@ -89,22 +89,28 @@ describe('useDanceScheduleFilters', () => {
   })
 
   it('toggles showGca', () => {
-    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
     act(() => result.current.setShowGca(false))
 
     expect(result.current.showGca).toBe(false)
   })
 
-  it('exposes the base (uncombined) slots when combineA1A2 is false', () => {
-    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false))
-    expect(result.current.slots).toEqual(getLevelSlots(false))
+  it('exposes the base (uncombined) slots when both flags are false', () => {
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+    expect(result.current.slots).toEqual(getLevelSlots(false, false))
     expect(result.current.slots).toHaveLength(LEVEL_ORDER.length)
   })
 
   it('exposes the merged slots and a smaller full-range default when combineA1A2 is true', () => {
-    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, true))
-    expect(result.current.slots).toEqual(getLevelSlots(true))
-    expect(result.current.maxLevelIndex).toBe(getLevelSlots(true).length - 1)
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, true, false))
+    expect(result.current.slots).toEqual(getLevelSlots(true, false))
+    expect(result.current.maxLevelIndex).toBe(getLevelSlots(true, false).length - 1)
+  })
+
+  it('exposes the "C3B+" merged slot and a smaller full-range default when combineC3BC4 is true', () => {
+    const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, true))
+    expect(result.current.slots).toEqual(getLevelSlots(false, true))
+    expect(result.current.maxLevelIndex).toBe(getLevelSlots(false, true).length - 1)
   })
 })

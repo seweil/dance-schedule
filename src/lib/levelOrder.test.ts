@@ -16,8 +16,9 @@ function makeStructured(levels: LevelCode[], overrides: Partial<StructuredSessio
   }
 }
 
-const BASE_SLOTS = getLevelSlots(false)
-const COMBINED_SLOTS = getLevelSlots(true)
+const BASE_SLOTS = getLevelSlots(false, false)
+const COMBINED_SLOTS = getLevelSlots(true, false)
+const C3B_PLUS_SLOTS = getLevelSlots(false, true)
 const FULL_RANGE: [number, number] = [0, BASE_SLOTS.length - 1]
 
 describe('LEVEL_ORDER', () => {
@@ -27,7 +28,7 @@ describe('LEVEL_ORDER', () => {
 })
 
 describe('getLevelSlots', () => {
-  it('returns one slot per level, unchanged, when not combining A1/A2', () => {
+  it('returns one slot per level, unchanged, when combining nothing', () => {
     expect(BASE_SLOTS).toEqual(LEVEL_ORDER.map((level) => ({ label: level, levels: [level] })))
   })
 
@@ -44,6 +45,34 @@ describe('getLevelSlots', () => {
       { label: 'C4', levels: ['C4'] },
     ])
     expect(COMBINED_SLOTS).toHaveLength(LEVEL_ORDER.length - 1)
+  })
+
+  it('merges C3B and C4 into a single "C3B+" slot in their place when combining', () => {
+    expect(C3B_PLUS_SLOTS).toEqual([
+      { label: 'SSD', levels: ['SSD'] },
+      { label: 'MS', levels: ['MS'] },
+      { label: 'Plus', levels: ['Plus'] },
+      { label: 'A1', levels: ['A1'] },
+      { label: 'A2', levels: ['A2'] },
+      { label: 'C1', levels: ['C1'] },
+      { label: 'C2', levels: ['C2'] },
+      { label: 'C3A', levels: ['C3A'] },
+      { label: 'C3B+', levels: ['C3B', 'C4'] },
+    ])
+    expect(C3B_PLUS_SLOTS).toHaveLength(LEVEL_ORDER.length - 1)
+  })
+
+  it('applies both merges together when both flags are on', () => {
+    expect(getLevelSlots(true, true)).toEqual([
+      { label: 'SSD', levels: ['SSD'] },
+      { label: 'MS', levels: ['MS'] },
+      { label: 'Plus', levels: ['Plus'] },
+      { label: 'A1/A2', levels: ['A1', 'A2'] },
+      { label: 'C1', levels: ['C1'] },
+      { label: 'C2', levels: ['C2'] },
+      { label: 'C3A', levels: ['C3A'] },
+      { label: 'C3B+', levels: ['C3B', 'C4'] },
+    ])
   })
 })
 
@@ -126,6 +155,27 @@ describe('isSessionInLevelRange', () => {
     it('is hidden when the combined range excludes the A1/A2 slot', () => {
       const ssdIndex = COMBINED_SLOTS.findIndex((slot) => slot.label === 'SSD')
       expect(isSessionInLevelRange(makeStructured(['A1']), ssdIndex, ssdIndex, COMBINED_SLOTS)).toBe(false)
+    })
+  })
+
+  describe('with C3B/C4 combined', () => {
+    const c3bPlusIndex = C3B_PLUS_SLOTS.findIndex((slot) => slot.label === 'C3B+')
+
+    it('matches a session tagged only C3B', () => {
+      expect(
+        isSessionInLevelRange(makeStructured(['C3B']), c3bPlusIndex, c3bPlusIndex, C3B_PLUS_SLOTS),
+      ).toBe(true)
+    })
+
+    it('matches a session tagged only C4', () => {
+      expect(
+        isSessionInLevelRange(makeStructured(['C4']), c3bPlusIndex, c3bPlusIndex, C3B_PLUS_SLOTS),
+      ).toBe(true)
+    })
+
+    it('is hidden when the combined range excludes the C3B+ slot', () => {
+      const ssdIndex = C3B_PLUS_SLOTS.findIndex((slot) => slot.label === 'SSD')
+      expect(isSessionInLevelRange(makeStructured(['C4']), ssdIndex, ssdIndex, C3B_PLUS_SLOTS)).toBe(false)
     })
   })
 })
