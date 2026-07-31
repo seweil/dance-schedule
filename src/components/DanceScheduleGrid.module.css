@@ -134,9 +134,32 @@
   padding: 0 var(--space-sm);
   border-radius: 6px;
   font-size: 0.75rem;
+  font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
   border-top: 1px solid var(--color-border);
+}
+
+/* Very subtle background gridlines, one per row/column boundary, spanning the
+   grid's full width/height (gridColumn/gridRow: "1 / -1", set inline where
+   rendered) — rowLine and columnLine both render before .timeLabel/.card/
+   .roomlessCard in the DOM (DanceScheduleGrid.tsx/DanceScheduleLevelGrid.tsx),
+   and none of the three has an explicit z-index, so plain DOM-order stacking
+   already puts every occupied cell's own opaque background on top — a line only
+   actually shows through where a cell has nothing covering it, giving the eye
+   something to track row/column alignment by even where the schedule is empty.
+   10% black, not var(--color-border) — that token's opaque #ddd would read as a
+   real border, not a faint hint; a hairline this low-contrast couldn't be
+   confirmed visually via screenshot (JPEG compression washes out low-alpha 1px
+   lines almost entirely) — verified correct instead via computed style/
+   getBoundingClientRect against the live DOM, and by temporarily swapping in an
+   opaque color to confirm placement, then reverting. */
+.rowLine {
+  border-top: 1px solid rgb(0 0 0 / 10%);
+}
+
+.columnLine {
+  border-left: 1px solid rgb(0 0 0 / 10%);
 }
 
 /* border-box, not the default content-box — .card's own margin+padding needs to be

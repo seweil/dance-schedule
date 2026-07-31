@@ -136,6 +136,23 @@ export function DanceScheduleGrid({
             gridTemplateRows: `repeat(${totalRows}, minmax(28px, auto))`,
           }}
         >
+          {/* Subtle background gridlines, painted first so every occupied cell's
+              own opaque background covers the segment running through it — see
+              .rowLine/.columnLine's shared comment in the CSS module. */}
+          {timeMarks.map((mark) => (
+            <div
+              key={`row-${mark.rowStart}`}
+              className={styles.rowLine}
+              style={{ gridRow: mark.rowStart, gridColumn: '1 / -1' }}
+            />
+          ))}
+          {visibleRooms.map((room, index) => (
+            <div
+              key={`col-${room}`}
+              className={styles.columnLine}
+              style={{ gridRow: '1 / -1', gridColumn: index + 2 }}
+            />
+          ))}
           {timeMarks.map((mark) => (
             <div
               key={mark.rowStart}
