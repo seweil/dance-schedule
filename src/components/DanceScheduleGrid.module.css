@@ -179,6 +179,19 @@
    .levels/.details/.gca below, since without SOME cap, one long-text card would
    force every other card sharing its row (across every other room/level column) to
    stretch to match — rows are shared ordinal ticks, not per-card. */
+/* Modifier, applied alongside .card by DanceScheduleLevelGrid.tsx's SessionCard
+   for a lane-split placement past the first (lane > 0) — a visible seam between
+   two events sharing one column, which otherwise can read as a single merged
+   card, especially since the two are usually the identical level-tinted color
+   (they're lane-split BECAUSE they share a level slot). White, not a gray/dark
+   line — box-sizing: border-box below means this doesn't grow the card's actual
+   box (avoiding the overflow bug that comment describes), and a plain white cut
+   reads as a clean gap against any level color, unlike a fixed gray/dark border
+   color which could low-contrast against a similarly-toned card. */
+.laneDivider {
+  border-left: 2px solid #fff;
+}
+
 .card {
   box-sizing: border-box;
   margin: 1px;
