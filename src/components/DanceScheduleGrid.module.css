@@ -218,8 +218,11 @@
   text-overflow: ellipsis;
 }
 
+/* margin-top (not the surrounding 0/0 every other line uses) — separates it
+   from whichever line renders right above it (levels/details, or the roomless
+   time range), which otherwise touch it with no gap at all. */
 .gca {
-  margin: 0;
+  margin: 4px 0 0;
   font-size: 0.75rem;
   color: var(--color-text);
   display: -webkit-box;
@@ -228,13 +231,6 @@
   line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Whichever line of text ends up last in a card (details, GCA, or the roomless
-   time range) gets a bit more breathing room below it. */
-.card > div > p:last-child,
-.roomlessCard > div > p:last-child {
-  margin-bottom: var(--space-sm);
 }
 
 .empty {

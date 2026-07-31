@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 
 // Selector-based rather than a ref, since the only caller (ScrollToTopButton,
-// watching the page's one <nav> landmark) has nothing to attach a ref to itself —
-// stays this simple until a second caller actually needs something more specific.
+// watching App.tsx's `#page-top-sentinel` marker) has nothing to attach a ref to
+// itself — stays this simple until a second caller actually needs something more
+// specific.
 export function useIsElementVisible(selector: string): boolean {
   // Assume visible until the observer reports otherwise — correct for the common
   // case (freshly loaded at the top of the page) and avoids a flash of "hidden"
