@@ -396,3 +396,22 @@ unit test; coverage is the live verification above plus a Playwright e2e
 test would be the natural next step for durable regression coverage (not
 added here — Playwright can't be run from this project's sandbox to
 validate it; flagged as a possible follow-up).
+
+## Unstyled "Loading…" flash on a fresh page load
+
+**Found:** 2026-07-31, during a usability review.
+
+`App.tsx`'s route-level `<Suspense fallback={<p>Loading…</p>}>` is plain,
+unstyled text — no spinner, no skeleton, not even the page's usual font
+sizing. Briefly visible on any *fresh* (non-client-routed) navigation, e.g.
+typing a URL directly, a hard refresh, or a first visit — each route's own
+code-split chunk has to actually load before its real content can render.
+Not visible on ordinary in-app navigation (clicking a nav tab), since the
+chunk is normally already cached by then.
+
+**Impact:** cosmetic only — the fallback is accurate and brief (a local dev
+chunk load is near-instant; a real deployed build's chunks are small too),
+but it looks noticeably rougher than the rest of the app's polish. Worth a
+real loading UI (matching the app's own type/color, maybe a simple spinner)
+if this turns out to be visible often enough in production to matter —
+not fixed here since it's a minor polish item, not a functional bug.

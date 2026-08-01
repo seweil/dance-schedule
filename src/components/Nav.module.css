@@ -3,17 +3,26 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* overflow-x: auto — at a width just above the 640px mobile-menu cutover (a
+   tablet in portrait, or a narrow desktop window), six full tab labels don't
+   always fit on one line. Without this the flex row had nowhere to put the
+   overflow but wrap a label's own text mid-word ("Event Schedule" -> "Event" /
+   "Schedule" stacked), which read as broken rather than intentional. Scrolling
+   horizontally instead keeps every tab on one line and legible — the same
+   pattern already used for the dance-schedule grid's own overflow. */
 .list {
   display: flex;
   gap: 2px;
   list-style: none;
   margin: 0;
   padding: var(--space-sm) 0 0;
+  overflow-x: auto;
 }
 
 /* Each item reads as an actual tab: a bordered, rounded-top box sitting on the
    nav's own baseline border (positioned via the negative margin-bottom so the
-   two borders overlap exactly, not stack as two visible lines). */
+   two borders overlap exactly, not stack as two visible lines). white-space:
+   nowrap — see .list's own comment above for why a label must never wrap. */
 .link {
   display: inline-block;
   padding: var(--space-sm) var(--space-md);
@@ -23,6 +32,7 @@
   border-bottom: none;
   border-radius: 6px 6px 0 0;
   margin-bottom: -1px;
+  white-space: nowrap;
 }
 
 .link:hover {

@@ -8,9 +8,13 @@ an opening trail-in dance, a banquet, the Honky Tonk Pageant, and tours
 before and after the convention. Back Track 2 ABQ is organized as a 501(c)(3)
 charitable organization — donations are tax deductible.
 
-- **Event Schedule** — meals, ceremonies, socials, and everything else on
-  the calendar that isn't a dance session.
-- **Callers** — who's calling and cueing this convention.
+- [**Event Schedule**](/event-schedule) — meals, ceremonies, socials, and
+  everything else on the calendar that isn't a dance session.
+- [**Dance Schedule**](/dance-schedule) — the full dance session grid, room
+  by room.
+- [**Dance by Level**](/dance-by-level) — the same sessions, organized by
+  skill level instead.
+- [**Callers**](/callers) — who's calling and cueing this convention.
 
 New here? See [Installation](/installation) to add this schedule to your
 phone's home screen — handy for checking between tips if the hotel's Wi-Fi

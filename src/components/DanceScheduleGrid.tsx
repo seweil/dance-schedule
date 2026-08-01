@@ -98,7 +98,11 @@ export function DanceScheduleGrid({
   }, [layout])
 
   if (placements.length === 0) {
-    return <p className={styles.empty}>No sessions match the current filters.</p>
+    return (
+      <p className={styles.empty}>
+        No sessions match the current filters. Try widening the level range above.
+      </p>
+    )
   }
 
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} repeat(${Math.max(visibleRooms.length, 1)}, ${ROOM_COLUMN_WIDTH})`
@@ -114,6 +118,7 @@ export function DanceScheduleGrid({
               key={room}
               className={styles.roomHeader}
               style={{ gridRow: 1, gridColumn: index + 2 }}
+              title={room}
             >
               {room}
             </div>

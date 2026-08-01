@@ -1,9 +1,9 @@
 /* Two flex items now: the dateGcaRow group and the level field — flex-wrap lets
    the (wider) level field drop to its own line on narrow viewports while
-   dateGcaRow's own internal row (below) always keeps Date and GCA paired.
-   justify-content: center so dateGcaRow (narrower than the now full-width
-   .levelField — see below) sits centered above it instead of hugging the left
-   edge, once the two wrap onto separate lines. */
+   dateGcaRow's own internal row (below) keeps Date and GCA paired whenever
+   there's room. justify-content: center so dateGcaRow (narrower than the now
+   full-width .levelField — see below) sits centered above it instead of
+   hugging the left edge, once the two wrap onto separate lines. */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -13,8 +13,13 @@
   margin-bottom: var(--space-md);
 }
 
+/* flex-wrap: wrap — at an extremely narrow width, Date and GCA together no
+   longer fit side by side; without this they overflowed past the edge of the
+   viewport instead of falling back to stacking (confirmed live). Still pairs
+   them side by side whenever there's room, same as before. */
 .dateGcaRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-md);
 }
