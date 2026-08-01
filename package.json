@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "prepare": "husky"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.4.5",
@@ -42,6 +43,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "exceljs": "^4.4.0",
     "globals": "^17.7.0",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "prettier": "^3.9.6",
     "read-excel-file": "^9.3.4",

@@ -47,6 +47,11 @@ Note: Vite's dev server does not register the service worker the same way produc
 does. Always verify PWA behavior (offline mode, install prompt, update flow) against
 `pnpm build && pnpm preview`, not `pnpm dev`.
 
+`pnpm install` activates a Husky pre-commit hook (`.husky/pre-commit`) that runs
+`pnpm typecheck && pnpm lint && pnpm test` before every commit — it aborts the
+commit if any of them fail. This only runs locally; it isn't a substitute for
+CI (`.github/workflows/ci.yml`), which also runs the full e2e suite.
+
 ## Project structure
 
 ```
