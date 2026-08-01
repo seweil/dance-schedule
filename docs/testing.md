@@ -26,13 +26,23 @@ way production does.
 
 | | Local dev loop | GitHub Actions CI (`.github/workflows/ci.yml`) | Amplify deploy build (`amplify.yml`) |
 | --- | --- | --- | --- |
-| Lint | Manual (`pnpm lint`) | ✅ `checks` job, every push + PR | ❌ not run |
-| Typecheck | Manual, or automatic via `pnpm build` | ✅ `checks` job | ✅ (first half of `pnpm build`) |
-| Unit tests | Manual (`pnpm test`) | ✅ `checks` job, with coverage | ❌ not run |
-| E2E tests | Manual (`pnpm test:e2e`) | ✅ `e2e` job | ❌ not run |
+| Lint | Automatic on `git commit` (Husky, see below), or manual (`pnpm lint`) | ✅ `checks` job, every push + PR | ❌ not run |
+| Typecheck | Automatic on `git commit` (Husky), or manual/automatic via `pnpm build` | ✅ `checks` job | ✅ (first half of `pnpm build`) |
+| Unit tests | Automatic on `git commit` (Husky), or manual (`pnpm test`) | ✅ `checks` job, with coverage | ❌ not run |
+| E2E tests | Manual (`pnpm test:e2e`) — too slow for a pre-commit hook | ✅ `e2e` job | ❌ not run |
 | Build-time data validation | Automatic, any `pnpm build`/`pnpm dev` | ✅ (inside the `e2e` job's build step) | ✅ (inside `pnpm build`) |
 
-**The gap this closes:** before the GitHub Actions workflow existed, lint,
+**Local pre-commit hook:** `pnpm install` activates a Husky hook
+(`.husky/pre-commit`) that runs `pnpm typecheck && pnpm lint && pnpm test`
+before every commit and aborts it if any fail — a local safety net for
+manual edits, catching most breakage before it ever reaches CI. It doesn't
+run e2e tests (too slow to run on every commit) and isn't a substitute for
+CI, which is the layer that actually enforces anything for a change that
+didn't go through a local commit with the hook active (e.g. an edit made
+directly on GitHub, or a contributor who hasn't run `pnpm install` since
+the hook was added).
+
+**The gap CI closes:** before the GitHub Actions workflow existed, lint,
 unit tests, and e2e tests ran *only* when a human happened to type the
 command locally — nothing enforced any of them, and Amplify's deploy build
 would happily ship a lint failure or a broken user flow straight to
@@ -83,9 +93,6 @@ grows.
   same "no unit test" gap, but at least get reached by e2e.
 - `src/components/BuildInfo.tsx` and `src/components/UpdatePrompt.tsx` have
   no unit test and aren't asserted on by any e2e spec either.
-- `src/lib/danceScheduleCardSizing.ts` and `src/lib/measureTextWidth.ts` have
-  no test file of their own — only exercised transitively through the
-  (well-tested) layout/grid code that calls them.
 - The root Vite plugins (`vite-plugin-schedule.ts`, `vite-plugin-dance-schedule.ts`,
   `vite-plugin-content-config.ts`, `vite-plugin-content-sets.ts`) are
   intentionally untested as plugins — their parsing/validation *logic* is

@@ -25,8 +25,9 @@ pnpm install
 pnpm dev
 ```
 
-Opens the dev server (default: the `automated-testing` sample content and
-schedule data — see "Content sets" below).
+Opens the dev server against whichever content set `content/config.yaml`'s
+`defaultContentSet` currently names (see "Content sets" below) — not
+necessarily the `automated-testing` sample data.
 
 ## Building
 
@@ -51,6 +52,14 @@ not a bundler error — read the top of the output.
 Before considering a change done, run `pnpm typecheck && pnpm lint &&
 pnpm test`. For anything touching the manifest, service worker, caching, or
 offline behavior, also run `pnpm build && pnpm test:e2e`.
+
+`pnpm install` activates a Husky pre-commit hook that runs the first three
+of those (`pnpm typecheck && pnpm lint && pnpm test`) automatically before
+every commit, aborting it if any fail — a local safety net on top of (not a
+replacement for) CI.
+
+See `docs/testing.md` for the fuller picture: what each layer catches, what
+runs where (local/CI/Amplify) and why, and how to read a CI run's results.
 
 ### `pnpm test:e2e` builds and serves for you
 
@@ -118,20 +127,27 @@ automatically, per above.
 ## Content sets
 
 Which markdown pages and schedule spreadsheet data are active is chosen by
-the `CONTENT_SET` env var, falling back to `content/config.yaml`'s
-`defaultContentSet` (itself `automated-testing`) when unset:
+the `CONTENT_SET` env var, falling back to whatever `content/config.yaml`'s
+`defaultContentSet` currently names when unset (check that file directly —
+it changes as new events are added, most recently pointing at the live
+event rather than the `automated-testing` fixture):
 
 ```bash
 pnpm dev:test      # dev server against the "test" content set (edge-case fixture data)
 pnpm build:test    # production build of the "test" content set
 ```
 
-`automated-testing` (the default) is a permanent, stable sample event —
-both unit and e2e tests assert directly against its content, so it's never
-edited to reflect an actual real event. `test` is a separate, deliberately
-edge-case-flavored fixture covering spreadsheet-parsing corner cases, not a
-coherent event. See `docs/design/content-sets.md`'s "permanent stable
-sample event" decision for why.
+`automated-testing` is a permanent, stable sample event — both unit and e2e
+tests assert directly against its content, so it's never edited to reflect
+an actual real event. `pnpm test`/`pnpm test:watch` pin
+`CONTENT_SET=automated-testing` explicitly regardless of
+`content/config.yaml`'s default; e2e specs (`pnpm test:e2e`) instead
+navigate straight to `/automated-testing/`-prefixed URLs, since `pnpm build`
+publishes every content set under its own prefix regardless of which one is
+currently the default. `test` is a separate, deliberately edge-case-flavored
+fixture covering spreadsheet-parsing corner cases, not a coherent event. See
+`docs/design/content-sets.md`'s "permanent stable sample event" decision
+for why.
 
 Full mechanics in `docs/design/content-sets.md`. Each content set also has
 its own `config.yaml` for feature flags (e.g. whether the dance-schedule

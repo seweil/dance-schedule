@@ -70,10 +70,15 @@ content/
                           # falling back to config.yaml's defaultContentSet; see
                           # docs/design/content-sets.md and docs/design/content-config.md.
                           # Two always exist:
-                          #   automated-testing/ — the default set; a permanent, stable
-                          #           sample event (not real production data — both unit
-                          #           and e2e tests assert directly against its content,
-                          #           see docs/design/content-sets.md). Clone it as a
+                          #   automated-testing/ — a permanent, stable sample event (not
+                          #           real production data — both unit and e2e tests
+                          #           assert directly against its content, see
+                          #           docs/design/content-sets.md; pnpm test/test:watch
+                          #           always pin CONTENT_SET=automated-testing regardless
+                          #           of config.yaml's default). NOT necessarily the
+                          #           active content/config.yaml default itself — check
+                          #           that file for which set currently is (typically the
+                          #           live event, once one exists). Clone this set as a
                           #           starting template for an actual real event, per
                           #           docs/adding-a-new-event.md, then repoint
                           #           content/config.yaml's defaultContentSet.

@@ -192,6 +192,16 @@ starting template, then repoint `content/config.yaml`'s
 edited to reflect a real event's actual details — it stays the fixed
 sample/test fixture indefinitely.
 
+**This has since happened** — `content/config.yaml`'s `defaultContentSet`
+no longer points at `automated-testing` (check that file for the current
+value). `pnpm dev`/`build` unmodified now default to the real event instead,
+same as any future repoint. `pnpm test`/`test:watch` were updated to pin
+`CONTENT_SET=automated-testing` explicitly once this stopped being the
+default (previously true "with no env var" only because it happened to be
+the default at the time), and `pnpm test:e2e`'s specs already navigated to
+`/automated-testing/`-prefixed URLs directly rather than relying on the
+unprefixed default, so that layer needed no change at all.
+
 **`pnpm test`/`test:watch` pin `CONTENT_SET=automated-testing` explicitly**
 (`package.json`) — the rename above declares the intent, but `CONTENT_SET`
 unset still falls back to whatever `content/config.yaml`'s
@@ -260,9 +270,9 @@ at, with no manual path-prefixing needed.
 - Content-set names are not currently checked against a reserved list
   beyond a small hardcoded set in `scripts/build-content-sets.mjs`
   (`assets`, `icons`, `index.html`, `manifest.webmanifest`, `sw.js`,
-  `workbox-*`) — a set colliding with one of these fails the build loudly,
-  but the check is manual/hardcoded rather than derived from Vite's actual
-  build output.
+  `debug`, `clear-storage`, `events`, `workbox-*`) — a set colliding with
+  one of these fails the build loudly, but the check is manual/hardcoded
+  rather than derived from Vite's actual build output.
 - Direct/deep-link navigation into a prefixed set (e.g. a bookmark or
   shared link to `/automated-testing/installation`) needs server-side SPA-fallback
   rewrite rules aware of each prefix — see `docs/design/hosting.md`'s new

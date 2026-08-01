@@ -70,11 +70,13 @@ hashed `workbox-<hash>.js` helper at the `dist/` root (confirmed via a local
 pattern to get the same long-cache treatment.
 
 ### `CONTENT_SET` left unset in the Amplify build
-**Why:** Unset defaults to `automated-testing` (see
-`docs/design/content-sets.md`'s "permanent stable sample event" decision)
-— no environment variable needed in Amplify's build settings. Once a
-genuine real event is cloned in, `content/config.yaml`'s
-`defaultContentSet` is what changes, not this Amplify setting.
+**Why:** Unset falls back to whatever `content/config.yaml`'s
+`defaultContentSet` currently names (`automated-testing` at the time this
+decision was made, see `docs/design/content-sets.md`'s "permanent stable
+sample event" decision — since repointed at a real event) — no environment
+variable needed in Amplify's build settings regardless. Once a genuine real
+event is cloned in, `content/config.yaml`'s `defaultContentSet` is what
+changes, not this Amplify setting.
 
 ### Per-content-set Amplify rewrite rule, in addition to the root SPA fallback
 **Why:** `pnpm build` now publishes every content set under its own
