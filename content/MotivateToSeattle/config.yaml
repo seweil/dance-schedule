@@ -1,0 +1,14 @@
+# Per-content-set config for the "MotivateToSeattle" event — see
+# docs/design/content-config.md.
+
+features:
+  # Both true — the recommended default per docs/adding-a-new-event.md. This
+  # event's registration levels start at A2 (no SSD/MS/Plus/A1 sessions at
+  # all, per the registration form), so combineA1A2 has no dancers to affect
+  # either way — left at the default rather than special-cased for that.
+  combineA1A2: true
+  combineC3BC4: true
+
+manifest:
+  name: Motivate to Seattle (2026 West Coast A & C Weekend)
+  shortName: MTS 2026
