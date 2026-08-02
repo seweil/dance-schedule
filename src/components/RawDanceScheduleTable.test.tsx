@@ -112,23 +112,52 @@ describe('RawDanceScheduleTable', () => {
       expect(within(levelSection).getAllByText('0.5')).toHaveLength(4) // C1 and C2, each dated + total column
     })
 
-    it('shows a caller\'s full hour in "Hours by caller" for a solo session', () => {
-      render(<RawDanceScheduleTable sessions={[makeSession({ callers: ['Vic Ceder'] })]} />)
+    it('shows a caller\'s full hour in "Hours by caller" for a solo session, and rows are days not labels', () => {
+      render(
+        <RawDanceScheduleTable
+          sessions={[
+            makeSession({
+              startTime: new Date('2026-07-02T12:00:00.000Z'),
+              endTime: new Date('2026-07-02T16:00:00.000Z'), // 4 hours — clears MIN_CALLER_HOURS
+              callers: ['Vic Ceder'],
+            }),
+          ]}
+        />,
+      )
 
       const callerSection = screen.getByRole('heading', { name: 'Hours by caller' }).closest('section')!
-      expect(within(callerSection).getByText('Vic Ceder')).toBeInTheDocument()
-      expect(within(callerSection).getAllByText('1')).toHaveLength(2) // its one date column + Total
+      expect(within(callerSection).getByRole('columnheader', { name: 'Vic Ceder' })).toBeInTheDocument()
+      expect(within(callerSection).getByText('Thu, Jul 2')).toBeInTheDocument()
+      expect(within(callerSection).getAllByText('4')).toHaveLength(4) // date row's Vic Ceder + Total cells, Total row's same two
     })
 
-    it('labels each date column and includes a Total column', () => {
+    it('excludes a caller at or under the 3-hour threshold from the caller summary', () => {
+      render(
+        <RawDanceScheduleTable
+          sessions={[
+            makeSession({
+              startTime: new Date('2026-07-02T12:00:00.000Z'),
+              endTime: new Date('2026-07-02T15:00:00.000Z'), // exactly 3 hours
+              callers: ['Vic Ceder'],
+            }),
+          ]}
+        />,
+      )
+
+      const callerSection = screen.getByRole('heading', { name: 'Hours by caller' }).closest('section')!
+      expect(within(callerSection).queryByText('Vic Ceder')).not.toBeInTheDocument()
+    })
+
+    it('labels each date column and includes a Total row and column', () => {
       render(<RawDanceScheduleTable sessions={[makeSession()]} />)
 
       const levelSection = screen.getByRole('heading', { name: 'Hours by level' }).closest('section')!
       expect(within(levelSection).getByText('Thu, Jul 2')).toBeInTheDocument()
-      expect(within(levelSection).getByText('Total')).toBeInTheDocument()
+      expect(within(levelSection).getByRole('columnheader', { name: 'Total' })).toBeInTheDocument()
+      expect(within(levelSection).getAllByText('Total')).toHaveLength(2) // the Total column header + the Total row's own label
     })
 
-    it('has no rows in either summary for a schedule of only freeform sessions', () => {
+    it('has no level/caller columns for a schedule of only freeform sessions, just a Date/Total row', () => {
       const freeform: DanceSession = {
         kind: 'freeform',
         date: new Date('2026-07-02T00:00:00.000Z'),
@@ -141,8 +170,9 @@ describe('RawDanceScheduleTable', () => {
 
       const levelSection = screen.getByRole('heading', { name: 'Hours by level' }).closest('section')!
       const callerSection = screen.getByRole('heading', { name: 'Hours by caller' }).closest('section')!
-      expect(within(levelSection).queryAllByRole('row')).toHaveLength(1) // header row only
-      expect(within(callerSection).queryAllByRole('row')).toHaveLength(1)
+      // Just "Date" and "Total" — no level/caller columns in between.
+      expect(within(levelSection).getAllByRole('columnheader')).toHaveLength(2)
+      expect(within(callerSection).getAllByRole('columnheader')).toHaveLength(2)
     })
   })
 })

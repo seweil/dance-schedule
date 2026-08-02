@@ -254,37 +254,54 @@ this route isn't code-split the way `~react-pages`-derived routes are,
 since it's a plain object merged into the same route array rather than
 going through `vite-plugin-pages`' per-page chunking).
 
-### Hour summaries: two tables before the full dump, shared by both the debug page and the markdown dump
+### Hour summaries: two cross-tabs before the full dump, shared by both the debug page and the markdown dump
 **Why:** Before either the raw debug page or the markdown dump gets to the
 full session-by-session listing, both now show two quick sanity-check
 tables — total scheduled hours per level, and per headline caller — each
-broken down per day plus an overall total column.
-`src/lib/computeDanceScheduleHourSummary.ts` (+ test) computes both from
-the same parsed `DanceSession[]` both artifacts already share, so
-`RawDanceScheduleTable.tsx` and `formatDanceScheduleMarkdown.ts` render
-identical numbers from one source rather than two independent
-implementations that could drift — the same reasoning behind those two
-files already mirroring each other for the full listing itself.
+a cross-tab with **days as rows** (plus a final Total row) and levels/
+callers as columns (plus a final Total column), so both the per-day and
+grand totals are visible without needing to add anything up by hand.
+`src/lib/computeDanceScheduleHourSummary.ts` (+ test) computes the
+underlying per-level/per-caller-per-date numbers from the same parsed
+`DanceSession[]` both artifacts already share; `RawDanceScheduleTable.tsx`
+and `formatDanceScheduleMarkdown.ts` each transpose that shape into the
+displayed cross-tab independently at render time (JSX table rows vs.
+markdown table rows), so the two still render identical numbers from one
+source rather than two independent computations that could drift — the
+same reasoning behind those two files already mirroring each other for
+the full listing itself. (The markdown renderer's header line must build
+its cell list as one array — `['Date', ...columnHeadings, 'Total']` — not
+interpolate `columnHeadings.join(' | ')` between two literal `| Date |`/
+`| Total |` fragments, which left a stray empty column when there were no
+data columns at all.)
 
 Every `kind === 'structured'` session counts toward both tables, including
 a `"GCA Caller Showcase Dance"` one and one tagged only with an unordered
 level (`Advanced`/`Intro`/`Various`) — this is meant to be a complete,
 honest accounting of the raw parsed data, not a mirror of the Dance by
 Caller page's own curated exclusions (that page deliberately omits
-showcase dances and low-dance-count callers for UX reasons that don't
+showcase dances and low-dance-**count** callers for UX reasons that don't
 apply to a debug tool). A freeform session contributes to neither table,
 having no level or caller. `gca` is still never counted as a caller.
 
 A session spanning more than one level, or co-taught by more than one
 caller, splits its duration evenly across the *distinct* levels/callers it
 lists (a literal duplicate name counts once, not twice) — so each table's
-own grand total, summed across every row, always equals the day's total
-structured-session hours, never double- or under-counted. Level rows sort
-by the real skill progression (`LEVEL_ORDER`, then `Advanced`/`Intro`/
-`Various` trailing) rather than alphabetically; caller rows sort
-alphabetically. A level or caller with zero hours (impossible for a
-caller in practice, but keeps both tables' shape symmetrical) is omitted
-rather than shown as a zero row.
+own grand total always equals the day's total structured-session hours,
+never double- or under-counted (modulo whichever callers the hour
+threshold below excludes). Level columns sort by the real skill
+progression (`LEVEL_ORDER`, then `Advanced`/`Intro`/`Various` trailing)
+rather than alphabetically; caller columns sort alphabetically. A level
+with zero hours is omitted entirely as a column, same as before.
+
+**The caller table also drops any caller whose own total is 3 hours or
+under** (`MIN_CALLER_HOURS`) — per direct product decision, distinct from
+(and a different unit than) the Dance by Caller page's own
+`MIN_CALLER_DANCES` threshold, which counts sessions, not hours. Since
+filtering happens before the Total row/column are computed, a filtered-out
+caller's hours don't silently leak into either table's own totals — the
+displayed grand total is honestly just the sum of the callers actually
+shown.
 
 ### Room-spanning and roomless sessions: a `location` field, not `room: string`
 **Why:** Before the real display page is built (see the deferred

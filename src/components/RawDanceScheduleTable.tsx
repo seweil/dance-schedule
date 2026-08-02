@@ -2,7 +2,7 @@ import type { DanceSession } from '../types/danceSchedule'
 import {
   computeDanceScheduleHourSummary,
   formatHours,
-  type DanceScheduleHourSummaryRow,
+  type DanceScheduleHourSummaryTable,
 } from '../lib/computeDanceScheduleHourSummary'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
 import {
@@ -29,16 +29,18 @@ function formatDetails(session: DanceSession): string {
   return session.kind === 'freeform' ? `(freeform) ${details}` : details
 }
 
+// One row per date (plus a final Total row), one column per level/caller (plus a
+// final Total column) — a day-by-day cross-tab, transposed from
+// computeDanceScheduleHourSummary's own column-oriented shape (one entry per
+// level/caller, an hours-by-date array within it) purely at render time.
 function HourSummaryTable({
   caption,
-  firstColumnHeading,
   dates,
-  rows,
+  table,
 }: {
   caption: string
-  firstColumnHeading: string
   dates: Date[]
-  rows: DanceScheduleHourSummaryRow[]
+  table: DanceScheduleHourSummaryTable
 }) {
   return (
     <section>
@@ -46,23 +48,30 @@ function HourSummaryTable({
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>{firstColumnHeading}</th>
-            {dates.map((date) => (
-              <th key={date.toISOString()}>{columnDateFormatter.format(date)}</th>
+            <th>Date</th>
+            {table.columns.map((column) => (
+              <th key={column.label}>{column.label}</th>
             ))}
             <th>Total</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.label}>
-              <td>{row.label}</td>
-              {row.hoursByDate.map((hours, index) => (
-                <td key={dates[index]!.toISOString()}>{formatHours(hours)}</td>
+          {dates.map((date, dateIndex) => (
+            <tr key={date.toISOString()}>
+              <td>{columnDateFormatter.format(date)}</td>
+              {table.columns.map((column) => (
+                <td key={column.label}>{formatHours(column.hoursByDate[dateIndex]!)}</td>
               ))}
-              <td>{formatHours(row.total)}</td>
+              <td>{formatHours(table.totalByDate[dateIndex]!)}</td>
             </tr>
           ))}
+          <tr>
+            <td>Total</td>
+            {table.columns.map((column) => (
+              <td key={column.label}>{formatHours(column.total)}</td>
+            ))}
+            <td>{formatHours(table.grandTotal)}</td>
+          </tr>
         </tbody>
       </table>
     </section>
@@ -81,18 +90,8 @@ export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }
 
   return (
     <>
-      <HourSummaryTable
-        caption="Hours by level"
-        firstColumnHeading="Level"
-        dates={summary.dates}
-        rows={summary.levelRows}
-      />
-      <HourSummaryTable
-        caption="Hours by caller"
-        firstColumnHeading="Caller"
-        dates={summary.dates}
-        rows={summary.callerRows}
-      />
+      <HourSummaryTable caption="Hours by level" dates={summary.dates} table={summary.levels} />
+      <HourSummaryTable caption="Hours by caller" dates={summary.dates} table={summary.callers} />
       {groupDanceSessionsByDate(sessions).map((group) => (
         <section key={group.date.toISOString()}>
           <h2>{dateFormatter.format(group.date)}</h2>

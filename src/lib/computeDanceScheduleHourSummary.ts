@@ -8,20 +8,38 @@ import type { DanceSession } from '../types/danceSchedule'
 const UNORDERED_LEVELS = ['Advanced', 'Intro', 'Various'] as const
 const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEVELS]
 
-export interface DanceScheduleHourSummaryRow {
+// A caller only appears in the caller table at all once their OWN total (summed
+// across every day) exceeds this many hours — per direct product decision, a
+// caller with only a couple hours isn't worth a whole column on this summary.
+// Unrelated to (and a different unit than) the Dance by Caller page's own
+// MIN_CALLER_DANCES threshold, which counts sessions, not hours.
+const MIN_CALLER_HOURS = 3
+
+export interface DanceScheduleHourSummaryColumn {
   label: string
   // One entry per DanceScheduleHourSummary.dates, in the same order.
   hoursByDate: number[]
   total: number
 }
 
+// Rendered as a cross-tab with days as rows: `columns` becomes one table column
+// each, `totalByDate` is the row-total column at the right (summed across only
+// THIS table's own, possibly-filtered columns — the caller table's per-day totals
+// reflect just the callers who cleared MIN_CALLER_HOURS, not everyone), and
+// `grandTotal` is the single bottom-right cell.
+export interface DanceScheduleHourSummaryTable {
+  columns: DanceScheduleHourSummaryColumn[]
+  totalByDate: number[]
+  grandTotal: number
+}
+
 export interface DanceScheduleHourSummary {
   dates: Date[]
-  // In LEVEL_DISPLAY_ORDER, omitting any level with zero hours across the whole event.
-  levelRows: DanceScheduleHourSummaryRow[]
-  // Alphabetical by name, omitting anyone with zero hours (never happens in
-  // practice, but keeps the two rows' shapes symmetrical).
-  callerRows: DanceScheduleHourSummaryRow[]
+  // Columns in LEVEL_DISPLAY_ORDER, omitting any level with zero hours across the
+  // whole event.
+  levels: DanceScheduleHourSummaryTable
+  // Columns alphabetical by name, omitting anyone at or under MIN_CALLER_HOURS.
+  callers: DanceScheduleHourSummaryTable
 }
 
 function sessionHours(session: DanceSession): number {
@@ -36,36 +54,52 @@ export function formatHours(hours: number): string {
   return Number(hours.toFixed(2)).toString()
 }
 
-function toRows(
+function buildTable(
   totals: Map<string, number[]>,
+  dateCount: number,
   compareLabels: (a: string, b: string) => number,
-): DanceScheduleHourSummaryRow[] {
-  return Array.from(totals.entries())
+  minTotal: number,
+): DanceScheduleHourSummaryTable {
+  const columns = Array.from(totals.entries())
     .map(([label, hoursByDate]) => ({
       label,
       hoursByDate,
       total: hoursByDate.reduce((sum, hours) => sum + hours, 0),
     }))
-    .filter((row) => row.total > 0)
+    .filter((column) => column.total > minTotal)
     .sort((a, b) => compareLabels(a.label, b.label))
+
+  const totalByDate = new Array<number>(dateCount).fill(0)
+  for (const column of columns) {
+    for (let dateIndex = 0; dateIndex < dateCount; dateIndex++) {
+      totalByDate[dateIndex] = totalByDate[dateIndex]! + column.hoursByDate[dateIndex]!
+    }
+  }
+  const grandTotal = totalByDate.reduce((sum, hours) => sum + hours, 0)
+
+  return { columns, totalByDate, grandTotal }
 }
 
 /**
  * Computes total scheduled hours per level and per headline caller, per day and
  * overall — shown on the raw debug page/dump, before the full session-by-session
- * listing, as a quick sanity-check summary. Every kind === 'structured' session
- * counts, including a "GCA Caller Showcase Dance" one and one tagged with an
- * unordered level like Intro/Various/Advanced — this is meant to be a complete,
- * honest accounting of the raw parsed data, not a mirror of any page's own curated
- * display rules (contrast the Dance by Caller page, which deliberately omits
- * showcase dances and callers under a dance-count threshold). A freeform session
+ * listing, as a quick sanity-check summary (rendered as a cross-tab with days as
+ * rows and levels/callers as columns — see DanceScheduleHourSummaryTable). Every
+ * kind === 'structured' session counts, including a "GCA Caller Showcase Dance"
+ * one and one tagged with an unordered level like Intro/Various/Advanced — this is
+ * meant to be a complete, honest accounting of the raw parsed data, not a mirror
+ * of any page's own curated display rules (contrast the Dance by Caller page,
+ * which deliberately omits showcase dances and callers under a dance-COUNT
+ * threshold — this file's own caller table instead filters by total HOURS, a
+ * different, unrelated threshold — see MIN_CALLER_HOURS). A freeform session
  * contributes nothing to either summary, having neither a level nor a caller.
  *
  * A session spanning more than one level, or co-taught by more than one caller,
  * splits its duration evenly across the distinct levels/callers it lists (a
  * literal duplicate, e.g. "Vic Ceder & Vic Ceder", counts as one share, not two) —
- * so each summary's own total, across every row, always equals the total
- * structured-session hours scheduled that day, never double- or under-counted.
+ * so each table's own grand total always equals the total structured-session
+ * hours scheduled, never double- or under-counted (modulo whichever callers the
+ * hour threshold excludes).
  */
 export function computeDanceScheduleHourSummary(sessions: DanceSession[]): DanceScheduleHourSummary {
   const groups = groupDanceSessionsByDate(sessions)
@@ -102,11 +136,13 @@ export function computeDanceScheduleHourSummary(sessions: DanceSession[]): Dance
   })
 
   const levelOrderIndex = new Map(LEVEL_DISPLAY_ORDER.map((level, index) => [level, index]))
-  const levelRows = toRows(
+  const levels = buildTable(
     levelTotals,
+    dates.length,
     (a, b) => (levelOrderIndex.get(a) ?? Infinity) - (levelOrderIndex.get(b) ?? Infinity),
+    0,
   )
-  const callerRows = toRows(callerTotals, (a, b) => a.localeCompare(b))
+  const callers = buildTable(callerTotals, dates.length, (a, b) => a.localeCompare(b), MIN_CALLER_HOURS)
 
-  return { dates, levelRows, callerRows }
+  return { dates, levels, callers }
 }

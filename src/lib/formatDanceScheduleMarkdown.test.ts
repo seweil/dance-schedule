@@ -169,19 +169,20 @@ describe('formatDanceScheduleMarkdown', () => {
   })
 
   describe('hour summaries', () => {
-    const session: DanceSession = {
+    // 4 hours — long enough that a solo caller alone clears MIN_CALLER_HOURS (3).
+    const longSession: DanceSession = {
       kind: 'structured',
       date: new Date('2026-07-02T00:00:00.000Z'),
-      startTime: new Date('2026-07-02T12:30:00.000Z'),
-      endTime: new Date('2026-07-02T13:30:00.000Z'),
+      startTime: new Date('2026-07-02T12:00:00.000Z'),
+      endTime: new Date('2026-07-02T16:00:00.000Z'),
       location: { kind: 'located', rooms: ['Kafka/Lamartine'] },
       levels: ['C1', 'C2'],
       eventType: 'Dancing',
       callers: ['Vic Ceder'],
     }
 
-    it('renders both summaries before the full schedule, split evenly across a multi-level session\'s levels', () => {
-      const markdown = formatDanceScheduleMarkdown([session])
+    it('renders both summaries before the full schedule, with days as rows and a Total row/column', () => {
+      const markdown = formatDanceScheduleMarkdown([longSession])
 
       const levelIndex = markdown.indexOf('## Hours by level')
       const callerIndex = markdown.indexOf('## Hours by caller')
@@ -190,28 +191,50 @@ describe('formatDanceScheduleMarkdown', () => {
       expect(levelIndex).toBeLessThan(callerIndex)
       expect(callerIndex).toBeLessThan(scheduleIndex)
 
-      expect(markdown).toContain('| Level | Thu, Jul 2 | Total |')
-      expect(markdown).toContain('| C1 | 0.5 | 0.5 |')
-      expect(markdown).toContain('| C2 | 0.5 | 0.5 |')
-      expect(markdown).toContain('| Caller | Thu, Jul 2 | Total |')
-      expect(markdown).toContain('| Vic Ceder | 1 | 1 |')
+      // 4 hours split evenly across C1/C2 = 2 each.
+      expect(markdown).toContain('| Date | C1 | C2 | Total |')
+      expect(markdown).toContain('| Thu, Jul 2 | 2 | 2 | 4 |')
+      expect(markdown).toContain('| Total | 2 | 2 | 4 |')
+      // Solo caller keeps the full 4 hours.
+      expect(markdown).toContain('| Date | Vic Ceder | Total |')
+      expect(markdown).toContain('| Thu, Jul 2 | 4 | 4 |')
+      expect(markdown).toContain('| Total | 4 | 4 |')
     })
 
-    it('gives each date its own column', () => {
+    it('excludes a caller at or under the 3-hour threshold from the caller summary', () => {
+      const threeHourSession: DanceSession = {
+        ...longSession,
+        endTime: new Date('2026-07-02T15:00:00.000Z'), // exactly 3 hours
+      }
+      const markdown = formatDanceScheduleMarkdown([threeHourSession])
+
+      const callerSection = markdown.slice(
+        markdown.indexOf('## Hours by caller'),
+        markdown.indexOf('## Thursday, July 2, 2026'),
+      )
+      expect(callerSection).not.toContain('Vic Ceder')
+      expect(callerSection).toContain('| Date | Total |\n| --- | --- |\n| Thu, Jul 2 | 0 |\n| Total | 0 |')
+    })
+
+    it('gives each date its own row', () => {
       const secondDay: DanceSession = {
-        ...session,
+        ...longSession,
         date: new Date('2026-07-03T00:00:00.000Z'),
         startTime: new Date('2026-07-03T12:30:00.000Z'),
         endTime: new Date('2026-07-03T13:30:00.000Z'),
         levels: ['SSD'],
       }
-      const markdown = formatDanceScheduleMarkdown([session, secondDay])
+      const markdown = formatDanceScheduleMarkdown([longSession, secondDay])
 
-      expect(markdown).toContain('| Level | Thu, Jul 2 | Fri, Jul 3 | Total |')
-      expect(markdown).toContain('| SSD | 0 | 1 | 1 |')
+      // SSD sorts before C1/C2 (LEVEL_ORDER's real skill progression, not
+      // first-appearance order).
+      expect(markdown).toContain('| Date | SSD | C1 | C2 | Total |')
+      expect(markdown).toContain('| Thu, Jul 2 | 0 | 2 | 2 | 4 |')
+      expect(markdown).toContain('| Fri, Jul 3 | 1 | 0 | 0 | 1 |')
+      expect(markdown).toContain('| Total | 1 | 2 | 2 | 5 |')
     })
 
-    it('has no rows in either summary for a schedule of only freeform sessions', () => {
+    it('has no level/caller columns for a schedule of only freeform sessions, just a Date/Total row', () => {
       const freeform: DanceSession = {
         kind: 'freeform',
         date: new Date('2026-07-02T00:00:00.000Z'),
@@ -226,7 +249,9 @@ describe('formatDanceScheduleMarkdown', () => {
         markdown.indexOf('## Hours by level'),
         markdown.indexOf('## Hours by caller'),
       )
-      expect(levelSection.split('\n').filter((line) => line.startsWith('|'))).toHaveLength(2) // header + separator, no data rows
+      expect(levelSection).toContain('| Date | Total |')
+      expect(levelSection).toContain('| Thu, Jul 2 | 0 |')
+      expect(levelSection).toContain('| Total | 0 |')
     })
   })
 })
