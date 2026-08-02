@@ -4,7 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { useLastPagePersistence } from './useLastPagePersistence'
 
-const STORAGE_KEY = 'dance-schedule:last-page'
+// BASE_PATH is unset in tests, so vite.config.ts's BASE_URL default ("/") applies —
+// mirrors the hook's own namespacing (see useLastPagePersistence.ts).
+const STORAGE_KEY = 'dance-schedule:last-page:/'
 
 function TestHarness() {
   useLastPagePersistence()
@@ -65,5 +67,14 @@ describe('useLastPagePersistence', () => {
 
     expect(screen.getByTestId('pathname')).toHaveTextContent('/')
     expect(localStorage.getItem(STORAGE_KEY)).toBe(JSON.stringify('/'))
+  })
+
+  it('ignores a last-page saved under a different content set (different base path)', () => {
+    // All content sets share one localStorage per origin in production, distinguished
+    // only by path prefix — a key saved under a sibling set's own namespace must not
+    // leak into this one's cold-launch redirect.
+    localStorage.setItem('dance-schedule:last-page:/MotivateToSeattle/', JSON.stringify('/dance-by-level'))
+    renderAt('/')
+    expect(screen.getByTestId('pathname')).toHaveTextContent('/')
   })
 })

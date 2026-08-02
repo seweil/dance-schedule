@@ -4,7 +4,13 @@ import routes from '~react-pages'
 import { readStorageJson, writeStorageJson } from '../lib/appStorage'
 import { buildNavTree } from '../lib/buildNavTree'
 
-const STORAGE_KEY = 'dance-schedule:last-page'
+// Namespaced by this build's own base path (e.g. "/", "/MotivateToSeattle/") — every
+// content set shares one localStorage per origin in production (all published under
+// the same domain, just different path prefixes), so an unqualified key would let one
+// content set's last-visited page redirect a *different* content set's cold launch
+// away from its own home page, whenever the saved href happens to also be valid there
+// (most nav pages, e.g. "/dance-by-level", exist verbatim across every set).
+const STORAGE_KEY = `dance-schedule:last-page:${import.meta.env.BASE_URL}`
 
 // The set of real, resumable destinations — exactly the pages in the nav menu.
 // Debug tooling and the "clear saved settings" utility page are reachable but
