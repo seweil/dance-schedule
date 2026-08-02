@@ -4,8 +4,9 @@
     "enabled": true,
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
+    "excludedCommands": ["pnpm test:e2e *", "npx playwright *"],
     "network": {
-      "allowMachLookup": ["com.apple.coresimulator.*"],
+      "allowMachLookup": ["com.apple.coresimulator.*", "org.chromium.Chromium.MachPortRendezvousServer.*"],
       "allowLocalBinding": true
     }
   },
