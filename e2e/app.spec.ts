@@ -15,8 +15,10 @@ test('nav links to a page generated from a content file', async ({ page }) => {
 })
 
 test('clicking an embedded markdown image opens the full-screen lightbox', async ({ page }) => {
-  await page.goto('/automated-testing/installation')
-  await page.getByAltText(/screenshot of the app/i).click()
+  // The FAQ page (not Installation, which has no image) is the one that actually
+  // has an embedded image, per its own "tap or click any image" answer.
+  await page.goto('/automated-testing/faq')
+  await page.getByAltText(/dancer checking the schedule/i).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).not.toBeVisible()
@@ -60,7 +62,9 @@ test('desktop nav shows the flat link list with no kebab toggle', async ({ page 
 
 test('nav links to the schedule page, which renders events', async ({ page }) => {
   await page.goto('/automated-testing/')
-  await page.getByRole('link', { name: /schedule/i }).click()
+  // Exact name — "Dance Schedule" is also a nav link, so a bare /schedule/i regex
+  // now matches both.
+  await page.getByRole('link', { name: 'Event Schedule' }).click()
   await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
   // Asserts structurally (at least one event renders) rather than exact event content,
   // since data/event-schedule.xlsx is live hand-authored content, not a test fixture —
@@ -92,7 +96,9 @@ test('schedule cards lay out as columns without horizontal overflow on a narrow 
   // overflow risk a fixed-width column floor would reintroduce.
   await page.setViewportSize({ width: 500, height: 300 })
   await page.goto('/automated-testing/event-schedule')
-  const firstCard = page.getByRole('listitem').first()
+  // Not getByRole('listitem').first() — the list's first item is now a date
+  // heading (ScheduleList.tsx interleaves one per date), not an event card.
+  const firstCard = page.locator('[class*="card"]').first()
   await expect(firstCard).toBeVisible()
 
   expect(await page.evaluate(() => window.matchMedia('(orientation: landscape)').matches)).toBe(

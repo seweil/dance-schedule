@@ -204,20 +204,23 @@ test.describe('mobile viewport', () => {
         expect(box?.y ?? Infinity).toBeLessThan(2)
       })
 
-      test('nav and filters scroll out of view as the page scrolls down', async ({ page }) => {
+      test('heading and filters scroll out of view as the page scrolls down', async ({ page }) => {
         await page.goto('/automated-testing/dance-schedule')
-        const navLink = page.getByRole('link', { name: /dance schedule/i })
+        // Not the nav link — on mobile it's inside PageMenu.tsx's still-closed kebab
+        // menu, so it's never visible without toggling it first. The page's own
+        // heading is the always-visible mobile equivalent.
+        const heading = page.getByRole('heading', { name: /dance schedule/i })
         const dateSelect = page.getByLabel('Date')
-        await expect(navLink).toBeVisible()
+        await expect(heading).toBeVisible()
         await expect(dateSelect).toBeVisible()
 
         await page.evaluate(() => window.scrollBy(0, 400))
 
         // Fully above the viewport's top edge — not just "not intersecting the
         // pointer," genuinely scrolled out of view.
-        const navBox = await navLink.boundingBox()
+        const headingBox = await heading.boundingBox()
         const dateBox = await dateSelect.boundingBox()
-        expect((navBox?.y ?? 0) + (navBox?.height ?? 0)).toBeLessThanOrEqual(0)
+        expect((headingBox?.y ?? 0) + (headingBox?.height ?? 0)).toBeLessThanOrEqual(0)
         expect((dateBox?.y ?? 0) + (dateBox?.height ?? 0)).toBeLessThanOrEqual(0)
       })
 
@@ -251,15 +254,13 @@ test.describe('mobile viewport', () => {
         expect(docScrollWidth).toBeLessThanOrEqual(docClientWidth)
       })
 
-      test('scrolling the grid body horizontally leaves nav, heading, and filters in place', async ({
+      test('scrolling the grid body horizontally leaves heading and filters in place', async ({
         page,
       }) => {
         await page.goto('/automated-testing/dance-schedule')
-        const navLink = page.getByRole('link', { name: /dance schedule/i })
         const heading = page.getByRole('heading', { name: /dance schedule/i })
         const dateSelect = page.getByLabel('Date')
-        const [navBoxBefore, headingBoxBefore, dateBoxBefore] = await Promise.all([
-          navLink.boundingBox(),
+        const [headingBoxBefore, dateBoxBefore] = await Promise.all([
           heading.boundingBox(),
           dateSelect.boundingBox(),
         ])
@@ -269,12 +270,10 @@ test.describe('mobile viewport', () => {
           el.scrollLeft = 300
         })
 
-        const [navBoxAfter, headingBoxAfter, dateBoxAfter] = await Promise.all([
-          navLink.boundingBox(),
+        const [headingBoxAfter, dateBoxAfter] = await Promise.all([
           heading.boundingBox(),
           dateSelect.boundingBox(),
         ])
-        expect(navBoxAfter?.x).toBe(navBoxBefore?.x)
         expect(headingBoxAfter?.x).toBe(headingBoxBefore?.x)
         expect(dateBoxAfter?.x).toBe(dateBoxBefore?.x)
       })

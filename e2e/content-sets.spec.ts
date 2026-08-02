@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { loadTopLevelContentConfig } from '../content-config'
 
 // `pnpm build` publishes every content set under its own "/<set>/" prefix (see
 // docs/design/content-sets.md) — these tests exercise that.
@@ -21,10 +22,13 @@ test('the debug page lists every published content set, linking to its own home 
   page,
 }) => {
   // Unprefixed root path — vite preview's fallback happens to be correct here,
-  // since the root scope *is* the default set's own bundle.
+  // since the root scope *is* the default set's own bundle. Read the expected
+  // set name from content/config.yaml rather than hardcoding it — it changes
+  // as real events rotate in and out (see docs/design/content-config.md).
+  const { defaultContentSet } = loadTopLevelContentConfig(process.cwd())
   await page.goto('/debug/dance-schedule')
   await expect(
-    page.getByRole('heading', { name: /dance schedule.*debug.*automated-testing/i }),
+    page.getByRole('heading', { name: new RegExp(`dance schedule.*debug.*${defaultContentSet}`, 'i') }),
   ).toBeVisible()
 
   // Links to that set's home page, not its own copy of this debug page — a deep
