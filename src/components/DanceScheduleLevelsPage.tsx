@@ -56,7 +56,11 @@ export function DanceScheduleLevelsPage() {
         showGca={showGca}
         onShowGcaChange={setShowGca}
       />
-      <DanceScheduleLevelGrid layout={layout} showGca={showGca} />
+      <DanceScheduleLevelGrid
+        layout={layout}
+        showGca={showGca}
+        onShowAllLevels={() => setLevelRange(0, slots.length - 1)}
+      />
     </>
   )
 }

@@ -6,7 +6,12 @@ import {
 } from '../lib/computeDanceScheduleLevelLayout'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent } from '../lib/danceScheduleCardContent'
-import { formatSessionGca, formatSessionLevels, formatSessionRoom, formatSessionTimeRange } from '../lib/formatDanceSession'
+import {
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionRoom,
+  formatSessionTimeRange,
+} from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import type { LevelSlot } from '../lib/levelOrder'
 // Reused as-is — the two grids share the exact same visual language (card, levels/
@@ -97,9 +102,11 @@ function SessionCard({
 export function DanceScheduleLevelGrid({
   layout,
   showGca,
+  onShowAllLevels,
 }: {
   layout: DanceScheduleLevelLayout
   showGca: boolean
+  onShowAllLevels: () => void
 }) {
   const { visibleSlots, columnWidthsPx, totalRows, timeMarks, placements } = layout
 
@@ -145,7 +152,11 @@ export function DanceScheduleLevelGrid({
   if (placements.length === 0) {
     return (
       <p className={styles.empty}>
-        No sessions match the current filters. Try widening the level range above.
+        No sessions match the current filters. Try widening the level range above, or{' '}
+        <button type="button" className={styles.emptyLink} onClick={onShowAllLevels}>
+          Show all levels
+        </button>
+        .
       </p>
     )
   }

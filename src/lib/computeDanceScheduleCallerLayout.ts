@@ -136,6 +136,80 @@ function buildRawEntries(
   return entries
 }
 
+// A caller's own sessions are naturally sparse across the day, so unlike the room
+// or level views (where something is almost always running somewhere), this view
+// can have long stretches where nothing is happening for any caller who cleared
+// MIN_CALLER_DANCES. computeDanceScheduleTimeAxis.ts already collapses any such gap
+// to exactly one row regardless of its real duration ("the axis is not a clock") —
+// this goes one step further, specific to this view, and drops that row entirely so
+// a real boundary's label sits directly after whatever real content preceded it,
+// with no dead row in between at all.
+//
+// Only a row's OPENING boundary can ever be dropped — the boundary that would
+// otherwise mark "here's where a gap begins." The boundary that ends a gap (i.e.
+// where the next real content starts) is always kept, since the row that starts
+// there is occupied. This is why dropping is safe with no visual collision: a
+// dropped boundary simply never gets a <div>, it doesn't share a row with a kept
+// one. The very last boundary (the end of the day's final session) is always kept
+// regardless, as an explicit invariant — it would never actually get dropped by the
+// rule above anyway (the row right before it is always occupied by that final
+// session itself), but stating it directly is safer than relying on that being true
+// only by construction.
+function compressToOccupiedRows(
+  rawEntries: RawEntry[],
+  timeMarks: TimeMark[],
+  totalRows: number,
+): { rawEntries: RawEntry[]; timeMarks: TimeMark[]; totalRows: number } {
+  if (totalRows === 0) {
+    return { rawEntries, timeMarks, totalRows }
+  }
+
+  // 1-indexed; occupied[row] for row in 1..totalRows (occupied[0] unused).
+  const occupied = new Array<boolean>(totalRows + 1).fill(false)
+  for (const entry of rawEntries) {
+    for (let row = entry.rowStart; row < entry.rowStart + entry.rowSpan; row++) {
+      occupied[row] = true
+    }
+  }
+
+  // compress[b] is the new, compacted row position for original row-boundary b (in
+  // 1..totalRows+1) — defined for EVERY boundary, not just kept ones, since an
+  // entry's own rowStart/rowSpan need a position even when the label at that exact
+  // boundary happens to be dropped. A boundary immediately following an unoccupied
+  // row maps to the SAME position as the boundary before it (the gap contributes
+  // zero rows); a boundary following an occupied row advances by exactly 1.
+  const compress = new Array<number>(totalRows + 2)
+  compress[1] = 1
+  for (let row = 1; row <= totalRows; row++) {
+    compress[row + 1] = occupied[row] ? compress[row]! + 1 : compress[row]!
+  }
+
+  const compressedEntries = rawEntries.map((entry) => ({
+    ...entry,
+    rowStart: compress[entry.rowStart]!,
+    rowSpan: compress[entry.rowStart + entry.rowSpan]! - compress[entry.rowStart]!,
+  }))
+
+  const compressedMarks: TimeMark[] = []
+  for (const mark of timeMarks) {
+    const isTrailing = mark.rowStart === totalRows + 1
+    const opensAnOccupiedRow = mark.rowStart <= totalRows && occupied[mark.rowStart]
+    if (!isTrailing && !opensAnOccupiedRow) {
+      continue
+    }
+    compressedMarks.push({ ...mark, rowStart: compress[mark.rowStart]! })
+  }
+
+  return {
+    rawEntries: compressedEntries,
+    timeMarks: compressedMarks,
+    // compress[totalRows + 1] is the trailing boundary's own new POSITION (1-based,
+    // like every other boundary) — the row COUNT is one less than that, the same
+    // relationship the original totalRows = tickTimes.length - 1 already has.
+    totalRows: compress[totalRows + 1]! - 1,
+  }
+}
+
 // Each column's width is sized for its own PEAK concurrency across the whole day —
 // see levelColumnWidthPx's identical reasoning in computeDanceScheduleLevelLayout.ts.
 function computeColumnWidthsPx(entries: RawEntry[], visibleCallerCount: number): number[] {
@@ -167,7 +241,12 @@ function computeColumnWidthsPx(entries: RawEntry[], visibleCallerCount: number):
  * derive a stable caller order, so it never reshuffles as the level filter changes.
  * `visibleSessions` is the level-filtered subset actually rendered — the only input
  * to the time axis itself, after dropping any callerless (freeform) sessions from
- * it too, so a skipped session contributes no time-axis row either.
+ * it too, so a skipped session contributes no time-axis row either. Beyond that,
+ * this view also drops any row with nothing in ANY visible caller column at all
+ * (see compressToOccupiedRows) — a caller's own sessions are sparse enough that,
+ * unlike the room/level views, idle stretches between them are common and worth
+ * eliminating from the axis entirely, not just capping at one row apiece the way
+ * computeDanceScheduleTimeAxis.ts already does for every view.
  */
 export function computeDanceScheduleCallerLayout(
   dateSessions: DanceSession[],
@@ -198,9 +277,11 @@ export function computeDanceScheduleCallerLayout(
 
   const rawEntries = buildRawEntries(structuredVisible, visibleCallers, rowStartFor, rowSpanFor)
   assignLanesPerSlot(rawEntries)
-  const columnWidthsPx = computeColumnWidthsPx(rawEntries, visibleCallers.length)
 
-  const placements: DanceCallerSessionPlacement[] = rawEntries.map((entry) => ({
+  const compressed = compressToOccupiedRows(rawEntries, timeAxis.timeMarks, timeAxis.totalRows)
+  const columnWidthsPx = computeColumnWidthsPx(compressed.rawEntries, visibleCallers.length)
+
+  const placements: DanceCallerSessionPlacement[] = compressed.rawEntries.map((entry) => ({
     session: entry.session,
     rowStart: entry.rowStart,
     rowSpan: entry.rowSpan,
@@ -215,8 +296,8 @@ export function computeDanceScheduleCallerLayout(
   return {
     visibleCallers,
     columnWidthsPx,
-    totalRows: timeAxis.totalRows,
-    timeMarks: timeAxis.timeMarks,
+    totalRows: compressed.totalRows,
+    timeMarks: compressed.timeMarks,
     placements,
   }
 }

@@ -6,13 +6,23 @@ import {
 } from '../lib/computeDanceScheduleLayout'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent } from '../lib/danceScheduleCardContent'
-import { formatSessionGca, formatSessionLevels, formatSessionTimeRange } from '../lib/formatDanceSession'
+import {
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionTimeRange,
+} from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import styles from './DanceScheduleGrid.module.css'
 
 const TIME_COLUMN_WIDTH = '70px'
 
-function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement; showGca: boolean }) {
+function SessionCard({
+  placement,
+  showGca,
+}: {
+  placement: DanceSessionPlacement
+  showGca: boolean
+}) {
   const { session, rowStart, rowSpan, columnStart, columnSpan } = placement
   const isRoomless = session.location.kind === 'roomless'
   const style: CSSProperties = {
@@ -53,9 +63,11 @@ function SessionCard({ placement, showGca }: { placement: DanceSessionPlacement;
 export function DanceScheduleGrid({
   layout,
   showGca,
+  onShowAllLevels,
 }: {
   layout: DanceScheduleLayout
   showGca: boolean
+  onShowAllLevels: () => void
 }) {
   const { visibleRooms, totalRows, timeMarks, placements } = layout
 
@@ -100,7 +112,11 @@ export function DanceScheduleGrid({
   if (placements.length === 0) {
     return (
       <p className={styles.empty}>
-        No sessions match the current filters. Try widening the level range above.
+        No sessions match the current filters. Try widening the level range above, or{' '}
+        <button type="button" className={styles.emptyLink} onClick={onShowAllLevels}>
+          Show all levels
+        </button>
+        .
       </p>
     )
   }

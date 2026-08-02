@@ -52,7 +52,11 @@ export function DanceSchedulePage() {
         showGca={showGca}
         onShowGcaChange={setShowGca}
       />
-      <DanceScheduleGrid layout={layout} showGca={showGca} />
+      <DanceScheduleGrid
+        layout={layout}
+        showGca={showGca}
+        onShowAllLevels={() => setLevelRange(0, slots.length - 1)}
+      />
       {/* This page's own data (virtual:dance-schedule) is exactly what the debug
           page renders raw — a react-router Link since /debug/dance-schedule is a
           route within this same build, resolves correctly under whichever

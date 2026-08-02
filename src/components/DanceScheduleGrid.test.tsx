@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleGrid } from './DanceScheduleGrid'
 import type { DanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
 import { colorForSession, NEUTRAL_CARD_COLOR } from '../lib/levelColors'
@@ -48,8 +48,27 @@ function makeLayout(overrides: Partial<DanceScheduleLayout> = {}): DanceSchedule
 
 describe('DanceScheduleGrid', () => {
   it('renders an empty-state message when there are no placements', () => {
-    render(<DanceScheduleGrid layout={makeLayout({ placements: [] })} showGca />)
+    render(
+      <DanceScheduleGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
     expect(screen.getByText(/no sessions match the current filters/i)).toBeInTheDocument()
+  })
+
+  it('calls onShowAllLevels when the empty-state link is clicked', () => {
+    const onShowAllLevels = vi.fn()
+    render(
+      <DanceScheduleGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={onShowAllLevels}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /show all levels/i }))
+    expect(onShowAllLevels).toHaveBeenCalledOnce()
   })
 
   it('renders a room header per visible room', () => {
@@ -57,6 +76,7 @@ describe('DanceScheduleGrid', () => {
       <DanceScheduleGrid
         layout={makeLayout({ visibleRooms: ['Ballroom Centre', 'Ballroom East'] })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getByText('Ballroom Centre')).toBeInTheDocument()
@@ -64,7 +84,7 @@ describe('DanceScheduleGrid', () => {
   })
 
   it('renders one label per time-axis mark, all styled uniformly', () => {
-    render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     const noon = screen.getByText('12:00 PM')
     const thirty = screen.getByText('12:30 PM')
     expect(noon).toBeInTheDocument()
@@ -76,7 +96,7 @@ describe('DanceScheduleGrid', () => {
   })
 
   it('renders a structured session card with levels and details, omitting the redundant "Dancing" prefix', () => {
-    render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     expect(screen.getByText('SSD')).toBeInTheDocument()
     expect(screen.queryByText(/Dancing -/)).not.toBeInTheDocument()
     const caller = screen.getByText('Ted Lizotte')
@@ -99,6 +119,7 @@ describe('DanceScheduleGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getByText(/Skirt Work Hour -/)).toBeInTheDocument()
@@ -107,12 +128,12 @@ describe('DanceScheduleGrid', () => {
   })
 
   it('shows the GCA line when showGca is true', () => {
-    render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
   })
 
   it('hides the GCA line (but keeps the session) when showGca is false', () => {
-    render(<DanceScheduleGrid layout={makeLayout()} showGca={false} />)
+    render(<DanceScheduleGrid layout={makeLayout()} showGca={false} onShowAllLevels={() => {}} />)
     expect(screen.queryByText(/GCA: Tim Stephens/)).not.toBeInTheDocument()
     expect(screen.getByText('Ted Lizotte')).toBeInTheDocument()
   })
@@ -127,6 +148,7 @@ describe('DanceScheduleGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getByText('Lunch Break')).toBeInTheDocument()
@@ -134,7 +156,9 @@ describe('DanceScheduleGrid', () => {
   })
 
   it('renders header content (corner, room headers) and body content (time labels, cards) in separate grids', () => {
-    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const roomHeader = container.querySelector('.roomHeader')
     const timeLabel = container.querySelector('.timeLabel')
     expect(roomHeader).toBeInTheDocument()
@@ -149,6 +173,7 @@ describe('DanceScheduleGrid', () => {
       <DanceScheduleGrid
         layout={makeLayout({ visibleRooms: ['Ballroom Centre', 'Ballroom East'] })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const roomHeader = container.querySelector('.roomHeader')
@@ -160,7 +185,9 @@ describe('DanceScheduleGrid', () => {
   })
 
   it("colors a room card's background by the session's level", () => {
-    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const card = container.querySelector('.card')
     expect(card).toHaveStyle({ backgroundColor: colorForSession(STRUCTURED_SESSION) })
   })
@@ -175,6 +202,7 @@ describe('DanceScheduleGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const card = container.querySelector('.roomlessCard') as HTMLElement
@@ -188,7 +216,9 @@ describe('DanceScheduleGrid', () => {
     // jsdom doesn't run real CSS layout, so the actual intrinsic height can't be
     // asserted here (see docs/design/dance-schedule.md); this only confirms the
     // track-sizing function itself, not a numeric pixel comparison.
-    const { container } = render(<DanceScheduleGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const bodyGrid = container.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
     expect(bodyGrid.style.gridTemplateRows).toMatch(/^repeat\(\d+, minmax\(\d+px, auto\)\)$/)
   })
@@ -211,6 +241,7 @@ describe('DanceScheduleGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
 
@@ -236,6 +267,7 @@ describe('DanceScheduleGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
 
@@ -254,6 +286,7 @@ describe('DanceScheduleGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getAllByText('Ted Lizotte')).toHaveLength(2)

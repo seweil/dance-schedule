@@ -866,6 +866,51 @@ own `location.kind === 'roomless'` (still lands under its real caller's
 column; `formatSessionRoom` just renders `"—"` for it, no special-casing
 needed).
 
+**"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
+needs more than 3 dances to get a column at all:** both per direct product
+decision, not something derived from the room/level views' own precedent.
+A showcase dance credits a caller but isn't representative of what they
+normally do, so it's excluded up front
+(`GCA_CALLER_SHOWCASE_EVENT_TYPE`) — before column derivation, before dance
+counting, before anything else — rather than just hidden on the card the
+way `showGca` hides the subordinate GCA line elsewhere. `MIN_CALLER_DANCES`
+(3) then drops any caller whose remaining (level-filtered, non-showcase)
+dance count that day is 3 or fewer; a co-taught session counts once toward
+each of its callers independently, so it's possible for the identical
+session to appear under one caller's column but not the other's, if only
+one of them clears the threshold.
+
+**Idle rows are dropped entirely, not just capped at one row apiece:**
+`computeDanceScheduleTimeAxis.ts`'s "axis is not a clock" model already
+collapses any gap — however long — to exactly one row, for every view. A
+caller's own sessions are sparse enough (a handful out of dozens of daily
+slots) that even that one row per gap adds up to real, avoidable dead
+space, unlike the room/level views where something is almost always
+running somewhere. `compressToOccupiedRows` (in
+`computeDanceScheduleCallerLayout.ts`, scoped to this view only) removes
+any row with no placement in any visible caller column at all: for each
+original row-boundary, only the boundary that *opens* an occupied row
+survives as a label — the boundary that would merely mark "a gap starts
+here" is dropped outright, while the boundary marking "real content
+resumes here" is always kept (so no information about when the *next*
+thing happens is lost, only about when the gap itself began). This is safe
+against ever colliding two labels on one row: a dropped boundary simply
+renders no `<div>` at all, it never shares a row with a kept one. The very
+last boundary (the end of the day's final session) is always kept as an
+explicit invariant, stated directly in code rather than left to be true
+only by construction (it would never actually get dropped by the ordinary
+rule anyway, since the row right before it is always occupied by that
+final session itself).
+
+**The empty-filter-results message links back to "show all levels"** on
+all three views, not just this one — `DanceScheduleGrid`/
+`DanceScheduleLevelGrid`/`DanceScheduleCallerGrid` all take a new
+`onShowAllLevels: () => void` prop (each page supplies
+`() => setLevelRange(0, slots.length - 1)`), rendered as a `<button>`
+styled like an inline text link (`.emptyLink` in
+`DanceScheduleGrid.module.css`) rather than a real `<a>`, since it resets
+filter state instead of navigating anywhere.
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't

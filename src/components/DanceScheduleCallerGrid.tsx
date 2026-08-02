@@ -73,9 +73,11 @@ function SessionCard({
 export function DanceScheduleCallerGrid({
   layout,
   showGca,
+  onShowAllLevels,
 }: {
   layout: DanceScheduleCallerLayout
   showGca: boolean
+  onShowAllLevels: () => void
 }) {
   const { visibleCallers, columnWidthsPx, totalRows, timeMarks, placements } = layout
 
@@ -119,7 +121,11 @@ export function DanceScheduleCallerGrid({
   if (placements.length === 0) {
     return (
       <p className={styles.empty}>
-        No sessions match the current filters. Try widening the level range above.
+        No sessions match the current filters. Try widening the level range above, or{' '}
+        <button type="button" className={styles.emptyLink} onClick={onShowAllLevels}>
+          Show all levels
+        </button>
+        .
       </p>
     )
   }

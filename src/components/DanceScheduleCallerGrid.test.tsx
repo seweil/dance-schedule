@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleCallerGrid } from './DanceScheduleCallerGrid'
 import type {
   DanceCallerSessionPlacement,
@@ -56,8 +56,27 @@ function makeLayout(overrides: Partial<DanceScheduleCallerLayout> = {}): DanceSc
 
 describe('DanceScheduleCallerGrid', () => {
   it('renders an empty-state message when there are no placements', () => {
-    render(<DanceScheduleCallerGrid layout={makeLayout({ placements: [] })} showGca />)
+    render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
     expect(screen.getByText(/no sessions match the current filters/i)).toBeInTheDocument()
+  })
+
+  it('calls onShowAllLevels when the empty-state link is clicked', () => {
+    const onShowAllLevels = vi.fn()
+    render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={onShowAllLevels}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /show all levels/i }))
+    expect(onShowAllLevels).toHaveBeenCalledOnce()
   })
 
   it('renders a header per visible caller', () => {
@@ -65,6 +84,7 @@ describe('DanceScheduleCallerGrid', () => {
       <DanceScheduleCallerGrid
         layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'] })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getByText('Vic Ceder')).toBeInTheDocument()
@@ -72,7 +92,7 @@ describe('DanceScheduleCallerGrid', () => {
   })
 
   it('renders one label per time-axis mark, all styled uniformly', () => {
-    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     const noon = screen.getByText('12:00 PM')
     const thirty = screen.getByText('12:30 PM')
     expect(noon).toBeInTheDocument()
@@ -82,7 +102,9 @@ describe('DanceScheduleCallerGrid', () => {
   })
 
   it('shows level(s) plain above a bold room line — caller is implied by the column, never shown', () => {
-    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleCallerGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     // "Ted Lizotte" legitimately appears once, as this fixture's column header —
     // just never inside the card itself.
     const card = container.querySelector('.card') as HTMLElement
@@ -98,7 +120,11 @@ describe('DanceScheduleCallerGrid', () => {
   it('prefixes a non-"Dancing" event type before the bold room, plain text', () => {
     const session: StructuredSession = { ...STRUCTURED_SESSION, eventType: 'Skirt Work Hour' }
     const { container } = render(
-      <DanceScheduleCallerGrid layout={makeLayout({ placements: [placement({ session })] })} showGca />,
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [placement({ session })] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
     )
     const details = container.querySelector('.card p.details') as HTMLElement
     expect(details.textContent).toBe('Skirt Work Hour - Ballroom Centre')
@@ -106,18 +132,22 @@ describe('DanceScheduleCallerGrid', () => {
   })
 
   it('shows the GCA line when showGca is true', () => {
-    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
   })
 
   it('hides the GCA line (but keeps the session) when showGca is false', () => {
-    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca={false} />)
+    render(
+      <DanceScheduleCallerGrid layout={makeLayout()} showGca={false} onShowAllLevels={() => {}} />,
+    )
     expect(screen.queryByText(/GCA: Tim Stephens/)).not.toBeInTheDocument()
     expect(screen.getByText('Ballroom Centre')).toBeInTheDocument()
   })
 
   it('renders header content and body content in separate grids', () => {
-    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleCallerGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const header = container.querySelector('.roomHeader')
     const timeLabel = container.querySelector('.timeLabel')
     expect(header).toBeInTheDocument()
@@ -128,8 +158,12 @@ describe('DanceScheduleCallerGrid', () => {
   it("uses each column's own (possibly grown) pixel width in gridTemplateColumns, not a uniform repeat()", () => {
     const { container } = render(
       <DanceScheduleCallerGrid
-        layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'], columnWidthsPx: [225, 150] })}
+        layout={makeLayout({
+          visibleCallers: ['Vic Ceder', 'Allan Hurst'],
+          columnWidthsPx: [225, 150],
+        })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const grid = container.querySelector('.roomHeader')?.closest('.grid') as HTMLElement
@@ -139,7 +173,11 @@ describe('DanceScheduleCallerGrid', () => {
 
   it('gives header and body grids the identical computed gridTemplateColumns', () => {
     const { container } = render(
-      <DanceScheduleCallerGrid layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'] })} showGca />,
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
     )
     const header = container.querySelector('.roomHeader')
     const timeLabel = container.querySelector('.timeLabel')
@@ -150,13 +188,17 @@ describe('DanceScheduleCallerGrid', () => {
   })
 
   it("colors a card's background by the session's level, same as the other two grids", () => {
-    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleCallerGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const card = container.querySelector('.card')
     expect(card).toHaveStyle({ backgroundColor: colorForSession(STRUCTURED_SESSION) })
   })
 
   it('uses grid rows that size to their content, not a fixed pixel value', () => {
-    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleCallerGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const bodyGrid = container.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
     expect(bodyGrid.style.gridTemplateRows).toMatch(/^repeat\(\d+, minmax\(\d+px, auto\)\)$/)
   })
@@ -167,6 +209,7 @@ describe('DanceScheduleCallerGrid', () => {
         <DanceScheduleCallerGrid
           layout={makeLayout({ placements: [placement({ lane: 1, laneCount: 2 })] })}
           showGca
+          onShowAllLevels={() => {}}
         />,
       )
       const card = container.querySelector('.card') as HTMLElement
@@ -179,6 +222,7 @@ describe('DanceScheduleCallerGrid', () => {
         <DanceScheduleCallerGrid
           layout={makeLayout({ placements: [placement({ lane: 0, laneCount: 1 })] })}
           showGca
+          onShowAllLevels={() => {}}
         />,
       )
       const card = container.querySelector('.card') as HTMLElement
@@ -195,6 +239,7 @@ describe('DanceScheduleCallerGrid', () => {
           placements: [placement({ columnStart: 0 }), placement({ columnStart: 1 })],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getAllByText('Ballroom Centre')).toHaveLength(2)

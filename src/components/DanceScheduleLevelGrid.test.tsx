@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleLevelGrid } from './DanceScheduleLevelGrid'
 import type {
   DanceLevelSessionPlacement,
@@ -70,8 +70,27 @@ function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceSch
 
 describe('DanceScheduleLevelGrid', () => {
   it('renders an empty-state message when there are no placements', () => {
-    render(<DanceScheduleLevelGrid layout={makeLayout({ placements: [] })} showGca />)
+    render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
     expect(screen.getByText(/no sessions match the current filters/i)).toBeInTheDocument()
+  })
+
+  it('calls onShowAllLevels when the empty-state link is clicked', () => {
+    const onShowAllLevels = vi.fn()
+    render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={onShowAllLevels}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /show all levels/i }))
+    expect(onShowAllLevels).toHaveBeenCalledOnce()
   })
 
   it('renders a header per visible level slot', () => {
@@ -79,6 +98,7 @@ describe('DanceScheduleLevelGrid', () => {
       <DanceScheduleLevelGrid
         layout={makeLayout({ visibleSlots: SLOTS.slice(0, 2) })} // SSD, MS
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getByText('SSD')).toBeInTheDocument()
@@ -86,7 +106,7 @@ describe('DanceScheduleLevelGrid', () => {
   })
 
   it('renders one label per time-axis mark, all styled uniformly', () => {
-    render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     const noon = screen.getByText('12:00 PM')
     const thirty = screen.getByText('12:30 PM')
     expect(noon).toBeInTheDocument()
@@ -98,7 +118,9 @@ describe('DanceScheduleLevelGrid', () => {
   })
 
   it('shows the caller/details line above the room line, with the room not bold', () => {
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     expect(screen.getByText('Ballroom Centre')).toBeInTheDocument()
     // Never bold — the room isn't this grid's primary label anymore.
     expect(container.querySelector('.card p.levels')).not.toBeInTheDocument()
@@ -118,6 +140,7 @@ describe('DanceScheduleLevelGrid', () => {
           placements: [placement({ session })],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const details = container.querySelector('.card p.details') as HTMLElement
@@ -142,6 +165,7 @@ describe('DanceScheduleLevelGrid', () => {
           placements: [placement({ session })],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const details = container.querySelector('.card p.details') as HTMLElement
@@ -152,18 +176,22 @@ describe('DanceScheduleLevelGrid', () => {
   })
 
   it('omits the level prefix in a non-combined (single-level) slot', () => {
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const details = container.querySelector('.card p.details') as HTMLElement
     expect(details.textContent).toBe('Ted Lizotte')
   })
 
   it('shows the GCA line when showGca is true', () => {
-    render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    render(<DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
   })
 
   it('hides the GCA line (but keeps the session) when showGca is false', () => {
-    render(<DanceScheduleLevelGrid layout={makeLayout()} showGca={false} />)
+    render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca={false} onShowAllLevels={() => {}} />,
+    )
     expect(screen.queryByText(/GCA: Tim Stephens/)).not.toBeInTheDocument()
     expect(screen.getByText('Ted Lizotte')).toBeInTheDocument()
   })
@@ -178,6 +206,7 @@ describe('DanceScheduleLevelGrid', () => {
           ],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getByText('Lunch Break')).toBeInTheDocument()
@@ -185,7 +214,9 @@ describe('DanceScheduleLevelGrid', () => {
   })
 
   it('renders header content and body content in separate grids', () => {
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const roomHeader = container.querySelector('.roomHeader')
     const timeLabel = container.querySelector('.timeLabel')
     expect(roomHeader).toBeInTheDocument()
@@ -198,6 +229,7 @@ describe('DanceScheduleLevelGrid', () => {
       <DanceScheduleLevelGrid
         layout={makeLayout({ visibleSlots: SLOTS.slice(0, 2), columnWidthsPx: [225, 150] })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const grid = container.querySelector('.roomHeader')?.closest('.grid') as HTMLElement
@@ -207,7 +239,11 @@ describe('DanceScheduleLevelGrid', () => {
 
   it('gives header and body grids the identical computed gridTemplateColumns', () => {
     const { container } = render(
-      <DanceScheduleLevelGrid layout={makeLayout({ visibleSlots: SLOTS.slice(0, 2) })} showGca />,
+      <DanceScheduleLevelGrid
+        layout={makeLayout({ visibleSlots: SLOTS.slice(0, 2) })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
     )
     const roomHeader = container.querySelector('.roomHeader')
     const timeLabel = container.querySelector('.timeLabel')
@@ -218,7 +254,9 @@ describe('DanceScheduleLevelGrid', () => {
   })
 
   it("colors a card's background by the session's level, same as the room-columns grid", () => {
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const card = container.querySelector('.card')
     expect(card).toHaveStyle({ backgroundColor: colorForSession(STRUCTURED_SESSION) })
   })
@@ -231,6 +269,7 @@ describe('DanceScheduleLevelGrid', () => {
           placements: [placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6 })],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     const card = container.querySelector('.roomlessCard') as HTMLElement
@@ -244,7 +283,9 @@ describe('DanceScheduleLevelGrid', () => {
     // jsdom doesn't run real CSS layout, so the actual intrinsic height can't be
     // asserted here (see docs/design/dance-schedule.md); this only confirms the
     // track-sizing function itself, not a numeric pixel comparison.
-    const { container } = render(<DanceScheduleLevelGrid layout={makeLayout()} showGca />)
+    const { container } = render(
+      <DanceScheduleLevelGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />,
+    )
     const bodyGrid = container.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
     expect(bodyGrid.style.gridTemplateRows).toMatch(/^repeat\(\d+, minmax\(\d+px, auto\)\)$/)
   })
@@ -265,11 +306,14 @@ describe('DanceScheduleLevelGrid', () => {
           placements: [placement({ session: longCallerSession, rowStart: 3, rowSpan: 1 })],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
 
     const detailsParagraphs = container.querySelectorAll('p.details')
-    expect(detailsParagraphs[0]?.textContent).toBe('Bartholomew Alexander Montgomery Wellington-Smythe')
+    expect(detailsParagraphs[0]?.textContent).toBe(
+      'Bartholomew Alexander Montgomery Wellington-Smythe',
+    )
     expect(detailsParagraphs[1]?.textContent).toBe('Ballroom Centre')
   })
 
@@ -279,6 +323,7 @@ describe('DanceScheduleLevelGrid', () => {
         <DanceScheduleLevelGrid
           layout={makeLayout({ placements: [placement({ lane: 1, laneCount: 2 })] })}
           showGca
+          onShowAllLevels={() => {}}
         />,
       )
       const card = container.querySelector('.card') as HTMLElement
@@ -291,6 +336,7 @@ describe('DanceScheduleLevelGrid', () => {
         <DanceScheduleLevelGrid
           layout={makeLayout({ placements: [placement({ lane: 0, laneCount: 1 })] })}
           showGca
+          onShowAllLevels={() => {}}
         />,
       )
       const card = container.querySelector('.card') as HTMLElement
@@ -307,6 +353,7 @@ describe('DanceScheduleLevelGrid', () => {
           placements: [placement({ columnStart: 0 }), placement({ columnStart: 1 })],
         })}
         showGca
+        onShowAllLevels={() => {}}
       />,
     )
     expect(screen.getAllByText('Ted Lizotte')).toHaveLength(2)

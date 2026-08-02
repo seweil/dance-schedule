@@ -56,6 +56,19 @@ function padDances(caller: string, count = 4): DanceSession[] {
   )
 }
 
+// count back-to-back, non-overlapping, hour-long sessions for one caller starting
+// at startHour — no internal gaps, so a test using this can isolate exactly one
+// deliberate gap elsewhere without padDances's own early-morning gaps confusing it.
+function backToBackDances(caller: string, count: number, startHour: number): DanceSession[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeSession(
+      `2026-07-02T${String(startHour + i).padStart(2, '0')}:00:00.000Z`,
+      `2026-07-02T${String(startHour + i + 1).padStart(2, '0')}:00:00.000Z`,
+      [caller],
+    ),
+  )
+}
+
 describe('computeDanceScheduleCallerLayout', () => {
   it('returns an empty layout for no sessions', () => {
     expect(computeDanceScheduleCallerLayout([], [])).toEqual({
@@ -288,6 +301,50 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout(padding, padding)
 
       expect(layout.columnWidthsPx[0]).toBe(CALLER_COLUMN_WIDTH_PX)
+    })
+  })
+
+  describe('compressing idle rows', () => {
+    it('drops a row entirely when nothing is scheduled for any visible caller', () => {
+      const morning = backToBackDances('Vic Ceder', 4, 9) // 9am-1pm, back-to-back
+      const afternoon = backToBackDances('Allan Hurst', 4, 15) // 3pm-7pm, back-to-back
+      const sessions = [...morning, ...afternoon]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+      // 4 rows for the morning block + 4 for the afternoon block — the 1pm-3pm gap
+      // between them contributes ZERO rows, not the usual one-row-per-gap.
+      expect(layout.totalRows).toBe(8)
+      // The boundary that would only mark "here's where the gap starts" is dropped
+      // entirely; the boundary marking "here's where real content resumes" is kept.
+      expect(layout.timeMarks.some((mark) => mark.label === '1:00 PM')).toBe(false)
+      expect(layout.timeMarks.some((mark) => mark.label === '3:00 PM')).toBe(true)
+
+      const lastMorning = layout.placements.find((p) => p.session === morning[3])
+      const firstAfternoon = layout.placements.find((p) => p.session === afternoon[0])
+      expect(lastMorning).toMatchObject({ rowStart: 4, rowSpan: 1 })
+      expect(firstAfternoon).toMatchObject({ rowStart: 5, rowSpan: 1 })
+    })
+
+    it('always keeps the trailing marker for the end of the last session', () => {
+      const only = backToBackDances('Vic Ceder', 4, 9)
+      const layout = computeDanceScheduleCallerLayout(only, only)
+
+      const trailing = layout.timeMarks[layout.timeMarks.length - 1]
+      expect(trailing).toEqual({ rowStart: 5, label: '1:00 PM' })
+    })
+
+    it('keeps a row occupied by only one of several visible callers, not empty in every column', () => {
+      const ceder = backToBackDances('Vic Ceder', 4, 9) // 9am-1pm
+      // Hurst's own 4 dances share Ceder's exact same 4 time slots — every row is
+      // occupied by at least Ceder even though Hurst alone wouldn't fill every row
+      // any differently here; the point is that occupancy is a per-row OR across
+      // columns, not a requirement that every visible column has something.
+      const hurst = backToBackDances('Allan Hurst', 4, 9)
+      const sessions = [...ceder, ...hurst]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+      expect(layout.totalRows).toBe(4)
+      expect(layout.placements).toHaveLength(8)
     })
   })
 })
