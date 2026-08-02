@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { formatSessionCallers, formatSessionEventTypePrefix } from './formatDanceSession'
+import { formatSessionCallers, formatSessionEventTypePrefix, formatSessionRoom } from './formatDanceSession'
 import type { DanceSession } from '../types/danceSchedule'
 
 // Shared by every dance-schedule grid's session card (room-columns and
@@ -32,6 +32,21 @@ export function detailsContent(session: DanceSession, levelPrefix?: string): Rea
     <>
       {prefix(session, levelPrefix)}
       <strong>{formatSessionCallers(session)}</strong>
+    </>
+  )
+}
+
+// The caller-columns grid's counterpart of detailsContent — caller is already
+// implied by the column there, so room (not caller) is the bold primary fact. No
+// levelPrefix concept: unlike a combined level slot, a caller column is never
+// ambiguous about which session it is.
+export function detailsWithRoomContent(session: DanceSession): ReactNode {
+  return session.kind === 'freeform' ? (
+    session.description
+  ) : (
+    <>
+      {formatSessionEventTypePrefix(session)}
+      <strong>{formatSessionRoom(session)}</strong>
     </>
   )
 }

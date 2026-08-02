@@ -1,3 +1,4 @@
+import { assignLanesPerSlot } from './assignLanes'
 import { computeDanceScheduleTimeAxis, isContiguous, type TimeMark } from './computeDanceScheduleTimeAxis'
 import { isOrderedLevel, type LevelSlot } from './levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
@@ -148,65 +149,6 @@ function buildRawEntries(
   return entries
 }
 
-// Greedy interval-scheduling lane assignment within one already-clustered group of
-// mutually (transitively) time-overlapping entries in the same column — the same
-// algorithm calendar day-views use for concurrent events. Mutates each entry's
-// lane/laneCount in place.
-function assignLanes(cluster: RawEntry[]): void {
-  const laneEnds: number[] = [] // exclusive row-end of the last entry placed in each lane
-  for (const entry of cluster) {
-    const rowEnd = entry.rowStart + entry.rowSpan
-    let lane = laneEnds.findIndex((end) => end <= entry.rowStart)
-    if (lane === -1) {
-      lane = laneEnds.length
-      laneEnds.push(rowEnd)
-    } else {
-      laneEnds[lane] = rowEnd
-    }
-    entry.lane = lane
-  }
-  const laneCount = laneEnds.length
-  for (const entry of cluster) {
-    entry.laneCount = laneCount
-  }
-}
-
-// Assigns lanes independently per slot index — a placement's overlap partners are
-// only ever the other sessions claiming the *same* level, never a different one.
-function assignLanesPerSlot(entries: RawEntry[]): void {
-  const bySlot = new Map<number, RawEntry[]>()
-  for (const entry of entries) {
-    if (entry.slotIndex === null) {
-      continue
-    }
-    const list = bySlot.get(entry.slotIndex)
-    if (list) {
-      list.push(entry)
-    } else {
-      bySlot.set(entry.slotIndex, [entry])
-    }
-  }
-
-  for (const slotEntries of bySlot.values()) {
-    slotEntries.sort((a, b) => a.rowStart - b.rowStart)
-
-    let clusterStart = 0
-    while (clusterStart < slotEntries.length) {
-      let clusterEnd = clusterStart + 1
-      let maxRowEnd = slotEntries[clusterStart]!.rowStart + slotEntries[clusterStart]!.rowSpan
-      while (clusterEnd < slotEntries.length && slotEntries[clusterEnd]!.rowStart < maxRowEnd) {
-        maxRowEnd = Math.max(
-          maxRowEnd,
-          slotEntries[clusterEnd]!.rowStart + slotEntries[clusterEnd]!.rowSpan,
-        )
-        clusterEnd++
-      }
-      assignLanes(slotEntries.slice(clusterStart, clusterEnd))
-      clusterStart = clusterEnd
-    }
-  }
-}
-
 // Each column's width is sized for its own PEAK concurrency (the largest laneCount
 // any cluster of overlapping entries in that column ever reaches across the whole
 // day) — a CSS Grid column has one fixed width for its entire height, so it can't
@@ -314,7 +256,8 @@ function mergeIntoPlacements(
  * one placement per slot. Two different sessions sharing a level at overlapping
  * times (a room-columns view can never have this — a room is exclusive; a level
  * isn't) are assigned side-by-side lanes within that level's column instead of
- * silently overlapping — see assignLanesPerSlot above.
+ * silently overlapping — see assignLanesPerSlot in assignLanes.ts (shared with
+ * computeDanceScheduleCallerLayout.ts).
  */
 export function computeDanceScheduleLevelLayout(
   visibleSessions: DanceSession[],

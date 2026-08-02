@@ -1,0 +1,202 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { DanceScheduleCallerGrid } from './DanceScheduleCallerGrid'
+import type {
+  DanceCallerSessionPlacement,
+  DanceScheduleCallerLayout,
+} from '../lib/computeDanceScheduleCallerLayout'
+import { colorForSession } from '../lib/levelColors'
+import type { StructuredSession } from '../types/danceSchedule'
+
+vi.mock('./DanceScheduleGrid.module.css', () => ({
+  default: new Proxy({}, { get: (_target, prop) => prop }) as Record<string, string>,
+}))
+
+const STRUCTURED_SESSION: StructuredSession = {
+  kind: 'structured',
+  date: new Date('2026-07-02T00:00:00.000Z'),
+  startTime: new Date('2026-07-02T12:30:00.000Z'),
+  endTime: new Date('2026-07-02T13:30:00.000Z'),
+  location: { kind: 'located', rooms: ['Ballroom Centre'] },
+  levels: ['SSD'],
+  eventType: 'Dancing',
+  callers: ['Ted Lizotte'],
+  gca: 'Tim Stephens',
+}
+
+function placement(
+  overrides: Partial<DanceCallerSessionPlacement> = {},
+): DanceCallerSessionPlacement {
+  return {
+    session: STRUCTURED_SESSION,
+    rowStart: 3,
+    rowSpan: 4,
+    columnStart: 0,
+    columnSpan: 1,
+    lane: 0,
+    laneCount: 1,
+    ...overrides,
+  }
+}
+
+function makeLayout(overrides: Partial<DanceScheduleCallerLayout> = {}): DanceScheduleCallerLayout {
+  return {
+    visibleCallers: ['Ted Lizotte'],
+    columnWidthsPx: [150],
+    totalRows: 8,
+    timeMarks: [
+      { rowStart: 1, label: '12:00 PM' },
+      { rowStart: 3, label: '12:30 PM' },
+      { rowStart: 5, label: '1:00 PM' },
+    ],
+    placements: [placement()],
+    ...overrides,
+  }
+}
+
+describe('DanceScheduleCallerGrid', () => {
+  it('renders an empty-state message when there are no placements', () => {
+    render(<DanceScheduleCallerGrid layout={makeLayout({ placements: [] })} showGca />)
+    expect(screen.getByText(/no sessions match the current filters/i)).toBeInTheDocument()
+  })
+
+  it('renders a header per visible caller', () => {
+    render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'] })}
+        showGca
+      />,
+    )
+    expect(screen.getByText('Vic Ceder')).toBeInTheDocument()
+    expect(screen.getByText('Allan Hurst')).toBeInTheDocument()
+  })
+
+  it('renders one label per time-axis mark, all styled uniformly', () => {
+    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const noon = screen.getByText('12:00 PM')
+    const thirty = screen.getByText('12:30 PM')
+    expect(noon).toBeInTheDocument()
+    expect(screen.getByText('1:00 PM')).toBeInTheDocument()
+    expect(noon).toHaveClass('timeLabel')
+    expect(thirty).toHaveClass('timeLabel')
+  })
+
+  it('shows level(s) plain above a bold room line — caller is implied by the column, never shown', () => {
+    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    // "Ted Lizotte" legitimately appears once, as this fixture's column header —
+    // just never inside the card itself.
+    const card = container.querySelector('.card') as HTMLElement
+    expect(card).not.toHaveTextContent('Ted Lizotte')
+    const levels = container.querySelector('.card p.levels') as HTMLElement
+    expect(levels).toHaveTextContent('SSD')
+    const details = container.querySelector('.card p.details') as HTMLElement
+    expect(details).toHaveTextContent('Ballroom Centre')
+    const room = screen.getByText('Ballroom Centre')
+    expect(room.tagName).toBe('STRONG')
+  })
+
+  it('prefixes a non-"Dancing" event type before the bold room, plain text', () => {
+    const session: StructuredSession = { ...STRUCTURED_SESSION, eventType: 'Skirt Work Hour' }
+    const { container } = render(
+      <DanceScheduleCallerGrid layout={makeLayout({ placements: [placement({ session })] })} showGca />,
+    )
+    const details = container.querySelector('.card p.details') as HTMLElement
+    expect(details.textContent).toBe('Skirt Work Hour - Ballroom Centre')
+    expect(details.querySelector('strong')).toHaveTextContent('Ballroom Centre')
+  })
+
+  it('shows the GCA line when showGca is true', () => {
+    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
+  })
+
+  it('hides the GCA line (but keeps the session) when showGca is false', () => {
+    render(<DanceScheduleCallerGrid layout={makeLayout()} showGca={false} />)
+    expect(screen.queryByText(/GCA: Tim Stephens/)).not.toBeInTheDocument()
+    expect(screen.getByText('Ballroom Centre')).toBeInTheDocument()
+  })
+
+  it('renders header content and body content in separate grids', () => {
+    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const header = container.querySelector('.roomHeader')
+    const timeLabel = container.querySelector('.timeLabel')
+    expect(header).toBeInTheDocument()
+    expect(timeLabel).toBeInTheDocument()
+    expect(header?.closest('.grid')).not.toBe(timeLabel?.closest('.grid'))
+  })
+
+  it("uses each column's own (possibly grown) pixel width in gridTemplateColumns, not a uniform repeat()", () => {
+    const { container } = render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'], columnWidthsPx: [225, 150] })}
+        showGca
+      />,
+    )
+    const grid = container.querySelector('.roomHeader')?.closest('.grid') as HTMLElement
+    expect(grid.style.gridTemplateColumns).toContain('225px')
+    expect(grid.style.gridTemplateColumns).toContain('150px')
+  })
+
+  it('gives header and body grids the identical computed gridTemplateColumns', () => {
+    const { container } = render(
+      <DanceScheduleCallerGrid layout={makeLayout({ visibleCallers: ['Vic Ceder', 'Allan Hurst'] })} showGca />,
+    )
+    const header = container.querySelector('.roomHeader')
+    const timeLabel = container.querySelector('.timeLabel')
+    const headerGrid = header?.closest('.grid') as HTMLElement
+    const bodyGrid = timeLabel?.closest('.grid') as HTMLElement
+    expect(headerGrid.style.gridTemplateColumns).toBe(bodyGrid.style.gridTemplateColumns)
+    expect(headerGrid.style.gridTemplateColumns).not.toBe('')
+  })
+
+  it("colors a card's background by the session's level, same as the other two grids", () => {
+    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const card = container.querySelector('.card')
+    expect(card).toHaveStyle({ backgroundColor: colorForSession(STRUCTURED_SESSION) })
+  })
+
+  it('uses grid rows that size to their content, not a fixed pixel value', () => {
+    const { container } = render(<DanceScheduleCallerGrid layout={makeLayout()} showGca />)
+    const bodyGrid = container.querySelector('.timeLabel')?.closest('.grid') as HTMLElement
+    expect(bodyGrid.style.gridTemplateRows).toMatch(/^repeat\(\d+, minmax\(\d+px, auto\)\)$/)
+  })
+
+  describe('overlap lanes (defensive)', () => {
+    it('shrinks and offsets a card via width/marginLeft when laneCount > 1', () => {
+      const { container } = render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({ placements: [placement({ lane: 1, laneCount: 2 })] })}
+          showGca
+        />,
+      )
+      const card = container.querySelector('.card') as HTMLElement
+      expect(card.style.width).toBe('50%')
+      expect(card.style.marginLeft).toBe('50%')
+    })
+
+    it('does not override width/marginLeft when laneCount is 1', () => {
+      const { container } = render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({ placements: [placement({ lane: 0, laneCount: 1 })] })}
+          showGca
+        />,
+      )
+      const card = container.querySelector('.card') as HTMLElement
+      expect(card.style.width).toBe('')
+      expect(card.style.marginLeft).toBe('')
+    })
+  })
+
+  it('renders one card per placement even when several share the same session (a co-taught session)', () => {
+    render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({
+          visibleCallers: ['Michael Kellogg', 'Terri Sherrer'],
+          placements: [placement({ columnStart: 0 }), placement({ columnStart: 1 })],
+        })}
+        showGca
+      />,
+    )
+    expect(screen.getAllByText('Ballroom Centre')).toHaveLength(2)
+  })
+})

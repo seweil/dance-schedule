@@ -49,6 +49,8 @@ separate, later phase.
       date/level/GCA selectors — see Decisions
 - [x] How two different sessions can share a level at overlapping times
       (impossible for rooms, real for levels) — see Decisions
+- [x] Third view: headline callers as columns, excluding GCA, skipping
+      sessions with no caller entirely — see Decisions
 
 ## Decisions
 
@@ -775,6 +777,94 @@ behavior itself is the live verification described above. A Playwright e2e
 test would be the natural next step for durable regression coverage; not
 added here since Playwright can't be run from this project's sandbox to
 validate it.
+
+### Caller-columns view: a third grid, headline callers as columns, skipping sessions with no caller
+
+**Why:** Alongside room-columns and level-columns, some users want to scan a
+single caller across the whole day — "what is Vic Ceder doing all day?" —
+which neither prior view answers directly. A third page (`/dance-by-caller`,
+`DanceScheduleCallersPage.tsx`) reuses the exact same date/level-range/GCA
+selectors and the exact same `useDanceScheduleFilters` hook as the other
+two, unchanged, so switching between all three views keeps the same
+selection. "Headline caller" means `session.callers` specifically — `gca` is
+already a distinct field the column-derivation step simply never reads, so
+excluding it needed no new code at all.
+
+**Columns are data-derived, like rooms, not filter-derived like levels:**
+callers are free text with no fixed vocabulary, so `computeDanceScheduleCallerLayout.ts`
+discovers them the same way `deriveRoomOrder` discovers rooms — walking
+`dateSessions` in chronological order, appending each structured session's
+`callers` on first appearance, then filtering to callers actually present in
+`visibleSessions`. This keeps the column set stable as the level range
+narrows, same guarantee the room view already provides.
+
+**A session with no caller is skipped entirely, not floated or given a
+dedicated "Other" column:** a freeform session (e.g. a lunch break, or the
+"Country Western Dance" entry the level view's own `OTHER_LEVEL_SLOT` was
+built for) has no `callers` field at all. Both other views give a
+"doesn't fit my axis" session somewhere to go — the room view floats a
+roomless session across every room, the level view floats a roomless
+session or gives a real-room-but-no-level session a dedicated `"Other"`
+column. This view does neither: per direct product decision, a session with
+no caller simply isn't part of "what is this caller doing all day" and is
+dropped before layout even begins — `computeDanceScheduleCallerLayout`
+filters `visibleSessions` down to `kind === 'structured'` sessions before
+doing anything else, including before computing the shared time axis, so a
+skipped session contributes no column, no placement, and no time-axis row
+(a lunch break's time range simply doesn't appear on this page at all).
+This is the one place this view's design deliberately doesn't mirror either
+prior view's precedent, rather than extending it.
+
+**"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
+needs more than 3 dances to get a column at all:** both per direct product
+decision, not something derived from the room/level views' own precedent.
+A showcase dance credits a caller but isn't representative of what they
+normally do, so it's excluded up front
+(`GCA_CALLER_SHOWCASE_EVENT_TYPE`) — before column derivation, before dance
+counting, before anything else — rather than just hidden on the card the
+way `showGca` hides the subordinate GCA line elsewhere. `MIN_CALLER_DANCES`
+(3) then drops any caller whose remaining (level-filtered, non-showcase)
+dance count that day is 3 or fewer; a co-taught session counts once toward
+each of its callers independently, so it's possible for the identical
+session to appear under one caller's column but not the other's, if only
+one of them clears the threshold.
+
+**No contiguous-span merge, unlike either other view:** a multi-room or
+multi-level session gets one wide spanning placement when its columns are
+adjacent. Two arbitrary callers' column positions (first-appearance order)
+carry no such adjacency meaning, so a co-taught session (e.g. "Michael
+Kellogg & Terri Sherrer," real data) instead gets its identical card placed
+independently in each of its callers' own columns — always `columnSpan: 1`,
+per direct product decision ("one column per caller," not a combined "A & B"
+column and not a spanning merge). This drops the entire
+`isContiguous`/conflict-free-merge branch the other two layout functions
+need, making this one structurally the simplest of the three.
+
+**Lane assignment extracted to `src/lib/assignLanes.ts` at its second
+consumer:** a single real caller can't double-book themselves except via a
+genuine data-entry error, so overlap lanes here are a defensive safety net
+rather than something realistically exercised (contrast the level view,
+where same-level overlap is common and expected). Still, it's the exact
+same greedy interval-scheduling algorithm the level view already had
+(`assignLanes`/`assignLanesPerSlot`, generalized to a `LaneEntry` interface)
+— extracted into a shared file at exactly its second consumer, mirroring
+this doc's own `computeDanceScheduleTimeAxis.ts` precedent (also extracted
+at its second consumer, also deliberately ignorant of domain-specific
+fields). `computeDanceScheduleLevelLayout.ts` now imports from this shared
+file instead of defining its own copy — pure refactor, no behavior change.
+
+**Cards show level(s) and room, never the caller** (already implied by the
+column) — `.levels` line first, plain, same as the room view; `.details`
+line second, event-type-prefix + bold **room** (`detailsWithRoomContent`, a
+new sibling of `detailsContent` in `danceScheduleCardContent.tsx` bolding
+`formatSessionRoom` instead of `formatSessionCallers`); the existing
+optional GCA line unchanged. Since every placement here is guaranteed
+`kind === 'structured'` (freeform sessions are filtered out before layout
+runs), this grid needs no roomless-card treatment at all, unlike the other
+two — every card renders as an ordinary single-column card, even one whose
+own `location.kind === 'roomless'` (still lands under its real caller's
+column; `formatSessionRoom` just renders `"—"` for it, no special-casing
+needed).
 
 ## Open questions
 
