@@ -4,8 +4,21 @@
    an aside rather than part of the schedule content itself — right-aligned was
    tried first, but ScrollToTopButton.module.css's fixed-position button sits in
    that same bottom-right corner and covered it. */
+/* padding-bottom, not a bottom margin — this is the last element in the page's
+   normal flow, so a margin here collapses through every ancestor with no border/
+   padding of its own (confirmed live: it reached all the way to <body> and simply
+   stopped contributing to the document's actual scrollable height at all).
+   Padding never collapses, so it's the only reliable way to add real space here.
+   The grid above this is capped at max-height: 70vh (DanceScheduleGrid.module.css),
+   which can leave the page's total height only a handful of pixels taller than the
+   viewport (confirmed live: as little as 6px) — just enough for a real scrollbar to
+   appear, but not enough for this link to read as sitting inside a comfortably
+   scrollable area rather than stuck right at its very edge. Deliberately generous,
+   not tuned to any specific viewport height, since the exact shortfall varies with
+   window size. */
 .debugLink {
   margin: var(--space-sm) 0 0;
+  padding-bottom: var(--space-md);
   font-size: 0.75rem;
   text-align: center;
 }

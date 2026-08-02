@@ -50,12 +50,15 @@ test('desktop: the panel itself scrolls both directions, unaffected by the mobil
   expect(scrollWidth).toBeGreaterThan(clientWidth)
   expect(scrollHeight).toBeGreaterThan(clientHeight)
 
-  // The page itself never needs to scroll — everything is contained in the panel.
+  // The page scrolls only a small, deliberate amount past the panel — just enough
+  // to reveal the "Raw data" link below it (DanceSchedulePage.module.css's
+  // debugLink padding-bottom) — not the large, uncapped scroll the panel's own
+  // max-height: 70vh exists to avoid.
   const { docScrollHeight, docClientHeight } = await page.evaluate(() => ({
     docScrollHeight: document.documentElement.scrollHeight,
     docClientHeight: document.documentElement.clientHeight,
   }))
-  expect(docScrollHeight).toBeLessThanOrEqual(docClientHeight + 1)
+  expect(docScrollHeight - docClientHeight).toBeLessThan(40)
 })
 
 test('changing the date select swaps the grid to that date', async ({ page }) => {
