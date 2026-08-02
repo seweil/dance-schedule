@@ -1,3 +1,16 @@
+.devWarning {
+  margin: 0 0 var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid #f0c000;
+  border-radius: 4px;
+  background: #fff8e1;
+  color: #7a5b00;
+}
+
+.devWarning code {
+  font-size: 0.9em;
+}
+
 .list {
   list-style: none;
   margin: 0;

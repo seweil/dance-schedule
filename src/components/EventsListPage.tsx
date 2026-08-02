@@ -20,6 +20,18 @@ export function EventsListPage() {
   return (
     <>
       <PageHeader title="All Events" />
+      {import.meta.env.DEV && (
+        // pnpm dev only ever resolves one CONTENT_SET per process — there's no
+        // multi-prefix routing at all in dev, so every link below is a dead end
+        // there (it falls through to whichever set is currently active). Only ever
+        // true in `pnpm dev`/`pnpm dev:test` — import.meta.env.DEV is false in a
+        // production build, so this never ships.
+        <div role="alert" className={styles.devWarning}>
+          This is a dev build — the links below won't work here (dev mode only
+          serves one event at a time). Run <code>pnpm build &amp;&amp; pnpm preview</code>{' '}
+          to review them.
+        </div>
+      )}
       <ul className={styles.list}>
         {sortedSets.map((set) => (
           <li key={set.name}>
