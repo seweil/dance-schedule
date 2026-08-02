@@ -204,6 +204,101 @@ describe('parseDanceScheduleSheet', () => {
     expect(errors).toHaveLength(2)
   })
 
+  describe('double-booking', () => {
+    it('aggregates an error when the same caller is booked in two rooms at the identical time', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Dancing - Vic Ceder', 'Plus : Dancing - Vic Ceder'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/Sheet "Thursday July 2", cell C2/)
+      expect(errors[0]).toMatch(/caller "Vic Ceder" is already booked in cell B2 \(time "12:30p-1:30p"\)/)
+    })
+
+    it('aggregates an error when the same caller is booked at overlapping (not identical) times across rows', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Dancing - Vic Ceder', null],
+        ['1:00p-2:00p', null, 'Plus : Dancing - Vic Ceder'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/cell C3/)
+      expect(errors[0]).toMatch(/caller "Vic Ceder" is already booked in cell B2 \(time "12:30p-1:30p"\)/)
+    })
+
+    it('does not flag the same caller back-to-back at non-overlapping times', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Dancing - Vic Ceder', null],
+        ['1:30p-2:30p', null, 'Plus : Dancing - Vic Ceder'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+    })
+
+    it('does not flag different callers in different rooms at the same time', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Dancing - Vic Ceder', 'Plus : Dancing - Ted Lizotte'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+    })
+
+    it('does not falsely flag a session that lists the same co-caller name twice', () => {
+      const { errors } = parseOneCell('SSD : Dancing - Vic Ceder & Vic Ceder')
+      expect(errors).toEqual([])
+    })
+
+    it('does not check GCA credits for double-booking, only headline callers', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Dancing - Kris Jensen\nGCA: Tim Stephens', 'Plus : Dancing - Ted Lizotte\nGCA: Tim Stephens'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toEqual([])
+    })
+
+    it('aggregates an error when the same room is double-booked across two rows', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre'],
+        ['12:30p-1:30p', 'SSD : Dancing - Vic Ceder'],
+        ['1:00p-2:00p', 'Plus : Dancing - Ted Lizotte'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/cell B3/)
+      expect(errors[0]).toMatch(/room "Ballroom Centre" is already booked in cell B2 \(time "12:30p-1:30p"\)/)
+    })
+
+    it('aggregates an error when a ditto-spanned room conflicts with a later row using it directly', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom East'],
+        ['12:30p-1:30p', 'SSD : Combined Dance - Vic Ceder', '"'],
+        ['1:00p-2:00p', null, 'Plus : Dancing - Ted Lizotte'],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/room "Ballroom East" is already booked in cell B2/)
+    })
+
+    it('does not double-report a same-row "ROOMS:" cell-not-blank conflict as a second, redundant booking error', () => {
+      const rows = [
+        ['Time', 'Ballroom Centre', 'Ballroom West'],
+        [
+          '12:30p-1:30p',
+          'SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre, Ballroom West',
+          'Plus : Dancing - Ted Lizotte',
+        ],
+      ]
+      const { errors } = parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
+      expect(errors).toHaveLength(1)
+      expect(errors[0]).toMatch(/claims room "Ballroom West", but its cell \(C2\) isn't blank/)
+    })
+  })
+
   describe('"ROOMS:" line', () => {
     it('parses "ROOMS: NONE" as a roomless session, even on a freeform cell', () => {
       const { sessions, errors } = parseOneCell('* Lunch Break\nROOMS: NONE')

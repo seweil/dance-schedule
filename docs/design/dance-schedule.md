@@ -51,6 +51,8 @@ separate, later phase.
       (impossible for rooms, real for levels) — see Decisions
 - [x] Third view: headline callers as columns, excluding GCA, skipping
       sessions with no caller entirely — see Decisions
+- [x] Detecting a caller or room double-booked at overlapping times —
+      see Decisions
 
 ## Decisions
 
@@ -155,6 +157,38 @@ Failed to parse data/dance-schedule.xlsx — 1 error(s):
 (This exact message was produced by a real end-to-end test: temporarily
 corrupting one real cell and confirming the build/parse failure showed
 this precise format, then restoring the real file.)
+
+### Double-booking: no caller or room may overlap itself in time
+**Why:** A person can't call from two rooms at once, and a room can't host
+two different sessions at once — but nothing previously checked for this
+across cells, only within one cell's own "ROOMS:" claim (see the
+authoring-convention decision below). `parseDanceScheduleSheet` now tracks
+every caller's and every located session's room bookings across the whole
+sheet (a day) as it walks the rows, and fails the build if a new booking
+overlaps one already recorded — half-open interval overlap, so a session
+ending exactly when another starts isn't a conflict (same convention the
+rendering layer's own lane-assignment uses). Checked per sheet only, never
+across sheets, since two different days can never conflict. Scoped to
+`session.callers` (headline callers) only, not `gca` — a GCA credit is a
+subordinate role, not a second simultaneous booking.
+
+This isn't hypothetical: turning it on immediately caught two real
+double-bookings already present in the shared sample data (the same
+caller — "Vic Ceder", then separately "Dayle Hodge" — booked in two rooms
+at the same time, identically across `automated-testing`,
+`MotivateToSeattle`, and `backtrack2abq`, which all trace back to the same
+original spreadsheet). Both were genuine data-entry mistakes, not
+intentional test fixtures, and were corrected directly in all three
+`.xlsx` files once found — confirmed via each set's own
+`dance-schedule-dump.md` diff afterward, showing only the two corrected
+rows changed.
+
+A same-row conflict from an explicit multi-room `"ROOMS:"` claim (the
+claimed room's cell isn't actually blank) is still reported by that
+check's own, more specific message ("claims room X, but its cell isn't
+blank") — the new cross-row check recognizes when a room was already
+flagged that way this row and skips re-reporting the identical clash under
+a second, more generic message.
 
 ### Where the code lives
 - `src/types/danceSchedule.ts` — `LEVEL_CODES`/`LevelCode`, the

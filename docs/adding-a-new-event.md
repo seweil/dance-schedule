@@ -239,6 +239,14 @@ Anything that doesn't match one of these patterns fails the build with the
 exact sheet name, cell address (e.g. `F3`), and cell contents identified —
 so it's easy to find and fix directly in Excel.
 
+The build also fails if the same caller or the same room ends up booked
+twice at overlapping times on the same day — e.g. the same caller's name
+in two different rooms' cells for overlapping time ranges, or two rows
+both naming the same room for overlapping times. The error names both
+cells involved, so you can tell which one is the typo. This only checks
+callers, not GCA credits — one caller getting a GCA credit in two overlapping
+sessions isn't flagged.
+
 ### Checking your work
 
 After a build (or `pnpm dev`), a plain-markdown dump of exactly how the app

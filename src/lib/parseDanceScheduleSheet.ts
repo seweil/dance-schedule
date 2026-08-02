@@ -125,6 +125,46 @@ interface ParsedCell {
   hasExplicitRooms: boolean
 }
 
+// One already-recorded booking of a caller's or a room's time, for the
+// double-booking check below — cellRef/timeRangeRaw are carried along purely so a
+// conflict error can point back at the earlier cell, not just state that a conflict
+// exists.
+interface Booking {
+  startTime: Date
+  endTime: Date
+  cellRef: string
+  timeRangeRaw: string
+}
+
+// Half-open interval overlap — a session ending exactly when another starts is not
+// a conflict (same convention as the lane-assignment overlap check the rendering
+// layer uses, see assignLanes.ts).
+function overlapsBooking(booking: Booking, startTime: Date, endTime: Date): boolean {
+  return booking.startTime < endTime && startTime < booking.endTime
+}
+
+// Records a new booking against `key` in `bookings`, returning the first existing
+// booking it conflicts with (if any) — checked before the new booking is added, so
+// a booking never "conflicts" with itself.
+function checkAndRecordBooking(
+  bookings: Map<string, Booking[]>,
+  key: string,
+  startTime: Date,
+  endTime: Date,
+  cellRef: string,
+  timeRangeRaw: string,
+): Booking | undefined {
+  const existing = bookings.get(key)
+  const conflict = existing?.find((booking) => overlapsBooking(booking, startTime, endTime))
+  const booking: Booking = { startTime, endTime, cellRef, timeRangeRaw }
+  if (existing) {
+    existing.push(booking)
+  } else {
+    bookings.set(key, [booking])
+  }
+  return conflict
+}
+
 function parseCell(
   cellText: string,
   context: { date: Date; startTime: Date; endTime: Date; room: string; allRooms: string[] },
@@ -268,6 +308,16 @@ export function parseDanceScheduleSheet(
 
   const date = parseSheetDate(sheetName, referenceDate)
 
+  // Accumulated across every row of this sheet (a day), keyed by caller name / room
+  // name — a real person or room can't be in two places on the same day at
+  // overlapping times, whether the conflict is between two different rows or two
+  // cells in the same row. Never checked across sheets (different days can't
+  // conflict with each other). Scoped to headline callers (`session.callers`), not
+  // `gca` — a GCA credit is a subordinate role, not a second place someone is
+  // simultaneously calling from.
+  const callerBookings = new Map<string, Booking[]>()
+  const roomBookings = new Map<string, Booking[]>()
+
   dataRows.forEach((row, rowIdx) => {
     const excelRow = rowIdx + 2 // +1 for the header row, +1 for 1-based Excel rows
     const timeRangeRaw = row[0]
@@ -377,7 +427,11 @@ export function parseDanceScheduleSheet(
     })
 
     // Fourth pass: for an explicit multi-room "ROOMS:" list, every other named room's
-    // cell in this row must be genuinely blank — not content, not a ditto.
+    // cell in this row must be genuinely blank — not content, not a ditto. Tracked in
+    // `conflictedRoomsThisRow` so the fifth pass's own (more general, cross-row)
+    // conflict check doesn't also re-report the exact same same-row clash under a
+    // second, redundant message.
+    const conflictedRoomsThisRow = new Set<string>()
     parsed.forEach((result, roomIdx) => {
       if (!result.hasExplicitRooms || result.session.location.kind !== 'located') {
         return
@@ -393,6 +447,57 @@ export function parseDanceScheduleSheet(
             result.room,
             `"ROOMS:" claims room ${JSON.stringify(room)}, but its cell (${cellRef(otherRoomIdx)}) isn't blank`,
           )
+          conflictedRoomsThisRow.add(room)
+        }
+      }
+    })
+
+    // Fifth pass: no caller or room may be booked twice at overlapping times, whether
+    // the conflict is with an earlier cell in this same row (identical time, e.g. a
+    // copy-paste duplicate) or a cell from an earlier row (an overlapping, not
+    // necessarily identical, time range). A room already flagged by the fourth pass
+    // is skipped here — same underlying same-row clash, already reported with a more
+    // specific message there; everything else (including a cell that has some other,
+    // unrelated error) still gets its own conflict check.
+    parsed.forEach((result, roomIdx) => {
+      const { session } = result
+      if (session.kind === 'structured') {
+        for (const caller of new Set(session.callers)) {
+          const conflict = checkAndRecordBooking(
+            callerBookings,
+            caller,
+            startTime,
+            endTime,
+            cellRef(roomIdx),
+            timeRangeRaw,
+          )
+          if (conflict) {
+            rowError(
+              roomIdx,
+              result.room,
+              `caller ${JSON.stringify(caller)} is already booked in cell ${conflict.cellRef} (time "${conflict.timeRangeRaw}")`,
+            )
+          }
+        }
+      }
+
+      if (session.location.kind === 'located') {
+        for (const room of session.location.rooms) {
+          const conflict = checkAndRecordBooking(
+            roomBookings,
+            room,
+            startTime,
+            endTime,
+            cellRef(roomIdx),
+            timeRangeRaw,
+          )
+          if (conflict && !conflictedRoomsThisRow.has(room)) {
+            rowError(
+              roomIdx,
+              result.room,
+              `room ${JSON.stringify(room)} is already booked in cell ${conflict.cellRef} (time "${conflict.timeRangeRaw}")`,
+            )
+          }
         }
       }
     })
