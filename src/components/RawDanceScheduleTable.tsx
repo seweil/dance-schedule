@@ -1,4 +1,9 @@
 import type { DanceSession } from '../types/danceSchedule'
+import {
+  computeDanceScheduleHourSummary,
+  formatHours,
+  type DanceScheduleHourSummaryRow,
+} from '../lib/computeDanceScheduleHourSummary'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
 import {
   formatSessionCallerDetails,
@@ -10,10 +15,58 @@ import {
 import styles from './RawDanceScheduleTable.module.css'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeZone: 'UTC' })
+// Short enough to use as a table column header, unlike dateFormatter's full form —
+// matches DanceScheduleFilters.tsx's own date-select convention.
+const columnDateFormatter = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+})
 
 function formatDetails(session: DanceSession): string {
   const details = formatSessionCallerDetails(session)
   return session.kind === 'freeform' ? `(freeform) ${details}` : details
+}
+
+function HourSummaryTable({
+  caption,
+  firstColumnHeading,
+  dates,
+  rows,
+}: {
+  caption: string
+  firstColumnHeading: string
+  dates: Date[]
+  rows: DanceScheduleHourSummaryRow[]
+}) {
+  return (
+    <section>
+      <h2>{caption}</h2>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>{firstColumnHeading}</th>
+            {dates.map((date) => (
+              <th key={date.toISOString()}>{columnDateFormatter.format(date)}</th>
+            ))}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <td>{row.label}</td>
+              {row.hoursByDate.map((hours, index) => (
+                <td key={dates[index]!.toISOString()}>{formatHours(hours)}</td>
+              ))}
+              <td>{formatHours(row.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )
 }
 
 // Dense, desktop-only debug view of the parsed dance schedule — one table per
@@ -24,8 +77,22 @@ export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }
     return <p>No sessions parsed.</p>
   }
 
+  const summary = computeDanceScheduleHourSummary(sessions)
+
   return (
     <>
+      <HourSummaryTable
+        caption="Hours by level"
+        firstColumnHeading="Level"
+        dates={summary.dates}
+        rows={summary.levelRows}
+      />
+      <HourSummaryTable
+        caption="Hours by caller"
+        firstColumnHeading="Caller"
+        dates={summary.dates}
+        rows={summary.callerRows}
+      />
       {groupDanceSessionsByDate(sessions).map((group) => (
         <section key={group.date.toISOString()}>
           <h2>{dateFormatter.format(group.date)}</h2>

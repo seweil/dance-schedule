@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { RawDanceScheduleTable } from './RawDanceScheduleTable'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
@@ -95,5 +95,54 @@ describe('RawDanceScheduleTable', () => {
   it('renders an explicit empty-state message when there are no sessions', () => {
     render(<RawDanceScheduleTable sessions={[]} />)
     expect(screen.getByText(/no sessions parsed/i)).toBeInTheDocument()
+  })
+
+  describe('hour summaries', () => {
+    it('renders both summaries before the full schedule', () => {
+      render(<RawDanceScheduleTable sessions={[makeSession()]} />)
+
+      const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
+      expect(headings).toEqual(['Hours by level', 'Hours by caller', 'Thursday, July 2, 2026'])
+    })
+
+    it('splits a multi-level session\'s hour evenly across a "Hours by level" row each', () => {
+      render(<RawDanceScheduleTable sessions={[makeSession({ levels: ['C1', 'C2'] })]} />)
+
+      const levelSection = screen.getByRole('heading', { name: 'Hours by level' }).closest('section')!
+      expect(within(levelSection).getAllByText('0.5')).toHaveLength(4) // C1 and C2, each dated + total column
+    })
+
+    it('shows a caller\'s full hour in "Hours by caller" for a solo session', () => {
+      render(<RawDanceScheduleTable sessions={[makeSession({ callers: ['Vic Ceder'] })]} />)
+
+      const callerSection = screen.getByRole('heading', { name: 'Hours by caller' }).closest('section')!
+      expect(within(callerSection).getByText('Vic Ceder')).toBeInTheDocument()
+      expect(within(callerSection).getAllByText('1')).toHaveLength(2) // its one date column + Total
+    })
+
+    it('labels each date column and includes a Total column', () => {
+      render(<RawDanceScheduleTable sessions={[makeSession()]} />)
+
+      const levelSection = screen.getByRole('heading', { name: 'Hours by level' }).closest('section')!
+      expect(within(levelSection).getByText('Thu, Jul 2')).toBeInTheDocument()
+      expect(within(levelSection).getByText('Total')).toBeInTheDocument()
+    })
+
+    it('has no rows in either summary for a schedule of only freeform sessions', () => {
+      const freeform: DanceSession = {
+        kind: 'freeform',
+        date: new Date('2026-07-02T00:00:00.000Z'),
+        startTime: new Date('2026-07-02T12:00:00.000Z'),
+        endTime: new Date('2026-07-02T13:00:00.000Z'),
+        location: { kind: 'roomless' },
+        description: 'Lunch Break',
+      }
+      render(<RawDanceScheduleTable sessions={[freeform]} />)
+
+      const levelSection = screen.getByRole('heading', { name: 'Hours by level' }).closest('section')!
+      const callerSection = screen.getByRole('heading', { name: 'Hours by caller' }).closest('section')!
+      expect(within(levelSection).queryAllByRole('row')).toHaveLength(1) // header row only
+      expect(within(callerSection).queryAllByRole('row')).toHaveLength(1)
+    })
   })
 })

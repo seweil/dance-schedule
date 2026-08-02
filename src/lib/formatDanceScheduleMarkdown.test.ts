@@ -97,10 +97,12 @@ describe('formatDanceScheduleMarkdown', () => {
     ]
 
     const markdown = formatDanceScheduleMarkdown(sessions)
-    const tableLines = markdown.split('\n').filter((line) => line.startsWith('|'))
+    const scheduleSection = markdown.slice(markdown.indexOf('## Saturday, July 4, 2026'))
+    const tableLines = scheduleSection.split('\n').filter((line) => line.startsWith('|'))
 
-    // Exactly 3 pipe-prefixed lines: the header, the separator, and one data row —
-    // if the newline weren't collapsed, the row would split into two lines instead.
+    // Exactly 3 pipe-prefixed lines in this date's own section: the header, the
+    // separator, and one data row — if the newline weren't collapsed, the row
+    // would split into two lines instead.
     expect(tableLines).toHaveLength(3)
     expect(markdown).toContain('*(freeform)* Line one Line two')
   })
@@ -164,5 +166,67 @@ describe('formatDanceScheduleMarkdown', () => {
     const markdown = formatDanceScheduleMarkdown(sessions)
     expect(markdown).toContain('## Thursday, July 2, 2026')
     expect(markdown).toContain('## Friday, July 3, 2026')
+  })
+
+  describe('hour summaries', () => {
+    const session: DanceSession = {
+      kind: 'structured',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T12:30:00.000Z'),
+      endTime: new Date('2026-07-02T13:30:00.000Z'),
+      location: { kind: 'located', rooms: ['Kafka/Lamartine'] },
+      levels: ['C1', 'C2'],
+      eventType: 'Dancing',
+      callers: ['Vic Ceder'],
+    }
+
+    it('renders both summaries before the full schedule, split evenly across a multi-level session\'s levels', () => {
+      const markdown = formatDanceScheduleMarkdown([session])
+
+      const levelIndex = markdown.indexOf('## Hours by level')
+      const callerIndex = markdown.indexOf('## Hours by caller')
+      const scheduleIndex = markdown.indexOf('## Thursday, July 2, 2026')
+      expect(levelIndex).toBeGreaterThanOrEqual(0)
+      expect(levelIndex).toBeLessThan(callerIndex)
+      expect(callerIndex).toBeLessThan(scheduleIndex)
+
+      expect(markdown).toContain('| Level | Thu, Jul 2 | Total |')
+      expect(markdown).toContain('| C1 | 0.5 | 0.5 |')
+      expect(markdown).toContain('| C2 | 0.5 | 0.5 |')
+      expect(markdown).toContain('| Caller | Thu, Jul 2 | Total |')
+      expect(markdown).toContain('| Vic Ceder | 1 | 1 |')
+    })
+
+    it('gives each date its own column', () => {
+      const secondDay: DanceSession = {
+        ...session,
+        date: new Date('2026-07-03T00:00:00.000Z'),
+        startTime: new Date('2026-07-03T12:30:00.000Z'),
+        endTime: new Date('2026-07-03T13:30:00.000Z'),
+        levels: ['SSD'],
+      }
+      const markdown = formatDanceScheduleMarkdown([session, secondDay])
+
+      expect(markdown).toContain('| Level | Thu, Jul 2 | Fri, Jul 3 | Total |')
+      expect(markdown).toContain('| SSD | 0 | 1 | 1 |')
+    })
+
+    it('has no rows in either summary for a schedule of only freeform sessions', () => {
+      const freeform: DanceSession = {
+        kind: 'freeform',
+        date: new Date('2026-07-02T00:00:00.000Z'),
+        startTime: new Date('2026-07-02T12:00:00.000Z'),
+        endTime: new Date('2026-07-02T13:00:00.000Z'),
+        location: { kind: 'roomless' },
+        description: 'Lunch Break',
+      }
+      const markdown = formatDanceScheduleMarkdown([freeform])
+
+      const levelSection = markdown.slice(
+        markdown.indexOf('## Hours by level'),
+        markdown.indexOf('## Hours by caller'),
+      )
+      expect(levelSection.split('\n').filter((line) => line.startsWith('|'))).toHaveLength(2) // header + separator, no data rows
+    })
   })
 })

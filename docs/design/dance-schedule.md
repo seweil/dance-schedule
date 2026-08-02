@@ -53,6 +53,8 @@ separate, later phase.
       sessions with no caller entirely — see Decisions
 - [x] Detecting a caller or room double-booked at overlapping times —
       see Decisions
+- [x] Debug/dump summary of total hours per level and per caller — see
+      Decisions
 
 ## Decisions
 
@@ -251,6 +253,38 @@ page's code and the dance-schedule data in the main bundle (confirmed:
 this route isn't code-split the way `~react-pages`-derived routes are,
 since it's a plain object merged into the same route array rather than
 going through `vite-plugin-pages`' per-page chunking).
+
+### Hour summaries: two tables before the full dump, shared by both the debug page and the markdown dump
+**Why:** Before either the raw debug page or the markdown dump gets to the
+full session-by-session listing, both now show two quick sanity-check
+tables — total scheduled hours per level, and per headline caller — each
+broken down per day plus an overall total column.
+`src/lib/computeDanceScheduleHourSummary.ts` (+ test) computes both from
+the same parsed `DanceSession[]` both artifacts already share, so
+`RawDanceScheduleTable.tsx` and `formatDanceScheduleMarkdown.ts` render
+identical numbers from one source rather than two independent
+implementations that could drift — the same reasoning behind those two
+files already mirroring each other for the full listing itself.
+
+Every `kind === 'structured'` session counts toward both tables, including
+a `"GCA Caller Showcase Dance"` one and one tagged only with an unordered
+level (`Advanced`/`Intro`/`Various`) — this is meant to be a complete,
+honest accounting of the raw parsed data, not a mirror of the Dance by
+Caller page's own curated exclusions (that page deliberately omits
+showcase dances and low-dance-count callers for UX reasons that don't
+apply to a debug tool). A freeform session contributes to neither table,
+having no level or caller. `gca` is still never counted as a caller.
+
+A session spanning more than one level, or co-taught by more than one
+caller, splits its duration evenly across the *distinct* levels/callers it
+lists (a literal duplicate name counts once, not twice) — so each table's
+own grand total, summed across every row, always equals the day's total
+structured-session hours, never double- or under-counted. Level rows sort
+by the real skill progression (`LEVEL_ORDER`, then `Advanced`/`Intro`/
+`Various` trailing) rather than alphabetically; caller rows sort
+alphabetically. A level or caller with zero hours (impossible for a
+caller in practice, but keeps both tables' shape symmetrical) is omitted
+rather than shown as a zero row.
 
 ### Room-spanning and roomless sessions: a `location` field, not `room: string`
 **Why:** Before the real display page is built (see the deferred
