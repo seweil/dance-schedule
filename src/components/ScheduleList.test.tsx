@@ -84,4 +84,11 @@ describe('ScheduleList', () => {
 
     expect(screen.getByText(/no events scheduled/i)).toBeInTheDocument()
   })
+
+  it('omits the location line entirely when an event has no location', () => {
+    render(<ScheduleList events={[makeEvent({ location: undefined, description: 'Free time' })]} />)
+
+    expect(screen.getByText('Free time')).toBeInTheDocument()
+    expect(screen.queryByText('Studio A')).not.toBeInTheDocument()
+  })
 })

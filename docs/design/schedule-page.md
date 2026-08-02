@@ -102,7 +102,7 @@ split by a small custom function afterward.
 interface RawScheduleRow {
   date: Date        // from the "Date" column
   timeRange: string // e.g. "6:00 PM - 7:30 PM", from the combined column
-  location: string
+  location: string | undefined
   description: string
 }
 
@@ -111,14 +111,16 @@ export interface ScheduleEvent {
   date: Date       // calendar date (midnight)
   startTime: Date  // date + parsed start time, combined
   endTime: Date    // date + parsed end time, combined
-  location: string
+  location: string | undefined
   description: string
 }
 ```
 
-All four schema columns are `required: true` — every event needs a date,
-time range, location, and description; there's no case for a partially
-empty row today.
+Date, time range, and description are `required: true` — every event needs
+those three. Location is `required: false`: some events aren't tied to one
+room (e.g. an all-day or roving activity), so a blank Location cell is
+valid; `ScheduleList` simply omits that line for such an event rather than
+rendering it blank (see the Layout design decision below).
 
 A `parseTimeRange(raw: string, date: Date): { startTime: Date; endTime:
 Date }` pure function (unit-testable in isolation) splits the combined
@@ -307,6 +309,38 @@ complexity for events that don't recur). What changed is that there's no
 longer any *responsive* behavior to speak of in `ScheduleList.module.css`
 at all — full width is now the only state, at any size — see the
 Breakpoint strategy update below.
+
+**Why (superseded again — single shared grid, not one per date):** in
+landscape, `ScheduleList` uses CSS Grid with `subgrid` so the time/
+location/description columns of every card line up (`.card { grid-
+template-columns: subgrid }`, reading its column tracks from the parent
+`.list` grid). The date-grouped structure originally gave each date its
+own `<section>` wrapping its own `<ul class="list">` — its own separate
+grid container. Grid track sizing is computed independently per container,
+so columns aligned within a date but not *across* dates, each day sizing
+its own columns from only that day's own content. Fixed by flattening to
+one `<ul class="list">` for the whole page: each date heading is now a
+plain `<li>` (spanning every column via `grid-column: 1 / -1`) sitting as
+a sibling of that date's `<li class="card">` items, all inside the same
+grid container, so every column's width is now computed once across every
+row on the page. `<section>`/one-`<ul>`-per-date is gone entirely; a `<Fragment
+key={...}>` per date group keeps the flat `<li>` sequence without adding a
+wrapping DOM element (which would have defeated the point — one shared
+grid needs the date heading and every card as direct children of the same
+grid container). Per-date visual grouping (the border above each card
+after the first, and the even/odd stripe restarting at each new date) can
+no longer come from `:not(:first-child)`/`:nth-child(even)` sibling
+selectors, since those now count across the whole flat list rather than
+within one date's own items — replaced with an explicit `index` computed
+per date group in `ScheduleList.tsx`, toggling `.cardDivider`/`.cardAlt`
+classes directly instead.
+
+A card with no location (see the Event schema decision above) simply
+doesn't render a `.location` element at all, rather than rendering it
+empty — so `.time`/`.location`/`.description` are given explicit
+`grid-column` indices (1/2/3) rather than relying on grid auto-placement,
+which would otherwise shift a location-less card's description into
+column 2 instead of column 3.
 
 ### Breakpoint strategy: `ScheduleList` no longer uses a breakpoint at all
 **Why (superseded):** the original decision was to duplicate `Nav`'s

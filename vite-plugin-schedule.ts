@@ -18,14 +18,15 @@ export interface SchedulePluginOptions {
 interface RawScheduleRow {
   date: Date
   timeRange: string
-  location: string
+  location: string | undefined
   description: string
 }
 
 const schema: Schema<RawScheduleRow> = {
   date: { column: 'Date', type: parseEventDate, required: true },
   timeRange: { column: 'Start time - End time', type: String, required: true },
-  location: { column: 'Location', type: String, required: true },
+  // Optional — see ScheduleEventData's own comment for why.
+  location: { column: 'Location', type: String, required: false },
   description: { column: 'Description', type: String, required: true },
 }
 
@@ -55,7 +56,8 @@ async function loadScheduleData(scheduleFile: string): Promise<ScheduleEventData
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      timeRangeErrors.push(`"${row.timeRange}" (${row.location}, ${row.description}): ${message}`)
+      const location = row.location ?? 'no location'
+      timeRangeErrors.push(`"${row.timeRange}" (${location}, ${row.description}): ${message}`)
     }
   }
 

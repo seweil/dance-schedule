@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { ScheduleEvent } from '../types/schedule'
 import { groupEventsByDate } from '../lib/groupEventsByDate'
 import styles from './ScheduleList.module.css'
@@ -21,21 +22,26 @@ export function ScheduleList({ events }: { events: ScheduleEvent[] }) {
   }
 
   return (
-    <>
+    // One shared list (not one per date) so time/location/description columns align
+    // across every day, not just within each day — see ScheduleList.module.css.
+    <ul className={styles.list}>
       {groupEventsByDate(events).map((group) => (
-        <section key={group.date.toISOString()} className={styles.section}>
-          <h2 className={styles.dateHeading}>{dateFormatter.format(group.date)}</h2>
-          <ul className={styles.list}>
-            {group.events.map((event) => (
-              <li key={event.startTime.toISOString()} className={styles.card}>
-                <p className={styles.time}>{formatTimeRange(event.startTime, event.endTime)}</p>
-                <p className={styles.location}>{event.location}</p>
-                <p className={styles.description}>{event.description}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Fragment key={group.date.toISOString()}>
+          <li className={styles.dateHeading}>
+            <h2>{dateFormatter.format(group.date)}</h2>
+          </li>
+          {group.events.map((event, index) => (
+            <li
+              key={event.startTime.toISOString()}
+              className={`${styles.card} ${index === 0 ? '' : styles.cardDivider} ${index % 2 === 1 ? styles.cardAlt : ''}`.trim()}
+            >
+              <p className={styles.time}>{formatTimeRange(event.startTime, event.endTime)}</p>
+              {event.location && <p className={styles.location}>{event.location}</p>}
+              <p className={styles.description}>{event.description}</p>
+            </li>
+          ))}
+        </Fragment>
       ))}
-    </>
+    </ul>
   )
 }

@@ -5,7 +5,10 @@ export interface ScheduleEventData {
   date: string
   startTime: string
   endTime: string
-  location: string
+  // Optional — not every event has a fixed location (e.g. an all-day activity, or
+  // one that moves between rooms). See ScheduleList.tsx for how a missing location
+  // is rendered (the field is simply omitted, not shown as blank).
+  location: string | undefined
   description: string
 }
 
@@ -14,6 +17,6 @@ export interface ScheduleEvent {
   date: Date
   startTime: Date
   endTime: Date
-  location: string
+  location: string | undefined
   description: string
 }

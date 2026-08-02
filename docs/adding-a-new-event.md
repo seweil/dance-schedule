@@ -139,7 +139,10 @@ column headers:
 | 8/15/2026 | 6:00 PM - 7:30 PM | Ballroom | Opening social |
 | Aug 16 | 9:00am-10:00am | Salon A | Beginner lesson |
 
-All four columns are required for every row.
+Date, the time range, and Description are required for every row. Location
+is optional — leave the cell blank for an event with no fixed location
+(e.g. something that isn't tied to one room); the page simply omits that
+line for that event rather than showing it blank.
 
 **Date formats accepted** (any of these):
 - `2026-08-15` (ISO)

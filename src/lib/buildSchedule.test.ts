@@ -45,4 +45,9 @@ describe('buildSchedule', () => {
   it('returns an empty array for empty input', () => {
     expect(buildSchedule([])).toEqual([])
   })
+
+  it('passes through a missing location as undefined', () => {
+    const [event] = buildSchedule([makeEventData({ location: undefined })])
+    expect(event!.location).toBeUndefined()
+  })
 })
