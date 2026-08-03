@@ -68,6 +68,26 @@ export default defineConfig(async () => {
       __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
     },
+    server: {
+      watch: {
+        // Polling (periodically re-stat each file), not the default OS-level
+        // change-event watch — root-caused via a direct fs.watch experiment: on
+        // macOS, a native file-change watch is bound to the file's inode at
+        // watch-setup time, and an "atomic save" (write to a temp file, then
+        // rename it over the original — a common pattern specifically to avoid
+        // partial-write corruption, used by this project's own tooling among
+        // others) swaps in a NEW inode at the same path. The watch doesn't
+        // automatically follow that rename, so it goes silently deaf after the
+        // very first edit to any given file for the rest of that dev server's
+        // life — confirmed with a minimal reproduction (a second edit to the same
+        // file produced no fs.watch event at all, even though the first one did).
+        // Polling sidesteps this entirely: it re-reads each file directly on its
+        // own interval instead of depending on an OS event ever being delivered,
+        // so it can't go stale this way. The CPU cost is small for a project this
+        // size; robustness against silently-stale HMR is worth more here.
+        usePolling: true,
+      },
+    },
     plugins: [
       // Must run before vite-plugin-pages resolves .md files as route modules.
       {
