@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  callerColumnWidthPx,
-  CALLER_COLUMN_WIDTH_PX,
+  callerColumnWidthRem,
+  CALLER_COLUMN_WIDTH_REM,
   computeDanceScheduleCallerLayout,
 } from './computeDanceScheduleCallerLayout'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
@@ -70,7 +70,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   it('returns an empty layout for no sessions', () => {
     expect(computeDanceScheduleCallerLayout([], [])).toEqual({
       visibleCallers: [],
-      columnWidthsPx: [],
+      columnWidthsRem: [],
       totalRows: 0,
       timeMarks: [],
       placements: [],
@@ -170,7 +170,7 @@ describe('computeDanceScheduleCallerLayout', () => {
 
     expect(layout).toEqual({
       visibleCallers: [],
-      columnWidthsPx: [],
+      columnWidthsRem: [],
       totalRows: 0,
       timeMarks: [],
       placements: [],
@@ -318,7 +318,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const placementB = layout.placements.find((p) => p.session === b)
       expect(placementA).toMatchObject({ columnStart: 0, lane: 0, laneCount: 2 })
       expect(placementB).toMatchObject({ columnStart: 0, lane: 1, laneCount: 2 })
-      expect(layout.columnWidthsPx[0]).toBe(CALLER_COLUMN_WIDTH_PX * 1.5)
+      expect(layout.columnWidthsRem[0]).toBe(CALLER_COLUMN_WIDTH_REM * 1.5)
     })
 
     it('does not narrow two sessions by the same caller at non-overlapping times', () => {
@@ -351,16 +351,16 @@ describe('computeDanceScheduleCallerLayout', () => {
 
   describe('column width growth', () => {
     it('grows a column by 50% per additional lane past the first', () => {
-      expect(callerColumnWidthPx(1)).toBe(CALLER_COLUMN_WIDTH_PX)
-      expect(callerColumnWidthPx(2)).toBe(CALLER_COLUMN_WIDTH_PX * 1.5)
-      expect(callerColumnWidthPx(3)).toBe(CALLER_COLUMN_WIDTH_PX * 2)
+      expect(callerColumnWidthRem(1)).toBe(CALLER_COLUMN_WIDTH_REM)
+      expect(callerColumnWidthRem(2)).toBe(CALLER_COLUMN_WIDTH_REM * 1.5)
+      expect(callerColumnWidthRem(3)).toBe(CALLER_COLUMN_WIDTH_REM * 2)
     })
 
     it('keeps a column at its ordinary width when nothing in it ever overlaps', () => {
       const padding = padHours('Vic Ceder')
       const layout = computeDanceScheduleCallerLayout(padding, padding)
 
-      expect(layout.columnWidthsPx[0]).toBe(CALLER_COLUMN_WIDTH_PX)
+      expect(layout.columnWidthsRem[0]).toBe(CALLER_COLUMN_WIDTH_REM)
     })
   })
 

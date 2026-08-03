@@ -14,7 +14,9 @@ import { StickyScrollGrid } from './StickyScrollGrid'
 // what determines columns and what text is bold differs between them.
 import styles from './DanceScheduleGrid.module.css'
 
-const TIME_COLUMN_WIDTH = '70px'
+// rem, not px — see ROOM_COLUMN_WIDTH_REM's comment (computeDanceScheduleLayout.ts)
+// for why. 4.375rem is the same physical width px 70 always was, unscaled.
+const TIME_COLUMN_WIDTH = '4.375rem'
 
 function SessionCard({
   placement,
@@ -80,7 +82,7 @@ export function DanceScheduleCallerGrid({
   showGca: boolean
   onShowAllLevels: () => void
 }) {
-  const { visibleCallers, columnWidthsPx, totalRows, timeMarks, placements } = layout
+  const { visibleCallers, columnWidthsRem, totalRows, timeMarks, placements } = layout
 
   if (placements.length === 0) {
     return (
@@ -95,10 +97,10 @@ export function DanceScheduleCallerGrid({
   }
 
   // One explicit track per column (not a uniform repeat()) since each column's
-  // width can differ — see computeDanceScheduleCallerLayout.ts's columnWidthsPx.
+  // width can differ — see computeDanceScheduleCallerLayout.ts's columnWidthsRem.
   const columnTracks =
-    columnWidthsPx.length > 0
-      ? columnWidthsPx.map((width) => `${width}px`).join(' ')
+    columnWidthsRem.length > 0
+      ? columnWidthsRem.map((width) => `${width}rem`).join(' ')
       : CALLER_COLUMN_WIDTH
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} ${columnTracks}`
   const emptyCells = computeEmptyGridCells(totalRows, visibleCallers.length, placements)

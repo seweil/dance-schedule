@@ -3,19 +3,21 @@ import { computeDanceScheduleTimeAxis, type TimeMark } from './computeDanceSched
 import { sessionHours } from './computeDanceScheduleHourSummary'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
-// Independent from ROOM_COLUMN_WIDTH_PX/LEVEL_COLUMN_WIDTH_PX (not shared) since all
-// three may need to diverge with real-world tuning — same reasoning as the level
-// grid's own comment on its constant.
-export const CALLER_COLUMN_WIDTH_PX = 150
-export const CALLER_COLUMN_WIDTH = `${CALLER_COLUMN_WIDTH_PX}px`
+// Independent from ROOM_COLUMN_WIDTH_REM/LEVEL_COLUMN_WIDTH_REM (not shared) since
+// all three may need to diverge with real-world tuning — same reasoning as the
+// level grid's own comment on its constant. rem, not px, so it scales with the
+// text-size preference (useTextSizePreference.ts) — see ROOM_COLUMN_WIDTH_REM's own
+// comment in computeDanceScheduleLayout.ts for the full rationale.
+export const CALLER_COLUMN_WIDTH_REM = 9.375
+export const CALLER_COLUMN_WIDTH = `${CALLER_COLUMN_WIDTH_REM}rem`
 
-// Same growth formula as levelColumnWidthPx — see that function's comment for the
+// Same growth formula as levelColumnWidthRem — see that function's comment for the
 // full rationale. In practice almost every caller column here computes
 // maxLaneCount === 1 (a real caller can't double-book themselves), so this only
 // ever matters for the rare data-entry-error case assignLanesPerSlot defends
 // against.
-export function callerColumnWidthPx(maxLaneCount: number): number {
-  return CALLER_COLUMN_WIDTH_PX * (1 + 0.5 * (maxLaneCount - 1))
+export function callerColumnWidthRem(maxLaneCount: number): number {
+  return CALLER_COLUMN_WIDTH_REM * (1 + 0.5 * (maxLaneCount - 1))
 }
 
 // "GCA Caller Showcase Dance" sessions credit a caller, but per direct product
@@ -66,9 +68,9 @@ export interface DanceCallerSessionPlacement {
 
 export interface DanceScheduleCallerLayout {
   visibleCallers: string[]
-  // One actual pixel width per visible caller, parallel to visibleCallers — see
-  // callerColumnWidthPx.
-  columnWidthsPx: number[]
+  // One rem width per visible caller, parallel to visibleCallers — see
+  // callerColumnWidthRem.
+  columnWidthsRem: number[]
   totalRows: number
   timeMarks: TimeMark[]
   placements: DanceCallerSessionPlacement[]
@@ -76,7 +78,7 @@ export interface DanceScheduleCallerLayout {
 
 const EMPTY_CALLER_LAYOUT: DanceScheduleCallerLayout = {
   visibleCallers: [],
-  columnWidthsPx: [],
+  columnWidthsRem: [],
   totalRows: 0,
   timeMarks: [],
   placements: [],
@@ -229,13 +231,13 @@ function compressToOccupiedRows(
 }
 
 // Each column's width is sized for its own PEAK concurrency across the whole day —
-// see levelColumnWidthPx's identical reasoning in computeDanceScheduleLevelLayout.ts.
-function computeColumnWidthsPx(entries: RawEntry[], visibleCallerCount: number): number[] {
+// see levelColumnWidthRem's identical reasoning in computeDanceScheduleLevelLayout.ts.
+function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number): number[] {
   const maxLaneCounts = new Array<number>(visibleCallerCount).fill(1)
   for (const entry of entries) {
     maxLaneCounts[entry.slotIndex] = Math.max(maxLaneCounts[entry.slotIndex]!, entry.laneCount)
   }
-  return maxLaneCounts.map(callerColumnWidthPx)
+  return maxLaneCounts.map(callerColumnWidthRem)
 }
 
 /**
@@ -318,7 +320,7 @@ export function computeDanceScheduleCallerLayout(
   assignLanesPerSlot(rawEntries)
 
   const compressed = compressToOccupiedRows(rawEntries, timeAxis.timeMarks, timeAxis.totalRows)
-  const columnWidthsPx = computeColumnWidthsPx(compressed.rawEntries, visibleCallers.length)
+  const columnWidthsRem = computeColumnWidthsRem(compressed.rawEntries, visibleCallers.length)
 
   const placements: DanceCallerSessionPlacement[] = compressed.rawEntries.map((entry) => ({
     session: entry.session,
@@ -334,7 +336,7 @@ export function computeDanceScheduleCallerLayout(
 
   return {
     visibleCallers,
-    columnWidthsPx,
+    columnWidthsRem,
     totalRows: compressed.totalRows,
     timeMarks: compressed.timeMarks,
     placements,

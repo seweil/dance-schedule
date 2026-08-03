@@ -71,6 +71,20 @@
      (body, index.css) — without this the leftmost/rightmost tick labels and thumbs
      sit uncomfortably close to the actual screen edge on a narrow phone. */
   margin: 0 var(--space-sm);
+  /* Reserves room for the first/last tick LABEL's own text to overhang past its
+     centered anchor point (see .tick's `transform: translateX(-50%)` below) without
+     getting clipped at the edge of a narrow viewport — the mark/thumb position
+     itself stays exactly on the anchor point regardless, only the wider text next
+     to it needs the extra room. rem, not px, so this scales right along with the
+     text-size preference (useTextSizePreference.ts) that makes the label text
+     itself grow in the first place — confirmed live: at Extra Large (150%) on a
+     390px-wide phone, the last tick's label ("C3B+") was genuinely cut off at the
+     screen edge without this. Set on .levelField itself, not .ticks/.sliderRoot
+     directly — a child's own padding/min-width desyncs .ticks and .sliderRoot's
+     widths from each other, breaking the tick-to-thumb alignment math (see this
+     file's own history above for the confirmed-live failure mode); padding on the
+     shared parent shrinks both of their content boxes identically instead. */
+  padding: 0 1.5rem;
   /* .filters centers this against dateGcaRow's own (shorter) box, but that centers
      the whole tick-labels-plus-track block — since the labels sit above the track,
      plain centering leaves the actual slider LINE below dateGcaRow's own vertical

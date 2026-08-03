@@ -25,8 +25,12 @@ app's first settings/preferences UI of any kind.
 - [x] Whether to also fix `BuildInfo`/`EventsListPage`'s low-contrast fine print
       while auditing readability — see "The low-contrast fine print is
       intentional, not a bug"
-- [ ] Whether the dance-schedule grid's column widths should also scale with text
-      size — deferred, see Open questions.
+- [x] Whether the dance-schedule grid's column widths should also scale with text
+      size — see "Column widths now scale too (`rem`, not `px`)"
+- [x] The level-slider's edge tick labels clipping at the viewport edge at larger
+      text sizes — see "Level-slider edge padding scales with text size too"
+- [x] No indication when the nav tab bar has more (now-wider) tabs scrolled out of
+      view — see "Explicit scroll arrows for the nav tab bar, not a CSS scroll shadow"
 - [ ] Whether this needs Playwright e2e coverage — deferred, see Open questions.
 
 ## Decisions
@@ -99,20 +103,66 @@ everything else on the page — that's a different thing (an opt-in,
 user-controlled scale-everything mechanism) from unilaterally recoloring
 or enlarging it by default.
 
+### Column widths now scale too (`rem`, not `px`)
+**Why:** Originally shipped as an explicit deferred tradeoff (fixed pixel
+widths, only the text growing) on the reasoning that threading the current
+text-size value into the TS layout code would be a materially bigger
+change than a CSS-only rule — but confirmed live to be a real problem, not
+just a theoretical one: at Extra Large on a narrow phone, room/level/caller
+column headers elided much harder than at Normal (e.g. "Ballroom Centre" →
+"Ballroom …"), worse than before this feature existed at all. The
+"threading text-size into layout code" framing turned out to be avoidable
+entirely: the old `ROOM_COLUMN_WIDTH_PX`/`LEVEL_COLUMN_WIDTH_PX`/
+`CALLER_COLUMN_WIDTH_PX` constants (`computeDanceScheduleLayout.ts`/
+`computeDanceScheduleLevelLayout.ts`/`computeDanceScheduleCallerLayout.ts`,
+plus each grid component's own `TIME_COLUMN_WIDTH`) fed inline `style`
+values, but nothing required them to be `px` — renamed to
+`ROOM_COLUMN_WIDTH_REM`/etc. (and `levelColumnWidthPx`/`callerColumnWidthPx`'s
+lane-growth math to `...Rem`) and switched to `rem`, the browser itself
+re-resolves them against the current root font-size on every paint, same as
+any other `rem` value, with zero JS/React state threading needed. Same
+physical size as before at the unscaled 100% (`9.375rem` = `150px`,
+`4.375rem` = `70px`).
+
+### Level-slider edge padding scales with text size too
+**Why:** Confirmed live: at Extra Large on a narrow phone (iPhone 13
+portrait), the level-slider's last tick label ("C3B+") was genuinely cut
+off at the screen edge. Each tick is centered on an exact point (`left`
+computed as a fraction of the track's width, then `transform:
+translateX(-50%)`) so it lines up precisely under its slider thumb — at
+larger text sizes the label text itself is wider, so more of it overhangs
+past that centered point, eventually past the viewport edge, which nothing
+was reserving room for. Fixed with `padding: 0 1.5rem` on `.levelField`
+(`DanceScheduleFilters.module.css`) — `rem`, so the reserved room grows
+right along with the label text doing the overhanging, keeping the same
+proportional margin at every size instead of needing a value tuned per
+step. Set on `.levelField` (the shared parent of both `.ticks` and
+`.sliderRoot`), not on either child directly — this file's own prior
+history already found that a child's own padding/min-width desyncs
+`.ticks` and `.sliderRoot`'s widths from each other, breaking the
+tick-to-thumb alignment math.
+
+### Explicit scroll arrows for the nav tab bar, not a CSS scroll shadow
+**Why:** The desktop tab bar (`Nav.tsx`) already silently scrolled
+horizontally when tabs didn't fit (a narrow window) — confirmed live to get
+meaningfully worse now that every tab is wider at Large/Extra Large, with
+tabs scrolling out of view and nothing but an easy-to-miss native
+scrollbar as a hint they existed at all. Tried a CSS-only "scroll shadow"
+first (paired local/scroll-attachment background gradients, the standard
+technique for this) — rejected after live testing: individual `<li>`/
+`.link` elements (especially the *current* page's own opaque white
+background) sit on top of `.list`'s shared background and cover it up
+right at the edge, exactly where the shadow needs to be visible. Replaced
+with explicit `‹`/`›` overlay buttons (`z-index` above the tab content, so
+they can't be covered the same way), shown only when `Nav.tsx`'s own
+scroll-position check (`scrollLeft`/`scrollWidth`/`clientWidth`, via a
+`ResizeObserver` on the list — not just scroll/window-resize listeners,
+since a text-size change alone doesn't fire either of those) confirms
+there's really more content in that direction, and clicking one scrolls
+all the way to that end.
+
 ## Open questions
 
-- Should the dance-schedule grid's column width (`ROOM_COLUMN_WIDTH_PX`
-  and its level/caller-view equivalents, in `computeDanceScheduleLayout.ts`/
-  `computeDanceScheduleLevelLayout.ts`/`computeDanceScheduleCallerLayout.ts`)
-  also scale with the text-size preference? Currently a fixed **pixel**
-  value, not `rem`, so at a larger text size, columns stay the same
-  physical width while their text grows, meaning card text wraps/clamps
-  more than at Normal. The card grids' line-clamp truncation already
-  degrades gracefully (not a new failure mode), so this was deliberately
-  left fixed for the first pass rather than also threading the current
-  text-size value into the TS layout code that computes those widths (a
-  materially bigger change than a CSS-only rule). Revisit if Extra Large
-  turns out to clamp too aggressively in practice.
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
   PWA-behavior regressions (offline/SW/caching), and a text-size preference
   is app-level UI state closer in kind to the level-range slider (unit-test

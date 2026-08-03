@@ -4,9 +4,14 @@ import type { DanceSession } from '../types/danceSchedule'
 
 // Fixed, not minmax(150px, 1fr) — see the .grid comment in DanceScheduleGrid.module.css
 // for why a flexible track can't be trusted to resolve identically across that
-// component's two separate grid containers (header vs. body).
-export const ROOM_COLUMN_WIDTH_PX = 150
-export const ROOM_COLUMN_WIDTH = `${ROOM_COLUMN_WIDTH_PX}px`
+// component's two separate grid containers (header vs. body). rem, not px — so this
+// grows along with the text-size preference (useTextSizePreference.ts) instead of
+// staying visually fixed while every card's own text scales past it, which used to
+// make room headers elide harder and card text wrap more at Large/Extra Large than
+// at Normal (see docs/design/text-size-preference.md). 9.375rem is the same
+// physical width px 150 always was, at the unscaled 100% root font-size.
+export const ROOM_COLUMN_WIDTH_REM = 9.375
+export const ROOM_COLUMN_WIDTH = `${ROOM_COLUMN_WIDTH_REM}rem`
 
 export interface DanceSessionPlacement {
   session: DanceSession

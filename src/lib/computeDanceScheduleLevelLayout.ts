@@ -3,30 +3,32 @@ import { computeDanceScheduleTimeAxis, isContiguous, type TimeMark } from './com
 import { isOrderedLevel, type LevelSlot } from './levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
 
-// Same 150px starting point as the room-columns grid's own column width — room
-// names (this grid's second card line) aren't reliably shorter than level codes
-// were, so there's no a priori reason to start narrower. Kept independent of the
-// room grid's own constant (not shared) since the two may need to diverge with
-// real-world tuning. Lives here (not the component) so the component's combine-
-// text-onto-one-line check uses the same formula this file's own lane-width math
-// does, not two copies that could drift. This is the 1x (no-overlap) base width —
-// see levelColumnWidthPx below for how a
+// Same 9.375rem (150px at the unscaled 100% root font-size) starting point as the
+// room-columns grid's own column width — room names (this grid's second card line)
+// aren't reliably shorter than level codes were, so there's no a priori reason to
+// start narrower. Kept independent of the room grid's own constant (not shared)
+// since the two may need to diverge with real-world tuning. Lives here (not the
+// component) so the component's combine-text-onto-one-line check uses the same
+// formula this file's own lane-width math does, not two copies that could drift.
+// This is the 1x (no-overlap) base width — see levelColumnWidthRem below for how a
 // column's actual rendered width grows past this when it has concurrent lanes
-// somewhere in its own time range.
-export const LEVEL_COLUMN_WIDTH_PX = 150
-export const LEVEL_COLUMN_WIDTH = `${LEVEL_COLUMN_WIDTH_PX}px`
+// somewhere in its own time range. rem, not px, so it scales with the text-size
+// preference (useTextSizePreference.ts) — see ROOM_COLUMN_WIDTH_REM's own comment
+// in computeDanceScheduleLayout.ts for the full rationale.
+export const LEVEL_COLUMN_WIDTH_REM = 9.375
+export const LEVEL_COLUMN_WIDTH = `${LEVEL_COLUMN_WIDTH_REM}rem`
 
 // A column whose peak concurrency (maxLaneCount, across its whole day — a CSS Grid
 // column has one width for its entire height, so it's sized for its worst case, not
 // per-row) is N lanes gets 50% more width per additional lane past the first: 1x at
 // 1 (no overlap), 1.5x at 2, 2x at 3, and so on. Splitting a column into more lanes
-// narrows each lane's own share of it (see levelTextWidthPx below), which otherwise
+// narrows each lane's own share of it, which otherwise
 // increases word-wrap/clipping risk — this claws back some (not all — an ever-
 // growing column would defeat the point of a fixed-width grid) of that lost width
 // by growing the column itself, proportional to how many lanes are actually sharing
 // it.
-export function levelColumnWidthPx(maxLaneCount: number): number {
-  return LEVEL_COLUMN_WIDTH_PX * (1 + 0.5 * (maxLaneCount - 1))
+export function levelColumnWidthRem(maxLaneCount: number): number {
+  return LEVEL_COLUMN_WIDTH_REM * (1 + 0.5 * (maxLaneCount - 1))
 }
 
 // A session with a real room but no ordered level (e.g. a freeform "Country Western
@@ -62,10 +64,10 @@ export interface DanceLevelSessionPlacement {
 
 export interface DanceScheduleLevelLayout {
   visibleSlots: readonly LevelSlot[]
-  // One actual pixel width per visible slot, parallel to visibleSlots — see
-  // levelColumnWidthPx. Equal to LEVEL_COLUMN_WIDTH_PX for a column with no
+  // One rem width per visible slot, parallel to visibleSlots — see
+  // levelColumnWidthRem. Equal to LEVEL_COLUMN_WIDTH_REM for a column with no
   // overlap anywhere in its own day, wider otherwise.
-  columnWidthsPx: number[]
+  columnWidthsRem: number[]
   totalRows: number
   // One mark per distinct time some visible session starts/ends at — see
   // computeDanceScheduleTimeAxis.ts's DanceScheduleTimeAxis.timeMarks.
@@ -75,7 +77,7 @@ export interface DanceScheduleLevelLayout {
 
 const EMPTY_LEVEL_LAYOUT: DanceScheduleLevelLayout = {
   visibleSlots: [],
-  columnWidthsPx: [],
+  columnWidthsRem: [],
   totalRows: 0,
   timeMarks: [],
   placements: [],
@@ -156,7 +158,7 @@ function buildRawEntries(
 // with no entries at all (including every slot when entries is empty) default to a
 // laneCount of 1 (the plain, ungrown width) — must run after assignLanesPerSlot,
 // which is what actually populates each entry's real laneCount.
-function computeColumnWidthsPx(entries: RawEntry[], visibleSlotCount: number): number[] {
+function computeColumnWidthsRem(entries: RawEntry[], visibleSlotCount: number): number[] {
   const maxLaneCounts = new Array<number>(visibleSlotCount).fill(1)
   for (const entry of entries) {
     if (entry.slotIndex === null) {
@@ -164,7 +166,7 @@ function computeColumnWidthsPx(entries: RawEntry[], visibleSlotCount: number): n
     }
     maxLaneCounts[entry.slotIndex] = Math.max(maxLaneCounts[entry.slotIndex]!, entry.laneCount)
   }
-  return maxLaneCounts.map(levelColumnWidthPx)
+  return maxLaneCounts.map(levelColumnWidthRem)
 }
 
 // Merges a session's per-slot entries back into one wide spanning placement when
@@ -282,14 +284,14 @@ export function computeDanceScheduleLevelLayout(
     rowSpanFor,
   )
   assignLanesPerSlot(rawEntries)
-  const columnWidthsPx = computeColumnWidthsPx(rawEntries, visibleSlots.length)
+  const columnWidthsRem = computeColumnWidthsRem(rawEntries, visibleSlots.length)
   const placements = mergeIntoPlacements(rawEntries, visibleSlots.length)
 
   placements.sort((a, b) => a.rowStart - b.rowStart || a.columnStart - b.columnStart)
 
   return {
     visibleSlots,
-    columnWidthsPx,
+    columnWidthsRem,
     totalRows: timeAxis.totalRows,
     timeMarks: timeAxis.timeMarks,
     placements,

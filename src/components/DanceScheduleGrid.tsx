@@ -15,7 +15,11 @@ import { colorForSession } from '../lib/levelColors'
 import { StickyScrollGrid } from './StickyScrollGrid'
 import styles from './DanceScheduleGrid.module.css'
 
-const TIME_COLUMN_WIDTH = '70px'
+// rem, not px — see ROOM_COLUMN_WIDTH_REM's comment (computeDanceScheduleLayout.ts)
+// for why: this way the time column grows along with the text-size preference too,
+// instead of staying a fixed width while its own .timeLabel text (rem-based) grows
+// past it. 4.375rem is the same physical width px 70 always was, unscaled.
+const TIME_COLUMN_WIDTH = '4.375rem'
 
 function SessionCard({
   placement,

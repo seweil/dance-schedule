@@ -56,7 +56,7 @@ function placement(
 function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceScheduleLevelLayout {
   return {
     visibleSlots: SLOTS.slice(0, 1), // just "SSD"
-    columnWidthsPx: [150],
+    columnWidthsRem: [9.375],
     totalRows: 8,
     timeMarks: [
       { rowStart: 1, label: '12:00 PM' },
@@ -224,17 +224,17 @@ describe('DanceScheduleLevelGrid', () => {
     expect(roomHeader?.closest('.grid')).not.toBe(timeLabel?.closest('.grid'))
   })
 
-  it("uses each column's own (possibly grown) pixel width in gridTemplateColumns, not a uniform repeat()", () => {
+  it("uses each column's own (possibly grown) rem width in gridTemplateColumns, not a uniform repeat()", () => {
     const { container } = render(
       <DanceScheduleLevelGrid
-        layout={makeLayout({ visibleSlots: SLOTS.slice(0, 2), columnWidthsPx: [225, 150] })}
+        layout={makeLayout({ visibleSlots: SLOTS.slice(0, 2), columnWidthsRem: [14.0625, 9.375] })}
         showGca
         onShowAllLevels={() => {}}
       />,
     )
     const grid = container.querySelector('.roomHeader')?.closest('.grid') as HTMLElement
-    expect(grid.style.gridTemplateColumns).toContain('225px')
-    expect(grid.style.gridTemplateColumns).toContain('150px')
+    expect(grid.style.gridTemplateColumns).toContain('14.0625rem')
+    expect(grid.style.gridTemplateColumns).toContain('9.375rem')
   })
 
   it('gives header and body grids the identical computed gridTemplateColumns', () => {

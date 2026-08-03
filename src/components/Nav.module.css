@@ -3,6 +3,13 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Positioning context for .scrollButton below — the buttons overlay the tab row
+   itself (not a separate row of their own), so they need an ancestor to anchor
+   against that's exactly the tab row's own bounds. */
+.listWrapper {
+  position: relative;
+}
+
 /* overflow-x: auto — at a width just above the 640px mobile-menu cutover (a
    tablet in portrait, or a narrow desktop window), six full tab labels don't
    always fit on one line. Without this the flex row had nowhere to put the
@@ -24,6 +31,45 @@
      show a permanent vertical scrollbar across the whole tab bar, when nothing
      here should ever scroll vertically at all. */
   overflow-y: hidden;
+}
+
+/* Scroll-affordance arrows, shown only when Nav.tsx's own scroll-position check
+   says there's really more content in that direction (not decorative-always) —
+   needed because this list already silently scrolls horizontally at a narrow
+   window and (more often) at Large/Extra Large (see useTextSizePreference.ts,
+   which makes every tab wider), and tabs scrolling out of view with nothing but
+   the browser's own easy-to-miss native scrollbar as a hint they existed at all
+   is a real, confirmed-live problem, not just a theoretical one. A CSS-only
+   "scroll shadow" fade was tried first and rejected: individual tabs (especially
+   the current page's own opaque white background) sit on top of the shared list
+   background and cover it up right at the edge, exactly where it matters most —
+   an explicit overlay button, painted above everything via z-index, doesn't have
+   that problem. */
+.scrollButton {
+  position: absolute;
+  top: var(--space-sm);
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  width: 1.5rem;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.scrollButtonLeft {
+  left: 0;
+  justify-content: flex-start;
+  background: linear-gradient(to right, #fff 60%, rgb(255 255 255 / 0%));
+}
+
+.scrollButtonRight {
+  right: 0;
+  justify-content: flex-end;
+  background: linear-gradient(to left, #fff 60%, rgb(255 255 255 / 0%));
 }
 
 /* Each item reads as an actual tab: a bordered, rounded-top box sitting on the

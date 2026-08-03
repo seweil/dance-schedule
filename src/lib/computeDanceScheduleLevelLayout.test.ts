@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeDanceScheduleLevelLayout,
-  levelColumnWidthPx,
-  LEVEL_COLUMN_WIDTH_PX,
+  levelColumnWidthRem,
+  LEVEL_COLUMN_WIDTH_REM,
 } from './computeDanceScheduleLevelLayout'
 import { getLevelSlots } from './levelOrder'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
@@ -38,7 +38,7 @@ describe('computeDanceScheduleLevelLayout', () => {
   it('returns an empty layout for no sessions', () => {
     expect(computeDanceScheduleLevelLayout([], SLOTS, 0, SLOTS.length - 1)).toEqual({
       visibleSlots: [],
-      columnWidthsPx: [],
+      columnWidthsRem: [],
       totalRows: 0,
       timeMarks: [],
       placements: [],
@@ -266,7 +266,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     const placementB = layout.placements.find((p) => p.session === b)
     expect(placementA).toMatchObject({ columnStart: 3, lane: 0, laneCount: 2 })
     expect(placementB).toMatchObject({ columnStart: 3, lane: 1, laneCount: 2 })
-    expect(layout.columnWidthsPx[3]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // Other's own 2-lane peak
+    expect(layout.columnWidthsRem[3]).toBe(LEVEL_COLUMN_WIDTH_REM * 1.5) // Other's own 2-lane peak
   })
 
   it('gives a long event a taller rowSpan than several shorter concurrent events in another column', () => {
@@ -440,17 +440,17 @@ describe('computeDanceScheduleLevelLayout', () => {
 
   describe('column width growth for concurrent overlap lanes', () => {
     it('grows a column by 50% per additional lane past the first (1x/1.5x/2x/2.5x)', () => {
-      expect(levelColumnWidthPx(1)).toBe(LEVEL_COLUMN_WIDTH_PX) // 150 * 1
-      expect(levelColumnWidthPx(2)).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // 225
-      expect(levelColumnWidthPx(3)).toBe(LEVEL_COLUMN_WIDTH_PX * 2) // 300
-      expect(levelColumnWidthPx(4)).toBe(LEVEL_COLUMN_WIDTH_PX * 2.5) // 375
+      expect(levelColumnWidthRem(1)).toBe(LEVEL_COLUMN_WIDTH_REM) // 150 * 1
+      expect(levelColumnWidthRem(2)).toBe(LEVEL_COLUMN_WIDTH_REM * 1.5) // 225
+      expect(levelColumnWidthRem(3)).toBe(LEVEL_COLUMN_WIDTH_REM * 2) // 300
+      expect(levelColumnWidthRem(4)).toBe(LEVEL_COLUMN_WIDTH_REM * 2.5) // 375
     })
 
     it('keeps a column at its ordinary width when nothing in it ever overlaps', () => {
       const session = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', 'Room A')
       const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, SLOTS.length - 1)
 
-      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX)
+      expect(layout.columnWidthsRem[0]).toBe(LEVEL_COLUMN_WIDTH_REM)
     })
 
     it('sizes a column for its peak concurrency across the whole day, not just one moment', () => {
@@ -463,7 +463,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       const c = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T13:30:00.000Z', 'Room A')
       const layout = computeDanceScheduleLevelLayout([a, b, c], SLOTS, 0, SLOTS.length - 1)
 
-      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5)
+      expect(layout.columnWidthsRem[0]).toBe(LEVEL_COLUMN_WIDTH_REM * 1.5)
       const placementC = layout.placements.find((p) => p.session === c)
       expect(placementC).toMatchObject({ laneCount: 1 })
     })
@@ -474,7 +474,7 @@ describe('computeDanceScheduleLevelLayout', () => {
       const c = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T12:30:00.000Z', 'Room C')
       const layout = computeDanceScheduleLevelLayout([a, b, c], SLOTS, 0, SLOTS.length - 1)
 
-      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 2)
+      expect(layout.columnWidthsRem[0]).toBe(LEVEL_COLUMN_WIDTH_REM * 2)
     })
 
     it('does not grow a different column that has no overlap of its own', () => {
@@ -492,8 +492,8 @@ describe('computeDanceScheduleLevelLayout', () => {
         SLOTS.length - 1,
       )
 
-      expect(layout.columnWidthsPx[0]).toBe(LEVEL_COLUMN_WIDTH_PX * 1.5) // SSD
-      expect(layout.columnWidthsPx[1]).toBe(LEVEL_COLUMN_WIDTH_PX) // MS, unaffected
+      expect(layout.columnWidthsRem[0]).toBe(LEVEL_COLUMN_WIDTH_REM * 1.5) // SSD
+      expect(layout.columnWidthsRem[1]).toBe(LEVEL_COLUMN_WIDTH_REM) // MS, unaffected
     })
   })
 })
