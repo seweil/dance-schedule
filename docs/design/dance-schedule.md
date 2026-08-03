@@ -280,9 +280,9 @@ a `"GCA Caller Showcase Dance"` one and one tagged only with an unordered
 level (`Advanced`/`Intro`/`Various`) — this is meant to be a complete,
 honest accounting of the raw parsed data, not a mirror of the Dance by
 Caller page's own curated exclusions (that page deliberately omits
-showcase dances and low-dance-**count** callers for UX reasons that don't
-apply to a debug tool). A freeform session contributes to neither table,
-having no level or caller. `gca` is still never counted as a caller.
+showcase dances and low-hour callers for UX reasons that don't apply to a
+debug tool). A freeform session contributes to neither table, having no
+level or caller. `gca` is still never counted as a caller.
 
 A session spanning more than one level, or co-taught by more than one
 caller, splits its duration evenly across the *distinct* levels/callers it
@@ -295,9 +295,11 @@ rather than alphabetically; caller columns sort alphabetically. A level
 with zero hours is omitted entirely as a column, same as before.
 
 **The caller table also drops any caller whose own total is 3 hours or
-under** (`MIN_CALLER_HOURS`) — per direct product decision, distinct from
-(and a different unit than) the Dance by Caller page's own
-`MIN_CALLER_DANCES` threshold, which counts sessions, not hours. Since
+under** (`MIN_CALLER_HOURS`) — per direct product decision, a separate,
+independent threshold of the same name and value as the Dance by Caller
+page's own `MIN_CALLER_HOURS` (same unit, same number, computed
+differently: this one is a global per-event total across every day; that
+one is a per-day total — see that page's own section below). Since
 filtering happens before the Total row/column are computed, a filtered-out
 caller's hours don't silently leak into either table's own totals — the
 displayed grand total is honestly just the sum of the callers actually
@@ -901,18 +903,43 @@ This is the one place this view's design deliberately doesn't mirror either
 prior view's precedent, rather than extending it.
 
 **"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
-needs more than 3 dances to get a column at all:** both per direct product
+needs more than 3 hours to get a column at all:** both per direct product
 decision, not something derived from the room/level views' own precedent.
 A showcase dance credits a caller but isn't representative of what they
-normally do, so it's excluded up front
-(`GCA_CALLER_SHOWCASE_EVENT_TYPE`) — before column derivation, before dance
-counting, before anything else — rather than just hidden on the card the
-way `showGca` hides the subordinate GCA line elsewhere. `MIN_CALLER_DANCES`
-(3) then drops any caller whose remaining (level-filtered, non-showcase)
-dance count that day is 3 or fewer; a co-taught session counts once toward
-each of its callers independently, so it's possible for the identical
-session to appear under one caller's column but not the other's, if only
-one of them clears the threshold.
+normally do, so it's excluded up front (`GCA_CALLER_SHOWCASE_EVENT_TYPE`,
+via the shared `isEligibleCallerSession` guard) — before column derivation,
+before hour-totaling, before anything else — rather than just hidden on the
+card the way `showGca` hides the subordinate GCA line elsewhere.
+`MIN_CALLER_HOURS` (3, computed via the shared `sessionHours` helper also
+used by the debug-page hour summary above) then drops any caller whose
+remaining (non-showcase) hour total that day is 3 or under. **Deliberately
+computed from `dateSessions` (the whole day, unfiltered), not
+`visibleSessions`** — a caller's eligibility for a column at all must stay
+as stable across the level filter as their column's *order* already is
+(see "Columns are data-derived" above), even though which of their
+sessions are actually drawn still reacts to it normally. Computing the
+threshold from the filtered set instead was a real shipped bug: a caller
+with, say, 3 one-hour sessions inside a narrow level range plus a 4th
+one-hour session just outside it has a day-wide total of 4 hours (a real
+column), but an in-range total of only 3 (at the threshold, not over it) —
+narrowing the level range to exclude that 4th session made the caller's
+*entire* column vanish, including their still-in-range sessions, purely
+because the range had narrowed. A co-taught session splits its duration
+evenly across its distinct callers (same convention as the debug-page hour
+summary's own even split) rather than crediting each with the full session,
+so it's possible for a co-taught session's identical card to appear under
+only one of its two callers' columns, if just one of them clears the
+threshold on their own.
+
+**A caller's column visibility is still a two-part check, same shape as the
+room view's own order-vs-visibility split:** clearing `MIN_CALLER_HOURS`
+day-wide makes a caller *eligible*, but they also need at least one session
+in the current, level-filtered `visibleSessions` to actually show a column
+— an eligible caller with nothing visible right now would otherwise render
+as a pointless empty column. `visibleCallers` is `callerOrder` filtered by
+BOTH the day-wide hour total AND membership in a `visibleCallerSet` built
+from the filtered sessions, mirroring exactly how the room view's
+`visibleRoomSet` (filter-reactive) narrows `roomOrder` (day-wide-stable).
 
 **No contiguous-span merge, unlike either other view:** a multi-room or
 multi-level session gets one wide spanning placement when its columns are
@@ -950,20 +977,6 @@ two — every card renders as an ordinary single-column card, even one whose
 own `location.kind === 'roomless'` (still lands under its real caller's
 column; `formatSessionRoom` just renders `"—"` for it, no special-casing
 needed).
-
-**"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
-needs more than 3 dances to get a column at all:** both per direct product
-decision, not something derived from the room/level views' own precedent.
-A showcase dance credits a caller but isn't representative of what they
-normally do, so it's excluded up front
-(`GCA_CALLER_SHOWCASE_EVENT_TYPE`) — before column derivation, before dance
-counting, before anything else — rather than just hidden on the card the
-way `showGca` hides the subordinate GCA line elsewhere. `MIN_CALLER_DANCES`
-(3) then drops any caller whose remaining (level-filtered, non-showcase)
-dance count that day is 3 or fewer; a co-taught session counts once toward
-each of its callers independently, so it's possible for the identical
-session to appear under one caller's column but not the other's, if only
-one of them clears the threshold.
 
 **Idle rows are dropped entirely, not just capped at one row apiece:**
 `computeDanceScheduleTimeAxis.ts`'s "axis is not a clock" model already

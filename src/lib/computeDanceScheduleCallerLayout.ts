@@ -1,5 +1,6 @@
 import { assignLanesPerSlot } from './assignLanes'
 import { computeDanceScheduleTimeAxis, type TimeMark } from './computeDanceScheduleTimeAxis'
+import { sessionHours } from './computeDanceScheduleHourSummary'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 // Independent from ROOM_COLUMN_WIDTH_PX/LEVEL_COLUMN_WIDTH_PX (not shared) since all
@@ -19,18 +20,27 @@ export function callerColumnWidthPx(maxLaneCount: number): number {
 
 // "GCA Caller Showcase Dance" sessions credit a caller, but per direct product
 // decision this view omits them entirely — they're not representative of what a
-// caller normally does, and mixing them in would inflate a caller's own dance count
-// (see MIN_CALLER_DANCES below) with a session type this page isn't meant to
+// caller normally does, and mixing them in would inflate a caller's own hour total
+// (see MIN_CALLER_HOURS below) with a session type this page isn't meant to
 // surface at all.
 const GCA_CALLER_SHOWCASE_EVENT_TYPE = 'GCA Caller Showcase Dance'
 
-// A caller's column only appears once they have more than this many dances that
+// A caller's column only appears once they have more than this many hours that
 // day — per direct product decision, a caller with just a session or two isn't
-// worth a whole column on this page. Counted against the same level-filtered
-// `structuredVisible` set used everywhere else in this file, so narrowing the
-// level range can drop a caller below the threshold the same way it can hide a
-// room or level column in the other two views.
-const MIN_CALLER_DANCES = 3
+// worth a whole column on this page. Deliberately computed against `dateSessions`
+// (the whole day, unfiltered) rather than the level-filtered `structuredVisible`
+// set used everywhere else in this file — a caller's ELIGIBILITY for a column at
+// all must stay stable as the level range narrows, exactly like room/level column
+// ORDER already does in the other two views (see deriveCallerOrder below). Only
+// which of their sessions are actually drawn should react to the level filter, not
+// whether they have a column in the first place — computing this from the
+// filtered set instead was the root cause of a real bug: narrowing the level range
+// could push a caller's in-range total below the threshold and hide their whole
+// column, including sessions that were themselves within range (see
+// computeDanceScheduleCallerLayout.test.ts's regression test for the exact
+// scenario). A session split across multiple callers counts an even share toward
+// each, same as computeDanceScheduleHourSummary.ts's own MIN_CALLER_HOURS.
+const MIN_CALLER_HOURS = 3
 
 function isEligibleCallerSession(session: DanceSession): session is StructuredSession {
   return session.kind === 'structured' && session.eventType !== GCA_CALLER_SHOWCASE_EVENT_TYPE
@@ -123,8 +133,8 @@ function buildRawEntries(
     for (const caller of new Set(session.callers)) {
       const slotIndex = visibleCallers.indexOf(caller)
       if (slotIndex === -1) {
-        // Below MIN_CALLER_DANCES, so this caller has no column at all — for a
-        // co-taught session this can legitimately drop just one of its two
+        // Below MIN_CALLER_HOURS (day-wide), so this caller has no column at all —
+        // for a co-taught session this can legitimately drop just one of its two
         // placements, leaving the session visible only under whichever caller(s)
         // do meet the threshold.
         continue
@@ -139,7 +149,7 @@ function buildRawEntries(
 // A caller's own sessions are naturally sparse across the day, so unlike the room
 // or level views (where something is almost always running somewhere), this view
 // can have long stretches where nothing is happening for any caller who cleared
-// MIN_CALLER_DANCES. computeDanceScheduleTimeAxis.ts already collapses any such gap
+// MIN_CALLER_HOURS. computeDanceScheduleTimeAxis.ts already collapses any such gap
 // to exactly one row regardless of its real duration ("the axis is not a clock") —
 // this goes one step further, specific to this view, and drops that row entirely so
 // a real boundary's label sits directly after whatever real content preceded it,
@@ -229,7 +239,8 @@ function computeColumnWidthsPx(entries: RawEntry[], visibleCallerCount: number):
  * no dedicated "Other" column, since there's nothing for it to be placed "under."
  * "GCA Caller Showcase Dance" sessions are also omitted entirely (see
  * GCA_CALLER_SHOWCASE_EVENT_TYPE), and a caller only gets a column at all once they
- * have more than MIN_CALLER_DANCES visible dances that day. Only
+ * have more than MIN_CALLER_HOURS hours that day, computed day-wide (see
+ * MIN_CALLER_HOURS's own comment for why). Only
  * kind === 'structured' sessions (guaranteed >= 1 caller) ever produce a
  * placement, one per (deduped) caller they list — see buildRawEntries. There's no
  * contiguous-span-merge concept here (contrast the room/level views' multi-column
@@ -262,18 +273,38 @@ export function computeDanceScheduleCallerLayout(
 
   const callerOrder = deriveCallerOrder(dateSessions)
 
-  // A caller's dance count — each session they're listed on counts once per name,
-  // same as how a co-taught session produces one placement per caller (see
-  // buildRawEntries) — decides both whether their column appears at all
-  // (MIN_CALLER_DANCES) and, implicitly via this same set, that they have
-  // something visible under the current level filter.
-  const danceCounts = new Map<string, number>()
-  for (const session of structuredVisible) {
-    for (const caller of session.callers) {
-      danceCounts.set(caller, (danceCounts.get(caller) ?? 0) + 1)
+  // A caller's day-wide hour total, split evenly across co-callers on a shared
+  // session (same convention as computeDanceScheduleHourSummary.ts) — deliberately
+  // computed from `dateSessions`, not `structuredVisible`, so it stays stable as
+  // the level filter narrows (see MIN_CALLER_HOURS's own comment for why).
+  const hourTotals = new Map<string, number>()
+  for (const session of dateSessions) {
+    if (!isEligibleCallerSession(session)) {
+      continue
+    }
+    const callers = new Set(session.callers)
+    const share = sessionHours(session) / callers.size
+    for (const caller of callers) {
+      hourTotals.set(caller, (hourTotals.get(caller) ?? 0) + share)
     }
   }
-  const visibleCallers = callerOrder.filter((caller) => (danceCounts.get(caller) ?? 0) > MIN_CALLER_DANCES)
+
+  // A caller still needs at least one session under the CURRENT level filter to
+  // show a column at all — clearing MIN_CALLER_HOURS day-wide makes them eligible,
+  // but an eligible caller with nothing visible right now would just be an empty
+  // column, exactly like a room or level with nothing visible in the other two
+  // views. This is the reactive half of the two-part check; hourTotals above is
+  // the stable half.
+  const visibleCallerSet = new Set<string>()
+  for (const session of structuredVisible) {
+    for (const caller of session.callers) {
+      visibleCallerSet.add(caller)
+    }
+  }
+
+  const visibleCallers = callerOrder.filter(
+    (caller) => (hourTotals.get(caller) ?? 0) > MIN_CALLER_HOURS && visibleCallerSet.has(caller),
+  )
 
   const rawEntries = buildRawEntries(structuredVisible, visibleCallers, rowStartFor, rowSpanFor)
   assignLanesPerSlot(rawEntries)

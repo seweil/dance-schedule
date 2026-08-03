@@ -41,24 +41,21 @@ function makeFreeform(startTime: string, endTime: string, overrides: Partial<Dan
   } as DanceSession
 }
 
-// A caller only gets a column once they have MORE THAN 3 dances that day — pad a
-// caller of interest with this many extra, non-overlapping, early-morning sessions
-// (disjoint from any test's own daytime scenario) so the specific behavior under
-// test isn't entangled with the dance-count threshold itself.
-function padDances(caller: string, count = 4): DanceSession[] {
-  return Array.from({ length: count }, (_, i) =>
-    makeSession(
-      `2026-07-02T0${i}:00:00.000Z`,
-      `2026-07-02T0${i}:30:00.000Z`,
-      [caller],
-      { location: located('Padding Room') },
-    ),
-  )
+// A caller only gets a column once they have MORE THAN 3 HOURS that day (day-wide,
+// not reactive to the level filter) — pad a caller of interest with one early-
+// morning session of this many hours (disjoint from any test's own daytime
+// scenario) so the specific behavior under test isn't entangled with the hour
+// threshold itself. Built from a start Date + hour offset (not a string template)
+// so fractional hours (e.g. 3.5) work exactly, not just whole ones.
+function padHours(caller: string, hours = 4): DanceSession[] {
+  const start = new Date('2026-07-02T00:00:00.000Z')
+  const end = new Date(start.getTime() + hours * 60 * 60 * 1000)
+  return [makeSession(start.toISOString(), end.toISOString(), [caller], { location: located('Padding Room') })]
 }
 
 // count back-to-back, non-overlapping, hour-long sessions for one caller starting
 // at startHour — no internal gaps, so a test using this can isolate exactly one
-// deliberate gap elsewhere without padDances's own early-morning gaps confusing it.
+// deliberate gap elsewhere without padHours's own early-morning gaps confusing it.
 function backToBackDances(caller: string, count: number, startHour: number): DanceSession[] {
   return Array.from({ length: count }, (_, i) =>
     makeSession(
@@ -81,7 +78,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('places a single-caller session in its caller column', () => {
-    const padding = padDances('Vic Ceder')
+    const padding = padHours('Vic Ceder')
     const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, session]
     const layout = computeDanceScheduleCallerLayout(sessions, sessions)
@@ -99,7 +96,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('fans a co-taught session out to one placement in each of its callers own columns', () => {
-    const padding = [...padDances('Michael Kellogg'), ...padDances('Terri Sherrer')]
+    const padding = [...padHours('Michael Kellogg'), ...padHours('Terri Sherrer')]
     const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', [
       'Michael Kellogg',
       'Terri Sherrer',
@@ -117,7 +114,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('orders visible callers by first chronological occurrence, not alphabetically', () => {
-    const padding = [...padDances('Vic Ceder'), ...padDances('Allan Hurst')]
+    const padding = [...padHours('Vic Ceder'), ...padHours('Allan Hurst')]
     const first = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const second = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Allan Hurst'])
     const sessions = [...padding, first, second]
@@ -127,9 +124,9 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('hides a caller column once nothing in it is visible, without reshuffling the rest', () => {
-    const cederDances = padDances('Vic Ceder').map((s) => ({ ...s, levels: ['SSD'] }) as DanceSession)
-    const jensenDances = padDances('Kris Jensen').map((s) => ({ ...s, levels: ['SSD'] }) as DanceSession)
-    const hurstDances = padDances('Allan Hurst').map((s) => ({ ...s, levels: ['C4'] }) as DanceSession)
+    const cederDances = padHours('Vic Ceder').map((s) => ({ ...s, levels: ['SSD'] }) as DanceSession)
+    const jensenDances = padHours('Kris Jensen').map((s) => ({ ...s, levels: ['SSD'] }) as DanceSession)
+    const hurstDances = padHours('Allan Hurst').map((s) => ({ ...s, levels: ['C4'] }) as DanceSession)
     const dateSessions = [...cederDances, ...hurstDances, ...jensenDances]
     // Hurst filtered out by level entirely (0 visible dances), but the remaining
     // callers' column-order positions are preserved.
@@ -141,8 +138,8 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('keeps caller order fixed to the unfiltered session list, not just what is currently visible', () => {
-    const cederDances = padDances('Vic Ceder').map((s) => ({ ...s, levels: ['C4'] }) as DanceSession)
-    const hurstDances = padDances('Allan Hurst').map((s) => ({ ...s, levels: ['SSD'] }) as DanceSession)
+    const cederDances = padHours('Vic Ceder').map((s) => ({ ...s, levels: ['C4'] }) as DanceSession)
+    const hurstDances = padHours('Allan Hurst').map((s) => ({ ...s, levels: ['SSD'] }) as DanceSession)
     const dateSessions = [...cederDances, ...hurstDances] // Vic Ceder appears first
     const visibleSessions = hurstDances // Vic Ceder filtered out entirely by level
 
@@ -168,7 +165,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('does not let a callerless session contribute a time-axis row alongside real sessions', () => {
-    const padding = padDances('Vic Ceder')
+    const padding = padHours('Vic Ceder')
     const countryWestern = makeFreeform('2026-07-02T21:00:00.000Z', '2026-07-02T22:00:00.000Z')
     const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, countryWestern, session]
@@ -182,12 +179,12 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('omits "GCA Caller Showcase Dance" sessions entirely, even for an otherwise-qualifying caller', () => {
-    // 4 showcase dances would clear MIN_CALLER_DANCES on a raw count, but none of
-    // them should count at all — this caller should get no column.
+    // 4 hours of showcase dances would clear MIN_CALLER_HOURS on a raw sum, but
+    // none of them should count at all — this caller should get no column.
     const showcase = Array.from({ length: 4 }, (_, i) =>
       makeSession(
         `2026-07-02T0${i}:00:00.000Z`,
-        `2026-07-02T0${i}:30:00.000Z`,
+        `2026-07-02T0${i + 1}:00:00.000Z`,
         ['Janienne Alexander'],
         { eventType: 'GCA Caller Showcase Dance', location: located('Hemon') },
       ),
@@ -199,7 +196,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('excludes only the showcase dances, not a caller\'s other real sessions', () => {
-    const padding = padDances('Vic Ceder') // 4 ordinary dances
+    const padding = padHours('Vic Ceder') // 4 real hours — qualifies on its own
     const showcase = makeSession('2026-07-02T20:00:00.000Z', '2026-07-02T20:30:00.000Z', ['Vic Ceder'], {
       eventType: 'GCA Caller Showcase Dance',
     })
@@ -208,22 +205,47 @@ describe('computeDanceScheduleCallerLayout', () => {
 
     expect(layout.visibleCallers).toEqual(['Vic Ceder'])
     expect(layout.placements.find((p) => p.session === showcase)).toBeUndefined()
-    expect(layout.placements).toHaveLength(4)
+    expect(layout.placements).toHaveLength(1)
   })
 
-  it('hides a caller with exactly 3 dances; shows one with 4', () => {
-    const three = padDances('Barry Clasper', 3)
-    const four = padDances('Justin Russell', 4)
+  it('hides a caller with exactly 3 hours; shows one with more than 3', () => {
+    const three = padHours('Barry Clasper', 3)
+    const four = padHours('Justin Russell', 4)
     const sessions = [...three, ...four]
     const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     expect(layout.visibleCallers).toEqual(['Justin Russell'])
   })
 
-  it('counts a co-taught session once per caller toward each of their own dance counts', () => {
-    // Michael Kellogg has 3 solo dances + 1 co-taught with Terri Sherrer = 4 (shown).
-    // Terri Sherrer only has that 1 co-taught dance = 1 (hidden).
-    const kellogSolo = padDances('Michael Kellogg', 3)
+  it('counts accumulated hours toward the threshold, not raw session count', () => {
+    // 2 long sessions, 4 hours total — qualifies despite having fewer dances.
+    const fewLong = [
+      makeSession('2026-07-02T00:00:00.000Z', '2026-07-02T02:00:00.000Z', ['Dave Decot'], {
+        location: located('Padding Room'),
+      }),
+      makeSession('2026-07-02T02:00:00.000Z', '2026-07-02T04:00:00.000Z', ['Dave Decot'], {
+        location: located('Padding Room'),
+      }),
+    ]
+    // 5 short sessions, 2.5 hours total — does not qualify despite having more dances.
+    const manyShort = Array.from({ length: 5 }, (_, i) =>
+      makeSession(
+        `2026-07-02T0${i}:00:00.000Z`,
+        `2026-07-02T0${i}:30:00.000Z`,
+        ['Ted Lizotte'],
+        { location: located('Padding Room') },
+      ),
+    )
+    const sessions = [...fewLong, ...manyShort]
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+    expect(layout.visibleCallers).toEqual(['Dave Decot'])
+  })
+
+  it('splits a co-taught session evenly across callers toward each of their own hour totals', () => {
+    // Michael Kellogg has 3 solo hours + half of a 1-hour co-taught session = 3.5
+    // (shown, > 3). Terri Sherrer only has that same half-hour share = 0.5 (hidden).
+    const kellogSolo = padHours('Michael Kellogg', 3)
     const coTaught = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', [
       'Michael Kellogg',
       'Terri Sherrer',
@@ -235,8 +257,33 @@ describe('computeDanceScheduleCallerLayout', () => {
     expect(layout.placements.filter((p) => p.session === coTaught)).toHaveLength(1)
   })
 
+  it('keeps a caller eligible from their day-wide hour total, even when the level-filtered subset alone would not qualify (regression)', () => {
+    // Mirrors a real reported bug: a caller had 3 one-hour sessions within a
+    // narrow level range — exactly 3 hours, not enough to qualify alone — plus a
+    // 4th one-hour session at a level outside that range, pushing their DAY-WIDE
+    // total to 4 hours. Narrowing the level filter to exclude that 4th session
+    // must not make the caller's column (or their still-in-range sessions)
+    // disappear, the way computing the threshold from the filtered set itself did.
+    const inRange = [
+      makeSession('2026-07-02T11:00:00.000Z', '2026-07-02T12:00:00.000Z', ['Ted Lizotte'], { levels: ['Plus'] }),
+      makeSession('2026-07-02T13:30:00.000Z', '2026-07-02T14:30:00.000Z', ['Ted Lizotte'], { levels: ['A2'] }),
+      makeSession('2026-07-02T14:30:00.000Z', '2026-07-02T15:30:00.000Z', ['Ted Lizotte'], { levels: ['Plus'] }),
+    ]
+    const outOfRange = makeSession('2026-07-02T15:30:00.000Z', '2026-07-02T16:30:00.000Z', ['Ted Lizotte'], {
+      levels: ['C1'],
+    })
+    const dateSessions = [...inRange, outOfRange]
+    const visibleSessions = inRange // simulates the level filter excluding the C1 session
+
+    const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions)
+
+    expect(layout.visibleCallers).toEqual(['Ted Lizotte'])
+    expect(layout.placements).toHaveLength(3)
+    expect(layout.placements.find((p) => p.session === outOfRange)).toBeUndefined()
+  })
+
   it('sorts placements by rowStart then columnStart', () => {
-    const padding = [...padDances('Allan Hurst'), ...padDances('Vic Ceder')]
+    const padding = [...padHours('Allan Hurst'), ...padHours('Vic Ceder')]
     const later = makeSession('2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z', ['Allan Hurst'])
     const earlier = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, later, earlier]
@@ -248,7 +295,7 @@ describe('computeDanceScheduleCallerLayout', () => {
 
   describe('overlap lanes (defensive — a real caller can only double-book via a data error)', () => {
     it('lane-splits two sessions that mistakenly list the same caller at overlapping times', () => {
-      const padding = padDances('Vic Ceder')
+      const padding = padHours('Vic Ceder')
       const a = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Vic Ceder'])
       const b = makeSession('2026-07-02T09:30:00.000Z', '2026-07-02T10:30:00.000Z', ['Vic Ceder'])
       const sessions = [...padding, a, b]
@@ -262,7 +309,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     })
 
     it('does not narrow two sessions by the same caller at non-overlapping times', () => {
-      const padding = padDances('Vic Ceder')
+      const padding = padHours('Vic Ceder')
       const morning = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Vic Ceder'])
       const afternoon = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
       const sessions = [...padding, morning, afternoon]
@@ -276,7 +323,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     })
 
     it('deduplicates a session that lists the same caller name twice', () => {
-      const padding = padDances('Vic Ceder')
+      const padding = padHours('Vic Ceder')
       const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', [
         'Vic Ceder',
         'Vic Ceder',
@@ -297,7 +344,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     })
 
     it('keeps a column at its ordinary width when nothing in it ever overlaps', () => {
-      const padding = padDances('Vic Ceder')
+      const padding = padHours('Vic Ceder')
       const layout = computeDanceScheduleCallerLayout(padding, padding)
 
       expect(layout.columnWidthsPx[0]).toBe(CALLER_COLUMN_WIDTH_PX)

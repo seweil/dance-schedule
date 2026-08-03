@@ -10,9 +10,12 @@ const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEV
 
 // A caller only appears in the caller table at all once their OWN total (summed
 // across every day) exceeds this many hours — per direct product decision, a
-// caller with only a couple hours isn't worth a whole column on this summary.
-// Unrelated to (and a different unit than) the Dance by Caller page's own
-// MIN_CALLER_DANCES threshold, which counts sessions, not hours.
+// caller with only a couple hours isn't worth a whole column on this summary. A
+// separate, independent threshold of the same name and value exists on the Dance
+// by Caller page (computeDanceScheduleCallerLayout.ts) — same unit (hours) and
+// number, but the two are computed differently (this one is a global per-event
+// total across every day; that one is a per-day total) and not meant to be
+// unified into one shared constant.
 const MIN_CALLER_HOURS = 3
 
 export interface DanceScheduleHourSummaryColumn {
@@ -42,7 +45,11 @@ export interface DanceScheduleHourSummary {
   callers: DanceScheduleHourSummaryTable
 }
 
-function sessionHours(session: DanceSession): number {
+// Exported for computeDanceScheduleCallerLayout.ts's own, independent
+// MIN_CALLER_HOURS threshold — shares this formula so the two can't drift on what
+// "an hour of dancing" means, even though the two thresholds themselves are
+// computed differently (see MIN_CALLER_HOURS above).
+export function sessionHours(session: DanceSession): number {
   return (session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)
 }
 
