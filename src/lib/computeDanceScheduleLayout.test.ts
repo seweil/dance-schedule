@@ -95,19 +95,64 @@ describe('computeDanceScheduleLayout', () => {
     }
   })
 
-  it('orders visible rooms by first chronological occurrence, not alphabetically', () => {
+  it('defaults to increasing median dance level, not appearance order (see deriveRoomOrder.test.ts for the algorithm itself)', () => {
     const first = makeSession(
       '2026-07-02T13:00:00.000Z',
       '2026-07-02T14:00:00.000Z',
       located('Ballroom West'),
+      { levels: ['C4'] },
     )
     const second = makeSession(
       '2026-07-02T13:00:00.000Z',
       '2026-07-02T14:00:00.000Z',
       located('Ballroom Centre'),
+      { levels: ['SSD'] },
     )
     const layout = computeDanceScheduleLayout([first, second], [first, second])
 
+    expect(layout.visibleRooms).toEqual(['Ballroom Centre', 'Ballroom West'])
+  })
+
+  it('passes roomOrderConfig through to deriveRoomOrder — "spreadsheet" opts back into appearance order', () => {
+    const first = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Ballroom West'),
+      { levels: ['C4'] },
+    )
+    const second = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Ballroom Centre'),
+      { levels: ['SSD'] },
+    )
+    const layout = computeDanceScheduleLayout([first, second], [first, second], 'spreadsheet')
+
+    expect(layout.visibleRooms).toEqual(['Ballroom West', 'Ballroom Centre'])
+  })
+
+  it('passes roomOrderConfig through to deriveRoomOrder — an explicit array orders exactly as given', () => {
+    const first = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Ballroom West'),
+      { levels: ['SSD'] },
+    )
+    const second = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Ballroom Centre'),
+      { levels: ['C4'] },
+    )
+    const layout = computeDanceScheduleLayout(
+      [first, second],
+      [first, second],
+      ['Ballroom West', 'Ballroom Centre'],
+    )
+
+    // Explicit order wins even though it contradicts both the default (Centre, by
+    // level, would come first) and appearance order would tie neither differently
+    // here — the point is it's neither of those, it's exactly the given list.
     expect(layout.visibleRooms).toEqual(['Ballroom West', 'Ballroom Centre'])
   })
 
@@ -136,11 +181,11 @@ describe('computeDanceScheduleLayout', () => {
         levels: ['SSD'],
       },
     )
-    const dateSessions = [centre, east, west]
+    const allSessions = [centre, east, west]
     // East filtered out, but its column-order position among the others is preserved.
     const visibleSessions = [centre, west]
 
-    const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+    const layout = computeDanceScheduleLayout(allSessions, visibleSessions)
 
     expect(layout.visibleRooms).toEqual(['Ballroom Centre', 'Ballroom West'])
   })
@@ -162,10 +207,10 @@ describe('computeDanceScheduleLayout', () => {
         levels: ['SSD'],
       },
     )
-    const dateSessions = [early, late]
+    const allSessions = [early, late]
     const visibleSessions = [late] // early filtered out by level
 
-    const layout = computeDanceScheduleLayout(dateSessions, visibleSessions)
+    const layout = computeDanceScheduleLayout(allSessions, visibleSessions)
 
     // Ballroom Centre still reserves its column-order position even with nothing
     // visible in it — only Ballroom East (the one with a visible session) actually
@@ -173,6 +218,46 @@ describe('computeDanceScheduleLayout', () => {
     // *order* a room would take if it did become visible again stays anchored to
     // the unfiltered list, not recomputed from just what's currently visible.
     expect(layout.visibleRooms).toEqual(['Ballroom East'])
+  })
+
+  it('computes room order globally across every date, not per date — so it never flips depending on which date is selected', () => {
+    // Room A is the hard room and Room B the easy one on day 1; day 2 reverses it.
+    // Computed per-date in isolation, day 1 would rank B before A and day 2 would
+    // rank A before B — a real flip. Computed globally (pooling both dates), A and
+    // B tie exactly on median and average, so the tiebreak (first appearance across
+    // the WHOLE event, not just one date) picks one fixed order — the same one on
+    // both dates, regardless of each date's own opposite ranking in isolation.
+    const day1A = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Room A'),
+      { levels: ['C4'] },
+    )
+    const day1B = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Room B'),
+      { levels: ['SSD'] },
+    )
+    const day2A = makeSession(
+      '2026-07-03T13:00:00.000Z',
+      '2026-07-03T14:00:00.000Z',
+      located('Room A'),
+      { levels: ['SSD'], date: new Date('2026-07-03T00:00:00.000Z') },
+    )
+    const day2B = makeSession(
+      '2026-07-03T13:00:00.000Z',
+      '2026-07-03T14:00:00.000Z',
+      located('Room B'),
+      { levels: ['C4'], date: new Date('2026-07-03T00:00:00.000Z') },
+    )
+    const allSessions = [day1A, day1B, day2A, day2B]
+
+    const day1Layout = computeDanceScheduleLayout(allSessions, [day1A, day1B])
+    const day2Layout = computeDanceScheduleLayout(allSessions, [day2A, day2B])
+
+    expect(day1Layout.visibleRooms).toEqual(['Room A', 'Room B'])
+    expect(day2Layout.visibleRooms).toEqual(['Room A', 'Room B'])
   })
 
   it('gives a contiguous multi-room session a single spanning placement', () => {
@@ -215,9 +300,16 @@ describe('computeDanceScheduleLayout', () => {
       '2026-07-02T11:00:00.000Z',
       located('Ballroom Centre', 'Ballroom West'),
     )
-    const dateSessions = [centre, east, west, spanning]
+    const allSessions = [centre, east, west, spanning]
 
-    const layout = computeDanceScheduleLayout(dateSessions, dateSessions)
+    // 'spreadsheet' order, not the default — the new default's room grouping
+    // (deriveRoomOrder.ts) would keep Centre/West adjacent specifically to avoid
+    // this fallback, so this defensive path needs an ordering that doesn't have
+    // that protection (see deriveRoomOrder.test.ts for the grouping behavior
+    // itself). Under real spreadsheet-authoring convention this can't happen
+    // either — a spanning session's ROOMS:/ditto-mark rooms are always already
+    // adjacent columns — so this scenario is a synthetic one either way.
+    const layout = computeDanceScheduleLayout(allSessions, allSessions, 'spreadsheet')
 
     const placements = layout.placements.filter((p) => p.session === spanning)
     expect(placements).toHaveLength(2)
@@ -246,9 +338,9 @@ describe('computeDanceScheduleLayout', () => {
       { kind: 'roomless' },
       { kind: 'freeform', description: 'Lunch Break' },
     )
-    const dateSessions = [lunch, centre, east]
+    const allSessions = [lunch, centre, east]
 
-    const layout = computeDanceScheduleLayout(dateSessions, dateSessions)
+    const layout = computeDanceScheduleLayout(allSessions, allSessions)
 
     const placement = layout.placements.find((p) => p.session === lunch)
     expect(placement).toMatchObject({ columnStart: 0, columnSpan: 2 })

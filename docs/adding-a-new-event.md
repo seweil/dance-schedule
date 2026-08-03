@@ -127,6 +127,39 @@ won't need it for a real event. It only exists to mark the two built-in
 fixture sets (`automated-testing`, `test`) so they sort to the bottom of
 the `/events` landing page instead of alphabetically alongside real events.
 
+### Dance-schedule room column order (`danceSchedule.roomOrder`)
+
+Also optional. The "Dance Schedule" page's room columns default to
+increasing dance level — specifically, each room's median dance level
+across the **whole event** (every day combined, not recomputed per day —
+ties broken by average level, then by the room's position in
+`dance-schedule.xlsx` if it's still tied) — so easier-level rooms show up
+first, and a room's column position is always the same regardless of which
+day you're viewing. Any rooms a `ROOMS:`/ditto-mark session spans together
+(e.g. an "All Callers Dance" across two ballrooms) always stay next to each
+other in this default, regardless of level, so a spanning session still
+renders as one merged card. If that's not the order you want, `config.yaml`
+supports two overrides:
+
+```yaml
+danceSchedule:
+  # Keep the columns in the same left-to-right order as dance-schedule.xlsx's
+  # own room columns, ignoring level entirely.
+  roomOrder: spreadsheet
+
+  # — or — an exact order, naming every room used anywhere in
+  # dance-schedule.xlsx, exactly once each. The build fails with a listing
+  # of what's missing/unrecognized/duplicated if the list doesn't match.
+  roomOrder:
+    - Ballroom Centre
+    - Ballroom East
+    - Ballroom West
+    - Drummond Ballroom
+```
+
+A room not scheduled on a particular day is simply skipped that day — the
+list is one event-wide setting, not one per day.
+
 ## Step 3: The simple event list (`event-schedule.xlsx`)
 
 This is a flat, one-row-per-event spreadsheet for the "Event Schedule" page

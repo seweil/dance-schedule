@@ -396,6 +396,96 @@ them end-to-end:
 Verified via a `data/dance-schedule-dump.md` diff after rebuilding:
 exactly these three changes appeared, nothing else shifted.
 
+### Room-columns order: median dance level by default, two config overrides, computed globally
+
+**Why:** The room-columns view originally ordered columns purely by first
+appearance in the source spreadsheet (`deriveRoomOrder`, then living inline
+in `computeDanceScheduleLayout.ts`) — a side effect of how the parser
+reconstructs column order, not a considered design choice. Per direct
+product decision, that's now just one of three options, extracted into its
+own `src/lib/deriveRoomOrder.ts` (worth its own file — and its own
+`deriveRoomOrder.test.ts` — once it grew real branching logic, mirroring
+this doc's existing precedent for `computeDanceScheduleTimeAxis.ts`/
+`assignLanes.ts`):
+
+- **Default (`danceSchedule.roomOrder` omitted):** increasing median dance
+  level per room, average as the tiebreaker. Every `(session, room, level)`
+  combination contributes one `LEVEL_ORDER` index to that room's data set —
+  a session spanning two rooms counts toward both; a session with two levels
+  counts both. A room with no leveled sessions at all (only freeform, or
+  only Advanced/Intro/Various) has no data points, so it's treated as
+  median/average `+Infinity` — sorts after every leveled room, and ties with
+  every other such room, which is resolved by the same final tiebreak
+  everything else falls back to: original spreadsheet order. This mirrors
+  the level-columns view's own difficulty-ordered axis (`LEVEL_ORDER`) in
+  spirit, applied per-room instead of being the axis itself.
+  **Rooms are grouped, not sorted individually, so a real multi-room session's
+  rooms always stay adjacent** (`groupSpanningRooms`): median-level sorting
+  alone found a real regression against production data — the actual
+  `backtrack2abq` event's "All Callers Dance" (spanning two ballrooms) and a
+  three-ballroom Brunch both risked landing non-adjacent under a naive
+  per-room sort, since nothing else ties their rooms' *levels* together,
+  silently splitting what used to render as one merged card
+  (`computeDanceScheduleLayout`'s pre-existing non-contiguous-span fallback)
+  into duplicate side-by-side ones. Any two rooms that ever share a
+  multi-room session's `rooms` list are unioned (transitively — union-find,
+  so A-spans-with-B plus B-spans-with-C also keeps A/B/C together) into one
+  group, sorted as a single unit (pooling every member's data points for
+  the group's own median/average), and flattened back out preserving each
+  member's relative spreadsheet position within the group — the same
+  left-to-right order the `ROOMS:`/ditto-mark authoring convention already
+  requires spanning rooms to be in.
+- **`danceSchedule.roomOrder: spreadsheet`:** opts back into the original
+  first-appearance behavior verbatim (the pre-existing `deriveRoomOrder`
+  logic, unchanged, just no longer the only option).
+- **`danceSchedule.roomOrder: [...]`:** an explicit list, used verbatim as
+  the complete global sequence. Per direct product decision, this list must
+  name **every** room in the event exactly once — `validateRoomOrderConfig`
+  (also `deriveRoomOrder.ts`) enforces this at build time (see below),
+  rather than silently accepting a partial list that could hide a forgotten
+  room in a wrong/default position.
+
+**Computed once, globally, from every date at once — not per date, and not
+recomputed per date either:** per direct follow-up product decision, the
+room sequence must be identical regardless of which date is being viewed,
+not just individually stable *within* a date as the level filter changes
+(the original, weaker guarantee). All three options above — median/average,
+`spreadsheet`, and the explicit list — read from `allSessions` (every
+session across every date, unfiltered), not one date's `dateSessions` the
+way this function originally did; `spreadsheetRoomOrder`'s "first
+appearance" and `groupSpanningRooms`'s adjacency grouping are both computed
+across the whole event for the same reason. `computeDanceScheduleLayout`
+calls `deriveRoomOrder` with its own `allSessions` parameter (the full,
+unfiltered, every-date list — `DanceSchedulePage.tsx` passes its
+module-level `sessions` constant, not the `useDanceScheduleFilters` hook's
+per-date `dateSessions`) and filters the result down to `visibleRoomSet`
+(still per-date/per-filter, from `visibleSessions`) to decide which of the
+globally-ordered rooms actually get a column *today* — this is a pure
+reordering of *which room gets which column position*, not a change to
+*which rooms get a column at all* or anything else about the room-columns
+view. `deriveRoomOrder` itself has no notion of "today" at all now — it
+returns one full, ordered list of every room in the event, and the caller
+alone is responsible for narrowing it to what's visible on a given date.
+
+**Completeness validation needs the whole event's data, so it lives in
+`vite-plugin-dance-schedule.ts`, not `vite-plugin-content-config.ts`:**
+checking an explicit `roomOrder` array names every real room requires the
+full multi-date room set from `dance-schedule.xlsx` — data
+`vite-plugin-content-config.ts` (which only ever parses `config.yaml`) has
+no access to. `vite-plugin-dance-schedule.ts` already builds that full set
+once per parse (for `dance-schedule-dump.md`), so it gained a new
+`contentDir` option (sibling to its existing `dataDir`, same value
+`contentConfigPlugin` already receives) purely to locate and load that
+event's `config.yaml` too — via the now-exported
+`loadContentConfigData` (`vite-plugin-content-config.ts`, previously
+private) — and call `validateRoomOrderConfig(builtSessions,
+config.danceSchedule?.roomOrder, configFile)` right after building the full
+session list, throwing a named error (matching this repo's other
+config-validation error style) listing any missing, unknown (typo'd), or
+duplicated room name. `config.yaml` is now also a watched file for
+`virtual:dance-schedule` in dev (alongside `dance-schedule.xlsx` itself), so
+editing the room list live re-triggers this same check.
+
 ### Level slider: a `LevelSlot` indirection, so A1/A2 can combine into one stop per content set
 **Why:** Some events want the skill-level filter slider to treat A1 and A2
 as one combined position (per-event feature flag `combineA1A2`, from
@@ -877,13 +967,21 @@ selection. "Headline caller" means `session.callers` specifically — `gca` is
 already a distinct field the column-derivation step simply never reads, so
 excluding it needed no new code at all.
 
-**Columns are data-derived, like rooms, not filter-derived like levels:**
+**Columns are data-derived, like rooms, not filter-derived like levels, but
+ordered alphabetically by first name — not appearance order, and not
+configurable like the room view's own order (see "Room columns" below):**
 callers are free text with no fixed vocabulary, so `computeDanceScheduleCallerLayout.ts`
-discovers them the same way `deriveRoomOrder` discovers rooms — walking
-`dateSessions` in chronological order, appending each structured session's
-`callers` on first appearance, then filtering to callers actually present in
-`visibleSessions`. This keeps the column set stable as the level range
-narrows, same guarantee the room view already provides.
+discovers *which* callers get a column the same way `deriveRoomOrder`
+discovers rooms — walking `dateSessions`, collecting each structured
+session's `callers` — but unlike rooms, their *order* is a fixed product
+rule, not spreadsheet position: sorted by first name (`firstNameOf`, the
+string up to the first space) via `localeCompare`, tiebroken by full name for
+the rare case of two callers sharing a first name (never observed in real or
+test data, but keeps the result deterministic rather than depending on `Set`
+iteration order). Column membership is still filtered to callers actually
+present in `visibleSessions`, same as before — only the ordering rule
+changed. This keeps the column set stable as the level range narrows, same
+guarantee the room view already provides.
 
 **A session with no caller is skipped entirely, not floated or given a
 dedicated "Other" column:** a freeform session (e.g. a lunch break, or the
@@ -943,8 +1041,8 @@ from the filtered sessions, mirroring exactly how the room view's
 
 **No contiguous-span merge, unlike either other view:** a multi-room or
 multi-level session gets one wide spanning placement when its columns are
-adjacent. Two arbitrary callers' column positions (first-appearance order)
-carry no such adjacency meaning, so a co-taught session (e.g. "Michael
+adjacent. Two arbitrary callers' column positions (alphabetical-by-first-name
+order) carry no such adjacency meaning, so a co-taught session (e.g. "Michael
 Kellogg & Terri Sherrer," real data) instead gets its identical card placed
 independently in each of its callers' own columns — always `columnSpan: 1`,
 per direct product decision ("one column per caller," not a combined "A & B"

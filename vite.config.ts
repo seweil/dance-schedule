@@ -100,7 +100,7 @@ export default defineConfig(async () => {
         resolver: 'react',
       }),
       schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
-      danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
+      danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data`, contentDir: CONTENT_DIR }),
       // dataDir is the content set's own root (config.yaml sits alongside pages/data,
       // not inside data/) — see docs/design/content-config.md.
       contentConfigPlugin({ dataDir: CONTENT_DIR }),

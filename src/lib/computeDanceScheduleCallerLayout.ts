@@ -82,27 +82,35 @@ const EMPTY_CALLER_LAYOUT: DanceScheduleCallerLayout = {
   placements: [],
 }
 
-// Callers in the order they first appear across `dateSessions` (already
-// chronologically sorted, per buildDanceSchedule's contract) — mirrors
-// deriveRoomOrder in computeDanceScheduleLayout.ts exactly, just over each
-// structured session's caller list instead of its room list. A freeform session (no
-// `callers` field at all) contributes nothing — this whole view skips a session
-// with no caller entirely, rather than floating it or giving it a dedicated column
-// the way the other two views handle a session that doesn't fit their own axis (see
-// docs/design/dance-schedule.md).
+// A caller's own given name — the sort key below, per direct product decision
+// ("alphabetical by first name," not full name — square-dance callers are commonly
+// referred to by first name alone, and sorting by last name would put e.g. "Vic
+// Ceder" and "Kris Jensen" in a less recognizable order for that convention).
+function firstNameOf(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name
+}
+
+// Callers, deduped, sorted alphabetically by first name — full name is only a
+// tiebreaker, for the rare case of two callers sharing a first name (never
+// observed in real or test data, but sorting otherwise-equal entries by their own
+// full name keeps the result deterministic rather than depending on Set iteration
+// order). A freeform session (no `callers` field at all) contributes nothing —
+// this whole view skips a session with no caller entirely, rather than floating
+// it or giving it a dedicated column the way the other two views handle a session
+// that doesn't fit their own axis (see docs/design/dance-schedule.md).
 function deriveCallerOrder(dateSessions: DanceSession[]): string[] {
-  const callers: string[] = []
+  const callers = new Set<string>()
   for (const session of dateSessions) {
     if (!isEligibleCallerSession(session)) {
       continue
     }
     for (const caller of session.callers) {
-      if (!callers.includes(caller)) {
-        callers.push(caller)
-      }
+      callers.add(caller)
     }
   }
-  return callers
+  return Array.from(callers).sort(
+    (a, b) => firstNameOf(a).localeCompare(firstNameOf(b)) || a.localeCompare(b),
+  )
 }
 
 // One entry per (session, caller) pair — a co-taught session always produces one

@@ -5,18 +5,26 @@ import readExcelFile from 'read-excel-file/node'
 import { parseDanceScheduleSheet } from './src/lib/parseDanceScheduleSheet'
 import { buildDanceSchedule } from './src/lib/buildDanceSchedule'
 import { formatDanceScheduleMarkdown } from './src/lib/formatDanceScheduleMarkdown'
+import { validateRoomOrderConfig } from './src/lib/deriveRoomOrder'
+import { loadContentConfigData } from './vite-plugin-content-config'
 import type { DanceSessionData } from './src/types/danceSchedule'
 
 export const DANCE_SCHEDULE_VIRTUAL_MODULE_ID = 'virtual:dance-schedule'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + DANCE_SCHEDULE_VIRTUAL_MODULE_ID
 const DANCE_SCHEDULE_FILE_NAME = 'dance-schedule.xlsx'
 const DANCE_SCHEDULE_DUMP_FILE_NAME = 'dance-schedule-dump.md'
+const CONTENT_CONFIG_FILE_NAME = 'config.yaml'
 
 export interface DanceSchedulePluginOptions {
   // Directory (relative to the Vite project root) holding dance-schedule.xlsx (and
   // where dance-schedule-dump.md is (re)written) for the active content set — e.g.
   // "content/automated-testing/data". See docs/design/content-sets.md.
   dataDir: string
+  // The content set's own root (sibling of dataDir, holds config.yaml) — needed
+  // only to cross-check danceSchedule.roomOrder (if set) against this file's own
+  // room names; see validateRoomOrderConfig below. Same value contentConfigPlugin
+  // itself receives as its own dataDir. See docs/design/content-config.md.
+  contentDir: string
 }
 
 async function loadDanceScheduleData(danceScheduleFile: string): Promise<DanceSessionData[]> {
@@ -55,6 +63,7 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
     options.dataDir,
     DANCE_SCHEDULE_DUMP_FILE_NAME,
   )
+  let contentConfigFile = path.resolve(process.cwd(), options.contentDir, CONTENT_CONFIG_FILE_NAME)
 
   return {
     name: 'dance-schedule',
@@ -65,6 +74,7 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
         options.dataDir,
         DANCE_SCHEDULE_DUMP_FILE_NAME,
       )
+      contentConfigFile = path.resolve(config.root, options.contentDir, CONTENT_CONFIG_FILE_NAME)
     },
     resolveId(id) {
       if (id === DANCE_SCHEDULE_VIRTUAL_MODULE_ID) {
@@ -74,12 +84,21 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
     async load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
         this.addWatchFile(danceScheduleFile)
+        this.addWatchFile(contentConfigFile)
         const sessions = await loadDanceScheduleData(danceScheduleFile)
+        const builtSessions = buildDanceSchedule(sessions)
+
+        // Cross-check an explicit danceSchedule.roomOrder (content/<set>/config.yaml)
+        // against this file's own room names — the one place both are available at
+        // once. See docs/design/content-config.md and validateRoomOrderConfig's own
+        // comment for why this can't live inside contentConfigPlugin itself.
+        const contentConfig = loadContentConfigData(contentConfigFile)
+        validateRoomOrderConfig(builtSessions, contentConfig.danceSchedule?.roomOrder, contentConfigFile)
 
         // Debug output: a normalized, human-readable dump of how the spreadsheet was
         // interpreted, regenerated on every parse so it's always in sync — committed
         // to the repo so a spreadsheet change shows up as a reviewable diff.
-        const markdown = formatDanceScheduleMarkdown(buildDanceSchedule(sessions))
+        const markdown = formatDanceScheduleMarkdown(builtSessions)
         await fs.writeFile(danceScheduleDumpFile, markdown + '\n')
 
         return `export default ${JSON.stringify(sessions)}`
@@ -87,8 +106,10 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
     },
     configureServer(server) {
       server.watcher.add(danceScheduleFile)
+      server.watcher.add(contentConfigFile)
       server.watcher.on('change', (changedFile) => {
-        if (path.resolve(changedFile) === danceScheduleFile) {
+        const resolved = path.resolve(changedFile)
+        if (resolved === danceScheduleFile || resolved === contentConfigFile) {
           const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID)
           if (mod) {
             server.moduleGraph.invalidateModule(mod)

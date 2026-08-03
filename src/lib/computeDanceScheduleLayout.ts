@@ -1,4 +1,5 @@
 import { computeDanceScheduleTimeAxis, isContiguous, type TimeMark } from './computeDanceScheduleTimeAxis'
+import { deriveRoomOrder, type RoomOrderConfig } from './deriveRoomOrder'
 import type { DanceSession } from '../types/danceSchedule'
 
 // Fixed, not minmax(150px, 1fr) — see the .grid comment in DanceScheduleGrid.module.css
@@ -37,40 +38,25 @@ const EMPTY_LAYOUT: DanceScheduleLayout = {
   placements: [],
 }
 
-// Rooms in the order they first appear across `dateSessions` (already chronologically
-// sorted, per buildDanceSchedule's contract) — because of how the parser builds a
-// session's `rooms` list (default single-room, or left-to-right ditto chaining), this
-// reconstructs the source spreadsheet's header-column order without it being stored
-// anywhere explicitly. A roomless session contributes no rooms.
-function deriveRoomOrder(dateSessions: DanceSession[]): string[] {
-  const rooms: string[] = []
-  for (const session of dateSessions) {
-    if (session.location.kind !== 'located') {
-      continue
-    }
-    for (const room of session.location.rooms) {
-      if (!rooms.includes(room)) {
-        rooms.push(room)
-      }
-    }
-  }
-  return rooms
-}
-
 /**
  * Computes the calendar grid layout for one date: which room columns are visible,
  * the shared time-axis tick marks, and a placement per visible session (or several,
  * for the rare non-contiguous multi-room fallback — see docs/design/dance-schedule.md).
  *
- * `dateSessions` must be every session for the date (unfiltered) — used only to
- * derive a stable room order, so it never reshuffles as the level filter changes.
- * `visibleSessions` is the level-filtered subset actually rendered — the ONLY input
- * to the time axis itself (see computeDanceScheduleTimeAxis), so the axis always
- * matches exactly what's on screen.
+ * `allSessions` must be every session across the WHOLE EVENT (every date, not just
+ * the one being rendered) — room order is computed globally, once, from this full
+ * set (see deriveRoomOrder.ts), so it's identical on every date, not just stable
+ * as the level filter changes within one date. `visibleSessions` is this date's
+ * level-filtered subset actually rendered — the ONLY input to the time axis itself
+ * (see computeDanceScheduleTimeAxis), so the axis always matches exactly what's on
+ * screen. `roomOrderConfig` is content/<set>/config.yaml's `danceSchedule.roomOrder`
+ * — see deriveRoomOrder.ts for what each value means; `undefined` (the common
+ * case) gets the new median-dance-level default.
  */
 export function computeDanceScheduleLayout(
-  dateSessions: DanceSession[],
+  allSessions: DanceSession[],
   visibleSessions: DanceSession[],
+  roomOrderConfig?: RoomOrderConfig,
 ): DanceScheduleLayout {
   const timeAxis = computeDanceScheduleTimeAxis(visibleSessions)
   if (!timeAxis) {
@@ -78,7 +64,7 @@ export function computeDanceScheduleLayout(
   }
   const { rowStartFor, rowSpanFor } = timeAxis
 
-  const roomOrder = deriveRoomOrder(dateSessions)
+  const roomOrder = deriveRoomOrder(allSessions, roomOrderConfig)
 
   const visibleRoomSet = new Set<string>()
   for (const session of visibleSessions) {

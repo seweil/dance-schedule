@@ -223,6 +223,37 @@ discoverability open question below without touching
 one `vite build` per set and merges output, unaware of the landing page's
 existence.
 
+### `danceSchedule.roomOrder` — a per-event override for the dance-schedule room-columns view's column order
+
+**Why:** The room-columns view (`/dance-schedule`) defaulted to ordering its
+room columns by their first appearance in the source spreadsheet — a side
+effect of the parser, not a considered choice. Per direct product decision,
+the default is now increasing median dance level (average as tiebreak,
+see `docs/design/dance-schedule.md`'s "Room-columns order" decision for the
+algorithm), with a new `danceSchedule.roomOrder` key (sibling of
+`features:`/`manifest:`) letting an event either opt back into spreadsheet
+order (`roomOrder: spreadsheet`) or specify an exact order
+(`roomOrder: [Room A, Room B, ...]`). Reaches client code the same way
+`features.*` already does — a new optional `danceSchedule?: { roomOrder?
+}` field on `ContentConfigData`, read by the same
+`virtual:content-config` module (`vite-plugin-content-config.ts`'s
+`readRoomOrder`, mirroring `readBooleanFeatureFlag`'s shape-validation
+style: `undefined` → default; `'spreadsheet'` → passthrough; array of
+strings → passthrough; anything else → throws).
+
+**The explicit-array case needs a second, separate validation pass that
+can't live in this plugin:** confirming an explicit list names every real
+room requires knowing every room name across the whole event, which lives
+in `dance-schedule.xlsx`, parsed by the entirely separate
+`vite-plugin-dance-schedule.ts` — this plugin only ever sees `config.yaml`.
+Rather than duplicate the shape-validation logic in two places (risking the
+two copies drifting apart), `loadContentConfigData` was **exported** from
+this file so `vite-plugin-dance-schedule.ts` can call it directly once it
+has the full parsed session list, then run the actual completeness check
+(`validateRoomOrderConfig`, `src/lib/deriveRoomOrder.ts`) against it. See
+that file's own doc section for the full mechanics (the new `contentDir`
+plugin option, the added `config.yaml` watch).
+
 ## Open questions
 
 - Should there be more feature flags of this shape in the future, and if

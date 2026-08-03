@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
 import { parse } from 'yaml'
-import type { ContentConfigData } from './src/types/contentConfig'
+import type { ContentConfigData, DanceScheduleRoomOrder } from './src/types/contentConfig'
 
 export const CONTENT_CONFIG_VIRTUAL_MODULE_ID = 'virtual:content-config'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + CONTENT_CONFIG_VIRTUAL_MODULE_ID
@@ -37,7 +37,32 @@ function readBooleanFeatureFlag(
   return value
 }
 
-function loadContentConfigData(configFile: string): ContentConfigData {
+// Shape-only validation — this file has no knowledge of the event's real room
+// names (that lives in the separately-parsed dance-schedule.xlsx), so an explicit
+// array is only checked for "is it an array of strings" here. Completeness against
+// the real room set is a separate, build-time-only cross-check
+// (validateRoomOrderConfig, src/lib/deriveRoomOrder.ts) run from
+// vite-plugin-dance-schedule.ts, the one place both pieces of data are available.
+function readRoomOrder(
+  configFile: string,
+  danceSchedule: Record<string, unknown>,
+): DanceScheduleRoomOrder | undefined {
+  const value = danceSchedule.roomOrder
+  if (value === undefined) {
+    return undefined
+  }
+  if (value === 'spreadsheet') {
+    return value
+  }
+  if (Array.isArray(value) && value.every((entry) => typeof entry === 'string')) {
+    return value as string[]
+  }
+  throw new Error(
+    `${configFile}'s "danceSchedule.roomOrder" must be the string "spreadsheet" or an array of room names, got ${JSON.stringify(value)}`,
+  )
+}
+
+export function loadContentConfigData(configFile: string): ContentConfigData {
   if (!fs.existsSync(configFile)) {
     return DEFAULT_CONTENT_CONFIG
   }
@@ -55,7 +80,16 @@ function loadContentConfigData(configFile: string): ContentConfigData {
   const combineA1A2 = readBooleanFeatureFlag(configFile, features, 'combineA1A2')
   const combineC3BC4 = readBooleanFeatureFlag(configFile, features, 'combineC3BC4')
 
-  return { features: { combineA1A2, combineC3BC4 } }
+  const danceSchedule = ((parsed as Record<string, unknown> | null)?.danceSchedule ?? {}) as Record<
+    string,
+    unknown
+  >
+  const roomOrder = readRoomOrder(configFile, danceSchedule)
+
+  return {
+    features: { combineA1A2, combineC3BC4 },
+    danceSchedule: roomOrder === undefined ? undefined : { roomOrder },
+  }
 }
 
 // Resolves virtual:content-config to the active content set's config.yaml — parsed

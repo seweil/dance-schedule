@@ -113,14 +113,27 @@ describe('computeDanceScheduleCallerLayout', () => {
     }
   })
 
-  it('orders visible callers by first chronological occurrence, not alphabetically', () => {
+  it('orders visible callers alphabetically by first name, not chronological occurrence', () => {
     const padding = [...padHours('Vic Ceder'), ...padHours('Allan Hurst')]
+    // Vic Ceder is scheduled (and padded) first, chronologically — proves the order
+    // below comes from the name, not from appearance order.
     const first = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const second = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Allan Hurst'])
     const sessions = [...padding, first, second]
     const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
-    expect(layout.visibleCallers).toEqual(['Vic Ceder', 'Allan Hurst'])
+    expect(layout.visibleCallers).toEqual(['Allan Hurst', 'Vic Ceder'])
+  })
+
+  it('breaks a tie on first name by full name', () => {
+    const kellogg = padHours('Michael Kellogg')
+    const maltenfort = padHours('Michael Maltenfort')
+    // Maltenfort scheduled/padded first — proves the tiebreak is the full name, not
+    // appearance order.
+    const sessions = [...maltenfort, ...kellogg]
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+    expect(layout.visibleCallers).toEqual(['Michael Kellogg', 'Michael Maltenfort'])
   })
 
   it('hides a caller column once nothing in it is visible, without reshuffling the rest', () => {
@@ -129,12 +142,12 @@ describe('computeDanceScheduleCallerLayout', () => {
     const hurstDances = padHours('Allan Hurst').map((s) => ({ ...s, levels: ['C4'] }) as DanceSession)
     const dateSessions = [...cederDances, ...hurstDances, ...jensenDances]
     // Hurst filtered out by level entirely (0 visible dances), but the remaining
-    // callers' column-order positions are preserved.
+    // callers' column-order positions (alphabetical by first name) are preserved.
     const visibleSessions = [...cederDances, ...jensenDances]
 
     const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions)
 
-    expect(layout.visibleCallers).toEqual(['Vic Ceder', 'Kris Jensen'])
+    expect(layout.visibleCallers).toEqual(['Kris Jensen', 'Vic Ceder'])
   })
 
   it('keeps caller order fixed to the unfiltered session list, not just what is currently visible', () => {

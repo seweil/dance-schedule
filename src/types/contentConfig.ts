@@ -11,6 +11,18 @@ export interface ContentFeatures {
   combineC3BC4: boolean
 }
 
+// content/<set>/config.yaml's `danceSchedule.roomOrder` — see
+// src/lib/deriveRoomOrder.ts for what each value means once it reaches that layer.
+// Omitted entirely (the common case) means "use the new median-dance-level
+// default" — there's no explicit `undefined` variant here since a plain YAML
+// object simply omits the key rather than setting it to some literal "default".
+export type DanceScheduleRoomOrder = 'spreadsheet' | readonly string[]
+
+export interface DanceScheduleConfig {
+  roomOrder?: DanceScheduleRoomOrder
+}
+
 export interface ContentConfigData {
   features: ContentFeatures
+  danceSchedule?: DanceScheduleConfig
 }

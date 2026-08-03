@@ -23,7 +23,6 @@ export function DanceSchedulePage() {
     setLevelRange,
     showGca,
     setShowGca,
-    dateSessions,
     visibleSessions,
   } = useDanceScheduleFilters(
     sessions,
@@ -31,9 +30,12 @@ export function DanceSchedulePage() {
     contentConfig.features.combineC3BC4,
   )
 
+  // `sessions` (every date), not the hook's per-date `dateSessions` — room order is
+  // now computed globally, once, so it's identical across every date rather than
+  // being derived fresh per date (see deriveRoomOrder.ts).
   const layout = useMemo(
-    () => computeDanceScheduleLayout(dateSessions, visibleSessions),
-    [dateSessions, visibleSessions],
+    () => computeDanceScheduleLayout(sessions, visibleSessions, contentConfig.danceSchedule?.roomOrder),
+    [visibleSessions],
   )
 
   return (
