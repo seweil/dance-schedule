@@ -113,4 +113,15 @@ describe('useDanceScheduleFilters', () => {
     expect(result.current.slots).toEqual(getLevelSlots(false, true))
     expect(result.current.maxLevelIndex).toBe(getLevelSlots(false, true).length - 1)
   })
+
+  it('does not crash with no sessions at all, and leaves dates/dateSessions/visibleSessions empty', () => {
+    const { result } = renderHook(() => useDanceScheduleFilters([], false, false))
+
+    expect(result.current.dates).toEqual([])
+    expect(result.current.dateSessions).toEqual([])
+    expect(result.current.visibleSessions).toEqual([])
+    // selectedDate falls back to "now" (resolveStoredDate) when there are no dates
+    // to pick from — not asserted against an exact value, just that it's a real Date.
+    expect(result.current.selectedDate).toBeInstanceOf(Date)
+  })
 })

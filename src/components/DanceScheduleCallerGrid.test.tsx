@@ -117,6 +117,29 @@ describe('DanceScheduleCallerGrid', () => {
     expect(room.tagName).toBe('STRONG')
   })
 
+  it('always renders the levels and details lines separately, even for a long room name', () => {
+    // Same reasoning as the room/level grids' own equivalent tests — rows grow to
+    // fit content now, so there's no more combining onto one line; a long room name
+    // just wraps and grows its row instead.
+    const longRoomSession: StructuredSession = {
+      ...STRUCTURED_SESSION,
+      eventType: 'Dancing',
+      location: { kind: 'located', rooms: ['Grand Salon Ballroom Complex East Wing Annex Hall'] },
+    }
+    const { container } = render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [placement({ session: longRoomSession })] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
+
+    expect(container.querySelector('p.levels')?.textContent).toBe('SSD')
+    expect(container.querySelector('p.details')?.textContent).toBe(
+      'Grand Salon Ballroom Complex East Wing Annex Hall',
+    )
+  })
+
   it('prefixes a non-"Dancing" event type before the bold room, plain text', () => {
     const session: StructuredSession = { ...STRUCTURED_SESSION, eventType: 'Skirt Work Hour' }
     const { container } = render(

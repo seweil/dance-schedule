@@ -51,6 +51,14 @@ describe('resolveStoredDate', () => {
       dates[0]!.getTime(),
     )
   })
+
+  it('falls back to the current time when there are no dates at all', () => {
+    const before = Date.now()
+    const result = resolveStoredDate({}, [])
+    const after = Date.now()
+    expect(result.getTime()).toBeGreaterThanOrEqual(before)
+    expect(result.getTime()).toBeLessThanOrEqual(after)
+  })
 })
 
 describe('resolveStoredLevelRange', () => {

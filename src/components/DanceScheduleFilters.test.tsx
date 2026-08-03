@@ -10,6 +10,7 @@ vi.mock('./DanceScheduleFilters.module.css', () => ({
 const DATES = [new Date('2026-07-02T00:00:00.000Z'), new Date('2026-07-03T00:00:00.000Z')]
 const BASE_SLOTS = getLevelSlots(false, false)
 const COMBINED_SLOTS = getLevelSlots(true, false)
+const C3B_COMBINED_SLOTS = getLevelSlots(false, true)
 
 function renderFilters(overrides: Partial<React.ComponentProps<typeof DanceScheduleFilters>> = {}) {
   const onDateChange = vi.fn()
@@ -122,6 +123,27 @@ describe('DanceScheduleFilters', () => {
       // Index 4 in the 9-slot combined array (SSD, MS, Plus, A1/A2, ...) is closer
       // to min (0) than to max (8), so it moves the min thumb there.
       expect(onLevelRangeChange).toHaveBeenCalledWith(a1a2Index, maxIndex)
+    })
+  })
+
+  describe('with C3B/C4 combined', () => {
+    it('renders 9 ticks, including one labeled "C3B+" in place of separate C3B and C4 ticks', () => {
+      renderFilters({ slots: C3B_COMBINED_SLOTS, maxLevelIndex: C3B_COMBINED_SLOTS.length - 1 })
+      expect(screen.getByRole('button', { name: 'C3B+' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'C3B' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'C4' })).not.toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /./ })).toHaveLength(C3B_COMBINED_SLOTS.length)
+    })
+
+    it('clicking the combined tick extends the range to its slot index, not a raw LEVEL_ORDER index', () => {
+      const c3bIndex = C3B_COMBINED_SLOTS.findIndex((slot) => slot.label === 'C3B+')
+      const { onLevelRangeChange } = renderFilters({
+        slots: C3B_COMBINED_SLOTS,
+        minLevelIndex: 0,
+        maxLevelIndex: 2,
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'C3B+' }))
+      expect(onLevelRangeChange).toHaveBeenCalledWith(0, c3bIndex)
     })
   })
 
