@@ -175,17 +175,21 @@ export default defineConfig(async () => {
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
-      // The second pattern is only for repo-root files (content-config.ts) — vite-
-      // plugin-schedule.ts/vite-plugin-dance-schedule.ts have no tests of their own
-      // (covered live via pnpm build/pnpm dev:test instead), so this doesn't pick up
-      // anything unexpected.
+      // The second pattern is for repo-root files (content-config.ts,
+      // vite-plugin-content-config.ts) — vite-plugin-schedule.ts/
+      // vite-plugin-dance-schedule.ts/vite-plugin-content-sets.ts have no tests of
+      // their own (covered live via pnpm build/pnpm dev:test instead), so this
+      // doesn't pick up anything unexpected.
       include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts'],
       css: true,
       // Informational only (pnpm test:coverage) — nothing enforces a threshold, and
       // CI just uploads the html report as an artifact rather than failing a build
-      // on it. Excludes the same root-level Vite plugins the `include` comment above
-      // already calls out as covered live rather than by a dedicated test, plus
-      // config/type/generated files that aren't meaningfully "coverable" logic.
+      // on it. Excludes the three root-level Vite plugins the `include` comment
+      // above calls out as covered live rather than by a dedicated test (unlike
+      // vite-plugin-content-config.ts, which now has one — see
+      // vite-plugin-content-config.test.ts — so it's deliberately NOT excluded
+      // here), plus config/type/generated files that aren't meaningfully
+      // "coverable" logic.
       coverage: {
         provider: 'v8' as const,
         reporter: ['text', 'html'],
@@ -197,7 +201,9 @@ export default defineConfig(async () => {
           'src/test-setup.ts',
           'src/pages/**',
           '*.config.ts',
-          'vite-plugin-*.ts',
+          'vite-plugin-schedule.ts',
+          'vite-plugin-dance-schedule.ts',
+          'vite-plugin-content-sets.ts',
           'scripts/**',
         ],
       },

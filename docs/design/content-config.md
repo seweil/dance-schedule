@@ -254,6 +254,52 @@ has the full parsed session list, then run the actual completeness check
 that file's own doc section for the full mechanics (the new `contentDir`
 plugin option, the added `config.yaml` watch).
 
+### Dev-only env-var overrides for previewing a different config.yaml value
+
+**Why:** `config.yaml` is one value per content set, so previewing e.g.
+`combineA1A2: false` or a different `danceSchedule.roomOrder` today meant
+hand-editing the active set's `config.yaml` and remembering to revert it
+afterward — the same ad hoc practice already used (and discarded) for
+prior visual checks. Considered spinning up a dedicated content-set
+directory per permutation instead, but rejected: every extra set is a real
+entry in production's `pnpm build` (a whole extra `vite build` invocation)
+and the `/events` landing page, even flagged `testFixture` — a real,
+ongoing cost for what's fundamentally a one-off local preview need, not a
+durable fixture worth publishing. Env vars — `COMBINE_A1A2`, `COMBINE_C3BC4`,
+`DANCE_SCHEDULE_ROOM_ORDER` — read via plain `process.env`, mirror this
+repo's existing `CONTENT_SET`/`BASE_PATH` pattern (`vite.config.ts`)
+exactly: no dotenv, no `.env` file, no custom `import.meta.env` var
+introduced (this repo deliberately has none of those). `DANCE_SCHEDULE_ROOM_ORDER`
+also accepts the sentinel `"default"`, with no boolean equivalent needed,
+so a developer can force the median-level algorithm even when the active
+set's `config.yaml` itself sets `spreadsheet` or an explicit list — a
+plain env var can't express "unset this field," so a sentinel value fills
+that gap.
+
+**Applied inside `loadContentConfigData` itself, not in either caller:**
+this is the one function already shared by the client-shipped
+`virtual:content-config` module and `vite-plugin-dance-schedule.ts`'s
+`validateRoomOrderConfig` cross-check (see above) — overriding here means
+both automatically see the same effective, overridden value with no risk of
+one honoring an override the other misses (e.g. an overridden room list
+still gets validated against the real room set, exactly like a
+`config.yaml`-sourced one would). Applied as the last step, after the
+file-or-default value is fully resolved, so an override behaves identically
+whether `config.yaml` exists, is missing entirely, or simply omits the
+field being overridden. A malformed value (anything other than `"true"`/
+`"false"` for the boolean flags, or `"default"`/`"spreadsheet"`/a
+comma-separated list for room order) throws, naming the env var — same
+fail-loud style as a malformed `config.yaml` value.
+
+**Dev-only, by construction, not by a special-cased guard:** these env vars
+are read once at Vite config time, same as `CONTENT_SET`/`BASE_PATH`, so a
+change needs a dev-server restart, not a hot-reload. No real content-set
+build, `pnpm test`, or `pnpm test:e2e` invocation ever sets them, so leaving
+them unset (the overwhelmingly common case) is byte-for-byte unchanged from
+before this existed — there was no need to gate this behind `NODE_ENV`/
+`import.meta.env.DEV` or restrict it to specific content sets. See
+`docs/testing.md` for the practical usage example.
+
 ## Open questions
 
 - Should there be more feature flags of this shape in the future, and if

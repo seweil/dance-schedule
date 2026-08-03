@@ -16,15 +16,6 @@ export interface ContentConfigPluginOptions {
   dataDir: string
 }
 
-// true for both — docs/adding-a-new-event.md documents omitting config.yaml
-// entirely as producing "sensible defaults," and recommends combining both pairs
-// unless an event genuinely needs them split, so the default must match that
-// recommendation rather than silently doing the opposite (see docs/known-issues.md's
-// now-resolved "combineA1A2 silently defaults to false" item).
-const DEFAULT_CONTENT_CONFIG: ContentConfigData = {
-  features: { combineA1A2: true, combineC3BC4: true },
-}
-
 function readBooleanFeatureFlag(
   configFile: string,
   features: Record<string, unknown>,
@@ -62,29 +53,94 @@ function readRoomOrder(
   )
 }
 
+const COMBINE_A1A2_ENV_VAR = 'COMBINE_A1A2'
+const COMBINE_C3BC4_ENV_VAR = 'COMBINE_C3BC4'
+const ROOM_ORDER_ENV_VAR = 'DANCE_SCHEDULE_ROOM_ORDER'
+
+// Dev-only convenience: lets a developer preview a different value than
+// whatever the active content set's config.yaml actually has, without
+// hand-editing that file (and remembering to revert it) or standing up a
+// whole extra content-set directory per permutation to preview — e.g.
+// `COMBINE_A1A2=false DANCE_SCHEDULE_ROOM_ORDER=spreadsheet pnpm dev:test`. Read
+// via plain `process.env`, mirroring this repo's existing CONTENT_SET/BASE_PATH
+// pattern (vite.config.ts) — no dotenv/`.env` file, no custom `import.meta.env`
+// var introduced. Unset (the default) means no override at all — every real
+// content-set build/test/e2e run leaves these unset, so behavior is
+// byte-for-byte unchanged from before this existed. See
+// docs/design/content-config.md.
+function readBooleanOverride(envVar: string, current: boolean): boolean {
+  const raw = process.env[envVar]
+  if (raw === undefined) {
+    return current
+  }
+  if (raw === 'true') {
+    return true
+  }
+  if (raw === 'false') {
+    return false
+  }
+  throw new Error(`${envVar} must be "true" or "false", got ${JSON.stringify(raw)}`)
+}
+
+// Same convenience as readBooleanOverride above, for danceSchedule.roomOrder —
+// a third accepted value, "default", exists here (with no boolean equivalent
+// needed) so a developer can force the median-level algorithm even when the
+// active set's config.yaml itself sets `spreadsheet` or an explicit list.
+function readRoomOrderOverride(current: DanceScheduleRoomOrder | undefined): DanceScheduleRoomOrder | undefined {
+  const raw = process.env[ROOM_ORDER_ENV_VAR]
+  if (raw === undefined) {
+    return current
+  }
+  if (raw === 'default') {
+    return undefined
+  }
+  if (raw === 'spreadsheet') {
+    return raw
+  }
+  const rooms = raw
+    .split(',')
+    .map((room) => room.trim())
+    .filter((room) => room.length > 0)
+  if (rooms.length === 0) {
+    throw new Error(
+      `${ROOM_ORDER_ENV_VAR} must be "default", "spreadsheet", or a comma-separated room list, got ${JSON.stringify(raw)}`,
+    )
+  }
+  return rooms
+}
+
 export function loadContentConfigData(configFile: string): ContentConfigData {
-  if (!fs.existsSync(configFile)) {
-    return DEFAULT_CONTENT_CONFIG
+  let combineA1A2 = true
+  let combineC3BC4 = true
+  let roomOrder: DanceScheduleRoomOrder | undefined
+
+  if (fs.existsSync(configFile)) {
+    const raw = fs.readFileSync(configFile, 'utf-8')
+    let parsed: unknown
+    try {
+      parsed = parse(raw)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
+    }
+
+    const features = ((parsed as Record<string, unknown> | null)?.features ?? {}) as Record<string, unknown>
+    combineA1A2 = readBooleanFeatureFlag(configFile, features, 'combineA1A2')
+    combineC3BC4 = readBooleanFeatureFlag(configFile, features, 'combineC3BC4')
+
+    const danceSchedule = ((parsed as Record<string, unknown> | null)?.danceSchedule ?? {}) as Record<
+      string,
+      unknown
+    >
+    roomOrder = readRoomOrder(configFile, danceSchedule)
   }
 
-  const raw = fs.readFileSync(configFile, 'utf-8')
-  let parsed: unknown
-  try {
-    parsed = parse(raw)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
-  }
-
-  const features = ((parsed as Record<string, unknown> | null)?.features ?? {}) as Record<string, unknown>
-  const combineA1A2 = readBooleanFeatureFlag(configFile, features, 'combineA1A2')
-  const combineC3BC4 = readBooleanFeatureFlag(configFile, features, 'combineC3BC4')
-
-  const danceSchedule = ((parsed as Record<string, unknown> | null)?.danceSchedule ?? {}) as Record<
-    string,
-    unknown
-  >
-  const roomOrder = readRoomOrder(configFile, danceSchedule)
+  // Applied last, after the file-or-default values are fully resolved, so an
+  // override works identically whether config.yaml exists, is missing, or
+  // simply omits the field being overridden.
+  combineA1A2 = readBooleanOverride(COMBINE_A1A2_ENV_VAR, combineA1A2)
+  combineC3BC4 = readBooleanOverride(COMBINE_C3BC4_ENV_VAR, combineC3BC4)
+  roomOrder = readRoomOrderOverride(roomOrder)
 
   return {
     features: { combineA1A2, combineC3BC4 },

@@ -71,18 +71,19 @@ run's report is exactly as reachable as a passing one's.
 
 Unit tests are colocated: `Foo.ts` → `Foo.test.ts` (or `Foo.tsx` →
 `Foo.test.tsx`) in the same directory, per `CLAUDE.md`'s "colocate a
-component's styles/tests next to the component file" convention. Two files
+component's styles/tests next to the component file" convention. Three files
 break that pattern on purpose, living at the repo root because the code they
-test does too: `content-config.test.ts` and `content-icons.test.ts`. E2E
-specs live entirely separately, under `e2e/`, one file per broad feature area
-(`app.spec.ts`, `content-sets.spec.ts`, `dance-schedule.spec.ts`) rather than
-mirroring the source tree — a Playwright spec exercises a full user flow
-across many components at once, so component-level colocation doesn't apply.
+test does too: `content-config.test.ts`, `content-icons.test.ts`, and
+`vite-plugin-content-config.test.ts`. E2E specs live entirely separately,
+under `e2e/`, one file per broad feature area (`app.spec.ts`,
+`content-sets.spec.ts`, `dance-schedule.spec.ts`) rather than mirroring the
+source tree — a Playwright spec exercises a full user flow across many
+components at once, so component-level colocation doesn't apply.
 
-As of this writing: ~39 unit test files (colocated under `src/`, plus the two
-root-level exceptions above) and 3 e2e spec files. Run `pnpm test:coverage`
-for current, real numbers — don't trust a stale count here as the codebase
-grows.
+As of this writing: ~40 unit test files (colocated under `src/`, plus the
+three root-level exceptions above) and 3 e2e spec files. Run
+`pnpm test:coverage` for current, real numbers — don't trust a stale count
+here as the codebase grows.
 
 **Known gaps** (surfaced by a coverage pass, not exhaustive):
 
@@ -93,13 +94,41 @@ grows.
   same "no unit test" gap, but at least get reached by e2e.
 - `src/components/BuildInfo.tsx` and `src/components/UpdatePrompt.tsx` have
   no unit test and aren't asserted on by any e2e spec either.
-- The root Vite plugins (`vite-plugin-schedule.ts`, `vite-plugin-dance-schedule.ts`,
-  `vite-plugin-content-config.ts`, `vite-plugin-content-sets.ts`) are
+- Three root Vite plugins (`vite-plugin-schedule.ts`,
+  `vite-plugin-dance-schedule.ts`, `vite-plugin-content-sets.ts`) are
   intentionally untested as plugins — their parsing/validation *logic* is
   unit-tested via the pure functions they call (`parseEventDate.ts`,
   `parseTimeRange.ts`, `parseDanceScheduleSheet.ts`, `content-config.ts`,
   etc.), but the thin plugin/Excel-IO wrapper around that logic is only
-  covered live, via `pnpm build`/`pnpm dev:test`.
+  covered live, via `pnpm build`/`pnpm dev:test`. `vite-plugin-content-config.ts`
+  used to be a fourth member of this list, but now has its own
+  `vite-plugin-content-config.test.ts` covering `loadContentConfigData`
+  directly (config.yaml parsing/validation, and the env-var override layer
+  described above) — only its thin `Plugin` object (virtual-module
+  resolution, dev-server file watching) remains covered live only, same as
+  the other three.
 
 None of these are urgent — call them out here so a gap is a known, named
 tradeoff instead of a surprise.
+
+## Previewing a different config.yaml value without editing it
+
+`config.yaml` is one value per content set — there's no way to have, say,
+`combineA1A2: true` and `combineA1A2: false` live at once to compare. For a
+quick local visual check of a different value, `vite-plugin-content-config.ts`
+supports dev-only env-var overrides instead of hand-editing (and remembering
+to revert) the active set's `config.yaml`:
+
+```
+COMBINE_A1A2=false COMBINE_C3BC4=false pnpm dev:test
+DANCE_SCHEDULE_ROOM_ORDER=spreadsheet pnpm dev:test
+DANCE_SCHEDULE_ROOM_ORDER="Test Room A,Test Room B,Test Room C,Test Room D" pnpm dev:test
+```
+
+`DANCE_SCHEDULE_ROOM_ORDER` also accepts `default`, to force the median-level
+algorithm even when the active set's `config.yaml` itself sets something
+else. These are read once at Vite config time (same as `CONTENT_SET`/
+`BASE_PATH`), so a change needs a dev-server restart, not just a save — and
+they're unset in every real build/test/e2e run, so they have no effect
+outside a manual `pnpm dev`/`dev:test` session. See
+`docs/design/content-config.md` for the design rationale.

@@ -1,201 +1,166 @@
-# Sort dance-schedule columns correctly (room / level / caller)
+# Widen `test` content set's visual variety + dev-only config-preview env vars
 
 ## Context
 
-The dance schedule has three column-based views — by room (`/dance-schedule`),
-by level (`/dance-by-level`), by caller (`/dance-by-caller`) — and the user
-wants each one's column order to follow an explicit rule instead of whatever
-today's code happens to produce:
+Requirements coverage recently landed (room/level/caller column sorting),
+but review surfaced that the fixture data used for *visual* review is
+thin: every caller/room name in `content/test/` is a uniform "Test Caller
+N"/"Test Room X" pattern, with no accented characters, no unusually long
+or short names, and no long description text — so a reviewer can't
+actually eyeball how the grid handles those cases. Separately, `config.yaml`
+is one-value-per-content-set, so previewing e.g. `combineA1A2: false` or
+`danceSchedule.roomOrder: spreadsheet` today means hand-editing a set's
+`config.yaml` and reverting afterward — the same ad hoc practice already
+used (and discarded) for prior line-clamp visual checks.
 
-- **Level columns**: increasing difficulty, "Other" last.
-- **Caller columns**: alphabetical by first name.
-- **Room columns**: default to median dance-level per room (average as
-  tiebreak), increasing difficulty — but overridable per event either by an
-  explicit room list in `config.yaml`, or by opting back into today's
-  spreadsheet-column-order behavior.
+Investigation (two Explore passes) established:
+- **`content/test/` is the correct home for this**, not `automated-testing`.
+  `automated-testing` is pinned by many literal-string unit/e2e assertions
+  (exact caller/room names, page headings, nav labels) and must stay
+  stable. `content/test/` is already documented as "deliberately
+  edge-case-flavored" and is only touched by one e2e test
+  (`e2e/content-sets.spec.ts`), which asserts just the `# TEST CONTENT SET`
+  heading and that the Dance Schedule nav link/page renders — not any of
+  its actual session/room/caller content. So `content/test/`'s data is
+  fully free to extend.
+- **No config-override mechanism exists today** — `CONTENT_SET` only picks
+  *which* `config.yaml` is read, never overrides an individual field. No
+  `.env`/`import.meta.env` custom vars are used anywhere in this repo.
+- User's decision: add **dev-only env-var overrides** for the two
+  dance-schedule-relevant config knobs (combine flags, room order),
+  mirroring this repo's existing `CONTENT_SET`/`BASE_PATH` env-var pattern,
+  rather than spinning up extra content-set directories (which would add
+  real entries to production's `pnpm build` and the `/events` landing
+  page).
+- `scripts/edit-test-data.mjs` already exists as the designated, reusable
+  tool for exactly this kind of durable enrichment of
+  `content/test/data/dance-schedule.xlsx` (its own header comment: "run
+  again with a new `additions` entry any time a new edge case needs a
+  visual home").
 
-Investigation found the **level** requirement is already fully satisfied —
-`getLevelSlots`/`LEVEL_ORDER` (`src/lib/levelOrder.ts`) are already increasing
-difficulty, and `OTHER_LEVEL_SLOT` is always appended last
-(`computeDanceScheduleLevelLayout.ts`), with existing test coverage
-(`computeDanceScheduleLevelLayout.test.ts`) locking this in. **No code change
-needed there.**
+This is **visual-review-only, per explicit instruction — no new automated
+tests, no changes to any `*.test.ts(x)`/`e2e/*.spec.ts` file.**
 
-**Callers** currently order by first chronological appearance in the
-spreadsheet (`deriveCallerOrder`, `computeDanceScheduleCallerLayout.ts`) —
-needs to change to alphabetical-by-first-name.
+## Part 1: Widen `content/test`'s visual variety
 
-**Rooms** currently always order by first chronological appearance
-(`deriveRoomOrder`, `computeDanceScheduleLayout.ts`) — needs a new
-median-level default, plus two config-driven overrides.
+Extend `scripts/edit-test-data.mjs`'s `additions` array (append entries,
+keep the one existing "Long Workshop" entry) with new rows covering the
+gaps found. Concrete, illustrative set (adjustable during implementation,
+but this is the intended coverage):
 
-Confirmed with the user:
-- A room with no leveled sessions at all (e.g. only freeform content) sorts
-  **last**, in spreadsheet order, after every room that has at least one
-  leveled session.
-- An explicit `config.yaml` room-order override must name **every** room
-  that appears anywhere in the event (across every date/sheet) — the build
-  fails loudly if it's incomplete, has an unknown name, or a duplicate.
+- **Accented/non-ASCII caller names** — e.g. `François Côté` (ç, ô) and
+  `Björn Åström` (ö, å), each on an ordinary short session, so accent
+  rendering is visible in isolation from any other edge case.
+- **A very long caller name, plain ASCII** — e.g.
+  `Alexander Bartholomew Fitzgerald-Montgomery`, isolating "long" from
+  "accented" so the two effects are visually distinguishable.
+- **A very short, single-word caller name** — e.g. `Zed` — checks the
+  caller-column view's minimum-width layout doesn't look broken, and
+  (nice side effect) gives a visually obvious first-letter check of the
+  alphabetical-by-first-name caller ordering already implemented.
+- **A long room name and a short room name** — e.g.
+  `The Grand Overflow Annex Ballroom` (new column) and `Gym` (new column)
+  — checks column-header wrapping/truncation at both extremes, and lets a
+  reviewer sanity-check the median-room-order feature still looks right
+  with more varied name lengths.
+- **A long details/description line** — e.g. a session whose type reads
+  something like `Advanced Choreography Workshop: Exploring Symmetric and
+  Asymmetric Formations in Contemporary Western Square Dance Technique`,
+  to exercise the card's 4-line-clamp truncation for real (previously only
+  checked via temporary edits that got reverted, per
+  `docs/design/dance-schedule.md`'s own history).
+- **A 3-caller co-taught session** — e.g.
+  `Test Caller One & Test Caller Two & Zed` — the caller-column view only
+  has 2-caller co-teach coverage today; this exercises the per-caller
+  placement fan-out with a third.
+- **A long/accented `GCA:` name** on one session (reuse `François Côté` in
+  the GCA slot on a different session) — checks the `.gca` line's own
+  clamp/rendering, not just `.details`.
+- **A long-named caller in a room-spanning session** (ditto mark or
+  `ROOMS:` line, reusing `Alexander Bartholomew Fitzgerald-Montgomery`) —
+  checks how a wide merged card handles long text, not just a normal
+  single-room one.
 
-## Design
+Update `content/test/pages/2 edge-cases.md`'s existing bullet-list catalog
+to document each new case, matching its current style exactly (it's the
+living index of what this fixture deliberately covers).
 
-### Callers: alphabetical by first name
+Light secondary touch to `content/test/data/event-schedule.xlsx` (the
+flat Schedule page, separate from the dance grid): one row with a long
+Description, one with a short one, one with an accented
+Description/Location — done as a short one-off ExcelJS edit (not a new
+permanent script, unlike the matrix-format dance-schedule.xlsx — this
+file's edits aren't the kind that recur the way room/session additions
+do).
 
-In `computeDanceScheduleCallerLayout.ts`, replace `deriveCallerOrder`'s
-insertion-order dedup with a `Set` + sort keyed by first name
-(`name.trim().split(/\s+/)[0]`), tiebroken by full-name `localeCompare` for
-determinism when two callers share a first name. Update the function's doc
-comment (it currently says it "mirrors `deriveRoomOrder`... first
-appearance" — no longer true). No config option — this one's unconditional,
-matching the user's request (only rooms need an override).
+No changes to `content/automated-testing/` at all.
 
-### Rooms: new `src/lib/deriveRoomOrder.ts` (extracted from `computeDanceScheduleLayout.ts`)
+## Part 2: Dev-only env-var overrides for config.yaml preview
 
-Extracting (not just editing in place) because this grows real branching
-logic worth its own unit tests, mirroring this codebase's existing precedent
-for pulling shared/nontrivial logic into its own `src/lib/*.ts` file
-(`computeDanceScheduleTimeAxis.ts`, `assignLanes.ts`).
+Add override support inside `loadContentConfigData`
+(`vite-plugin-content-config.ts`) — the one function already shared by
+both the client-shipped `virtual:content-config` module *and*
+`vite-plugin-dance-schedule.ts`'s `validateRoomOrderConfig` build-time
+cross-check, so overriding here keeps both consistent automatically
+without touching either caller.
 
-```ts
-export type RoomOrderConfig = 'spreadsheet' | readonly string[] | undefined
+New env vars, read via plain `process.env` (mirrors this repo's existing
+`CONTENT_SET`/`BASE_PATH` pattern — no dotenv/`import.meta.env` introduced):
 
-// Today's existing logic, unchanged, renamed from the exported deriveRoomOrder.
-function spreadsheetRoomOrder(dateSessions: DanceSession[]): string[]
+- `COMBINE_A1A2` — `"true"`/`"false"`, overrides `features.combineA1A2`.
+- `COMBINE_C3BC4` — `"true"`/`"false"`, overrides `features.combineC3BC4`.
+- `DANCE_SCHEDULE_ROOM_ORDER` — `"default"` (forces the median algorithm
+  even if the active set's `config.yaml` sets something else),
+  `"spreadsheet"`, or a comma-separated room list (e.g.
+  `"Test Room A,Test Room B"`, split/trimmed into a `string[]`) — overrides
+  `danceSchedule.roomOrder`.
 
-// New: per room, every ordered-level LEVEL_ORDER index from every structured
-// session located in that room (one entry per session-level pair — a session
-// with 2 levels contributes 2 entries; a session spanning 2 rooms contributes
-// to both rooms). Rooms with zero such entries get median/average = Infinity,
-// which naturally sorts them last; among ties (including all-Infinity rooms),
-// break by original spreadsheetRoomOrder position — keeps them internally in
-// spreadsheet order per the confirmed behavior above.
-function defaultRoomOrder(spreadsheetOrder: string[], dateSessions: DanceSession[]): string[]
+Any set/non-empty value that doesn't match one of these shapes throws a
+fail-loud error naming the env var and the value received, matching this
+file's existing `readBooleanFeatureFlag`/`readRoomOrder` validation style.
+Unset (the default) → no override, today's config.yaml-driven behavior is
+unchanged — this must remain byte-for-byte backward compatible for every
+existing `pnpm build`/`pnpm test`/`pnpm test:e2e` invocation, none of which
+set these vars.
 
-export function deriveRoomOrder(dateSessions: DanceSession[], roomOrderConfig: RoomOrderConfig): string[] {
-  const spreadsheetOrder = spreadsheetRoomOrder(dateSessions)
-  if (roomOrderConfig === 'spreadsheet') return spreadsheetOrder
-  if (Array.isArray(roomOrderConfig)) {
-    // validateRoomOrderConfig (below) already guarantees this names every real
-    // room — just filter to whichever ones are actually present today, in the
-    // configured relative order.
-    return roomOrderConfig.filter((room) => spreadsheetOrder.includes(room))
-  }
-  return defaultRoomOrder(spreadsheetOrder, dateSessions) // undefined → the new default
-}
-
-// Build-time-only cross-check: every room name that appears anywhere across
-// ALL dates (not just one) must appear exactly once in an explicit
-// roomOrderConfig array. Throws a fail-loud, named error (matching this
-// repo's existing config-validation style in vite-plugin-content-config.ts/
-// content-config.ts) listing missing/unknown/duplicate names. No-op when
-// roomOrderConfig isn't an array.
-export function validateRoomOrderConfig(
-  allSessions: DanceSession[],
-  roomOrderConfig: RoomOrderConfig,
-  configFile: string,
-): void
+Example usage once implemented:
+```
+COMBINE_A1A2=false DANCE_SCHEDULE_ROOM_ORDER=spreadsheet pnpm dev:test
 ```
 
-`computeDanceScheduleLayout.ts` drops its local `deriveRoomOrder`, imports
-the new one, and gains a third parameter
-(`roomOrderConfig: RoomOrderConfig`, optional — defaults to `undefined` so
-most existing unit tests that don't care about room order don't need
-touching) threaded straight into `deriveRoomOrder`.
+Document as a new "Decisions" entry in `docs/design/content-config.md`
+(why dev-only, why it lives in the shared `loadContentConfigData` rather
+than duplicated per call site), plus a short practical usage note
+alongside wherever this repo already documents dev commands (check
+`docs/testing.md`'s structure first; fall back to `CLAUDE.md`'s Commands
+section if that doc doesn't fit).
 
-### Config plumbing: `content/<set>/config.yaml`'s new `danceSchedule.roomOrder` key
+## Files touched
 
-Mirrors the existing `features.*` pattern end to end:
+- `scripts/edit-test-data.mjs` (extended `additions` array)
+- `content/test/data/dance-schedule.xlsx` (via running the script)
+- `content/test/data/event-schedule.xlsx` (small direct edit)
+- `content/test/pages/2 edge-cases.md`
+- `vite-plugin-content-config.ts`
+- `docs/design/content-config.md` (+ a short usage note in `docs/testing.md` or `CLAUDE.md`)
 
-```yaml
-danceSchedule:
-  roomOrder: spreadsheet        # opt out of the new default, keep today's column order
-  # — or —
-  roomOrder: [Ballroom Centre, Ballroom East, Ballroom West, Drummond Ballroom]
-```
-
-Omit `danceSchedule` (or `roomOrder`) entirely → new median-level default.
-
-- **`src/types/contentConfig.ts`**: add `DanceScheduleRoomOrder = 'spreadsheet' | readonly string[]`,
-  `DanceScheduleConfig { roomOrder?: DanceScheduleRoomOrder }`, and an optional
-  `danceSchedule?: DanceScheduleConfig` on `ContentConfigData`.
-- **`vite-plugin-content-config.ts`**: add a `readRoomOrder` shape validator
-  (mirrors `readBooleanFeatureFlag`) — `undefined` → `undefined`;
-  `'spreadsheet'` → passthrough; array of strings → passthrough; anything
-  else → throws. Wire into `loadContentConfigData`'s return. **Export**
-  `loadContentConfigData` (currently private) — `vite-plugin-dance-schedule.ts`
-  needs it for the cross-validation below, so there's one source of truth for
-  the shape check rather than a second hand-rolled copy.
-- **`vite-plugin-dance-schedule.ts`**: add a `contentDir` option (the content
-  set's root, sibling of `dataDir` — same value `contentConfigPlugin` already
-  gets). In `load()`, after building `buildDanceSchedule(sessions)` (already
-  computed there for the markdown dump — reuse it, don't recompute), resolve
-  `content/<set>/config.yaml`, call the now-exported `loadContentConfigData`,
-  and call `validateRoomOrderConfig(builtSessions, config.danceSchedule?.roomOrder, configFile)`.
-  Also watch that config file in `configureServer` (same invalidate + full-reload
-  as the xlsx watch already does) so editing `config.yaml`'s room list during
-  `pnpm dev` re-validates live.
-- **`vite.config.ts`**: pass `contentDir: CONTENT_DIR` into `danceSchedulePlugin(...)`.
-- **`src/components/DanceSchedulePage.tsx`**: pass
-  `contentConfig.danceSchedule?.roomOrder` as `computeDanceScheduleLayout`'s
-  third argument (and add it to the `useMemo` deps array).
-
-No existing `content/*/config.yaml` needs edits — every set (including the
-real `backtrack2abq` default and the `automated-testing`/`test` fixtures)
-automatically gets the new median-level default by omission, which is the
-intended outcome.
-
-## Known ripple effects
-
-- `computeDanceScheduleLayout.test.ts` has one test asserting today's
-  first-appearance default (`'orders visible rooms by first chronological
-  occurrence, not alphabetically'`) — its own fixture happens to give both
-  rooms the same level, so it still passes numerically under the new
-  median+tiebreak default, but its name no longer describes the real
-  mechanism. Rewrite it into: (a) a real median-default test where two rooms
-  have *different* levels, proving order follows level, not appearance; (b) a
-  dedicated `roomOrderConfig: 'spreadsheet'` test reusing the old
-  appearance-order scenario to lock in the opt-out. Add new tests for:
-  average tiebreak on an even-count median tie, a no-level room sorting last,
-  an explicit override list being filtered per-date, and
-  `validateRoomOrderConfig`'s missing/unknown/duplicate-name error cases.
-- `computeDanceScheduleCallerLayout.test.ts`: two existing tests assert
-  chronological caller order (`'orders visible callers by first chronological
-  occurrence, not alphabetically'` and `'hides a caller column once nothing in
-  it is visible...'`) — the second one's expected order (`['Vic Ceder', 'Kris
-  Jensen']`) actually flips under alphabetical-by-first-name (`['Kris Jensen',
-  'Vic Ceder']`), a real behavior change, not just a rename. Update both
-  expectations; skim the rest of the file for any other order-dependent
-  assertion.
-- Checked `e2e/dance-schedule.spec.ts` and `DanceScheduleGrid.test.tsx`: none
-  hardcode a specific room name/order (they use `.first()`, counts, or
-  explicitly-passed `visibleRooms` props), so the real fixture's reordering
-  under the new default shouldn't break them — but `pnpm test`/`pnpm build &&
-  pnpm test:e2e` will be the actual check.
-
-## Docs to update (per CLAUDE.md's sync rule)
-
-- `docs/design/dance-schedule.md`: rewrite the room-columns section's
-  `deriveRoomOrder` description (new default + both overrides +
-  build-time validation) and the caller-columns section's "Columns are
-  data-derived, like rooms" + "No contiguous-span merge" paragraphs (drop the
-  "mirrors deriveRoomOrder... first appearance" framing, describe
-  alphabetical-by-first-name instead).
-- `docs/design/content-config.md`: new "Decisions" entry for
-  `danceSchedule.roomOrder`, matching the existing entries' style.
-- `docs/adding-a-new-event.md`: new subsection under "Step 2" documenting the
-  `danceSchedule.roomOrder` key (default, `spreadsheet` opt-out, explicit-list
-  requirements and the fail-loud validation), same style as the existing
-  `features`/`manifest` documentation there.
+No `*.test.ts(x)` or `e2e/*.spec.ts` files touched.
 
 ## Verification
 
-- `pnpm typecheck && pnpm lint && pnpm test` after the code changes.
-- `pnpm build` (exercises `validateRoomOrderConfig` for real against every
-  content set's real data — this is the first real build-time check of this
-  new validation) then `pnpm test:e2e` to confirm the real fixture's reordered
-  room columns don't break any e2e assertion.
-- Spot-check `pnpm dev` on `/dance-schedule` and `/dance-by-caller` to visually
-  confirm the new column orders look right against real fixture data, and that
-  editing `content/automated-testing/config.yaml` to add a deliberately
-  incomplete `danceSchedule.roomOrder` list produces the expected fail-loud
-  error (then revert it).
+- `pnpm typecheck && pnpm lint && pnpm test` — confirms the env-var
+  override code compiles/lints and that leaving every var unset doesn't
+  change any existing test's outcome (none of them set these vars).
+- `pnpm build` — confirms every real content set (which also never sets
+  these vars) still builds identically.
+- **Visual-only, per explicit instruction — no new automated test
+  asserts any of this:**
+  - `pnpm dev:test`, browse `/dance-schedule`, `/dance-by-level`,
+    `/dance-by-caller`, and the Schedule page — eyeball the new
+    accented/long/short/merged/3-caller cases render sensibly (no broken
+    layout, no mojibake, clamps truncate as expected).
+  - Re-run with each override combo, e.g.
+    `COMBINE_A1A2=false pnpm dev:test` and
+    `DANCE_SCHEDULE_ROOM_ORDER=spreadsheet pnpm dev:test`, confirming the
+    override actually takes effect and that an unset var still falls back
+    to `content/test/config.yaml`'s own value.
