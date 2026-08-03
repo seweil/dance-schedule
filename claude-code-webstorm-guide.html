@@ -1,0 +1,485 @@
+<title>Claude Code × WebStorm — macOS Reference</title>
+<style>
+  :root {
+    --bg: #eef0f2;
+    --surface: #ffffff;
+    --surface-2: #e4e7ea;
+    --ink: #1b1e22;
+    --muted: #5b6470;
+    --rule: #ccd1d6;
+    --accent: #c97a2e;
+    --accent-ink: #7a4813;
+    --accent-soft: #f3decb;
+    --key-face: #fbfbfc;
+    --key-edge: #c3c8cd;
+    --key-shadow: #aeb4ba;
+    --autonomy-1: #d8dee3;
+    --autonomy-2: #cfd9de;
+    --autonomy-3: #e7c48f;
+    --autonomy-4: #d98a3d;
+    --font-sans: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1c1f;
+      --surface: #232529;
+      --surface-2: #2b2e33;
+      --ink: #ecedee;
+      --muted: #9aa3ad;
+      --rule: #383c41;
+      --accent: #e3a34c;
+      --accent-ink: #ffd9a0;
+      --accent-soft: rgba(227, 163, 76, 0.16);
+      --key-face: #2c2f34;
+      --key-edge: #45494f;
+      --key-shadow: #131416;
+      --autonomy-1: #33373c;
+      --autonomy-2: #3b4045;
+      --autonomy-3: #5a4826;
+      --autonomy-4: #7a521f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1c1f; --surface: #232529; --surface-2: #2b2e33; --ink: #ecedee; --muted: #9aa3ad;
+    --rule: #383c41; --accent: #e3a34c; --accent-ink: #ffd9a0; --accent-soft: rgba(227, 163, 76, 0.16);
+    --key-face: #2c2f34; --key-edge: #45494f; --key-shadow: #131416;
+    --autonomy-1: #33373c; --autonomy-2: #3b4045; --autonomy-3: #5a4826; --autonomy-4: #7a521f;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f2; --surface: #ffffff; --surface-2: #e4e7ea; --ink: #1b1e22; --muted: #5b6470;
+    --rule: #ccd1d6; --accent: #c97a2e; --accent-ink: #7a4813; --accent-soft: #f3decb;
+    --key-face: #fbfbfc; --key-edge: #c3c8cd; --key-shadow: #aeb4ba;
+    --autonomy-1: #d8dee3; --autonomy-2: #cfd9de; --autonomy-3: #e7c48f; --autonomy-4: #d98a3d;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2.75rem 1.5rem 4rem;
+  }
+
+  header.title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding-bottom: 1.6rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    width: fit-content;
+  }
+  h1 {
+    font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.15rem);
+    margin: 0;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 62ch;
+    line-height: 1.5;
+  }
+  .helpnote {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .helpnote code, .helpnote kbd { font-size: 0.85em; }
+
+  section { margin-bottom: 2.4rem; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+  }
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+  }
+  h2 {
+    font-size: 1.1rem;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .section-sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: -0.5rem 0 1rem;
+    line-height: 1.5;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem 1.3rem;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  .panel table td { padding: 0.5rem 0; border-top: 1px solid var(--rule); vertical-align: top; }
+  .panel table tr:first-child td { border-top: none; }
+  .panel table td:first-child { color: var(--muted); padding-right: 0.9rem; width: 52%; line-height: 1.4; }
+  .panel table td:last-child { text-align: right; white-space: nowrap; }
+
+  kbd {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    line-height: 1;
+    color: var(--ink);
+    background: var(--key-face);
+    border: 1px solid var(--key-edge);
+    border-radius: 6px;
+    padding: 0.28em 0.55em;
+    box-shadow: 0 2px 0 var(--key-shadow);
+    white-space: nowrap;
+  }
+  kbd.accent {
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .keyseq kbd + kbd { margin-left: 0.3em; }
+  .or { color: var(--muted); font-size: 0.82em; margin: 0 0.25em; }
+
+  .modes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.9rem;
+  }
+  @media (max-width: 760px) {
+    .modes { grid-template-columns: 1fr 1fr; }
+  }
+  .mode-card {
+    border-radius: 10px;
+    padding: 1rem 1.05rem 1.1rem;
+    border: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .mode-card[data-autonomy="1"] { background: var(--autonomy-1); }
+  .mode-card[data-autonomy="2"] { background: var(--autonomy-2); }
+  .mode-card[data-autonomy="3"] { background: var(--autonomy-3); }
+  .mode-card[data-autonomy="4"] { background: var(--autonomy-4); color: #2a1d0d; }
+  :root[data-theme="dark"] .mode-card[data-autonomy="4"] { color: #fff2df; }
+  @media (prefers-color-scheme: dark) {
+    .mode-card[data-autonomy="4"] { color: #fff2df; }
+  }
+  :root[data-theme="light"] .mode-card[data-autonomy="4"] { color: #2a1d0d; }
+  .mode-name { font-weight: 600; font-size: 0.98rem; }
+  .mode-key { font-size: 0.78rem; }
+  .mode-what, .mode-for { font-size: 0.83rem; line-height: 1.45; }
+  .mode-for::before {
+    content: "Best for — ";
+    font-weight: 600;
+    opacity: 0.75;
+  }
+  .autonomy-scale {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.7rem;
+  }
+  .autonomy-scale .bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--autonomy-1), var(--autonomy-2), var(--autonomy-3), var(--autonomy-4));
+  }
+
+  .rule-box {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    margin-top: 1rem;
+  }
+  .rule-box strong { color: var(--accent-ink); }
+
+  ul.tips {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  ul.tips li {
+    position: relative;
+    padding-left: 1.15rem;
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+  ul.tips li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .decision-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 1rem;
+    align-items: center;
+  }
+  .decision-grid dt { font-size: 0.92rem; color: var(--muted); }
+  .decision-grid dd { margin: 0; text-align: right; }
+  .pill {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+  }
+  .pill[data-autonomy="1"] { background: var(--autonomy-1); }
+  .pill[data-autonomy="2"] { background: var(--autonomy-2); }
+  .pill[data-autonomy="3"] { background: var(--autonomy-3); }
+  .pill[data-autonomy="4"] { background: var(--autonomy-4); color: #2a1d0d; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.1rem;
+    margin-top: 2.5rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  footer a {
+    color: var(--accent-ink);
+    text-decoration-color: var(--accent);
+    text-underline-offset: 0.15em;
+  }
+  footer a:focus-visible, a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media print {
+    :root, :root[data-theme="dark"], :root[data-theme="light"] {
+      --bg: #ffffff; --surface: #ffffff; --surface-2: #f2f2f2; --ink: #111111; --muted: #444444;
+      --rule: #bbbbbb; --accent: #a5641f; --accent-ink: #6b3d0f; --accent-soft: #f1e1cd;
+      --key-face: #f7f7f7; --key-edge: #999999; --key-shadow: #999999;
+      --autonomy-1: #eeeeee; --autonomy-2: #e2e2e2; --autonomy-3: #e6c891; --autonomy-4: #cf9550;
+    }
+    body { background: #fff; }
+    .sheet { max-width: 100%; padding: 0; }
+    * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    a { color: inherit; text-decoration: none; }
+    section { break-inside: avoid; }
+    .modes { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .panel, .mode-card { transition: border-color 0.15s ease; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="title-block">
+    <span class="eyebrow">macOS · Terminal reference</span>
+    <h1>Claude Code inside WebStorm</h1>
+    <p class="subtitle">
+      Shortcuts and modes for running Claude Code in WebStorm's Terminal tool
+      window — written for keeping several background subtasks straight
+      without losing your place.
+    </p>
+    <p class="helpnote">
+      Keybindings can shift slightly between Claude Code versions. If
+      anything here doesn't match what you see, type <kbd>/help</kbd> inside
+      Claude Code for the current list.
+    </p>
+  </header>
+
+  <div class="two-col">
+    <section class="panel">
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <h2>WebStorm terminal navigation</h2>
+      </div>
+      <table>
+        <tr><td>Focus the Terminal tool window</td><td class="keyseq"><kbd>⌥</kbd><kbd>F12</kbd></td></tr>
+        <tr><td>Search the scrollback buffer</td><td class="keyseq"><kbd>⌘</kbd><kbd>F</kbd></td></tr>
+        <tr><td>Jump to top / bottom of scrollback</td><td class="keyseq"><kbd>⌘</kbd><kbd>Home</kbd><span class="or">/</span><kbd>⌘</kbd><kbd>End</kbd></td></tr>
+        <tr><td>Scroll a screenful at a time</td><td class="keyseq"><kbd>Fn</kbd><kbd>↑</kbd><span class="or">/</span><kbd>Fn</kbd><kbd>↓</kbd></td></tr>
+        <tr><td>Clear visible scrollback</td><td class="keyseq"><kbd>⌘</kbd><kbd>K</kbd></td></tr>
+        <tr><td>New terminal tab</td><td class="keyseq"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>T</kbd></td></tr>
+        <tr><td>Return focus to the editor</td><td class="keyseq"><kbd>Esc</kbd></td></tr>
+      </table>
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <h2>Claude Code, while it's running</h2>
+      </div>
+      <table>
+        <tr><td>Interrupt the current response</td><td class="keyseq"><kbd class="accent">Esc</kbd></td></tr>
+        <tr><td>Cycle your previous prompts</td><td class="keyseq"><kbd>↑</kbd><span class="or">/</span><kbd>↓</kbd></td></tr>
+        <tr><td>Autocomplete a path after <kbd>@</kbd></td><td class="keyseq"><kbd>Tab</kbd></td></tr>
+        <tr><td>Cycle the permission mode</td><td class="keyseq"><kbd class="accent">⇧</kbd><kbd class="accent">Tab</kbd></td></tr>
+        <tr><td>Exit the session</td><td class="keyseq"><kbd>⌃</kbd><kbd>D</kbd><span class="or">×2</span></td></tr>
+        <tr><td>Run a one-off shell command</td><td class="keyseq"><kbd>!</kbd><span class="or">prefix</span></td></tr>
+      </table>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2>Background tasks &amp; subagents — the actual controls</h2>
+    </div>
+    <p class="section-sub">
+      There's no single &ldquo;expand subtask&rdquo; key — these are the real,
+      documented actions.
+    </p>
+    <table>
+      <tr><td>Open the background-task view</td><td class="keyseq"><kbd class="accent">/tasks</kbd></td></tr>
+      <tr><td>Expand a subagent's collapsed output inline</td><td class="keyseq"><kbd class="accent">⌃</kbd><kbd class="accent">O</kbd></td></tr>
+      <tr><td>Toggle the to-do checklist <span class="or">(not <kbd>/tasks</kbd>)</span></td><td class="keyseq"><kbd>⌃</kbd><kbd>T</kbd></td></tr>
+      <tr><td>Push the current task to the background</td><td class="keyseq"><kbd>⌃</kbd><kbd>B</kbd></td></tr>
+      <tr><td>Stop every running background subagent</td><td class="keyseq"><kbd>⌃</kbd><kbd>X</kbd><span class="or">then</span><kbd>⌃</kbd><kbd>K</kbd></td></tr>
+      <tr><td>Open a selected footer item (tasks/artifacts)</td><td class="keyseq"><kbd>←</kbd><span class="or">/</span><kbd>→</kbd><span class="or">then</span><kbd>⏎</kbd></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2>Permission modes — a spectrum of autonomy</h2>
+    </div>
+    <p class="section-sub">
+      Set with <kbd>/permissions</kbd>, cycled with <kbd class="accent">⇧</kbd><kbd class="accent">Tab</kbd>,
+      or fixed as a default in <code>.claude/settings.json</code>.
+    </p>
+
+    <div class="autonomy-scale">
+      <span>Asks about everything</span>
+      <span class="bar"></span>
+      <span>Asks about nothing</span>
+    </div>
+
+    <div class="modes">
+      <div class="mode-card" data-autonomy="1">
+        <div class="mode-name">Plan</div>
+        <div class="mode-key">read-only</div>
+        <div class="mode-what">Can research and draft a plan file, but can't touch code or run side-effecting commands until you approve.</div>
+        <div class="mode-for">Reviewing a big or risky change before anything hits disk; audits like &ldquo;what's shared across X.&rdquo;</div>
+      </div>
+      <div class="mode-card" data-autonomy="2">
+        <div class="mode-name">Default</div>
+        <div class="mode-key">asks first</div>
+        <div class="mode-what">Confirms before anything risky — edits, destructive git commands, sending things.</div>
+        <div class="mode-for">Normal day-to-day work where you want to stay in the loop on every change.</div>
+      </div>
+      <div class="mode-card" data-autonomy="3">
+        <div class="mode-name">Accept&nbsp;Edits</div>
+        <div class="mode-key">auto-edits</div>
+        <div class="mode-what">Auto-approves file edits; still confirms the riskiest actions (force-push, deleting branches).</div>
+        <div class="mode-for">You trust the direction and want subtasks writing files without a prompt per edit.</div>
+      </div>
+      <div class="mode-card" data-autonomy="4">
+        <div class="mode-name">Don't&nbsp;Ask</div>
+        <div class="mode-key">unattended</div>
+        <div class="mode-what">Fully autonomous — no prompts at all, for anything.</div>
+        <div class="mode-for">Long, narrowly-scoped unattended runs, e.g. an overnight <code>/loop</code>. Use sparingly.</div>
+      </div>
+    </div>
+
+    <div class="rule-box">
+      <strong>For parallel subtasks specifically:</strong> approve the shape
+      of the work once in Plan mode, then switch to Accept&nbsp;Edits while
+      the (possibly parallel) execution runs — so you're not interrupted by
+      every individual file write across every subtask.
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2>Managing several subtasks at once</h2>
+    </div>
+    <ul class="tips">
+      <li>A background agent or fork doesn't block the main conversation — keep typing, ask questions, or start another task while it runs.</li>
+      <li>When a background task finishes, a notification lands in the conversation on its own — no need to poll or ask &ldquo;is it done yet?&rdquo;</li>
+      <li>Check what's actually running any time with <kbd>/tasks</kbd>, or expand a subagent's own inline output with <kbd>⌃</kbd><kbd>O</kbd>, rather than guessing.</li>
+      <li>Asked too early, the honest answer is always &ldquo;still running&rdquo; — there's no way to peek at partial results before that notification.</li>
+      <li>A subtask's detailed work stays out of the main conversation by design — you get a synthesized summary on completion, not a raw transcript.</li>
+      <li>If something runs away or you no longer need it, <kbd>⌃</kbd><kbd>X</kbd> <kbd>⌃</kbd><kbd>K</kbd> stops every background subagent in the session at once.</li>
+      <li>For two genuinely unrelated things at once, a second WebStorm terminal tab running its own <code>claude</code> process is cleaner than one conversation juggling both.</li>
+      <li>Avoid rapid-fire <kbd>Esc</kbd> while waiting on a background subtask — it stops the main session, not the work already dispatched.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2>Which mode, right now?</h2>
+    </div>
+    <dl class="decision-grid">
+      <dt>Asking for a big refactor or an audit/review</dt>
+      <dd><span class="pill" data-autonomy="1">Plan</span></dd>
+      <dt>Mid-implementation, want fewer interruptions</dt>
+      <dd><span class="pill" data-autonomy="3">Accept Edits</span></dd>
+      <dt>Kicking off a long unattended overnight loop</dt>
+      <dd><span class="pill" data-autonomy="4">Don't Ask</span></dd>
+      <dt>Everything else, day to day</dt>
+      <dd><span class="pill" data-autonomy="2">Default</span></dd>
+    </dl>
+  </section>
+
+  <footer>
+    <span>Claude Code × WebStorm — macOS reference</span>
+    <span>Shortcuts verified against the <a href="https://code.claude.com/docs/en/keybindings">official keybindings docs</a> — run <kbd>/help</kbd> if anything's changed since</span>
+  </footer>
+
+</div>
