@@ -9,10 +9,10 @@ between tips if the hotel's Wi-Fi is spotty.
 
 1. Open this site in **Safari**. (Other browsers on iOS, like Chrome or
    Firefox, can't add it to your home screen — it has to be Safari.)
-2. Tap the **Share** icon (the square with an arrow pointing up) in the
-   toolbar.
-3. Scroll down and tap **Add to Home Screen**.
-4. Tap **Add** in the top right.
+2. Tap the **••• (more)** button to the right of the address bar.
+3. Tap **Share** in the menu that opens.
+4. Scroll down and tap **Add to Home Screen**.
+5. Tap **Add** in the top right.
 
 ## On Android
 
