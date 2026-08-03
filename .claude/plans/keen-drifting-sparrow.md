@@ -1,166 +1,128 @@
-# Widen `test` content set's visual variety + dev-only config-preview env vars
+# Readability audit + a "text size" preference for older/low-vision users
 
 ## Context
 
-Requirements coverage recently landed (room/level/caller column sorting),
-but review surfaced that the fixture data used for *visual* review is
-thin: every caller/room name in `content/test/` is a uniform "Test Caller
-N"/"Test Room X" pattern, with no accented characters, no unusually long
-or short names, and no long description text — so a reviewer can't
-actually eyeball how the grid handles those cases. Separately, `config.yaml`
-is one-value-per-content-set, so previewing e.g. `combineA1A2: false` or
-`danceSchedule.roomOrder: spreadsheet` today means hand-editing a set's
-`config.yaml` and reverting afterward — the same ad hoc practice already
-used (and discarded) for prior line-clamp visual checks.
+Many of this app's users are older and may have trouble reading fine
+print or small text. A live visual audit (real running app, both desktop
+and mobile viewports) plus a codebase survey found:
 
-Investigation (two Explore passes) established:
-- **`content/test/` is the correct home for this**, not `automated-testing`.
-  `automated-testing` is pinned by many literal-string unit/e2e assertions
-  (exact caller/room names, page headings, nav labels) and must stay
-  stable. `content/test/` is already documented as "deliberately
-  edge-case-flavored" and is only touched by one e2e test
-  (`e2e/content-sets.spec.ts`), which asserts just the `# TEST CONTENT SET`
-  heading and that the Dance Schedule nav link/page renders — not any of
-  its actual session/room/caller content. So `content/test/`'s data is
-  fully free to extend.
-- **No config-override mechanism exists today** — `CONTENT_SET` only picks
-  *which* `config.yaml` is read, never overrides an individual field. No
-  `.env`/`import.meta.env` custom vars are used anywhere in this repo.
-- User's decision: add **dev-only env-var overrides** for the two
-  dance-schedule-relevant config knobs (combine flags, room order),
-  mirroring this repo's existing `CONTENT_SET`/`BASE_PATH` env-var pattern,
-  rather than spinning up extra content-set directories (which would add
-  real entries to production's `pnpm build` and the `/events` landing
-  page).
-- `scripts/edit-test-data.mjs` already exists as the designated, reusable
-  tool for exactly this kind of durable enrichment of
-  `content/test/data/dance-schedule.xlsx` (its own header comment: "run
-  again with a new `additions` entry any time a new edge case needs a
-  visual home").
+- **`BuildInfo.module.css`'s `.buildInfo` (the Home page's footer — build
+  number, "Raw data" debug link, "All events" link) and
+  `EventsListPage.module.css`'s `.testTag` are hardcoded `color: #888`,
+  small (`0.75rem`), and measure below WCAG AA contrast.** Investigated as
+  a possible fix, but confirmed with the user this is **intentional,
+  admin-only fine print** (build info, debug tooling, test-fixture
+  indicators) — not content meant for the general/older audience the rest
+  of the app targets, and its low contrast is deliberate visual hierarchy,
+  not an oversight. **Out of scope — left exactly as-is.** (It will still
+  grow under the Part 2 text-size preference below, same as everything
+  else — that's an opt-in, user-controlled scale-everything mechanism, a
+  different thing from unilaterally recoloring/enlarging it by default.)
+- **Small (but adequately contrasted) text**: GCA lines on schedule cards
+  and the level-slider's tick labels are `0.75rem`/`0.8rem` (~12-13px) —
+  small, though at least dark-on-light (`var(--color-text)`, not gray).
+- **Everything else checked reads fine**: the Installation page's iOS/
+  Android steps, the desktop nav, and the mobile `⋮` menu all render at
+  normal body size with good contrast.
+- **Every font-size in the app is already `rem`/`em`** — zero hardcoded
+  `px` font-sizes anywhere in `src/components` (confirmed by exhaustive
+  grep) — and the two spacing tokens (`--space-sm`/`--space-md`,
+  `src/index.css`) are `rem` too. This means a single root (`<html>`)
+  font-size scale would proportionally enlarge *every* text element (and
+  most spacing) app-wide at once, including every small spot found above,
+  without hand-editing each component.
+- **The app installs as a standalone PWA** (`display: 'standalone'`,
+  `vite.config.ts`'s manifest) — standalone home-screen web apps typically
+  lose the browser's native pinch-zoom/text-size controls (a known iOS
+  Safari limitation), so an in-app text-size control is a real, needed
+  capability, not a duplicate of something already available.
+- **No settings/preferences UI exists anywhere in the app today** — this
+  introduces the first one.
 
-This is **visual-review-only, per explicit instruction — no new automated
-tests, no changes to any `*.test.ts(x)`/`e2e/*.spec.ts` file.**
+Confirmed with the user: the control lives as a **nav/menu item** (not a
+floating button), offering **3 discrete steps — Normal / Large / Extra
+Large** (not a continuous +/− stepper).
 
-## Part 1: Widen `content/test`'s visual variety
+## Text-size preference (Normal / Large / Extra Large)
 
-Extend `scripts/edit-test-data.mjs`'s `additions` array (append entries,
-keep the one existing "Long Workshop" entry) with new rows covering the
-gaps found. Concrete, illustrative set (adjustable during implementation,
-but this is the intended coverage):
+**Mechanism — root font-size scaling, not per-component edits:**
+`src/index.css` gets `:root[data-text-size="large"] { font-size: 125%; }`
+and `:root[data-text-size="x-large"] { font-size: 150%; }` (Normal = no
+attribute = today's unchanged behavior; exact percentages adjustable while
+visually verifying, not load-bearing). Since every font-size downstream is
+`rem`/`em`, this one rule is the whole fix for every small-text spot found
+above — no need to separately touch `DanceScheduleGrid.module.css`'s
+`.gca`, `DanceScheduleFilters.module.css`'s `.tick`, or anything else.
 
-- **Accented/non-ASCII caller names** — e.g. `François Côté` (ç, ô) and
-  `Björn Åström` (ö, å), each on an ordinary short session, so accent
-  rendering is visible in isolation from any other edge case.
-- **A very long caller name, plain ASCII** — e.g.
-  `Alexander Bartholomew Fitzgerald-Montgomery`, isolating "long" from
-  "accented" so the two effects are visually distinguishable.
-- **A very short, single-word caller name** — e.g. `Zed` — checks the
-  caller-column view's minimum-width layout doesn't look broken, and
-  (nice side effect) gives a visually obvious first-letter check of the
-  alphabetical-by-first-name caller ordering already implemented.
-- **A long room name and a short room name** — e.g.
-  `The Grand Overflow Annex Ballroom` (new column) and `Gym` (new column)
-  — checks column-header wrapping/truncation at both extremes, and lets a
-  reviewer sanity-check the median-room-order feature still looks right
-  with more varied name lengths.
-- **A long details/description line** — e.g. a session whose type reads
-  something like `Advanced Choreography Workshop: Exploring Symmetric and
-  Asymmetric Formations in Contemporary Western Square Dance Technique`,
-  to exercise the card's 4-line-clamp truncation for real (previously only
-  checked via temporary edits that got reverted, per
-  `docs/design/dance-schedule.md`'s own history).
-- **A 3-caller co-taught session** — e.g.
-  `Test Caller One & Test Caller Two & Zed` — the caller-column view only
-  has 2-caller co-teach coverage today; this exercises the per-caller
-  placement fan-out with a third.
-- **A long/accented `GCA:` name** on one session (reuse `François Côté` in
-  the GCA slot on a different session) — checks the `.gca` line's own
-  clamp/rendering, not just `.details`.
-- **A long-named caller in a room-spanning session** (ditto mark or
-  `ROOMS:` line, reusing `Alexander Bartholomew Fitzgerald-Montgomery`) —
-  checks how a wide merged card handles long text, not just a normal
-  single-room one.
+**State + persistence:** new `src/hooks/useTextSizePreference.ts`, owning
+`'normal' | 'large' | 'x-large'` state, setting
+`document.documentElement.dataset.textSize` as a side effect, persisted via
+the existing `src/lib/appStorage.ts` (`readStorageJson`/`writeStorageJson`)
+— same low-level helper `danceScheduleFiltersStorage.ts` already uses.
+Uses a **plain, non-`BASE_URL`-scoped key** (e.g. `'dance-schedule:text-size'`,
+mirroring `danceScheduleFiltersStorage.ts`'s own key shape, *not*
+`useLastPagePersistence.ts`'s `${BASE_URL}`-templated one) — text size is a
+property of the person, not of which event/content-set they happen to be
+viewing, so it should stay consistent across all of them on one device.
+Wired in `src/App.tsx` so the attribute is set from first paint on every
+page, not just after some specific page mounts.
 
-Update `content/test/pages/2 edge-cases.md`'s existing bullet-list catalog
-to document each new case, matching its current style exactly (it's the
-living index of what this fixture deliberately covers).
+**UI:** a new "Text size" control in both `src/components/Nav.tsx`
+(desktop tab bar) and `src/components/PageMenu.tsx` (mobile `⋮` dropdown) —
+three selectable options, styled to match whichever existing list-item
+treatment those two components already use for page links, so it doesn't
+look bolted on. Exact widget (radio-style list vs. a small segmented
+control) is an implementation-time call, not a planning-level decision.
 
-Light secondary touch to `content/test/data/event-schedule.xlsx` (the
-flat Schedule page, separate from the dance grid): one row with a long
-Description, one with a short one, one with an accented
-Description/Location — done as a short one-off ExcelJS edit (not a new
-permanent script, unlike the matrix-format dance-schedule.xlsx — this
-file's edits aren't the kind that recur the way room/session additions
-do).
+**Deliberately deferred tradeoff — flagging, not solving, in this pass:**
+the dance-schedule grid's column width (`ROOM_COLUMN_WIDTH_PX` and its
+level/caller-view equivalents, in `computeDanceScheduleLayout.ts`/
+`computeDanceScheduleLevelLayout.ts`/`computeDanceScheduleCallerLayout.ts`)
+is a fixed **pixel** value, not `rem` — so at a larger text size, columns
+stay the same physical width while their text grows, meaning card text
+wraps/clamps more than today. The card grids' line-clamp truncation is
+already designed to degrade gracefully (not a new failure mode), so this
+pass leaves column widths fixed and verifies visually that Extra Large
+still reads acceptably, rather than also scaling column widths (a bigger
+change — those constants feed inline `grid-template-columns` styles
+computed in TS, not pure CSS, so scaling them would need the current
+text-size value threaded into layout code, not just a CSS rule).
 
-No changes to `content/automated-testing/` at all.
-
-## Part 2: Dev-only env-var overrides for config.yaml preview
-
-Add override support inside `loadContentConfigData`
-(`vite-plugin-content-config.ts`) — the one function already shared by
-both the client-shipped `virtual:content-config` module *and*
-`vite-plugin-dance-schedule.ts`'s `validateRoomOrderConfig` build-time
-cross-check, so overriding here keeps both consistent automatically
-without touching either caller.
-
-New env vars, read via plain `process.env` (mirrors this repo's existing
-`CONTENT_SET`/`BASE_PATH` pattern — no dotenv/`import.meta.env` introduced):
-
-- `COMBINE_A1A2` — `"true"`/`"false"`, overrides `features.combineA1A2`.
-- `COMBINE_C3BC4` — `"true"`/`"false"`, overrides `features.combineC3BC4`.
-- `DANCE_SCHEDULE_ROOM_ORDER` — `"default"` (forces the median algorithm
-  even if the active set's `config.yaml` sets something else),
-  `"spreadsheet"`, or a comma-separated room list (e.g.
-  `"Test Room A,Test Room B"`, split/trimmed into a `string[]`) — overrides
-  `danceSchedule.roomOrder`.
-
-Any set/non-empty value that doesn't match one of these shapes throws a
-fail-loud error naming the env var and the value received, matching this
-file's existing `readBooleanFeatureFlag`/`readRoomOrder` validation style.
-Unset (the default) → no override, today's config.yaml-driven behavior is
-unchanged — this must remain byte-for-byte backward compatible for every
-existing `pnpm build`/`pnpm test`/`pnpm test:e2e` invocation, none of which
-set these vars.
-
-Example usage once implemented:
-```
-COMBINE_A1A2=false DANCE_SCHEDULE_ROOM_ORDER=spreadsheet pnpm dev:test
-```
-
-Document as a new "Decisions" entry in `docs/design/content-config.md`
-(why dev-only, why it lives in the shared `loadContentConfigData` rather
-than duplicated per call site), plus a short practical usage note
-alongside wherever this repo already documents dev commands (check
-`docs/testing.md`'s structure first; fall back to `CLAUDE.md`'s Commands
-section if that doc doesn't fit).
+**New design doc**, `docs/design/text-size-preference.md`, following this
+repo's established convention (context, decisions-with-rationale, open
+questions) — records the root-font-scaling approach, the storage-key
+scoping choice, the nav/menu-not-floating-button placement, and the
+deferred column-width tradeoff above, so a future reader doesn't have to
+re-derive any of this.
 
 ## Files touched
 
-- `scripts/edit-test-data.mjs` (extended `additions` array)
-- `content/test/data/dance-schedule.xlsx` (via running the script)
-- `content/test/data/event-schedule.xlsx` (small direct edit)
-- `content/test/pages/2 edge-cases.md`
-- `vite-plugin-content-config.ts`
-- `docs/design/content-config.md` (+ a short usage note in `docs/testing.md` or `CLAUDE.md`)
-
-No `*.test.ts(x)` or `e2e/*.spec.ts` files touched.
+- `src/index.css` (new `[data-text-size]` rules)
+- New: `src/hooks/useTextSizePreference.ts` + colocated `useTextSizePreference.test.ts`
+- `src/App.tsx` (wire the hook)
+- `src/components/Nav.tsx`/`Nav.module.css`, `src/components/PageMenu.tsx`/`PageMenu.module.css` (new control)
+- New: `docs/design/text-size-preference.md`
 
 ## Verification
 
-- `pnpm typecheck && pnpm lint && pnpm test` — confirms the env-var
-  override code compiles/lints and that leaving every var unset doesn't
-  change any existing test's outcome (none of them set these vars).
-- `pnpm build` — confirms every real content set (which also never sets
-  these vars) still builds identically.
-- **Visual-only, per explicit instruction — no new automated test
-  asserts any of this:**
-  - `pnpm dev:test`, browse `/dance-schedule`, `/dance-by-level`,
-    `/dance-by-caller`, and the Schedule page — eyeball the new
-    accented/long/short/merged/3-caller cases render sensibly (no broken
-    layout, no mojibake, clamps truncate as expected).
-  - Re-run with each override combo, e.g.
-    `COMBINE_A1A2=false pnpm dev:test` and
-    `DANCE_SCHEDULE_ROOM_ORDER=spreadsheet pnpm dev:test`, confirming the
-    override actually takes effect and that an unset var still falls back
-    to `content/test/config.yaml`'s own value.
+- `pnpm typecheck && pnpm lint && pnpm test` — the new hook gets a unit
+  test mirroring `danceScheduleFiltersStorage.test.ts`'s shape: persists/
+  reads back each of the 3 values, falls back to `'normal'` on missing or
+  malformed storage.
+- **Visual, live** (per CLAUDE.md's UI-change rule): `pnpm dev`, cycle
+  through all three sizes on Home (fine print now legible *and*
+  appropriately larger), the three dance-schedule grids (GCA lines/tick
+  labels scale; confirm Extra Large doesn't over-clamp cards into
+  illegibility — the deferred tradeoff above), Installation, and both
+  desktop nav and the mobile `⋮` menu on a narrow viewport. Also confirm
+  the BuildInfo footer/EventsListPage test-tag still look like fine print
+  at Normal size (out of scope, per Context above) but do grow along with
+  everything else at Large/Extra Large.
+- **Open question, noted in the new design doc rather than decided here**:
+  should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
+  PWA-behavior regressions (offline/SW/caching), and a text-size preference
+  is app-level UI state closer in kind to the level-range slider (unit-test
+  only today, no e2e of its own) than to the install/offline flows that do
+  get e2e coverage — but it's also the app's first real settings UI, an
+  argument for holding it to a higher bar. Left open rather than decided
+  unilaterally.

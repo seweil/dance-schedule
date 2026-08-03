@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
+import { TextSizeControl } from './TextSizeControl'
 import styles from './PageMenu.module.css'
 
 // The mobile counterpart to Nav.tsx's desktop tab bar — a kebab toggle + dropdown
@@ -82,6 +83,9 @@ export function PageMenu() {
             </NavLink>
           </li>
         ))}
+        <li className={styles.textSizeItem}>
+          <TextSizeControl />
+        </li>
       </ul>
     </nav>
   )

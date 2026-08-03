@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { PageMenu } from './PageMenu'
+import { TextSizeProvider } from './TextSizeProvider'
 
 // The toggle is only visible below the CSS module's mobile breakpoint. Real CSS is
 // loaded in jsdom (vitest.config.ts sets css: true), and per the accname spec a
@@ -24,7 +25,9 @@ function getToggle() {
 function renderPageMenu(initialPath = '/installation') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <PageMenu />
+      <TextSizeProvider>
+        <PageMenu />
+      </TextSizeProvider>
     </MemoryRouter>,
   )
 }
@@ -75,8 +78,10 @@ describe('PageMenu', () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/installation']}>
-        <PageMenu />
-        <button type="button">Outside</button>
+        <TextSizeProvider>
+          <PageMenu />
+          <button type="button">Outside</button>
+        </TextSizeProvider>
       </MemoryRouter>,
     )
     const toggle = getToggle()

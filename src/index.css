@@ -29,6 +29,20 @@ body {
   --space-md: 1rem;
 }
 
+/* Text-size preference (useTextSizePreference.ts) — no attribute at all is
+   "Normal," today's unchanged 100%. Every font-size and most spacing in this app
+   is already rem/em (see docs/design/text-size-preference.md), so scaling the
+   root font-size here is the entire mechanism — no component-level overrides
+   needed. Percentages are a starting point, not exact/load-bearing; adjust after
+   visually checking the dance-schedule grids at each step. */
+:root[data-text-size='large'] {
+  font-size: 125%;
+}
+
+:root[data-text-size='x-large'] {
+  font-size: 150%;
+}
+
 /* Minimal default styling for a GFM markdown table (vite.config.ts's
    `remark-gfm` — see CLAUDE.md's "Content pipeline" section) — no explicit
    border anywhere, browsers don't draw one by default without it, so this

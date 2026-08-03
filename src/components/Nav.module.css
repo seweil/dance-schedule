@@ -58,6 +58,13 @@
   border-bottom: 1px solid #fff;
 }
 
+/* Sits below the tab row itself, not inside it — .list's own overflow-x: auto
+   (see its comment above) is for the tabs specifically; a non-navigation control
+   mixed into that scrollable row could scroll out of view at narrow widths. */
+.textSizeRow {
+  padding: var(--space-sm) 0;
+}
+
 /* This whole bar is desktop-only — PageMenu.tsx (rendered per-page, next to that
    page's own title via PageHeader.tsx) is the mobile equivalent instead, so there's
    nothing left for this component to show below the breakpoint. */

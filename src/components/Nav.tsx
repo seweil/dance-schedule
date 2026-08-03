@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
+import { TextSizeControl } from './TextSizeControl'
 import styles from './Nav.module.css'
 
 // The desktop-only flat tab-link bar — always visible at ≥641px, hidden entirely
@@ -26,6 +27,9 @@ export function Nav() {
           </li>
         ))}
       </ul>
+      <div className={styles.textSizeRow}>
+        <TextSizeControl />
+      </div>
     </nav>
   )
 }

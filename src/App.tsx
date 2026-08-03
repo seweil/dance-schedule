@@ -12,6 +12,7 @@ import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { ZoomableImage } from './components/ZoomableImage'
 import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
+import { TextSizeProvider } from './components/TextSizeProvider'
 import { useLastPagePersistence } from './hooks/useLastPagePersistence'
 import { normalizeRoutes } from './lib/buildNavTree'
 
@@ -80,26 +81,28 @@ function HomeBuildInfo() {
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <MDXProvider components={mdxComponents}>
-        {/* Watched by ScrollToTopButton (via useIsElementVisible) to know whether
-            the page is scrolled away from the top — deliberately NOT `<nav>`
-            itself: Nav.module.css hides it entirely (`display: none`) below the
-            640px breakpoint, so on mobile — this button's primary use case,
-            scrolling the dance-schedule grid, see ScrollToTopButton.tsx — nav
-            never intersects at all, and the button was stuck permanently visible
-            regardless of scroll position. This zero-size marker is always
-            rendered, at the very top of the page, on every viewport. */}
-        <div id="page-top-sentinel" aria-hidden="true" />
-        <Nav />
-        <UpdatePrompt />
-        <ImageGalleryProvider>
-          <Suspense fallback={<p>Loading…</p>}>
-            <Pages />
-          </Suspense>
-        </ImageGalleryProvider>
-        <HomeBuildInfo />
-        <ScrollToTopButton />
-      </MDXProvider>
+      <TextSizeProvider>
+        <MDXProvider components={mdxComponents}>
+          {/* Watched by ScrollToTopButton (via useIsElementVisible) to know whether
+              the page is scrolled away from the top — deliberately NOT `<nav>`
+              itself: Nav.module.css hides it entirely (`display: none`) below the
+              640px breakpoint, so on mobile — this button's primary use case,
+              scrolling the dance-schedule grid, see ScrollToTopButton.tsx — nav
+              never intersects at all, and the button was stuck permanently visible
+              regardless of scroll position. This zero-size marker is always
+              rendered, at the very top of the page, on every viewport. */}
+          <div id="page-top-sentinel" aria-hidden="true" />
+          <Nav />
+          <UpdatePrompt />
+          <ImageGalleryProvider>
+            <Suspense fallback={<p>Loading…</p>}>
+              <Pages />
+            </Suspense>
+          </ImageGalleryProvider>
+          <HomeBuildInfo />
+          <ScrollToTopButton />
+        </MDXProvider>
+      </TextSizeProvider>
     </BrowserRouter>
   )
 }

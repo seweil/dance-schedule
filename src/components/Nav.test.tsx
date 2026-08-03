@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { Nav } from './Nav'
+import { TextSizeProvider } from './TextSizeProvider'
 
 function renderNav(initialPath: string) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <Nav />
+      <TextSizeProvider>
+        <Nav />
+      </TextSizeProvider>
     </MemoryRouter>,
   )
 }

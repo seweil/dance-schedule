@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { PageHeader } from './PageHeader'
+import { TextSizeProvider } from './TextSizeProvider'
 
 // PageMenu's toggle is display:none outside its mobile CSS breakpoint, and a
 // hidden element's aria-label doesn't resolve to an accessible name at all — see
@@ -18,7 +19,9 @@ describe('PageHeader', () => {
   it('renders the title as an h1, alongside the mobile menu toggle', () => {
     render(
       <MemoryRouter>
-        <PageHeader title="Dance Schedule" />
+        <TextSizeProvider>
+          <PageHeader title="Dance Schedule" />
+        </TextSizeProvider>
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { level: 1, name: 'Dance Schedule' })).toBeInTheDocument()
@@ -30,13 +33,15 @@ describe('PageHeader', () => {
   it('accepts a non-string ReactNode title (e.g. built from JSX, not literal text)', () => {
     render(
       <MemoryRouter>
-        <PageHeader
-          title={
-            <>
-              Dance Schedule — Debug (<em>test</em>)
-            </>
-          }
-        />
+        <TextSizeProvider>
+          <PageHeader
+            title={
+              <>
+                Dance Schedule — Debug (<em>test</em>)
+              </>
+            }
+          />
+        </TextSizeProvider>
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(

@@ -3,11 +3,14 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ClearStorageAction } from './ClearStorageAction'
+import { TextSizeProvider } from './TextSizeProvider'
 
 function renderAction() {
   return render(
     <MemoryRouter>
-      <ClearStorageAction />
+      <TextSizeProvider>
+        <ClearStorageAction />
+      </TextSizeProvider>
     </MemoryRouter>,
   )
 }

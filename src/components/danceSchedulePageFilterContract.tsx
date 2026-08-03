@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import { describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { TextSizeProvider } from './TextSizeProvider'
 
 // Exercises the filter wiring shared, byte-identically, by all three dance-schedule
 // pages (useDanceScheduleFilters -> DanceScheduleFilters -> grid, see
@@ -31,7 +32,9 @@ export function testDanceSchedulePageFilters(pageName: string, Page: ComponentTy
   function renderPage() {
     return render(
       <MemoryRouter>
-        <Page />
+        <TextSizeProvider>
+          <Page />
+        </TextSizeProvider>
       </MemoryRouter>,
     )
   }

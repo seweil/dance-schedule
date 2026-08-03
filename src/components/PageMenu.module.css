@@ -78,6 +78,15 @@
   color: var(--color-accent);
 }
 
+/* Separated from the page-link items above it — it's an action/toggle, not a
+   navigation destination, so it shouldn't read as just another link in the list. */
+.textSizeItem {
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  width: 100%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .list {
     transition: none;
