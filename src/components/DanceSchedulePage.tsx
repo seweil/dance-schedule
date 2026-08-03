@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import danceSessionsData from 'virtual:dance-schedule'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
@@ -7,7 +6,6 @@ import { computeDanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { DanceScheduleGrid } from './DanceScheduleGrid'
-import styles from './DanceSchedulePage.module.css'
 import { PageHeader } from './PageHeader'
 
 // Computed once at module load — the virtual module's data is static, so there's no
@@ -57,15 +55,6 @@ export function DanceSchedulePage() {
         showGca={showGca}
         onShowAllLevels={() => setLevelRange(0, slots.length - 1)}
       />
-      {/* This page's own data (virtual:dance-schedule) is exactly what the debug
-          page renders raw — a react-router Link since /debug/dance-schedule is a
-          route within this same build, resolves correctly under whichever
-          content set's prefix is currently active. Right-aligned at the very
-          bottom, out of the filters/grid's visual flow — a secondary discovery
-          path, not a primary control. */}
-      <p className={styles.debugLink}>
-        <Link to="/debug/dance-schedule">Raw data</Link>
-      </p>
     </>
   )
 }

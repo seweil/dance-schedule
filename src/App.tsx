@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
 import { BuildInfo } from './components/BuildInfo'
@@ -65,9 +65,16 @@ function Pages() {
 // itself (which stays route-agnostic — see the debug page's own, separate use of
 // it). `pathname` is basename-relative (BrowserRouter's `basename` below), same
 // convention Nav.tsx's own `end={item.href === '/'}` Home check relies on.
+//
+// "Raw data" (linking to the same debug dump DanceSchedulePage.tsx used to link
+// to directly) lives here, not on the schedule page itself, so it adds no extra
+// vertical space to that page's own layout — it folds into this already-existing
+// fine-print line instead, before "All events" (see BuildInfo.tsx's `extraLinks`).
 function HomeBuildInfo() {
   const location = useLocation()
-  return location.pathname === '/' ? <BuildInfo /> : null
+  return location.pathname === '/' ? (
+    <BuildInfo extraLinks={<Link to="/debug/dance-schedule">Raw data</Link>} />
+  ) : null
 }
 
 export function App() {

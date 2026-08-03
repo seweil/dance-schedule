@@ -50,10 +50,13 @@ test('desktop: the panel itself scrolls both directions, unaffected by the mobil
   expect(scrollWidth).toBeGreaterThan(clientWidth)
   expect(scrollHeight).toBeGreaterThan(clientHeight)
 
-  // The page scrolls only a small, deliberate amount past the panel — just enough
-  // to reveal the "Raw data" link below it (DanceSchedulePage.module.css's
-  // debugLink padding-bottom) — not the large, uncapped scroll the panel's own
-  // max-height: 70vh exists to avoid.
+  // The page itself barely scrolls past the panel at all — the panel's own
+  // max-height: 70vh is what caps the real, large scroll instead (confirmed
+  // above via the panel's own scrollHeight/clientHeight). The "Raw data" link
+  // used to live here and deliberately padded this gap open a little further;
+  // it's since moved to the home page's fine print (see App.tsx's
+  // HomeBuildInfo), so there's no reason left for this page to scroll past the
+  // panel by more than ordinary layout rounding.
   const { docScrollHeight, docClientHeight } = await page.evaluate(() => ({
     docScrollHeight: document.documentElement.scrollHeight,
     docClientHeight: document.documentElement.clientHeight,
