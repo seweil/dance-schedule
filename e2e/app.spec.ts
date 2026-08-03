@@ -88,22 +88,38 @@ test('app shell still renders the schedule page when offline after the SW takes 
   await context.setOffline(false)
 })
 
-test('schedule cards lay out as columns without horizontal overflow on a narrow landscape window', async ({
+test('schedule cards stay single-column below the column-layout breakpoint, even in a landscape-shaped window', async ({
   page,
 }) => {
-  // A narrow-but-wider-than-tall window (e.g. a small resized desktop browser) still
-  // matches `orientation: landscape` — this is deliberately narrow to catch the same
-  // overflow risk a fixed-width column floor would reintroduce.
-  await page.setViewportSize({ width: 500, height: 300 })
+  // Narrower than ScheduleList.module.css's 640px min-width breakpoint despite being
+  // wider than tall — proves the layout now keys off width, not orientation (a plain
+  // landscape shape alone shouldn't be enough to trigger the column grid).
+  await page.setViewportSize({ width: 600, height: 300 })
   await page.goto('/automated-testing/event-schedule')
   // Not getByRole('listitem').first() — the list's first item is now a date
   // heading (ScheduleList.tsx interleaves one per date), not an event card.
   const firstCard = page.locator('[class*="card"]').first()
   await expect(firstCard).toBeVisible()
 
-  expect(await page.evaluate(() => window.matchMedia('(orientation: landscape)').matches)).toBe(
-    true,
-  )
+  expect(await firstCard.evaluate((el) => getComputedStyle(el).display)).not.toBe('grid')
+
+  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }))
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
+})
+
+test('schedule cards lay out as columns without horizontal overflow once the viewport is wide enough (e.g. an iPad in portrait)', async ({
+  page,
+}) => {
+  // 768x1024 — a portrait iPad, well past the 640px breakpoint but still taller than
+  // wide (the exact case the old orientation-based gate used to wrongly exclude).
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.goto('/automated-testing/event-schedule')
+  const firstCard = page.locator('[class*="card"]').first()
+  await expect(firstCard).toBeVisible()
+
   expect(await firstCard.evaluate((el) => getComputedStyle(el).display)).toBe('grid')
 
   const { scrollWidth, clientWidth } = await page.evaluate(() => ({
@@ -164,6 +180,11 @@ test.describe('mobile viewport', () => {
     await page.goto('/automated-testing/event-schedule')
     await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
     await expect(page.getByRole('listitem').first()).toBeVisible()
+
+    // iPhone 13 (390px) is well under ScheduleList.module.css's 640px column-layout
+    // breakpoint — confirms it actually stays stacked, not just overflow-free.
+    const firstCard = page.locator('[class*="card"]').first()
+    expect(await firstCard.evaluate((el) => getComputedStyle(el).display)).not.toBe('grid')
 
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,

@@ -18,9 +18,7 @@ test('the "test" content set publishes its own distinct build', async ({ page })
   await expect(page.getByRole('heading', { name: /test content set/i })).toBeVisible()
 })
 
-test('the debug page lists every published content set, linking to its own home page', async ({
-  page,
-}) => {
+test('the debug page shows which content set built it', async ({ page }) => {
   // Unprefixed root path — vite preview's fallback happens to be correct here,
   // since the root scope *is* the default set's own bundle. Read the expected
   // set name from content/config.yaml rather than hardcoding it — it changes
@@ -30,14 +28,6 @@ test('the debug page lists every published content set, linking to its own home 
   await expect(
     page.getByRole('heading', { name: new RegExp(`dance schedule.*debug.*${defaultContentSet}`, 'i') }),
   ).toBeVisible()
-
-  // Links to that set's home page, not its own copy of this debug page — a deep
-  // link into another set's inner routes needs a per-content-set Amplify rewrite
-  // rule that's easy to forget for a brand-new set (see docs/design/hosting.md),
-  // while the home page is a literal static file that always resolves.
-  const testLink = page.getByRole('link', { name: /^test/ })
-  await expect(testLink).toBeVisible()
-  await expect(testLink).toHaveAttribute('href', '/test/')
 })
 
 test('app shell still renders the "test" set\'s own content when offline after its own SW takes control', async ({

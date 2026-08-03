@@ -44,7 +44,13 @@
   margin: 0;
 }
 
-@media (orientation: landscape) {
+/* min-width, not orientation — a portrait iPad (~768-834px) has plenty of room for
+   these narrow, content-sized columns, and gating on landscape only excluded it for
+   no real reason (see docs/design/schedule-page.md's "Breakpoint strategy"). 640px
+   matches Nav.module.css's own breakpoint (duplicated rather than extracted into a
+   shared token — see that doc section) and comfortably excludes phone portrait
+   (~390-430px) while including phone landscape and up. */
+@media (min-width: 640px) {
   /* The list itself owns the column tracks, and every card (across every date, not
      just within one) spans them via subgrid, so time/location/description line up
      across the whole page — a single .card { display: grid } per card would size
@@ -52,8 +58,8 @@
      grid per date section would only align within that section. */
   .list {
     display: grid;
-    /* auto (not a fixed minmax floor) lets these shrink on a narrow-but-landscape
-       window (e.g. a small resized desktop browser) instead of forcing overflow. */
+    /* auto (not a fixed minmax floor) lets these shrink on a narrow window (e.g. a
+       small resized desktop browser) instead of forcing overflow. */
     grid-template-columns: auto auto 1fr;
     /* Row gap is 0 — rows sit flush against each other, separated only by the
        .cardDivider border, not a gap; column gap still separates the three fields. */

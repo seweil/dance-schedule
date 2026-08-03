@@ -305,16 +305,18 @@ alone still fully determines presentation, that part of the original
 reasoning still holds (no `matchMedia`/resize listener, no conditional
 rendering of two variants, no duplicated markup; still not a real
 `<table>` or a calendar-grid view, both still rejected as too much
-complexity for events that don't recur). What changed is that there's no
-longer any *responsive* behavior to speak of in `ScheduleList.module.css`
-at all — full width is now the only state, at any size — see the
-Breakpoint strategy update below.
+complexity for events that don't recur). What's rejected here is
+specifically a *card* grid — multiple events side by side — not all
+column layout: the time/location/description subgrid described in the
+next note is a separate, still-live piece of responsive CSS, not a
+contradiction of this decision.
 
-**Why (superseded again — single shared grid, not one per date):** in
-landscape, `ScheduleList` uses CSS Grid with `subgrid` so the time/
-location/description columns of every card line up (`.card { grid-
-template-columns: subgrid }`, reading its column tracks from the parent
-`.list` grid). The date-grouped structure originally gave each date its
+**Why (superseded again — single shared grid, not one per date):** once
+the viewport is wide enough (see Breakpoint strategy below), `ScheduleList`
+uses CSS Grid with `subgrid` so the time/location/description columns of
+every card line up (`.card { grid-template-columns: subgrid }`, reading
+its column tracks from the parent `.list` grid). The date-grouped
+structure originally gave each date its
 own `<section>` wrapping its own `<ul class="list">` — its own separate
 grid container. Grid track sizing is computed independently per container,
 so columns aligned within a date but not *across* dates, each day sizing
@@ -342,17 +344,35 @@ empty — so `.time`/`.location`/`.description` are given explicit
 which would otherwise shift a location-less card's description into
 column 2 instead of column 3.
 
-### Breakpoint strategy: `ScheduleList` no longer uses a breakpoint at all
-**Why (superseded):** the original decision was to duplicate `Nav`'s
-`640px` breakpoint literal rather than extract a shared token, on the
-reasoning that this was only the second consumer. With the full-width-
-always layout change above, `ScheduleList.module.css` no longer has any
-column-count (or other) behavior that varies by viewport size, so it
-doesn't consume the `640px` breakpoint — or any breakpoint — at all
-anymore. `Nav.module.css` remains the only consumer of `640px` today; the
-"reconsider extracting a shared token once a third component needs it"
-guidance from the original decision still stands, just with the count
-reset to one.
+**Why (superseded once more — width-gated, not orientation-gated):** the
+subgrid column layout above was originally implemented behind
+`@media (orientation: landscape)`, not a width breakpoint. That excluded a
+portrait tablet (e.g. an iPad, ~768-834px wide) from ever getting the
+aligned-column layout, even though there's plenty of horizontal room for
+it and the column tracks are already `auto`-sized (not a fixed floor)
+specifically so they degrade gracefully on narrow widths — orientation was
+never a considered, written-down requirement for this, just an unexamined
+"landscape ≈ wide enough" proxy from the original implementation (this
+doc's own "Breakpoint strategy" section, below, had by this point already
+gone stale and incorrectly claimed `ScheduleList` used no breakpoint at
+all). Fixed by switching to `min-width: 640px` (see Breakpoint strategy
+below), so the column layout now applies whenever there's enough width,
+regardless of orientation — a portrait iPad gets it, a phone in portrait
+(~390-430px) doesn't.
+
+### Breakpoint strategy: `min-width: 640px`, duplicating `Nav`'s literal
+**Why:** the column layout above is gated behind a `min-width: 640px`
+media query, reusing `Nav.module.css`'s own breakpoint value — duplicated
+rather than extracted into a shared token, per the original reasoning
+below, since this is still only the second consumer. Width, not
+orientation, is the right signal here: a portrait iPad (~768-834px) has
+plenty of room for these narrow, content-sized columns, while phone
+portrait (~390-430px) does not, and orientation alone can't distinguish
+the two (a phone in landscape and an iPad in portrait are both physically
+plausible at either orientation). `Nav.module.css` remains the only other
+consumer of `640px`; the "reconsider extracting a shared token once a
+third component needs it" guidance from the original decision still
+stands.
 
 ### Empty/edge states: show all events (no past-event filtering); explicit empty message
 **Why:** All events render in chronological order regardless of whether
