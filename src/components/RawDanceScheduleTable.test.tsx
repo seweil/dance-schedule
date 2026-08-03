@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { RawDanceScheduleTable } from './RawDanceScheduleTable'
+import { colorForSession, NEUTRAL_CARD_COLOR } from '../lib/levelColors'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 // Mirrors ScheduleList.test.tsx's approach: mock the CSS module so this test is
@@ -30,7 +31,7 @@ describe('RawDanceScheduleTable', () => {
     expect(screen.getByRole('heading', { name: /Thursday, July 2, 2026/ })).toBeInTheDocument()
     expect(screen.getByText('Kafka/Lamartine')).toBeInTheDocument()
     expect(screen.getByText('C1, C2')).toBeInTheDocument()
-    expect(screen.getByText('Dancing - Vic Ceder')).toBeInTheDocument()
+    expect(screen.getByText('Vic Ceder').closest('td')).toHaveTextContent('Dancing - Vic Ceder')
   })
 
   it('renders the GCA column when present', () => {
@@ -44,7 +45,9 @@ describe('RawDanceScheduleTable', () => {
         sessions={[makeSession({ eventType: 'Leather Tip', callers: ['Michael Kellogg', 'Terri Sherrer'] })]}
       />,
     )
-    expect(screen.getByText('Leather Tip - Michael Kellogg & Terri Sherrer')).toBeInTheDocument()
+    expect(screen.getByText('Michael Kellogg & Terri Sherrer').closest('td')).toHaveTextContent(
+      'Leather Tip - Michael Kellogg & Terri Sherrer',
+    )
   })
 
   it('renders a freeform session distinctly, with no levels or GCA', () => {
@@ -95,6 +98,103 @@ describe('RawDanceScheduleTable', () => {
   it('renders an explicit empty-state message when there are no sessions', () => {
     render(<RawDanceScheduleTable sessions={[]} />)
     expect(screen.getByText(/no sessions parsed/i)).toBeInTheDocument()
+  })
+
+  it('bolds the headline caller name but not the GCA', () => {
+    render(<RawDanceScheduleTable sessions={[makeSession({ gca: 'Tim Stephens' })]} />)
+    expect(screen.getByText('Vic Ceder').tagName).toBe('STRONG')
+    expect(screen.getByText('Tim Stephens').tagName).not.toBe('STRONG')
+  })
+
+  it("colors a structured session's Level(s) cell using the shared level palette", () => {
+    const session = makeSession({ levels: ['C1', 'C2'] })
+    render(<RawDanceScheduleTable sessions={[session]} />)
+    expect(screen.getByText('C1, C2')).toHaveStyle({ backgroundColor: colorForSession(session) })
+  })
+
+  it('shades an entire freeform row with the neutral card color', () => {
+    const freeform: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-04T00:00:00.000Z'),
+      startTime: new Date('2026-07-04T21:00:00.000Z'),
+      endTime: new Date('2026-07-04T21:30:00.000Z'),
+      location: { kind: 'located', rooms: ['Drummond Ballroom'] },
+      description: 'Country Western Dance - until 1am',
+    }
+    render(<RawDanceScheduleTable sessions={[freeform]} />)
+    const row = screen.getByText('(freeform) Country Western Dance - until 1am').closest('tr')!
+    expect(row).toHaveStyle({ backgroundColor: NEUTRAL_CARD_COLOR })
+  })
+
+  it('sorts rows by time, then room, regardless of input order', () => {
+    render(
+      <RawDanceScheduleTable
+        sessions={[
+          makeSession({
+            location: { kind: 'located', rooms: ['Room B'] },
+            startTime: new Date('2026-07-02T12:30:00.000Z'),
+          }),
+          makeSession({
+            location: { kind: 'located', rooms: ['Room A'] },
+            startTime: new Date('2026-07-02T12:30:00.000Z'),
+          }),
+          makeSession({
+            location: { kind: 'located', rooms: ['Room A'] },
+            startTime: new Date('2026-07-02T11:00:00.000Z'),
+          }),
+        ]}
+      />,
+    )
+
+    const section = screen.getByRole('heading', { name: /Thursday, July 2, 2026/ }).closest('section')!
+    const rows = within(section).getAllByRole('row').slice(1) // drop the header row
+    const roomCells = rows.map((row) => within(row).getAllByRole('cell')[1]!.textContent)
+    expect(roomCells).toEqual(['Room A', 'Room A', 'Room B'])
+  })
+
+  it('alternates Time-column shading for each distinct block of same-start-time rows', () => {
+    render(
+      <RawDanceScheduleTable
+        sessions={[
+          makeSession({ location: { kind: 'located', rooms: ['Room A'] } }), // 12:30 block
+          makeSession({ location: { kind: 'located', rooms: ['Room B'] } }), // same 12:30 block
+          makeSession({
+            location: { kind: 'located', rooms: ['Room A'] },
+            startTime: new Date('2026-07-02T14:00:00.000Z'),
+            endTime: new Date('2026-07-02T15:00:00.000Z'),
+          }), // distinct, later block
+        ]}
+      />,
+    )
+
+    const section = screen.getByRole('heading', { name: /Thursday, July 2, 2026/ }).closest('section')!
+    const rows = within(section).getAllByRole('row').slice(1) // drop the header row
+    const timeCells = rows.map((row) => within(row).getAllByRole('cell')[0]!)
+    expect(timeCells[0]).toHaveClass('timeBlockShaded')
+    expect(timeCells[1]).toHaveClass('timeBlockShaded')
+    expect(timeCells[2]).not.toHaveClass('timeBlockShaded')
+  })
+
+  it("marks each time block's first row for a heavier border, but not the rows after it", () => {
+    render(
+      <RawDanceScheduleTable
+        sessions={[
+          makeSession({ location: { kind: 'located', rooms: ['Room A'] } }), // 12:30 block
+          makeSession({ location: { kind: 'located', rooms: ['Room B'] } }), // same 12:30 block
+          makeSession({
+            location: { kind: 'located', rooms: ['Room A'] },
+            startTime: new Date('2026-07-02T14:00:00.000Z'),
+            endTime: new Date('2026-07-02T15:00:00.000Z'),
+          }), // distinct, later block
+        ]}
+      />,
+    )
+
+    const section = screen.getByRole('heading', { name: /Thursday, July 2, 2026/ }).closest('section')!
+    const rows = within(section).getAllByRole('row').slice(1) // drop the header row
+    expect(rows[0]).toHaveClass('timeBlockStart')
+    expect(rows[1]).not.toHaveClass('timeBlockStart')
+    expect(rows[2]).toHaveClass('timeBlockStart')
   })
 
   describe('hour summaries', () => {

@@ -16,3 +16,20 @@
 .table th {
   background: #f5f5f5;
 }
+
+/* Alternating block shade for the Time column only — darker than the header's
+   own #f5f5f5 tint so it actually reads at a glance rather than disappearing
+   next to it. Not a data-driven color like the level/freeform backgrounds
+   (which are set inline, from levelColors.ts), so it lives here instead. */
+.timeBlockShaded {
+  background: #e0e0e0;
+}
+
+/* A heavier rule between time slots than the ordinary 1px grid line, so a new
+   block is obvious scanning down the table. Set on every cell of the block's
+   first row, not the <tr> itself — border-collapse only resolves borders
+   declared on cells, and (per collapsing rules) the wider one here wins over
+   the row above's ordinary 1px border-bottom. */
+.timeBlockStart td {
+  border-top: 3px solid #999;
+}
