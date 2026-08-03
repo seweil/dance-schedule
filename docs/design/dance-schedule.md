@@ -1009,6 +1009,44 @@ styled like an inline text link (`.emptyLink` in
 `DanceScheduleGrid.module.css`) rather than a real `<a>`, since it resets
 filter state instead of navigating anywhere.
 
+### Sticky-scroll grid shell extracted at its third consumer
+
+**Why:** a review of visual/styling sharing across all three views (once
+all three existed) found that while the CSS module and color/formatting
+helpers were already properly shared, the two-grid sticky-scroll
+*mechanics* — `headerRef`/`bodyRef`, the scroll-mirroring handler, the
+callback-ref re-attachment, and the reset-on-layout-change effect — plus
+the surrounding wrapper/grid JSX (`panelWrapper`/`headerWrapper`/`corner`/
+column headers/`bodyWrapper`) had been copy-pasted verbatim into all three
+grid components (`DanceScheduleGrid.tsx`, `DanceScheduleLevelGrid.tsx`,
+`DanceScheduleCallerGrid.tsx`) rather than extracted, unlike the layout-
+computation side (`assignLanes.ts`, `computeDanceScheduleTimeAxis.ts`) —
+roughly 70 lines duplicated three times over. Fixed by extracting:
+
+- `src/hooks/useSyncedGridScroll.ts` — `headerRef`/`setBodyRef`/the scroll-
+  mirror handler/the reset effect, taking a `resetKey` (each grid passes
+  its own `layout`, exactly as before).
+- `src/components/StickyScrollGrid.tsx` — the wrapper markup itself,
+  parameterized by `columns` (`{ key, title, label }[]`),
+  `gridTemplateColumns`, `totalRows`, `emptyCells`, `timeMarks`, and
+  `resetKey`, with `children` left for each grid's own placement/
+  `SessionCard` rendering — the one part that's genuinely different per
+  view (roomless handling, lane math, `levelPrefix`, which `detailsContent`
+  variant).
+
+Unlike `assignLanes.ts`/`computeDanceScheduleTimeAxis.ts` (extracted at
+their *second* consumer), this one waited until a third existed and a
+dedicated review flagged it — a reminder that "how many consumers" isn't
+self-enforcing; duplicated shell code doesn't announce itself as loudly as
+a duplicated algorithm does. Pure refactor, no behavior change — all three
+grids' existing tests pass unchanged, plus a new
+`useSyncedGridScroll.test.ts` for the extracted hook directly (mirroring
+this codebase's own convention of testing hooks directly, e.g.
+`useDanceScheduleFilters.test.ts`); `StickyScrollGrid.tsx` itself has no
+dedicated test file, relying on its three consumers' existing coverage,
+matching the precedent already set by `assignLanes.ts` (extracted, shared,
+but only tested through its own consumers).
+
 ## Open questions
 
 - Adjacency of a multi-room `ROOMS:`/ditto session's columns isn't
