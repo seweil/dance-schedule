@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
@@ -12,7 +13,7 @@ const BASE_SLOTS = getLevelSlots(false, false)
 const COMBINED_SLOTS = getLevelSlots(true, false)
 const C3B_COMBINED_SLOTS = getLevelSlots(false, true)
 
-function renderFilters(overrides: Partial<React.ComponentProps<typeof DanceScheduleFilters>> = {}) {
+function renderFilters(overrides: Partial<ComponentProps<typeof DanceScheduleFilters>> = {}) {
   const onDateChange = vi.fn()
   const onLevelRangeChange = vi.fn()
   const onShowGcaChange = vi.fn()
