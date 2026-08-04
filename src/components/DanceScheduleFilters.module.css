@@ -209,8 +209,15 @@
   display: flex;
   align-items: center;
   width: 100%;
-  min-width: 12rem;
-  height: 1.25rem;
+  /* min(12rem, 100%), not a bare 12rem — an uncapped floor overflowed
+     .levelField by ~19px at 320px+Extra Large (12rem resolves to 288px at
+     150% root font-size, wider than the ~257px actually available there),
+     independent of thumb size. Mirrors .levelField's own min-width: min(17rem,
+     100%), added for the same reason. */
+  min-width: min(12rem, 100%);
+  /* 1.5rem, not the old 1.25rem — grown to comfortably contain .sliderThumb's
+     own taller box below without clipping/overflow now that it's bigger. */
+  height: 1.5rem;
   touch-action: none;
   user-select: none;
 }
@@ -260,21 +267,30 @@
   width: 0;
   height: 0;
   cursor: pointer;
-  border-top: 8px solid transparent;
-  border-bottom: 8px solid transparent;
+  /* Bigger than the original 8px/12px — per direct product decision, a
+     usability review found the touch target too small, and "click anywhere
+     on the track" (which already jumps the nearest thumb there — Radix's
+     own default behavior, confirmed live) turned out not to fix that on its
+     own: nothing about a thin, flat track visually suggests it's
+     interactive at all, so a bigger, more obviously grabbable HANDLE is the
+     more honest fix — the standard, universally-understood slider
+     convention — rather than relying on a hidden affordance nobody would
+     think to try. */
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
 }
 
 /* Right-pointing (▶) — the min thumb sits at the LEFT end of the selected range,
    so pointing right means pointing INTO it, toward the max thumb. */
 .sliderThumbMin {
-  border-left: 12px solid var(--color-accent);
+  border-left: 18px solid var(--color-accent);
 }
 
 /* Left-pointing (◀) — the max thumb sits at the RIGHT end of the selected range,
    so pointing left means pointing INTO it, toward the min thumb. Together the
    pair reads as inward-pointing brackets around the range: ▶───◀. */
 .sliderThumbMax {
-  border-right: 12px solid var(--color-accent);
+  border-right: 18px solid var(--color-accent);
 }
 
 .sliderThumb:focus-visible {

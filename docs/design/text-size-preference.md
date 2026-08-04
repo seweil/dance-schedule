@@ -415,6 +415,67 @@ accessible name via `aria-labelledby` pointing at that span, so removing
 it entirely would leave the group unlabeled for screen reader users
 instead of just not showing the redundant text to sighted ones.
 
+### Landscape "Text size" dropdown clamped to the viewport's right edge
+**Why:** A heuristic usability review (live, across the window-size ×
+orientation × text-size matrix) found the landscape dropdown (see "In
+landscape, Nav.tsx's 'Text size' becomes a dropdown menu item" above)
+opening off-screen whenever its toggle sat near the tab bar's own right
+edge — the realistic way to reach it at all, since "Text size" is
+typically the last (rightmost) tab, reached by scrolling the tab list
+right first. The existing position effect only ever set `{top: rect.bottom,
+left: rect.left}` from the toggle's own rect, with no right-edge check.
+Fixed with a second `useLayoutEffect` (not `useEffect`, so the correction
+happens before the browser paints the freshly-opened dropdown, not as a
+visible post-open jump) that measures the portaled dropdown's own rendered
+width and clamps `left` down to `window.innerWidth - dropdownWidth - 8px`
+whenever the toggle-aligned position would exceed it — guarded to only
+ever move `left` when it's over that max (never increases it), so the
+effect can't loop. Verified live at 844×390 (scroll tab list right, open
+toggle): dropdown right edge now on-screen; the normal/unclamped case
+(toggle nowhere near the edge) confirmed unaffected.
+
+### Level-slider thumbs enlarged for discoverability, not given a separate ghost hit-area
+**Why:** The same usability review flagged the slider thumbs' touch target
+as too small. Investigated "click anywhere on the track to jump the
+nearest thumb there" first — confirmed live this already works (Radix
+`Slider`'s own default behavior, not something this codebase built) — and
+initially recommended relying on that plus, at most, an invisible enlarged
+hit-area rather than changing the thumb's visible size. Corrected: click-
+to-jump, while functional, isn't discoverable — nothing about a thin, flat
+track visually suggests it's interactive, so a hidden affordance nobody
+would think to try doesn't actually solve the reported problem. Revised to
+enlarging the visible thumbs themselves — the standard, self-evident
+slider-handle convention — approved and implemented: `.sliderThumb`'s
+border-top/bottom (the CSS-triangle technique's height) grew from 8px to
+11px, and `.sliderThumbMin`/`.sliderThumbMax`'s border-left/border-right
+(the triangle's width/point) grew from 12px to 18px; `.sliderRoot`'s own
+height grew from `1.25rem` to `1.5rem` to comfortably contain the taller
+thumb box without clipping. Kept as raw `px`, not `rem`, matching this
+doc's existing "Level slider gets a max-width" reasoning — touch/motor-
+precision sizing is independent of the text-size preference, so it
+shouldn't scale with it. Confirmed live Radix's own thumb-centering math
+(`translateX`-based) adapts to the new width automatically, with no change
+needed to the tick-position calc's own hardcoded inset. Verified clean (no
+overflow, no crowding against the tick marks above) at Normal/Large/Extra
+Large on both the 390px portrait reference width and a 844×390 landscape
+width.
+
+While verifying, also found (and fixed, though unrelated to the
+thumb-size change itself) that `.sliderRoot`'s `min-width: 12rem` —
+unchanged by the above, and predating it — overflowed `.levelField`'s own
+right edge by ~19px at a 320px-wide viewport with Extra Large selected:
+12rem resolves to 288px at 150% root font-size, wider than the ~257px
+actually available inside `.levelField` at that width, and unlike
+`.levelField`'s own `min-width: min(17rem, 100%)`, this floor wasn't
+capped to the container's available space. Confirmed via HMR with the
+thumb genuinely reverted to its old 12px/8px CSS (not just measuring the
+same page) that the overflow was identical either way — a latent,
+pre-existing issue unrelated to the thumb-size change, not a regression it
+introduced. Fixed the same way `.levelField` already was: `min-width:
+min(12rem, 100%)`. Not reproducible at this doc's established 390px
+reference floor (no overflow there at any text size) either before or
+after.
+
 ## Open questions
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
