@@ -15,21 +15,22 @@ import styles from './DanceScheduleFilters.module.css'
 // shrink."
 const NARROW_PORTRAIT_QUERY = '(orientation: portrait) and (max-width: 480px)'
 
-// More than about half an inch between two adjacent ticks stops feeling like
-// one continuous, easy-to-scan control — particularly for mouse/touch
-// precision aiming for a specific one on a wide desktop monitor, where
-// .levelField's own flex-grow: 1 (DanceScheduleFilters.module.css) would
-// otherwise stretch it to fill however wide the row happens to be — per
-// direct product decision. 48px is the standard CSS reference pixel's own
-// half-inch (96px/in). Physical, not rem — unlike most sizing in this app,
-// ergonomic tick spacing doesn't get more generous just because someone
-// prefers larger text (useTextSizePreference.ts); it's a motor-control
-// constraint, not a legibility one. Computed from the actual slot count
-// below, not a single fixed constant, so it stays correct regardless of the
-// combineA1A2/combineC3BC4 config — fewer slots means fewer, WIDER gaps for
-// a given width, so fewer slots need a SMALLER cap to keep each individual
-// gap within budget.
-const MAX_TICK_GAP_PX = 48
+// More than about three-quarters of an inch between two adjacent ticks stops
+// feeling like one continuous, easy-to-scan control — particularly for
+// mouse/touch precision aiming for a specific one on a wide desktop monitor,
+// where .levelField's own flex-grow: 1 (DanceScheduleFilters.module.css)
+// would otherwise stretch it to fill however wide the row happens to be —
+// per direct product decision (half an inch, tried first, measured live as
+// a bit too tight). 72px is the standard CSS reference pixel's own
+// three-quarter-inch (96px/in). Physical, not rem — unlike most sizing in
+// this app, ergonomic tick spacing doesn't get more generous just because
+// someone prefers larger text (useTextSizePreference.ts); it's a
+// motor-control constraint, not a legibility one. Computed from the actual
+// slot count below, not a single fixed constant, so it stays correct
+// regardless of the combineA1A2/combineC3BC4 config — fewer slots means
+// fewer, WIDER gaps for a given width, so fewer slots need a SMALLER cap to
+// keep each individual gap within budget.
+const MAX_TICK_GAP_PX = 72
 
 // Matches the tick `left` calc's own 8px-per-side inset below (mirroring
 // Radix's own thumb-centering inset) plus .levelField's own
