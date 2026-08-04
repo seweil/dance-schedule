@@ -49,6 +49,50 @@ for a future Claude session that needs e2e-level confidence in a change:
 3. Ask the user to run `pnpm test:e2e` locally (outside Claude Code's
    sandbox) and report back the result.
 
+## Claude Code's own sandbox blocks macOS Keychain writes — every `git push` warns "failed to store: 100001"
+
+**Found:** 2026-08-04, while pushing commits during a Claude Code session in
+this repo.
+
+Every `git push` over HTTPS (this repo's remote) succeeds — the ref updates
+correctly — but the command also prints:
+
+```
+failed to store: 100001
+```
+
+Reproduced directly and confirmed it's unrelated to this repo or GitHub
+specifically — the identical failure happens against a fake host:
+
+```
+$ printf 'protocol=https\nhost=example.com\nusername=x\npassword=y\n' | git credential-osxkeychain store
+failed to store: 100001
+```
+
+The user's global `~/.gitconfig` sets `credential.helper=osxkeychain`; after
+a successful HTTPS auth, git's normal flow calls that helper's `store`
+action to refresh the cached credential. That write to the macOS Keychain
+(Security framework) is blocked by the coding agent's own OS-level sandbox —
+the same category of restriction as the Playwright/Chromium entry below
+(this environment's sandbox denies interaction with system frameworks like
+the Keychain, not just filesystem paths outside the project).
+
+**Impact:** cosmetic/noisy only. Auth itself still works (`get` succeeds,
+presumably via an already-cached keychain entry created outside the
+sandbox), so every push completes and the branch ref updates as expected.
+The message can look alarming — it reads like a failure — even though the
+push it's attached to succeeded.
+
+**Not a repo bug — no code-side fix.** Changing `credential.helper` (e.g. to
+`cache`, which stores in-memory instead of the Keychain) would silence it,
+but that's a git-config edit, and this project's Claude Code instructions
+prohibit updating git config under any circumstance — and the sandbox
+itself can't be disabled from within a session either. A user who wants it
+silenced would need to run something like
+`git config --local credential.helper cache` themselves (scoped to just
+this repo, not their global config) — not something a Claude Code session
+will do on its own.
+
 ## `combineA1A2` silently defaults to `false`, opposite of the documented recommendation
 
 **Found:** 2026-07-29, deep code review for correctness/generality bugs.
