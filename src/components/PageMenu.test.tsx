@@ -74,6 +74,18 @@ describe('PageMenu', () => {
     expect(screen.getByRole('link', { name: /features/i })).not.toHaveAttribute('aria-current')
   })
 
+  it('closes the menu when a text-size option is selected, same as clicking a page link would', async () => {
+    const user = userEvent.setup()
+    renderPageMenu()
+    const toggle = getToggle()
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'Large' }))
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
   it('closes the menu when clicking outside the nav', async () => {
     const user = userEvent.setup()
     render(

@@ -28,7 +28,14 @@ const OPTIONS: readonly { value: TextSize; label: string; previewRem: number }[]
 // someone guess from the word alone. A visible "Text size" heading (not just an
 // aria-label) makes the whole group self-explanatory without relying on a
 // screen reader to announce what these three buttons are for.
-export function TextSizeControl() {
+//
+// `onSelect`, called after setTextSize on every click, exists for
+// PageMenu.tsx's benefit: unlike its other menu items (page links), selecting
+// a size doesn't navigate anywhere, so nothing else would otherwise close that
+// dropdown the way clicking a link does (a different route unmounts and
+// remounts PageMenu fresh, closed by construction — see that file's own
+// comment). Nav.tsx has no dropdown to close, so it simply doesn't pass this.
+export function TextSizeControl({ onSelect }: { onSelect?: () => void } = {}) {
   const { textSize, setTextSize } = useTextSize()
   const headingId = useId()
 
@@ -44,7 +51,10 @@ export function TextSizeControl() {
             type="button"
             className={styles.button}
             aria-pressed={textSize === option.value}
-            onClick={() => setTextSize(option.value)}
+            onClick={() => {
+              setTextSize(option.value)
+              onSelect?.()
+            }}
           >
             <span className={styles.preview} style={{ fontSize: `${option.previewRem}rem` }} aria-hidden="true">
               Aa

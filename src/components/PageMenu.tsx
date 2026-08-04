@@ -84,7 +84,10 @@ export function PageMenu() {
           </li>
         ))}
         <li className={styles.textSizeItem}>
-          <TextSizeControl />
+          {/* onSelect: unlike the page links above it, choosing a size doesn't
+              navigate anywhere, so nothing else would close this dropdown —
+              see TextSizeControl.tsx's own comment. */}
+          <TextSizeControl onSelect={() => setIsOpen(false)} />
         </li>
       </ul>
     </nav>

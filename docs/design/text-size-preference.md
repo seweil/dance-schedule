@@ -40,6 +40,9 @@ app's first settings/preferences UI of any kind.
 - [x] Date select + GCA checkbox wrapping onto separate lines at Extra Large on a
       narrow phone — see "Date + GCA checkbox trimmed to still share one line at
       Extra Large"
+- [x] Selecting a size in `PageMenu.tsx`'s mobile dropdown left the dropdown open,
+      unlike every other menu item — see "TextSizeControl closes PageMenu on
+      selection"
 - [ ] Whether this needs Playwright e2e coverage — deferred, see Open questions.
 
 ## Decisions
@@ -266,6 +269,18 @@ any rule here). No single one of these closed the gap alone — confirmed
 live only the combination did, with a few px of slack to spare. Still
 falls back to `.dateGcaRow`'s existing `flex-wrap: wrap` gracefully if a
 future change (a longer label, a wider font) reopens the gap.
+
+### TextSizeControl closes PageMenu on selection
+**Why:** Reported live: every other item in `PageMenu.tsx`'s mobile dropdown
+(a page link) closes the dropdown when clicked, since navigating to a
+different route unmounts and remounts `PageMenu` fresh (closed by
+construction). Selecting a text size doesn't navigate anywhere, so nothing
+else closed the dropdown the same way — an inconsistency once actually
+pointed out, since a user could reasonably expect any tap in that menu to
+dismiss it. `TextSizeControl` (shared with `Nav.tsx`'s desktop tab bar,
+which has no dropdown to close) takes an optional `onSelect` callback, fired
+after `setTextSize` on every click; `PageMenu.tsx` passes
+`onSelect={() => setIsOpen(false)}`, `Nav.tsx` simply omits it.
 
 ## Open questions
 
