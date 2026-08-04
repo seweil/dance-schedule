@@ -270,6 +270,22 @@ live only the combination did, with a few px of slack to spare. Still
 falls back to `.dateGcaRow`'s existing `flex-wrap: wrap` gracefully if a
 future change (a longer label, a wider font) reopens the gap.
 
+**Follow-up — those trims are now scoped to the one case that needs them,
+not applied everywhere:** reported live as looking "ugly" — cramped and
+uneven — once there was more horizontal room to spare (Normal/Large at any
+orientation, or a landscape phone even at Extra Large), since the tight
+values above were unconditional. Restored `.dateGcaRow`'s gap and
+`.select`'s padding to their pre-trim `var(--space-sm)` defaults, and
+bumped `.checkboxField`'s own gap up to match `.dateGcaRow`'s (previously
+mismatched — `var(--space-sm)` outer gap next to a tighter checkbox-to-label
+gap read as lopsided rather than evenly spaced). The tight values move into
+a `@media (orientation: portrait) and (max-width: 480px)` block, further
+scoped with `:global(html[data-text-size='x-large'])` — the same
+`NARROW_PORTRAIT_QUERY` condition as the level slider's own "A1/A2" → "A"
+shortening (`DanceScheduleFilters.tsx`), just expressed directly in CSS here
+since only property values change, not rendered text content, so no JS
+hook was needed to gate it.
+
 ### TextSizeControl closes PageMenu on selection
 **Why:** Reported live: every other item in `PageMenu.tsx`'s mobile dropdown
 (a page link) closes the dropdown when clicked, since navigating to a

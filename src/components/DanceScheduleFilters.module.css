@@ -17,18 +17,16 @@
    longer fit side by side; without this they overflowed past the edge of the
    viewport instead of falling back to stacking (confirmed live). Still pairs
    them side by side whenever there's room, same as before.
-   gap trimmed from var(--space-md) to var(--space-sm)'s own HALF (0.25rem) —
-   confirmed live to be the difference between fitting on one line and wrapping
-   at Extra Large on a real narrow phone (iPhone 13 portrait): Date + GCA's
-   combined content width there is only a few px over what's available, so a
-   small, deliberate trim here (plus .select's and .checkboxField's own trims
-   below) recovers just enough without needing to shrink either control's own
-   text, which would fight the whole point of the text-size preference. */
+   gap: var(--space-sm) — the generous default; see the
+   NARROW_PORTRAIT_QUERY-scoped override far below for the tight 0.25rem this
+   used to be unconditionally, which read as needlessly cramped (reported
+   live) everywhere that trim wasn't actually needed — Normal/Large at any
+   orientation, or a wide/landscape viewport even at Extra Large. */
 .dateGcaRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-sm);
 }
 
 .field {
@@ -135,16 +133,12 @@
   border: 0;
 }
 
-/* Was more horizontal than vertical padding (--space-md L/R), then trimmed to
-   match --space-sm on every side, then trimmed again HORIZONTALLY ONLY (kept
-   the vertical --space-sm — that one sizes the touch target's height, not
-   contested here) — confirmed live this is one of the trims (alongside
-   .dateGcaRow's gap and .checkboxField's below) needed to keep Date and GCA on
-   one line at Extra Large on a real narrow phone; still real breathing room
-   around the date text, just not padded out sideways further than that, which
-   was costing .dateGcaRow more width than the date text itself needed. */
+/* var(--space-sm) on every side — the generous default; see the
+   NARROW_PORTRAIT_QUERY-scoped override far below for the horizontally-tighter
+   padding this used to be unconditionally, which read as needlessly cramped
+   (reported live) everywhere that trim wasn't actually needed. */
 .select {
-  padding: var(--space-sm) 0.25rem;
+  padding: var(--space-sm);
   font: inherit;
 }
 
@@ -160,21 +154,48 @@
   }
 }
 
-/* gap trimmed from var(--space-sm) to 0.25rem, and the checkbox's own UA-default
-   margin (Chrome: ~3px/4px, not controlled by any rule here until now) zeroed
-   out — the other trims needed, alongside .select's and .dateGcaRow's own
-   above, to keep Date and GCA sharing one line at Extra Large on a real narrow
-   phone (confirmed live: without all three together, Date + GCA's combined
-   content width was still a few px over what's available, even though any pair
-   of these trims alone fell short). */
+/* gap: var(--space-sm) — matches .dateGcaRow's own gap so the checkbox-to-label
+   space reads the same as the date-field-to-checkbox space (confirmed live:
+   leaving this tighter than .dateGcaRow's gap, while only widening that outer
+   one, looked lopsided — tight-then-loose instead of evenly spaced controls).
+   See the NARROW_PORTRAIT_QUERY-scoped override far below for the tight
+   0.25rem this used to be unconditionally. The checkbox's own UA-default
+   margin (Chrome: ~3px/4px) stays zeroed regardless of that override — a
+   plain visual tidy-up, not part of the width-recovery trims. */
 .checkboxField {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-sm);
 }
 
 .checkboxField input {
   margin: 0;
+}
+
+/* Tight spacing, but ONLY for the specific problem case this was originally
+   added for: Extra Large text size on a narrow portrait phone, where Date +
+   GCA's combined content width comes in just a few px over what's available
+   (confirmed live) — without this trim they wrap onto separate lines. Same
+   condition as DanceScheduleFilters.tsx's own NARROW_PORTRAIT_QUERY, which
+   gates the level slider's "A1/A2" → "A" shortening for the identical
+   reason; expressed directly in CSS here instead of threaded through JS,
+   since only property VALUES change here, not rendered text content.
+   `data-text-size='x-large'` (not a viewport-only media query) is what scopes
+   this to Extra Large specifically — Normal/Large already fit fine at this
+   same narrow portrait width (confirmed live), so tightening them too would
+   only make things look cramped for no reason. */
+@media (orientation: portrait) and (max-width: 480px) {
+  :global(html[data-text-size='x-large']) .dateGcaRow {
+    gap: 0.25rem;
+  }
+
+  :global(html[data-text-size='x-large']) .select {
+    padding: var(--space-sm) 0.25rem;
+  }
+
+  :global(html[data-text-size='x-large']) .checkboxField {
+    gap: 0.25rem;
+  }
 }
 
 .sliderRoot {
