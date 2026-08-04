@@ -16,12 +16,19 @@
 /* flex-wrap: wrap — at an extremely narrow width, Date and GCA together no
    longer fit side by side; without this they overflowed past the edge of the
    viewport instead of falling back to stacking (confirmed live). Still pairs
-   them side by side whenever there's room, same as before. */
+   them side by side whenever there's room, same as before.
+   gap trimmed from var(--space-md) to var(--space-sm)'s own HALF (0.25rem) —
+   confirmed live to be the difference between fitting on one line and wrapping
+   at Extra Large on a real narrow phone (iPhone 13 portrait): Date + GCA's
+   combined content width there is only a few px over what's available, so a
+   small, deliberate trim here (plus .select's and .checkboxField's own trims
+   below) recovers just enough without needing to shrink either control's own
+   text, which would fight the whole point of the text-size preference. */
 .dateGcaRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-md);
+  gap: 0.25rem;
 }
 
 .field {
@@ -39,77 +46,27 @@
   min-width: 0;
 }
 
-/* The level field needs more committed width than the shared .field floor (12rem)
-   provides — the tick labels need enough combined room that no adjacent pair
-   touches. Setting min-width on a CHILD (.sliderRoot/.ticks) instead of here was
-   tried first and doesn't work: a child's own min-width just makes that child
-   overflow its parent when the parent's width is constrained by something else
-   (confirmed live — .sliderRoot and .ticks ended up different widths from each
-   other, breaking the tick-alignment math below, which assumes they're identical).
-   This has to be set on .field itself, which every descendant (.sliderRoot at
-   width: 100%, .ticks via flex stretch) then reliably sizes from consistently.
-   17rem, not 15rem — 15rem was sized for the uncombined 10-slot case's widest
-   adjacent pair (C3A/C3B); combining A1/A2 (getLevelSlots(true, false)) produces a
-   wider "A1/A2" label than any single-level label, and at 15rem its gap to "Plus"
-   measured a bare ~1.85px live — technically not touching, but not the comfortable
-   margin every other pair gets. 17rem covers both the base and combined cases with
-   a similar margin — re-measured after .tick's labels became bold/larger (that pair
-   dropped to a tight ~5px at 17rem with the wider bold text, prompting a bump to
-   18rem at the time) and dropped back down to 17rem once .dateGcaRow needed more
-   room of its own for the longer "Show GCA callers" label — still a confirmed-live,
-   non-touching ~5px at this floor, just snugger than 18rem's ~7px. combineC3BC4's
-   merged "C3B+" label is narrower than "A1/A2", so it doesn't push this further. */
+/* .levelField is now just the SCROLLABLE VIEWPORT for .levelInner below, never
+   wider than its own line in .filters — .levelInner (not this element) carries
+   the min-width that used to live here directly. Previously this element itself
+   held both the min-width AND the overflow, which meant that min-width had to be
+   capped with min(17rem, ...) to keep it from overflowing the real viewport —
+   but capping it is exactly what caused the tick labels to visually overlap at
+   Large/Extra Large on a narrow phone (useTextSizePreference.ts scales the root
+   font-size, so rem grows right along with it, but the min() cap silently
+   shrank the AVAILABLE width for the ticks below what their own now-larger text
+   needed, without shrinking the text itself). Splitting scrolling (here) from
+   sizing (.levelInner) fixes both problems at once: .levelInner can now demand
+   as much width as it actually needs at any text size with no cap at all, and
+   if that's more than fits on screen, the excess scrolls instead of compressing
+   — same pattern already used for Nav.tsx's tab bar and the dance-schedule
+   grid's own columns, rather than a new one-off mechanism. */
 .levelField {
-  /* min(), not a bare 17rem — 17rem is tuned against the UNSCALED 16px root
-     font-size (272px), but at Large/Extra Large (useTextSizePreference.ts scales
-     the root font-size itself, so rem grows too) that same 17rem can resolve
-     wider than the entire viewport on a real phone: 17rem at Extra Large's 150%
-     is 408px, already past an iPhone 13's full 390px width before any padding or
-     margin. Confirmed live (via an iframe pinned to a true 390px viewport — a
-     resized browser WINDOW doesn't reliably give a true narrow CSS viewport in
-     this environment, so that's not sufficient to test this by itself): without
-     this, the field rendered 480px wide inside a 375px-available space, centered
-     by .filters — so it overflowed off-screen by roughly the same amount on BOTH
-     the left and right edges at once, not just one. min(17rem, ...) never asks
-     for more than truly fits, so it can't force that overflow regardless of text
-     size or viewport width — it only stops actively PREVENTING adjacent tick
-     labels from touching (the reason 17rem exists at all — see below) once
-     there's genuinely no room left to prevent it, which is strictly better than
-     the alternative of the whole control being clipped off-screen.
-     calc(100% - 2 * var(--space-sm)) — not a bare 100% — accounts for this same
-     element's own left+right margin below, which box-sizing: border-box (also
-     below) does NOT fold in (only padding/border are border-box's concern,
-     margin is always separate), so 100% alone would still overflow by exactly
-     the margin amount. */
-  min-width: min(17rem, calc(100% - 2 * var(--space-sm)));
-  /* Padding (below) would otherwise add on top of min-width's content-box size
-     instead of being absorbed within it, defeating the min() cap above by
-     exactly the padding amount. */
-  box-sizing: border-box;
+  overflow-x: auto;
   /* Grows to fill whatever width is left in its line — once it wraps onto its own
      line below dateGcaRow (the common case on a narrow phone), that means the full
-     available content width instead of sitting fixed at the 17rem floor with dead
-     space to its right. */
+     available content width instead of sitting fixed with dead space to its right. */
   flex-grow: 1;
-  /* A bit of extra inset beyond the slider's own built-in ~8px thumb-center inset
-     (see .ticks' `left` positioning below) and beyond the page's own edge padding
-     (body, index.css) — without this the leftmost/rightmost tick labels and thumbs
-     sit uncomfortably close to the actual screen edge on a narrow phone. */
-  margin: 0 var(--space-sm);
-  /* Reserves room for the first/last tick LABEL's own text to overhang past its
-     centered anchor point (see .tick's `transform: translateX(-50%)` below) without
-     getting clipped at the edge of a narrow viewport — the mark/thumb position
-     itself stays exactly on the anchor point regardless, only the wider text next
-     to it needs the extra room. rem, not px, so this scales right along with the
-     text-size preference (useTextSizePreference.ts) that makes the label text
-     itself grow in the first place — confirmed live: at Extra Large (150%) on a
-     390px-wide phone, the last tick's label ("C3B+") was genuinely cut off at the
-     screen edge without this. Set on .levelField itself, not .ticks/.sliderRoot
-     directly — a child's own padding/min-width desyncs .ticks and .sliderRoot's
-     widths from each other, breaking the tick-to-thumb alignment math (see this
-     file's own history above for the confirmed-live failure mode); padding on the
-     shared parent shrinks both of their content boxes identically instead. */
-  padding: 0 1.5rem;
   /* .filters centers this against dateGcaRow's own (shorter) box, but that centers
      the whole tick-labels-plus-track block — since the labels sit above the track,
      plain centering leaves the actual slider LINE below dateGcaRow's own vertical
@@ -122,10 +79,62 @@
      track's own center sat 11px below the Date select's. */
   position: relative;
   top: -11px;
-  /* Overrides .field's gap (var(--space-sm), meant for the Date field's label-above-
-     control spacing) — the tick row and the slider it labels should read as one
-     tightly-connected unit, not two evenly-spaced blocks. */
+}
+
+/* The actual tick-labels-plus-track content, previously living directly on
+   .levelField (see its own comment above for why that had to change). Needs
+   more committed width than the shared .field floor (12rem) provides — the tick
+   labels need enough combined room that no adjacent pair touches. Setting
+   min-width on a CHILD (.sliderRoot/.ticks) instead of here was tried first and
+   doesn't work: a child's own min-width just makes that child overflow ITS
+   parent (.levelInner) when this element's own width is constrained by
+   something else (confirmed live — .sliderRoot and .ticks ended up different
+   widths from each other, breaking the tick-alignment math below, which assumes
+   they're identical). This has to be set here, one level below .levelField,
+   which every descendant (.sliderRoot at width: 100%, .ticks via flex stretch)
+   then reliably sizes from consistently.
+   20rem — re-measured live specifically for this element having no upper cap
+   any more (unlike the old min(17rem, ...) it replaced): at Extra Large on a
+   real 390px-wide phone with BOTH combineA1A2 and combineC3BC4 active (the
+   widest label combination observed, "A1/A2" next to "Plus"), 17rem's own
+   scaled-up width still left that pair overlapping by a couple px — bumped to
+   20rem, confirmed live to leave every adjacent pair at least ~8px apart at
+   that same scale. Since .levelField now scrolls instead of compressing this
+   value, there's no reason to keep it as tight as before — a bit of extra
+   margin here costs nothing but a slightly wider (rather than perfectly
+   snug) scroll range on the very narrowest screens. */
+.levelInner {
+  /* Same flex-column shape .levelField used to have directly (ticks stacked
+     above the slider they label). */
+  display: flex;
+  flex-direction: column;
+  /* Overrides .field's gap (var(--space-sm), meant for the Date field's label-
+     above-control spacing) — the tick row and the slider it labels should read
+     as one tightly-connected unit, not two evenly-spaced blocks. */
   gap: 0;
+  min-width: 20rem;
+  /* Stretches to fill .levelField whenever there's room for that (min-width
+     above is only a FLOOR, not a fixed size) — same "fill the line" intent
+     .levelField's own flex-grow: 1 has one level up. */
+  width: 100%;
+  /* Reserves room for the first/last tick LABEL's own text to overhang past its
+     centered anchor point (see .tick's `transform: translateX(-50%)` below)
+     without getting clipped at either end of the scrollable range — the
+     mark/thumb position itself stays exactly on the anchor point regardless,
+     only the wider text next to it needs the extra room. rem, not px, so this
+     scales right along with the text-size preference
+     (useTextSizePreference.ts) that makes the label text itself grow in the
+     first place — confirmed live: at Extra Large (150%) on a 390px-wide phone,
+     the last tick's label ("C3B+") was genuinely cut off at the scrolled-to-the-
+     end edge without this. Set here, not on .ticks/.sliderRoot directly — a
+     child's own padding/min-width desyncs .ticks and .sliderRoot's widths from
+     each other, breaking the tick-to-thumb alignment math (see this file's own
+     history above for the confirmed-live failure mode); padding on the shared
+     parent shrinks both of their content boxes identically instead. */
+  padding: 0 1.5rem;
+  /* Padding above would otherwise add on top of min-width's content-box size
+     instead of being absorbed within it. */
+  box-sizing: border-box;
 }
 
 .label {
@@ -149,13 +158,16 @@
   border: 0;
 }
 
-/* Was more horizontal than vertical padding (--space-md L/R) — trimmed to match
-   --space-sm on every side: still a comfortably wide touch target and real
-   breathing room around the date text, just not padded out further than that,
-   which was costing .dateGcaRow (and so the level field sharing its row —
-   see .levelField) more width than the date text itself needed. */
+/* Was more horizontal than vertical padding (--space-md L/R), then trimmed to
+   match --space-sm on every side, then trimmed again HORIZONTALLY ONLY (kept
+   the vertical --space-sm — that one sizes the touch target's height, not
+   contested here) — confirmed live this is one of the trims (alongside
+   .dateGcaRow's gap and .checkboxField's below) needed to keep Date and GCA on
+   one line at Extra Large on a real narrow phone; still real breathing room
+   around the date text, just not padded out sideways further than that, which
+   was costing .dateGcaRow more width than the date text itself needed. */
 .select {
-  padding: var(--space-sm);
+  padding: var(--space-sm) 0.25rem;
   font: inherit;
 }
 
@@ -171,10 +183,21 @@
   }
 }
 
+/* gap trimmed from var(--space-sm) to 0.25rem, and the checkbox's own UA-default
+   margin (Chrome: ~3px/4px, not controlled by any rule here until now) zeroed
+   out — the other trims needed, alongside .select's and .dateGcaRow's own
+   above, to keep Date and GCA sharing one line at Extra Large on a real narrow
+   phone (confirmed live: without all three together, Date + GCA's combined
+   content width was still a few px over what's available, even though any pair
+   of these trims alone fell short). */
 .checkboxField {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 0.25rem;
+}
+
+.checkboxField input {
+  margin: 0;
 }
 
 .sliderRoot {

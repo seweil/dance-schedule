@@ -7,11 +7,15 @@ import { test, expect } from '@playwright/test'
 // filter-facing subset rather than re-covering every case already exercised there.
 //
 // Per content/automated-testing/data/dance-schedule-dump.md's "Hours by caller"
-// table, Don Moger clears MIN_CALLER_HOURS (> 3) on Thursday (5h) and Friday (4h),
-// but not Saturday (2h) — a real, day-varying eligibility fact used below instead of
-// a session that the caller view would exclude outright (e.g. "All Callers Dance",
-// whose "All Callers" caller never clears the threshold on any day, unlike the
-// room/level views which show it regardless).
+// table, Dayle Hodge has zero sessions on Thursday (the default date) but a real
+// event-wide total of 4.5h (1.5 Friday + 3 Saturday) — comfortably clearing
+// MIN_CALLER_HOURS (> 3), which computeDanceScheduleCallerLayout.ts computes
+// event-wide, not per-day (see that file's own comment on why). So she's eligible
+// for a column every day, but only actually shows one on a day she has a session
+// at all — a real, day-varying fact used below instead of a session the caller
+// view would exclude outright (e.g. "All Callers Dance", whose "All Callers"
+// caller never clears the threshold on any day, unlike the room/level views
+// which show it regardless).
 
 test('nav links to the dance-by-caller page, which renders the default date\'s grid', async ({
   page,
@@ -27,16 +31,17 @@ test('nav links to the dance-by-caller page, which renders the default date\'s g
 
 test('changing the date select swaps the grid to that date', async ({ page }) => {
   await page.goto('/automated-testing/dance-by-caller')
-  // Thursday (the default date) — Don Moger clears the day-wide hour threshold.
-  await expect(page.getByText('Don Moger', { exact: true })).toBeVisible()
+  // Thursday (the default date) — Dayle Hodge has no sessions at all, so no column
+  // even though she's eligible event-wide.
+  await expect(page.getByText('Dayle Hodge', { exact: true })).not.toBeVisible()
 
   // Index 2 — Saturday is always the 3rd of the 3 known dates, regardless of the
   // exact year parseEventDate's year-inference resolves to.
   await page.getByLabel('Date').selectOption({ index: 2 })
 
-  // Don Moger's Saturday total (2h) doesn't clear MIN_CALLER_HOURS, so his whole
-  // column disappears — proof the grid actually re-rendered for the new date.
-  await expect(page.getByText('Don Moger', { exact: true })).not.toBeVisible()
+  // Dayle Hodge has real sessions on Saturday, so her column now appears — proof
+  // the grid actually re-rendered for the new date.
+  await expect(page.getByText('Dayle Hodge', { exact: true })).toBeVisible()
 })
 
 test('narrowing the level slider hides out-of-range sessions and their now-empty caller column', async ({

@@ -44,32 +44,47 @@
    the current page's own opaque white background) sit on top of the shared list
    background and cover it up right at the edge, exactly where it matters most —
    an explicit overlay button, painted above everything via z-index, doesn't have
-   that problem. */
+   that problem.
+   A first version of this button was just the bare ‹/› glyph over a
+   transparent-fade gradient, no border or fill of its own — confirmed live to
+   be TOO subtle: sitting flush against the tab row's own white background, it
+   read as stray punctuation rather than a control, easy to miss entirely. Now a
+   solid, bordered, shadowed circular chip — the standard "carousel arrow"
+   affordance — so it unmistakably reads as clickable regardless of what's
+   behind it. */
 .scrollButton {
   position: absolute;
-  top: var(--space-sm);
-  bottom: 0;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 1;
   display: flex;
   align-items: center;
-  width: 1.5rem;
-  border: none;
-  color: var(--color-text);
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+  color: var(--color-accent);
   cursor: pointer;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
   line-height: 1;
 }
 
+.scrollButton:hover {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
 .scrollButtonLeft {
-  left: 0;
-  justify-content: flex-start;
-  background: linear-gradient(to right, #fff 60%, rgb(255 255 255 / 0%));
+  left: 2px;
 }
 
 .scrollButtonRight {
-  right: 0;
-  justify-content: flex-end;
-  background: linear-gradient(to left, #fff 60%, rgb(255 255 255 / 0%));
+  right: 2px;
 }
 
 /* Each item reads as an actual tab: a bordered, rounded-top box sitting on the

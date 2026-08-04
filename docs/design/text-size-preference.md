@@ -31,6 +31,14 @@ app's first settings/preferences UI of any kind.
       text sizes — see "Level-slider edge padding scales with text size too"
 - [x] No indication when the nav tab bar has more (now-wider) tabs scrolled out of
       view — see "Explicit scroll arrows for the nav tab bar, not a CSS scroll shadow"
+- [x] The nav scroll arrows themselves being too subtle to read as a real button —
+      see "Nav scroll arrows redesigned as solid circular buttons, not a bare glyph"
+- [x] The level-slider's tick labels overlapping each other (not just clipping at
+      the edge) once compressed below their own text's width at larger sizes — see
+      "Level slider scrolls horizontally instead of compressing at larger text sizes"
+- [x] Date select + GCA checkbox wrapping onto separate lines at Extra Large on a
+      narrow phone — see "Date + GCA checkbox trimmed to still share one line at
+      Extra Large"
 - [ ] Whether this needs Playwright e2e coverage — deferred, see Open questions.
 
 ## Decisions
@@ -160,6 +168,65 @@ scroll-position check (`scrollLeft`/`scrollWidth`/`clientWidth`, via a
 since a text-size change alone doesn't fire either of those) confirms
 there's really more content in that direction, and clicking one scrolls
 all the way to that end.
+
+### Nav scroll arrows redesigned as solid circular buttons, not a bare glyph
+**Why:** The first version above was just a `‹`/`›` character sitting on a
+transparent-fade gradient, no border or fill of its own — confirmed live
+to be too subtle, reading as stray punctuation rather than an actual
+control, easy to miss entirely. Redesigned as a solid white, bordered,
+drop-shadowed circular chip (the standard "carousel arrow" affordance) —
+unmistakably reads as clickable regardless of what tab content is behind
+it, with a hover state (fills with `--color-accent`) confirming it's
+interactive. Still shown only under the same scroll-position check as
+before — this only changed the button's own look, not when it appears.
+
+### Level slider scrolls horizontally instead of compressing at larger text sizes
+**Why:** "Level-slider edge padding scales with text size too" above fixed
+label clipping at the viewport's outer edge, but left a separate,
+worse problem: confirmed live (Extra Large, iPhone 13 portrait, a true
+390px CSS viewport — resizing the browser WINDOW doesn't reliably give a
+true narrow viewport in this environment, so testing needs a pinned-size
+iframe instead) that `.levelField`'s `min-width: min(17rem, calc(100% -
+...))` — added specifically to stop it overflowing the real viewport —
+was, as a side effect, compressing the ticks/slider content below the
+width their own (now-larger) label text needed, so adjacent tick labels
+visually overlapped each other in the middle of the row, not just at the
+edges. Capping the width and growing the label text are fundamentally in
+tension; no fixed cap value avoids both overflow and overlap at every text
+size and every slot-count permutation (`combineA1A2`/`combineC3BC4`).
+Resolved by splitting what used to be one element into two: `.levelField`
+is now just a scroll viewport (`overflow-x: auto`, sized to its line, no
+min-width of its own), and a new `.levelInner` (holding `.ticks` and
+`.sliderRoot`, previously direct children of `.levelField`) carries an
+uncapped `min-width: 20rem` — bumped up from the old 17rem specifically
+because it no longer needs to fit inside any viewport, so there's no
+reason to keep it as tight as before. When that floor exceeds the
+available line width, the excess now scrolls instead of compressing,
+exactly the same pattern already used for `Nav.tsx`'s own tab bar and the
+dance-schedule grid's columns, rather than a new one-off mechanism. This
+also incidentally fixed a "margins wider than needed" complaint: the old
+approach reserved the same edge padding whether or not the content was
+being squeezed, wasting space that would otherwise have gone to tick
+spacing; now that reserve only matters at the true scrolled-to-the-end
+edges.
+
+### Date + GCA checkbox trimmed to still share one line at Extra Large
+**Why:** Confirmed live (same 390px-iframe technique as above): at Extra
+Large on a narrow phone, the Date `<select>` and "Show GCA callers"
+checkbox's combined content width came in a few px over what
+`.dateGcaRow` had available, so they wrapped onto separate lines — a
+regression report asking to "squeeze" them back onto one. Growing the
+label text itself was never on the table (that's the entire point of this
+feature), so the fix instead trims dead space around it: `.dateGcaRow`'s
+gap (`var(--space-md)` → `0.25rem`), `.select`'s horizontal-only padding
+(`var(--space-sm)` all sides → `var(--space-sm) 0.25rem`, keeping the
+vertical padding that sets its touch-target height), `.checkboxField`'s
+gap (`var(--space-sm)` → `0.25rem`), and zeroing the checkbox `<input>`'s
+own browser-default margin (Chrome: ~3px/4px, previously uncontrolled by
+any rule here). No single one of these closed the gap alone — confirmed
+live only the combination did, with a few px of slack to spare. Still
+falls back to `.dateGcaRow`'s existing `flex-wrap: wrap` gracefully if a
+future change (a longer label, a wider font) reopens the gap.
 
 ## Open questions
 
