@@ -15,6 +15,29 @@ import styles from './DanceScheduleFilters.module.css'
 // shrink."
 const NARROW_PORTRAIT_QUERY = '(orientation: portrait) and (max-width: 480px)'
 
+// More than about half an inch between two adjacent ticks stops feeling like
+// one continuous, easy-to-scan control — particularly for mouse/touch
+// precision aiming for a specific one on a wide desktop monitor, where
+// .levelField's own flex-grow: 1 (DanceScheduleFilters.module.css) would
+// otherwise stretch it to fill however wide the row happens to be — per
+// direct product decision. 48px is the standard CSS reference pixel's own
+// half-inch (96px/in). Physical, not rem — unlike most sizing in this app,
+// ergonomic tick spacing doesn't get more generous just because someone
+// prefers larger text (useTextSizePreference.ts); it's a motor-control
+// constraint, not a legibility one. Computed from the actual slot count
+// below, not a single fixed constant, so it stays correct regardless of the
+// combineA1A2/combineC3BC4 config — fewer slots means fewer, WIDER gaps for
+// a given width, so fewer slots need a SMALLER cap to keep each individual
+// gap within budget.
+const MAX_TICK_GAP_PX = 48
+
+// Matches the tick `left` calc's own 8px-per-side inset below (mirroring
+// Radix's own thumb-centering inset) plus .levelField's own
+// `padding: 0 0.5rem` at the unscaled (Normal) text size — both live inside
+// the capped width below, not outside it, so they need to be budgeted for
+// too, not just the gaps between ticks themselves.
+const LEVEL_FIELD_FIXED_INSET_PX = 32
+
 // Weekday + day + month, no year — the year is never ambiguous within a single
 // convention's schedule, and dropping it keeps each <option> (and the closed
 // select's own display) short enough to help the vertical-footprint goal below.
@@ -73,6 +96,7 @@ export function DanceScheduleFilters({
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
   const shortenA1A2Tick = textSize === 'x-large' && isNarrowPortrait
+  const maxLevelFieldWidthPx = LEVEL_FIELD_FIXED_INSET_PX + (slots.length - 1) * MAX_TICK_GAP_PX
 
   return (
     <div className={styles.filters}>
@@ -106,7 +130,10 @@ export function DanceScheduleFilters({
         </label>
       </div>
 
-      <div className={`${styles.field} ${styles.levelField}`}>
+      <div
+        className={`${styles.field} ${styles.levelField}`}
+        style={{ maxWidth: `${maxLevelFieldWidthPx}px` }}
+      >
         {/* Radix positions each thumb's CENTER inset by half its own width from the
             track's ends (confirmed live: an 8px inset for the 1rem/16px thumb) — each
             tick's `left` is computed the same way (8px to calc(100% - 8px)) and

@@ -351,6 +351,35 @@ adding a second, optional `portalRef` to the hook, checked alongside
 dropdown isn't portaled, so it simply never attaches that ref, leaving it
 permanently `null` (a no-op in the containment check).
 
+### Level slider gets a max-width, capping tick spacing at ~half an inch
+**Why:** Reported live: `.levelField`'s `flex-grow: 1` (added long before
+this doc's own history above — it fills whatever width is left in
+`.filters`'s row) stretched the whole slider to fill however wide a
+desktop monitor's window happened to be, spreading adjacent ticks far
+enough apart that reaching a specific one — with a mouse, and especially
+with touch — stopped feeling ergonomic. `DanceScheduleFilters.tsx` now
+computes `maxLevelFieldWidthPx` from the actual `slots.length` (not a
+single fixed constant, since `combineA1A2`/`combineC3BC4` change how many
+ticks there are — fewer ticks means fewer, WIDER gaps for a given width, so
+fewer ticks need a SMALLER cap to keep each individual gap in budget) and
+applies it as an inline `style={{ maxWidth }}`, since a plain CSS rule has
+no way to know that count.
+
+Deliberately physical pixels (`MAX_TICK_GAP_PX = 48`, the standard CSS
+reference pixel's own half-inch at 96px/in), not `rem` — unlike nearly
+everything else in this app, ergonomic tick spacing is a motor-control
+constraint, not a legibility one, so it shouldn't get MORE generous just
+because someone prefers larger text (`useTextSizePreference.ts`). This can
+still lose to `.levelField`'s own `min-width` (`min(17rem, 100%)`) at
+larger text sizes on a wide-enough screen — CSS resolves a `min-width`/
+`max-width` conflict in `min-width`'s favor — which is the correct
+tradeoff here: the legibility floor that keeps tick labels from
+overlapping should win over the ergonomic ceiling on the rare screen
+that's simultaneously wide enough to hit the cap and has Large/Extra Large
+selected, not the other way around.
+
+## Open questions
+
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
   PWA-behavior regressions (offline/SW/caching), and a text-size preference
   is app-level UI state closer in kind to the level-range slider (unit-test
