@@ -53,6 +53,24 @@ test('app shell still renders when offline after the SW takes control', async ({
   await context.setOffline(false)
 })
 
+test('home page shows an "Offline" notice while offline, and hides it once back online', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/automated-testing/')
+  await expect(page.getByText(/offline/i)).not.toBeVisible()
+
+  // context.setOffline (CDP network emulation) also flips the page's own
+  // navigator.onLine and fires the 'offline' window event — the same signal
+  // BuildInfo.tsx's useOnlineStatus hook listens for — so this exercises the
+  // real browser API, not a mocked one.
+  await context.setOffline(true)
+  await expect(page.getByText(/offline/i)).toBeVisible()
+
+  await context.setOffline(false)
+  await expect(page.getByText(/offline/i)).not.toBeVisible()
+})
+
 test('desktop nav shows the flat link list with no kebab toggle', async ({ page }) => {
   await page.goto('/automated-testing/')
   const nav = page.getByRole('navigation', { name: /site navigation/i })
