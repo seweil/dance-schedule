@@ -2,6 +2,7 @@ import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
+import { TextSizeProvider } from './TextSizeProvider'
 import { LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
 
 vi.mock('./DanceScheduleFilters.module.css', () => ({
@@ -19,18 +20,20 @@ function renderFilters(overrides: Partial<ComponentProps<typeof DanceScheduleFil
   const onShowGcaChange = vi.fn()
 
   render(
-    <DanceScheduleFilters
-      dates={DATES}
-      selectedDate={DATES[0]!}
-      onDateChange={onDateChange}
-      slots={BASE_SLOTS}
-      minLevelIndex={0}
-      maxLevelIndex={BASE_SLOTS.length - 1}
-      onLevelRangeChange={onLevelRangeChange}
-      showGca
-      onShowGcaChange={onShowGcaChange}
-      {...overrides}
-    />,
+    <TextSizeProvider>
+      <DanceScheduleFilters
+        dates={DATES}
+        selectedDate={DATES[0]!}
+        onDateChange={onDateChange}
+        slots={BASE_SLOTS}
+        minLevelIndex={0}
+        maxLevelIndex={BASE_SLOTS.length - 1}
+        onLevelRangeChange={onLevelRangeChange}
+        showGca
+        onShowGcaChange={onShowGcaChange}
+        {...overrides}
+      />
+    </TextSizeProvider>,
   )
 
   return { onDateChange, onLevelRangeChange, onShowGcaChange }
@@ -110,6 +113,30 @@ describe('DanceScheduleFilters', () => {
       expect(screen.queryByRole('button', { name: 'A1' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'A2' })).not.toBeInTheDocument()
       expect(screen.getAllByRole('button', { name: /./ })).toHaveLength(COMBINED_SLOTS.length)
+    })
+
+    it('shows the full "A1/A2" label outside the narrow-portrait/Extra-Large case', () => {
+      // The default jsdom matchMedia stub (test-setup.ts) always reports
+      // "no match," so this covers every OTHER combination (any orientation/
+      // width at Normal/Large, or a wide/landscape viewport at Extra Large)
+      // without needing to mock each one individually.
+      renderFilters({ slots: COMBINED_SLOTS, maxLevelIndex: COMBINED_SLOTS.length - 1 })
+      const tick = screen.getByRole('button', { name: 'A1/A2' })
+      expect(tick).toHaveTextContent('A1/A2')
+    })
+
+    it('shortens the tick text to "A" (but keeps the full accessible name) only at Extra Large on a narrow portrait viewport', () => {
+      localStorage.setItem('dance-schedule:text-size', JSON.stringify('x-large'))
+      vi.spyOn(window, 'matchMedia').mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as MediaQueryList)
+
+      renderFilters({ slots: COMBINED_SLOTS, maxLevelIndex: COMBINED_SLOTS.length - 1 })
+      const tick = screen.getByRole('button', { name: 'A1/A2' })
+      expect(tick).toHaveTextContent('A')
+      expect(tick).not.toHaveTextContent('A1/A2')
     })
 
     it('clicking the combined tick sets the range using its slot index, not a raw LEVEL_ORDER index', () => {

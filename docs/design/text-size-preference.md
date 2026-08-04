@@ -35,7 +35,8 @@ app's first settings/preferences UI of any kind.
       see "Nav scroll arrows redesigned as solid circular buttons, not a bare glyph"
 - [x] The level-slider's tick labels overlapping each other (not just clipping at
       the edge) once compressed below their own text's width at larger sizes — see
-      "Level slider scrolls horizontally instead of compressing at larger text sizes"
+      "Level slider stays compressed-to-fit, not made to scroll — abandoned the
+      scrolling approach"
 - [x] Date select + GCA checkbox wrapping onto separate lines at Extra Large on a
       narrow phone — see "Date + GCA checkbox trimmed to still share one line at
       Extra Large"
@@ -180,35 +181,73 @@ it, with a hover state (fills with `--color-accent`) confirming it's
 interactive. Still shown only under the same scroll-position check as
 before — this only changed the button's own look, not when it appears.
 
-### Level slider scrolls horizontally instead of compressing at larger text sizes
+### Level slider stays compressed-to-fit, not made to scroll — abandoned the scrolling approach
 **Why:** "Level-slider edge padding scales with text size too" above fixed
-label clipping at the viewport's outer edge, but left a separate,
-worse problem: confirmed live (Extra Large, iPhone 13 portrait, a true
-390px CSS viewport — resizing the browser WINDOW doesn't reliably give a
-true narrow viewport in this environment, so testing needs a pinned-size
-iframe instead) that `.levelField`'s `min-width: min(17rem, calc(100% -
-...))` — added specifically to stop it overflowing the real viewport —
-was, as a side effect, compressing the ticks/slider content below the
-width their own (now-larger) label text needed, so adjacent tick labels
-visually overlapped each other in the middle of the row, not just at the
-edges. Capping the width and growing the label text are fundamentally in
-tension; no fixed cap value avoids both overflow and overlap at every text
-size and every slot-count permutation (`combineA1A2`/`combineC3BC4`).
-Resolved by splitting what used to be one element into two: `.levelField`
-is now just a scroll viewport (`overflow-x: auto`, sized to its line, no
-min-width of its own), and a new `.levelInner` (holding `.ticks` and
-`.sliderRoot`, previously direct children of `.levelField`) carries an
-uncapped `min-width: 20rem` — bumped up from the old 17rem specifically
-because it no longer needs to fit inside any viewport, so there's no
-reason to keep it as tight as before. When that floor exceeds the
-available line width, the excess now scrolls instead of compressing,
-exactly the same pattern already used for `Nav.tsx`'s own tab bar and the
-dance-schedule grid's columns, rather than a new one-off mechanism. This
-also incidentally fixed a "margins wider than needed" complaint: the old
-approach reserved the same edge padding whether or not the content was
-being squeezed, wasting space that would otherwise have gone to tick
-spacing; now that reserve only matters at the true scrolled-to-the-end
-edges.
+label clipping at the viewport's outer edge, but left a separate, worse
+problem: confirmed live (Extra Large, iPhone 13 portrait, a true 390px CSS
+viewport) that `.levelField`'s `min-width: min(17rem, calc(100% - ...))` —
+added specifically to stop it overflowing the real viewport — was, as a
+side effect, compressing the ticks/slider content below the width their
+own (now-larger) label text needed, so adjacent tick labels visually
+overlapped each other in the middle of the row, not just at the edges.
+
+A first fix tried making the control scroll horizontally instead of
+compressing (splitting `.levelField` into a scroll viewport plus an
+uncapped-width `.levelInner`, mirroring `Nav.tsx`'s tab bar and the
+dance-schedule grid's own columns) — implemented, verified overlap-free via
+a desktop-browser iframe, and even given explicit scroll-arrow buttons
+(reusing Nav's own solid-circular-chip design, via a
+`useHorizontalScrollAffordance` hook shared between the two) once a
+real-phone report found the desktop iframe's own always-visible overlay
+scrollbar had been masking a real problem: mobile browsers commonly hide a
+plain `overflow-x: auto` element's native scrollbar entirely, so there was
+no visible sign the control could scroll at all.
+
+**Abandoned that whole approach anyway, per direct product decision** —
+scrolling (even with explicit arrows) was more machinery than the problem
+warranted, when the control could instead be made to just fit outright.
+Reverted to a single, viewport-capped element (`min-width: min(17rem,
+100%)`, no scrolling), and closed the overlap gap three different ways at
+once instead of one big structural change:
+- `.levelField`'s own margin/padding shrunk to a sliver (`0.125rem`/
+  `0.5rem`, down from `var(--space-sm)`/`1.5rem`) — every bit of edge
+  reserve is width the ticks don't get, and clipping protection needs much
+  less of it than the earlier, more generous value assumed.
+- `.tick` gets `letter-spacing: -0.04em` — tightening the space BETWEEN
+  characters narrows each label's own rendered width without shrinking the
+  text itself (works on any font, unlike `font-stretch: condensed`, which
+  most system-font stacks have no actual narrow face for), so the labels
+  still scale with `useTextSizePreference.ts` exactly like everything else.
+- `DanceScheduleFilters.tsx`'s own `tickText()` shortens just the visible
+  "A1/A2" tick label to "A" — consistently the single widest label in the
+  set (wider even than "C3B+"), and the biggest individual obstacle to
+  fitting. Scoped to this component's own visible text only —
+  `slot.label` itself (the React `key`, and `DanceScheduleLevelGrid.tsx`'s
+  own column header, which has more room per column and isn't asked to
+  abbreviate) stays "A1/A2" — and the tick `<button>` gets an explicit
+  `aria-label={slot.label}` so a screen reader still announces the full
+  "A1/A2," not the sighted-only "A" abbreviation.
+
+**The "A1/A2" → "A" shortening is itself conditional, per direct product
+decision** — only applied when `useTextSize()` reports `'x-large'` AND a new
+`useMediaQuery('(orientation: portrait) and (max-width: 480px)')` hook
+(`src/hooks/useMediaQuery.ts`, a small reactive wrapper around
+`window.matchMedia`, generically useful beyond this one call site) reports a
+narrow portrait viewport. Confirmed live that the full, un-abbreviated
+"A1/A2" already fits without overlap in every OTHER combination — Normal/
+Large at any orientation, and Extra Large on a wide/landscape viewport — so
+shortening it there would only be losing information for no reason. 480px,
+not `Nav.module.css`'s own 640px mobile breakpoint — that one marks "narrow
+enough that the desktop tab bar doesn't make sense," a more generous
+threshold than "narrow enough that this one label needs to shrink."
+
+Confirmed live: every adjacent tick pair stays at least ~3px apart (the
+tightest, "C3A"/"C3B+") at Extra Large on a real 390px phone with both
+`combineA1A2`/`combineC3BC4` merges active — the worst case — with no
+scrolling, no scroll-affordance buttons, and no clipping at either end. The
+un-shortened "A1/A2" also confirmed live to fit at Large on the same 390px
+portrait viewport (tightest gap ~8px) and at Extra Large on a landscape
+viewport (tightest gap ~12px).
 
 ### Date + GCA checkbox trimmed to still share one line at Extra Large
 **Why:** Confirmed live (same 390px-iframe technique as above): at Extra
