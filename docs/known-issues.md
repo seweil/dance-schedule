@@ -93,6 +93,49 @@ silenced would need to run something like
 this repo, not their global config) — not something a Claude Code session
 will do on its own.
 
+## Claude in Chrome's debugging banner shows in every Chrome window, not just the profile it's scoped to
+
+**Found:** 2026-08-04, user question about scoping the `claude-in-chrome`
+browser tools to a dedicated test Chrome profile, kept separate from their
+personal one.
+
+The user set up a dedicated Chrome profile for `claude-in-chrome` (extension
+enabled only there; confirmed **disabled** — the actual toggle in
+`chrome://extensions`, not just unpinned — in their personal profile) and
+expected the "[Claude] is debugging this browser" infobar to appear only in
+that test profile's windows. It appeared in every open Chrome window
+instead, including the personal profile's, despite the extension genuinely
+being off there.
+
+**Root cause (confirmed architecture, inferred conclusion):** on macOS,
+Chrome's built-in profile picker runs every open profile inside **one
+shared Chrome application process**, not fully separate OS processes —
+profiles isolate data/extensions/cookies from each other, but they're
+windows within the same running app instance. The debugging infobar most
+likely renders at that shared-process level rather than being scoped to
+the specific profile window whose extension actually attached the
+debugger — so a debugger session started in the test profile can visually
+surface the banner across every window of that same Chrome launch,
+personal profile included.
+
+**Not a real isolation gap, as far as this session dug in** — the banner
+showing up everywhere looks like a cosmetic side effect of the shared
+process, not evidence of actual cross-profile access. `chrome.debugger`
+attachment itself is per-tab and driven by the extension's own code, which
+isn't running at all in the personal profile (confirmed disabled there) —
+so there's nothing to attach a debugger to on that side, regardless of what
+the banner visually implies.
+
+**Not fully verified, and not a repo bug either way** — this is
+Claude-in-Chrome/Chrome-profile behavior, unrelated to this codebase. Two
+decisive tests were suggested but not yet run by the user: (1) quit Chrome
+entirely and relaunch with *only* the test profile open — if the banner
+still shows, that's fully consistent with the shared-process theory and
+rules out any personal-profile involvement; (2) do a real browser action
+and confirm it only ever lands on a test-profile tab, never a personal one,
+regardless of where the banner appears. User said this "sounds benign" and
+asked to revisit later rather than chase it further now.
+
 ## `combineA1A2` silently defaults to `false`, opposite of the documented recommendation
 
 **Found:** 2026-07-29, deep code review for correctness/generality bugs.
