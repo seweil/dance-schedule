@@ -175,13 +175,22 @@
   background: #fff;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
   opacity: 0;
+  /* visibility deliberately NOT in the transition list below — see
+     PageMenu.module.css's own .list rule, the identical pattern, for why:
+     WebKit doesn't reliably flip a TRANSITIONED visibility to visible at time
+     zero the way the spec requires, and a visibility: hidden element never
+     receives pointer events regardless of pointer-events' own value — this
+     exact combination was reported live as "the dropdown opens but tapping
+     the buttons inside does nothing at all" on iOS Safari (installed PWA/
+     standalone mode). Still toggled, just as an ordinary (non-transitioned)
+     property that flips instantly alongside the `[data-open]` attribute
+     change instead of racing WebKit's own animation of it. */
   visibility: hidden;
   pointer-events: none;
   transform: translateY(-0.25rem);
   transition:
     opacity 150ms ease,
-    transform 150ms ease,
-    visibility 150ms;
+    transform 150ms ease;
 }
 
 .textSizeDropdown[data-open='true'] {

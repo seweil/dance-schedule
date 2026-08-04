@@ -45,13 +45,27 @@
   background: #fff;
   box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
   opacity: 0;
+  /* visibility deliberately NOT in the transition list below, even though it's
+     still toggled alongside opacity/pointer-events — WebKit has a long-standing
+     bug where a TRANSITIONED visibility: hidden -> visible doesn't reliably flip
+     to visible at time zero the way the spec requires (instead interpolating it
+     across the transition like opacity/transform), and a visibility: hidden
+     element never receives pointer events at all regardless of pointer-events'
+     own value — so a reported-live "the dropdown opens but tapping the buttons
+     inside does nothing at all" (iOS Safari, installed PWA/standalone mode)
+     matches exactly: visually faded in via opacity, but still non-interactive
+     because visibility hadn't (by WebKit's buggy accounting) actually flipped
+     yet. Left OUT of `transition` below, it's an ordinary discrete CSS
+     property instead, applied instantly on the same style recalc as the
+     `[data-open]` attribute change, in every browser — no separate animation to
+     race. Still needed at all (not just pointer-events: none) so a screen
+     reader skips this content while closed, not just sighted users. */
   visibility: hidden;
   pointer-events: none;
   transform: translateY(-0.25rem);
   transition:
     opacity 150ms ease,
-    transform 150ms ease,
-    visibility 150ms;
+    transform 150ms ease;
 }
 
 .list[data-open='true'] {

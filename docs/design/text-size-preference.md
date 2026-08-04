@@ -476,6 +476,33 @@ min(12rem, 100%)`. Not reproducible at this doc's established 390px
 reference floor (no overflow there at any text size) either before or
 after.
 
+### Dropdown show/hide no longer transitions `visibility`, only `opacity`/`transform`
+**Why:** Reported live: on an iPhone with the app installed as a standalone
+PWA, tapping the Normal/Large/Extra Large buttons inside either dropdown
+(`Nav.tsx`'s landscape one or `PageMenu.tsx`'s mobile kebab menu — both
+share the identical show/hide CSS) did nothing at all — no visual reaction,
+no size change. Both dropdowns fade in/out via `opacity`/`transform`, with
+`visibility`/`pointer-events` toggled alongside to keep the closed dropdown
+out of the accessibility tree and non-interactive — but `visibility` was
+also listed in the `transition` property, and WebKit has a long-standing
+bug where a *transitioned* `visibility: hidden -> visible` doesn't reliably
+flip to visible at time zero the way the CSS spec requires (unlike Chrome/
+Firefox), instead interpolating it across the transition's duration like
+`opacity`/`transform`. A `visibility: hidden` element never receives
+pointer events at all, regardless of what `pointer-events` is separately
+set to — so on WebKit specifically, the dropdown could visually fade in
+(via `opacity`) while remaining non-interactive for some or all of the
+150ms transition, or longer if the bug is worse than that. Fixed by
+removing `visibility` from both dropdowns' `transition` list — it's still
+toggled on `[data-open]`, just as an ordinary, non-transitioned property,
+so it flips instantly on the same style recalc as the attribute change in
+every browser, with no animation of its own to race. Confirmed unchanged
+behavior in Chrome (which already handled the transitioned version
+correctly, so removing it changes nothing there); the iOS-specific fix
+itself couldn't be verified live (no Safari/iOS device available in this
+session's tooling) — flagged for the reporter to confirm after this
+ships.
+
 ## Open questions
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
