@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId } from 'react'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
+import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { TextSizeControl } from './TextSizeControl'
 import styles from './PageMenu.module.css'
 
@@ -19,41 +20,11 @@ import styles from './PageMenu.module.css'
 // the same end result the old pathname-watching effect produced, just for free.
 export function PageMenu() {
   const items = buildNavTree(routes)
-  const [isOpen, setIsOpen] = useState(false)
-  const rootRef = useRef<HTMLElement>(null)
-  const toggleRef = useRef<HTMLButtonElement>(null)
+  const { isOpen, setIsOpen, toggle, rootRef, toggleRef } = useDismissableMenu<
+    HTMLElement,
+    HTMLButtonElement
+  >()
   const listId = useId()
-
-  useEffect(() => {
-    if (!isOpen) {
-      return
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-        toggleRef.current?.focus()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) {
-      return
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
-  }, [isOpen])
 
   return (
     <nav aria-label="Site navigation" className={styles.nav} ref={rootRef}>
@@ -64,7 +35,7 @@ export function PageMenu() {
         aria-expanded={isOpen}
         aria-controls={listId}
         aria-label="Menu"
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={toggle}
       >
         <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true">
           <circle cx="10" cy="4" r="1.75" />

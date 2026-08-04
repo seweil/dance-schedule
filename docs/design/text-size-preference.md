@@ -298,7 +298,37 @@ which has no dropdown to close) takes an optional `onSelect` callback, fired
 after `setTextSize` on every click; `PageMenu.tsx` passes
 `onSelect={() => setIsOpen(false)}`, `Nav.tsx` simply omits it.
 
-## Open questions
+### In landscape, Nav.tsx's "Text size" becomes a dropdown menu item, not an always-visible row
+**Why:** Reported live: on a landscape phone/tablet — much less vertical
+room to spare than a typical portrait one or a desktop monitor (always
+landscape-shaped, but with plenty of height regardless of that) — the
+always-visible "Text size" row below the tab bar felt like it was eating
+into scarce vertical space specifically there. `Nav.tsx` now checks
+`useMediaQuery('(orientation: landscape)')`: in landscape, "Text size"
+becomes a top-level toggle beside the page-link tabs (styled to match
+`.link`) that opens a dropdown containing the same three buttons on click;
+everywhere else (portrait, including a wide portrait tablet ≥641px that
+still shows this bar instead of `PageMenu.tsx`'s mobile version, and any
+desktop monitor) it stays exactly as it was — always visible, no extra
+click needed, since height was never the constraint there.
+
+Extracted the open/close behavior (Escape-to-close-and-refocus, outside-
+click-to-close) into a new shared `useDismissableMenu` hook
+(`src/hooks/`), refactoring `PageMenu.tsx`'s own mobile dropdown to use it
+too rather than duplicating that logic a second time — two real call sites
+now sharing one tested implementation.
+
+The toggle + dropdown live OUTSIDE `.list` (the scrollable tab
+row) as a flex sibling of `.listWrapper`, not as another item inside it,
+for a structural reason: `.list` has `overflow-x: auto`, which per spec
+forces its other axis to also clip (`overflow-y: hidden`, set explicitly
+for an unrelated reason — see that rule's own comment) — a dropdown
+trying to overflow downward out of a container that clips vertically
+would itself get clipped, invisible the moment it tried to open. Splitting
+them avoids that entirely, at the cost of the toggle no longer scrolling
+away with the other tabs — accepted as the right tradeoff anyway, since a
+settings toggle disappearing off-screen with the tabs would be its own
+usability problem.
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
   PWA-behavior regressions (offline/SW/caching), and a text-size preference

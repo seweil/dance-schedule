@@ -3,11 +3,29 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Only does anything in landscape, where .textSizeMenu (a flex sibling of
+   .listWrapper) needs to sit beside it instead of below it — in portrait/
+   desktop, this has exactly one child (.listWrapper), so display: flex here
+   is a no-op. align-items: flex-end so .textSizeToggle's own tab-shaped
+   bottom border sits flush on .nav's baseline, matching every .link inside
+   .listWrapper's .list. */
+.topRow {
+  display: flex;
+  align-items: flex-end;
+}
+
 /* Positioning context for .scrollButton below — the buttons overlay the tab row
    itself (not a separate row of their own), so they need an ancestor to anchor
-   against that's exactly the tab row's own bounds. */
+   against that's exactly the tab row's own bounds.
+   min-width: 0 — without it, a flex item's default min-width (auto, i.e. its
+   content's own intrinsic width) can force .topRow wider than available
+   (pushing .textSizeMenu beside it off-screen) instead of letting .list's own
+   overflow-x: auto do its job. flex: 1 so it claims all the width
+   .textSizeMenu doesn't need. */
 .listWrapper {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 /* overflow-x: auto — at a width just above the 640px mobile-menu cutover (a
@@ -121,9 +139,83 @@
 
 /* Sits below the tab row itself, not inside it — .list's own overflow-x: auto
    (see its comment above) is for the tabs specifically; a non-navigation control
-   mixed into that scrollable row could scroll out of view at narrow widths. */
+   mixed into that scrollable row could scroll out of view at narrow widths.
+   Portrait/desktop only — see Nav.tsx's own LANDSCAPE_QUERY and the
+   .textSizeMenu/.textSizeToggle/.textSizeDropdown rules below for the
+   landscape-only dropdown alternative. */
 .textSizeRow {
   padding: var(--space-sm) 0;
+}
+
+/* Landscape only (see Nav.tsx's LANDSCAPE_QUERY) — a flex sibling of
+   .listWrapper (via .topRow above), not another item inside .list, so its
+   dropdown below can overflow downward without .list's own overflow-y:
+   hidden clipping it (see .topRow's own comment for the full reasoning).
+   position: relative anchors .textSizeDropdown; flex-shrink: 0 keeps this
+   always visible at its natural width even if .listWrapper's tabs need to
+   shrink/scroll for room. */
+.textSizeMenu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Same tab-shaped look as .link (padding/border/radius/baseline-overlap), just
+   a <button> instead of an <a> — background/border/font/cursor reset first
+   since buttons don't inherit those the way a bare <a> does. */
+.textSizeToggle {
+  display: inline-block;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text);
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  font: inherit;
+  cursor: pointer;
+}
+
+.textSizeToggle:hover {
+  background: #f5f5f5;
+}
+
+.textSizeToggle[aria-expanded='true'] {
+  background: #e6e6e6;
+}
+
+/* Same dropdown treatment as PageMenu.module.css's own .list (the mobile
+   kebab menu) — the other dismissable menu in this app, so the two share one
+   visual language rather than inventing a second. */
+.textSizeDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  padding: var(--space-sm) var(--space-md);
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-0.25rem);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 150ms;
+}
+
+.textSizeDropdown[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textSizeDropdown {
+    transition: none;
+  }
 }
 
 /* This whole bar is desktop-only — PageMenu.tsx (rendered per-page, next to that
