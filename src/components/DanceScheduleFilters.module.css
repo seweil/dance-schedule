@@ -66,11 +66,17 @@
      instead of being absorbed within it, defeating the min() cap above by
      exactly the padding amount. */
   box-sizing: border-box;
-  /* Grows to fill whatever width is left in its line — once it wraps onto its own
-     line below dateGcaRow (the common case on a narrow phone), that means the full
-     available content width instead of sitting fixed at the 17rem floor with dead
-     space to its right. */
-  flex-grow: 1;
+  /* flex-grow: 0, not 1 — this used to grow to fill whatever width was left on
+     its line, which fought the inline `width` DanceScheduleFilters.tsx now
+     sets (see its own comment for why: with flex-grow: 1 still active, it
+     greedily filled 100% of the leftover space up to that width/max-width
+     cap, leaving zero margin — and so nothing for .filters's
+     justify-content: center to visibly center against — at every desktop
+     width below the one where the cap actually binds, confirmed live to be
+     the common case, not a rare edge one. flex-shrink stays at its default
+     (1): a narrow phone still needs this to shrink below its own preferred
+     width, just never grow past it. */
+  flex-grow: 0;
   /* Tiny, not var(--space-sm) — every bit of margin here is width the ticks
      don't get; per direct product decision, a sliver of edge gap is enough,
      freeing up as much room as possible for the tick labels themselves

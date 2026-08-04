@@ -133,7 +133,22 @@ export function DanceScheduleFilters({
 
       <div
         className={`${styles.field} ${styles.levelField}`}
-        style={{ maxWidth: `${maxLevelFieldWidthPx}px` }}
+        // `width`, not just `maxWidth` — with .levelField's own flex-grow: 1
+        // (DanceScheduleFilters.module.css) still in play, it would greedily
+        // fill 100% of whatever space was left on its line up to this cap,
+        // which only leaves room for .filters's justify-content: center to
+        // add visible margins once the cap actually binds (a wide-enough
+        // desktop). Below that width — confirmed live to be the common
+        // desktop case, not a rare edge one — flex-grow ate all the leftover
+        // space itself, rendering the field flush against both edges with
+        // zero margin: "too tight," and asymmetric-looking depending on
+        // rounding. Setting `width` to the same value as the cap makes this
+        // the field's own PREFERRED size (its flex-basis) instead, so
+        // flex-grow (now 0 — see that rule's own comment) never has anything
+        // to do: the field renders at exactly this width whenever there's
+        // room, leaving justify-content free to center it consistently at
+        // every desktop width, not just the widest ones.
+        style={{ width: `${maxLevelFieldWidthPx}px`, maxWidth: `${maxLevelFieldWidthPx}px` }}
       >
         {/* Radix positions each thumb's CENTER inset by half its own width from the
             track's ends (confirmed live: an 8px inset for the 1rem/16px thumb) — each

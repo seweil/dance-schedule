@@ -365,18 +365,39 @@ fewer ticks need a SMALLER cap to keep each individual gap in budget) and
 applies it as an inline `style={{ maxWidth }}`, since a plain CSS rule has
 no way to know that count.
 
-Deliberately physical pixels (`MAX_TICK_GAP_PX = 48`, the standard CSS
-reference pixel's own half-inch at 96px/in), not `rem` — unlike nearly
-everything else in this app, ergonomic tick spacing is a motor-control
-constraint, not a legibility one, so it shouldn't get MORE generous just
-because someone prefers larger text (`useTextSizePreference.ts`). This can
-still lose to `.levelField`'s own `min-width` (`min(17rem, 100%)`) at
-larger text sizes on a wide-enough screen — CSS resolves a `min-width`/
-`max-width` conflict in `min-width`'s favor — which is the correct
-tradeoff here: the legibility floor that keeps tick labels from
-overlapping should win over the ergonomic ceiling on the rare screen
-that's simultaneously wide enough to hit the cap and has Large/Extra Large
-selected, not the other way around.
+Deliberately physical pixels (`MAX_TICK_GAP_PX`, the standard CSS
+reference pixel's own inch at 96px/in — 48px/half an inch tried first,
+bumped to 72px/three-quarters after that measured live as a bit too
+tight), not `rem` — unlike nearly everything else in this app, ergonomic
+tick spacing is a motor-control constraint, not a legibility one, so it
+shouldn't get MORE generous just because someone prefers larger text
+(`useTextSizePreference.ts`). This can still lose to `.levelField`'s own
+`min-width` (`min(17rem, 100%)`) at larger text sizes on a wide-enough
+screen — CSS resolves a `min-width`/`max-width` conflict in `min-width`'s
+favor — which is the correct tradeoff here: the legibility floor that
+keeps tick labels from overlapping should win over the ergonomic ceiling
+on the rare screen that's simultaneously wide enough to hit the cap and
+has Large/Extra Large selected, not the other way around.
+
+**Follow-up — `flex-grow: 1` fought the new cap, leaving no room for
+`.filters`'s own centering below the cap's own breakpoint.** Reported
+live: on a desktop window narrower than the width where the cap actually
+binds (confirmed live to be the common case, not a rare edge one — e.g. an
+800px-wide window with 8 slots, below the 536px this cap resolves to
+there), the whole Date/GCA/Level row read as "too tight" and oddly
+positioned. Root cause: `.levelField` still had `flex-grow: 1` from long
+before this cap existed, so it greedily filled 100% of whatever space was
+left on its line UP TO the new cap — below that width, "whatever space was
+left" was the WHOLE remaining row, leaving flush edges and zero margin for
+`.filters`'s `justify-content: center` to visibly center anything against.
+Fixed by changing `.levelField` to `flex-grow: 0` and setting `width` (not
+just `maxWidth`) to the same computed value in `DanceScheduleFilters.tsx`
+— that makes the cap the field's own PREFERRED size (its flex-basis)
+instead of an upper bound on unlimited growth, so it renders at exactly
+that width whenever there's room, leaving `justify-content: center` free
+to center it consistently at every desktop width rather than only the
+widest ones. `flex-shrink` stays at its default (1) — a narrow phone still
+needs to shrink below this width, just never grow past it.
 
 ## Open questions
 
