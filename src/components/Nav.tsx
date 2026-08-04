@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
@@ -108,6 +108,34 @@ export function Nav() {
       list?.removeEventListener('scroll', updatePosition)
     }
   }, [isTextSizeOpen, textSizeToggleRef])
+
+  // Clamps the dropdown's left-aligned-to-the-toggle position (set above)
+  // against the right edge of the viewport. Reported live: "Text size" is
+  // typically the last (rightmost) tab, so the realistic way to reach it in
+  // landscape is scrolling the tab list right first — at that point the
+  // toggle itself sits near the viewport's own right edge, and the dropdown
+  // (left-aligned under it, per the effect above) opened well past that
+  // edge, off-screen, every time. useLayoutEffect (not useEffect) so this
+  // runs — and can correct the position — before the browser paints the
+  // freshly-opened dropdown, not as a visible jump after the fact. Guarded
+  // to only move `left` when it's actually over the max (never increases
+  // it), so this can't loop: the second pass always sees a position already
+  // within bounds and does nothing.
+  useLayoutEffect(() => {
+    if (!isTextSizeOpen || !textSizeDropdownPosition) {
+      return
+    }
+    const dropdown = textSizeDropdownRef.current
+    if (!dropdown) {
+      return
+    }
+    const margin = 8
+    const dropdownWidth = dropdown.getBoundingClientRect().width
+    const maxLeft = Math.max(margin, window.innerWidth - dropdownWidth - margin)
+    if (textSizeDropdownPosition.left > maxLeft) {
+      setTextSizeDropdownPosition((position) => (position ? { ...position, left: maxLeft } : position))
+    }
+  }, [isTextSizeOpen, textSizeDropdownPosition, textSizeDropdownRef])
 
   return (
     <nav aria-label="Site navigation" className={styles.nav}>
