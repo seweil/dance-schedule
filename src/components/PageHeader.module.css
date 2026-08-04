@@ -1,10 +1,17 @@
 /* On desktop this row's only visible content is the h1 (PageMenu renders nothing
    there), so it reads exactly like a bare title always did. On mobile, the kebab
    toggle sits at the row's other end instead of stacking above the title in its
-   own bar. */
+   own bar.
+   align-items: flex-start, not center — a long title (e.g. the debug page's
+   "Dance Schedule — Debug (<content set>)") wraps to 2-3 lines on a narrow
+   phone, and centering pinned the toggle to the middle of that whole wrapped
+   block, visibly drifting down away from the title's own first line the more
+   it wrapped (confirmed live: a full half-line off with a 2-line title).
+   flex-start keeps it flush with the top line regardless of how many more
+   lines follow. */
 .pageHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-sm);
   /* Replaces the h1's own (zeroed below) top/bottom margin, now that it's sized by
