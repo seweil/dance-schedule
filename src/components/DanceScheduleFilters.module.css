@@ -60,7 +60,32 @@
    non-touching ~5px at this floor, just snugger than 18rem's ~7px. combineC3BC4's
    merged "C3B+" label is narrower than "A1/A2", so it doesn't push this further. */
 .levelField {
-  min-width: 17rem;
+  /* min(), not a bare 17rem — 17rem is tuned against the UNSCALED 16px root
+     font-size (272px), but at Large/Extra Large (useTextSizePreference.ts scales
+     the root font-size itself, so rem grows too) that same 17rem can resolve
+     wider than the entire viewport on a real phone: 17rem at Extra Large's 150%
+     is 408px, already past an iPhone 13's full 390px width before any padding or
+     margin. Confirmed live (via an iframe pinned to a true 390px viewport — a
+     resized browser WINDOW doesn't reliably give a true narrow CSS viewport in
+     this environment, so that's not sufficient to test this by itself): without
+     this, the field rendered 480px wide inside a 375px-available space, centered
+     by .filters — so it overflowed off-screen by roughly the same amount on BOTH
+     the left and right edges at once, not just one. min(17rem, ...) never asks
+     for more than truly fits, so it can't force that overflow regardless of text
+     size or viewport width — it only stops actively PREVENTING adjacent tick
+     labels from touching (the reason 17rem exists at all — see below) once
+     there's genuinely no room left to prevent it, which is strictly better than
+     the alternative of the whole control being clipped off-screen.
+     calc(100% - 2 * var(--space-sm)) — not a bare 100% — accounts for this same
+     element's own left+right margin below, which box-sizing: border-box (also
+     below) does NOT fold in (only padding/border are border-box's concern,
+     margin is always separate), so 100% alone would still overflow by exactly
+     the margin amount. */
+  min-width: min(17rem, calc(100% - 2 * var(--space-sm)));
+  /* Padding (below) would otherwise add on top of min-width's content-box size
+     instead of being absorbed within it, defeating the min() cap above by
+     exactly the padding amount. */
+  box-sizing: border-box;
   /* Grows to fill whatever width is left in its line — once it wraps onto its own
      line below dateGcaRow (the common case on a narrow phone), that means the full
      available content width instead of sitting fixed at the 17rem floor with dead
