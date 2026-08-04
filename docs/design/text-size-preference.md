@@ -399,6 +399,22 @@ to center it consistently at every desktop width rather than only the
 widest ones. `flex-shrink` stays at its default (1) — a narrow phone still
 needs to shrink below this width, just never grow past it.
 
+### TextSizeControl's own "Text size" heading is optional
+**Why:** Reported live: `Nav.tsx`'s landscape dropdown (see that decision
+above) shows a "Text size" toggle button, and opening it revealed
+`TextSizeControl`'s own "Text size" heading right above the three size
+buttons — the same two words twice in a row, once as the thing you already
+clicked. `TextSizeControl` now takes an optional `showHeading` prop
+(default `true`, so `Nav.tsx`'s own always-visible row and
+`PageMenu.tsx`'s dropdown — neither has a preceding "Text size" label of
+its own — are unaffected); the landscape dropdown passes
+`showHeading={false}`. The heading itself is still rendered even when
+`false`, just switched from `.heading` to a `.visuallyHidden` class instead
+of being removed outright — `.control`'s `role="group"` gets its
+accessible name via `aria-labelledby` pointing at that span, so removing
+it entirely would leave the group unlabeled for screen reader users
+instead of just not showing the redundant text to sighted ones.
+
 ## Open questions
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets

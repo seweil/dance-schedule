@@ -34,14 +34,26 @@ const OPTIONS: readonly { value: TextSize; label: string; previewRem: number }[]
 // a size doesn't navigate anywhere, so nothing else would otherwise close that
 // dropdown the way clicking a link does (a different route unmounts and
 // remounts PageMenu fresh, closed by construction — see that file's own
-// comment). Nav.tsx has no dropdown to close, so it simply doesn't pass this.
-export function TextSizeControl({ onSelect }: { onSelect?: () => void } = {}) {
+// comment). Nav.tsx's own always-visible row has no dropdown to close, so it
+// simply doesn't pass this; its landscape dropdown does, for the same reason
+// PageMenu's does.
+//
+// `showHeading` (default true) exists for that same landscape dropdown: its
+// own toggle button already reads "Text size" before this control ever
+// opens, so showing the heading there too was a reported-live redundant
+// repeat of the same two words. Still rendered when false, just visually
+// hidden (see .visuallyHidden's own comment) — `.control`'s `aria-labelledby`
+// needs it to exist for the group to have an accessible name at all.
+export function TextSizeControl({
+  onSelect,
+  showHeading = true,
+}: { onSelect?: () => void; showHeading?: boolean } = {}) {
   const { textSize, setTextSize } = useTextSize()
   const headingId = useId()
 
   return (
     <div className={styles.wrapper}>
-      <span id={headingId} className={styles.heading}>
+      <span id={headingId} className={showHeading ? styles.heading : styles.visuallyHidden}>
         Text size
       </span>
       <div className={styles.control} role="group" aria-labelledby={headingId}>

@@ -194,7 +194,11 @@ export function Nav() {
             data-open={isTextSizeOpen}
             style={{ top: textSizeDropdownPosition.top, left: textSizeDropdownPosition.left }}
           >
-            <TextSizeControl onSelect={() => setIsTextSizeOpen(false)} />
+            {/* showHeading={false} — the toggle button right above this
+                dropdown already reads "Text size"; showing it again here
+                read as a redundant repeat (see TextSizeControl.tsx's own
+                comment). */}
+            <TextSizeControl showHeading={false} onSelect={() => setIsTextSizeOpen(false)} />
           </div>,
           document.body,
         )}

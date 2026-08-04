@@ -11,6 +11,25 @@
   color: var(--color-text);
 }
 
+/* Nav.tsx's landscape dropdown passes showHeading={false}: its own "Text
+   size" toggle button already says "Text size" before this control ever
+   opens, so a second, visible "Text size" heading right above the buttons
+   read as redundant (reported live). Still rendered — just not visibly —
+   so .control's `aria-labelledby` still has a real accessible name to point
+   at; removing the element outright would leave the group unlabeled for
+   screen reader users instead of just not showing it to sighted ones. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* A single bordered, rounded group with hairline dividers between buttons (not
    each button separately bordered/rounded/gapped) — reads as one segmented
    control, the same visual language a system text-size picker uses, rather than
