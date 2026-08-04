@@ -318,17 +318,38 @@ click-to-close) into a new shared `useDismissableMenu` hook
 too rather than duplicating that logic a second time — two real call sites
 now sharing one tested implementation.
 
-The toggle + dropdown live OUTSIDE `.list` (the scrollable tab
-row) as a flex sibling of `.listWrapper`, not as another item inside it,
-for a structural reason: `.list` has `overflow-x: auto`, which per spec
-forces its other axis to also clip (`overflow-y: hidden`, set explicitly
-for an unrelated reason — see that rule's own comment) — a dropdown
-trying to overflow downward out of a container that clips vertically
-would itself get clipped, invisible the moment it tried to open. Splitting
-them avoids that entirely, at the cost of the toggle no longer scrolling
-away with the other tabs — accepted as the right tradeoff anyway, since a
-settings toggle disappearing off-screen with the tabs would be its own
-usability problem.
+**Revised — the toggle lives inside `.list` after all, and the dropdown is
+portaled instead of the toggle sitting outside it.** The first version put
+the toggle + dropdown OUTSIDE `.list` as a flex sibling of `.listWrapper`,
+specifically to dodge `.list`'s `overflow-y: hidden` (set for an unrelated
+reason — see that rule's own comment — but it also clips anything that
+tries to overflow downward out of the list, which a dropdown opening below
+its own trigger needs to do). That traded away too much: reported live as
+no longer reading like "one of the tabs" — it didn't scroll away with the
+rest of the list, and didn't count toward `canScrollLeft`/`canScrollRight`
+either, both real, visible differences from every other item beside it.
+
+Fixed by keeping the toggle itself as an ordinary `<li>` inside `.list`
+(scrolls with the rest, counts toward the scroll-affordance arrows exactly
+like a page link would) and instead portaling just the DROPDOWN PANEL to
+`document.body` via `createPortal`, sidestepping the clipping problem a
+different way — the panel no longer has `.list` as an overflow-clipping
+ancestor at all, regardless of where its trigger lives. Since the portaled
+panel is `position: fixed`, its `top`/`left` are computed from the
+toggle's own `getBoundingClientRect()` (a `useEffect` in `Nav.tsx`,
+recomputed on open, on window resize, and on the list's own horizontal
+scroll — the toggle's on-screen position moves whenever any of those
+happen, even though the window itself didn't necessarily resize).
+
+This reopened the outside-click-to-close question `useDismissableMenu`
+already answered for `PageMenu.tsx`: a click inside a PORTALED dropdown
+isn't a DOM descendant of `rootRef` (the toggle's own `<li>`), so the
+hook's existing containment check would have seen it as "outside" and
+closed the menu the instant someone tried to click inside it. Fixed by
+adding a second, optional `portalRef` to the hook, checked alongside
+`rootRef` in the same outside-click handler — `PageMenu.tsx`'s own
+dropdown isn't portaled, so it simply never attaches that ref, leaving it
+permanently `null` (a no-op in the containment check).
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
   PWA-behavior regressions (offline/SW/caching), and a text-size preference

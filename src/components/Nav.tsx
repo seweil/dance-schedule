@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
@@ -34,8 +35,20 @@ export function Nav() {
     toggle: toggleTextSize,
     rootRef: textSizeRootRef,
     toggleRef: textSizeToggleRef,
-  } = useDismissableMenu<HTMLDivElement, HTMLButtonElement>()
+    portalRef: textSizeDropdownRef,
+  } = useDismissableMenu<HTMLLIElement, HTMLButtonElement, HTMLDivElement>()
   const textSizeListId = useId()
+  // The dropdown is portaled to document.body (see the render below for why),
+  // so it can't just be `position: absolute` against a normal-flow ancestor
+  // the way PageMenu.tsx's own dropdown is — this tracks the toggle's own
+  // on-screen position instead, recomputed whenever it could plausibly have
+  // moved: on open, on window resize, and on the tab list's own horizontal
+  // scroll (the toggle lives inside that scrollable list, so scrolling it
+  // moves the toggle even though the window itself didn't resize).
+  const [textSizeDropdownPosition, setTextSizeDropdownPosition] = useState<{
+    top: number
+    left: number
+  } | null>(null)
 
   // Tracks whether the tab list actually has more content to scroll to in each
   // direction, so the arrow buttons below only ever show when they'd do something
@@ -74,78 +87,85 @@ export function Nav() {
     // its content) wouldn't otherwise catch on its own.
   }, [items.length])
 
+  useEffect(() => {
+    if (!isTextSizeOpen) {
+      return
+    }
+
+    function updatePosition() {
+      const rect = textSizeToggleRef.current?.getBoundingClientRect()
+      if (rect) {
+        setTextSizeDropdownPosition({ top: rect.bottom, left: rect.left })
+      }
+    }
+
+    updatePosition()
+    const list = listRef.current
+    window.addEventListener('resize', updatePosition)
+    list?.addEventListener('scroll', updatePosition)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      list?.removeEventListener('scroll', updatePosition)
+    }
+  }, [isTextSizeOpen, textSizeToggleRef])
+
   return (
     <nav aria-label="Site navigation" className={styles.nav}>
-      {/* .topRow only matters in landscape (see LANDSCAPE_QUERY's own CSS rule) —
-          it's what lets the Text size toggle sit beside .listWrapper instead of
-          below it. .listWrapper's own .list scrolls horizontally
-          (overflow-x: auto), which per spec forces its OTHER axis to also clip
-          (overflow-y: hidden, set explicitly below) — the toggle's dropdown
-          couldn't overflow downward out of a container that clips vertically,
-          so it has to live outside .listWrapper entirely, not as another item
-          inside .list, even though it's meant to read as a peer of the page
-          links in it. */}
-      <div className={styles.topRow}>
-        <div className={styles.listWrapper}>
-          {canScrollLeft && (
-            <button
-              type="button"
-              className={`${styles.scrollButton} ${styles.scrollButtonLeft}`}
-              aria-label="Scroll tabs left"
-              onClick={() => listRef.current?.scrollTo({ left: 0, behavior: 'smooth' })}
-            >
-              ‹
-            </button>
+      <div className={styles.listWrapper}>
+        {canScrollLeft && (
+          <button
+            type="button"
+            className={`${styles.scrollButton} ${styles.scrollButtonLeft}`}
+            aria-label="Scroll tabs left"
+            onClick={() => listRef.current?.scrollTo({ left: 0, behavior: 'smooth' })}
+          >
+            ‹
+          </button>
+        )}
+        <ul className={styles.list} ref={listRef}>
+          {items.map((item) => (
+            <li key={item.href}>
+              {/* end (only for Home): every other route's path starts with "/" too, so
+                  without it NavLink's default prefix-matching would mark Home
+                  permanently "current" no matter which page is actually active. */}
+              <NavLink to={item.href} end={item.href === '/'} className={styles.link}>
+                {item.label}
+              </NavLink>
+            </li>
+          ))}
+          {/* Landscape only — a top-level menu item alongside the page links,
+              styled to match .link and living right inside .list like every
+              other one of them: it scrolls with the rest of the tabs and
+              counts toward canScrollLeft/canScrollRight the same way, rather
+              than being a permanently-visible exception to that. Reuses
+              useDismissableMenu, the same Escape/outside-click/select-to-close
+              behavior as PageMenu.tsx's own mobile dropdown. */}
+          {isLandscape && (
+            <li ref={textSizeRootRef}>
+              <button
+                ref={textSizeToggleRef}
+                type="button"
+                className={styles.textSizeToggle}
+                aria-expanded={isTextSizeOpen}
+                aria-controls={textSizeListId}
+                onClick={toggleTextSize}
+              >
+                Text size
+              </button>
+            </li>
           )}
-          <ul className={styles.list} ref={listRef}>
-            {items.map((item) => (
-              <li key={item.href}>
-                {/* end (only for Home): every other route's path starts with "/" too, so
-                    without it NavLink's default prefix-matching would mark Home
-                    permanently "current" no matter which page is actually active. */}
-                <NavLink to={item.href} end={item.href === '/'} className={styles.link}>
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-          {canScrollRight && (
-            <button
-              type="button"
-              className={`${styles.scrollButton} ${styles.scrollButtonRight}`}
-              aria-label="Scroll tabs right"
-              onClick={() =>
-                listRef.current?.scrollTo({ left: listRef.current.scrollWidth, behavior: 'smooth' })
-              }
-            >
-              ›
-            </button>
-          )}
-        </div>
-        {/* Landscape only — a top-level menu item alongside the page links
-            (styled to match .link), not a separate always-visible row, so it
-            costs nothing vertically until actually opened. Always visible
-            itself (flex-shrink: 0, unlike the scrollable tabs beside it) —
-            a settings toggle scrolling out of view along with the tabs would
-            be its own usability problem. Reuses useDismissableMenu, the same
-            Escape/outside-click/select-to-close behavior as PageMenu.tsx's
-            own mobile dropdown. */}
-        {isLandscape && (
-          <div className={styles.textSizeMenu} ref={textSizeRootRef}>
-            <button
-              ref={textSizeToggleRef}
-              type="button"
-              className={styles.textSizeToggle}
-              aria-expanded={isTextSizeOpen}
-              aria-controls={textSizeListId}
-              onClick={toggleTextSize}
-            >
-              Text size
-            </button>
-            <div id={textSizeListId} className={styles.textSizeDropdown} data-open={isTextSizeOpen}>
-              <TextSizeControl onSelect={() => setIsTextSizeOpen(false)} />
-            </div>
-          </div>
+        </ul>
+        {canScrollRight && (
+          <button
+            type="button"
+            className={`${styles.scrollButton} ${styles.scrollButtonRight}`}
+            aria-label="Scroll tabs right"
+            onClick={() =>
+              listRef.current?.scrollTo({ left: listRef.current.scrollWidth, behavior: 'smooth' })
+            }
+          >
+            ›
+          </button>
         )}
       </div>
       {/* Portrait/desktop only — the complementary case to the dropdown menu
@@ -155,6 +175,29 @@ export function Nav() {
           <TextSizeControl />
         </div>
       )}
+      {/* Portaled to document.body, not rendered inline under the toggle —
+          .list's overflow-y: hidden (needed for an unrelated reason, see that
+          rule's own comment) would otherwise clip this dropdown the moment it
+          tried to open, since the toggle above lives inside that same
+          scrollable list. position: fixed with coordinates computed from the
+          toggle's own getBoundingClientRect() (see the effect above) stands
+          in for the normal-flow "position: absolute under its own trigger"
+          PageMenu.tsx's dropdown gets for free. */}
+      {isLandscape &&
+        isTextSizeOpen &&
+        textSizeDropdownPosition &&
+        createPortal(
+          <div
+            ref={textSizeDropdownRef}
+            id={textSizeListId}
+            className={styles.textSizeDropdown}
+            data-open={isTextSizeOpen}
+            style={{ top: textSizeDropdownPosition.top, left: textSizeDropdownPosition.left }}
+          >
+            <TextSizeControl onSelect={() => setIsTextSizeOpen(false)} />
+          </div>,
+          document.body,
+        )}
     </nav>
   )
 }
