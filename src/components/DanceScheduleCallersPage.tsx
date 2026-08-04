@@ -40,7 +40,7 @@ export function DanceScheduleCallersPage() {
   )
 
   const layout = useMemo(
-    () => computeDanceScheduleCallerLayout(dateSessions, visibleSessions),
+    () => computeDanceScheduleCallerLayout(dateSessions, visibleSessions, sessions),
     [dateSessions, visibleSessions],
   )
 

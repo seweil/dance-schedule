@@ -297,9 +297,11 @@ with zero hours is omitted entirely as a column, same as before.
 **The caller table also drops any caller whose own total is 3 hours or
 under** (`MIN_CALLER_HOURS`) — per direct product decision, a separate,
 independent threshold of the same name and value as the Dance by Caller
-page's own `MIN_CALLER_HOURS` (same unit, same number, computed
-differently: this one is a global per-event total across every day; that
-one is a per-day total — see that page's own section below). Since
+page's own `MIN_CALLER_HOURS` (same unit, same number, and — as of the fix
+described in that page's own section below — the same event-wide-total
+scope too, though the two constants remain independent rather than shared,
+since they're separate product decisions that could in principle diverge).
+Since
 filtering happens before the Total row/column are computed, a filtered-out
 caller's hours don't silently leak into either table's own totals — the
 displayed grand total is honestly just the sum of the callers actually
@@ -1010,34 +1012,43 @@ before hour-totaling, before anything else — rather than just hidden on the
 card the way `showGca` hides the subordinate GCA line elsewhere.
 `MIN_CALLER_HOURS` (3, computed via the shared `sessionHours` helper also
 used by the debug-page hour summary above) then drops any caller whose
-remaining (non-showcase) hour total that day is 3 or under. **Deliberately
-computed from `dateSessions` (the whole day, unfiltered), not
-`visibleSessions`** — a caller's eligibility for a column at all must stay
-as stable across the level filter as their column's *order* already is
-(see "Columns are data-derived" above), even though which of their
-sessions are actually drawn still reacts to it normally. Computing the
-threshold from the filtered set instead was a real shipped bug: a caller
-with, say, 3 one-hour sessions inside a narrow level range plus a 4th
-one-hour session just outside it has a day-wide total of 4 hours (a real
-column), but an in-range total of only 3 (at the threshold, not over it) —
-narrowing the level range to exclude that 4th session made the caller's
-*entire* column vanish, including their still-in-range sessions, purely
-because the range had narrowed. A co-taught session splits its duration
-evenly across its distinct callers (same convention as the debug-page hour
-summary's own even split) rather than crediting each with the full session,
-so it's possible for a co-taught session's identical card to appear under
-only one of its two callers' columns, if just one of them clears the
-threshold on their own.
+remaining (non-showcase) hour total across the WHOLE EVENT (every date, not
+just the one selected) is 3 or under. **Deliberately computed from
+`allSessions` (every date, unfiltered), not `dateSessions`/`visibleSessions`**
+— a caller's eligibility for a column at all must stay as stable across the
+level filter AND the selected date as their column's *order* already is
+across the level filter (see "Columns are data-derived" above), even though
+which of their sessions are actually drawn still reacts to both normally.
+Computing the threshold from the filtered set instead was a real shipped
+bug: a caller with, say, 3 one-hour sessions inside a narrow level range
+plus a 4th one-hour session just outside it has a wider total of 4 hours (a
+real column), but an in-range total of only 3 (at the threshold, not over
+it) — narrowing the level range to exclude that 4th session made the
+caller's *entire* column vanish, including their still-in-range sessions,
+purely because the range had narrowed. Originally computed per-day rather
+than event-wide, which had an analogous problem across dates instead of
+across the level filter: a real caller with several 1-hour sessions spread
+across different days, each day individually under the threshold, never got
+a column on any day even though their event-wide total cleared it —
+confirmed against real production data and changed to sum `allSessions`
+instead, per direct product decision. A co-taught session splits its
+duration evenly across its distinct callers (same convention as the
+debug-page hour summary's own even split) rather than crediting each with
+the full session, so it's possible for a co-taught session's identical card
+to appear under only one of its two callers' columns, if just one of them
+clears the threshold on their own.
 
 **A caller's column visibility is still a two-part check, same shape as the
 room view's own order-vs-visibility split:** clearing `MIN_CALLER_HOURS`
-day-wide makes a caller *eligible*, but they also need at least one session
-in the current, level-filtered `visibleSessions` to actually show a column
-— an eligible caller with nothing visible right now would otherwise render
-as a pointless empty column. `visibleCallers` is `callerOrder` filtered by
-BOTH the day-wide hour total AND membership in a `visibleCallerSet` built
-from the filtered sessions, mirroring exactly how the room view's
-`visibleRoomSet` (filter-reactive) narrows `roomOrder` (day-wide-stable).
+event-wide makes a caller *eligible*, but they also need at least one
+session in the current date's level-filtered `visibleSessions` to actually
+show a column — an eligible caller with nothing visible right now would
+otherwise render as a pointless empty column. `visibleCallers` is
+`callerOrder` filtered by BOTH the event-wide hour total AND membership in
+a `visibleCallerSet` built from the filtered sessions, mirroring exactly how
+the room view's `visibleRoomSet` (filter-reactive) narrows `roomOrder`
+(already computed globally across every date, same stability precedent this
+followed).
 
 **No contiguous-span merge, unlike either other view:** a multi-room or
 multi-level session gets one wide spanning placement when its columns are
