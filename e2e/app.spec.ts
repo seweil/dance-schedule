@@ -53,22 +53,26 @@ test('app shell still renders when offline after the SW takes control', async ({
   await context.setOffline(false)
 })
 
-test('home page reports "Online"/"Offline" status after the build-info line', async ({
+test('home page reports "Online"/"Offline" status in the build-info fine print', async ({
   page,
   context,
 }) => {
   await page.goto('/automated-testing/')
-  await expect(page.getByText('Online', { exact: true })).toBeVisible()
+  // "Online"/"Offline" is inline text within the single build-info line (see
+  // BuildInfo.tsx), not its own isolated element — match the whole line's text
+  // instead of an exact "Online"/"Offline" string.
+  const buildInfo = page.getByText(/^Build /)
+  await expect(buildInfo).toContainText('Online')
 
   // context.setOffline (CDP network emulation) also flips the page's own
   // navigator.onLine and fires the 'offline' window event — the same signal
   // BuildInfo.tsx's useOnlineStatus hook listens for — so this exercises the
   // real browser API, not a mocked one.
   await context.setOffline(true)
-  await expect(page.getByText('Offline', { exact: true })).toBeVisible()
+  await expect(buildInfo).toContainText('Offline')
 
   await context.setOffline(false)
-  await expect(page.getByText('Online', { exact: true })).toBeVisible()
+  await expect(buildInfo).toContainText('Online')
 })
 
 test('desktop nav shows the flat link list with no kebab toggle', async ({ page }) => {

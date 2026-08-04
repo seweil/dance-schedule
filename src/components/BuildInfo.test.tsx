@@ -12,25 +12,47 @@ describe('BuildInfo', () => {
     setNavigatorOnLine(true)
   })
 
-  it('says "Online" after the build-info line while online', () => {
+  it('renders build info, online status, and "All events" as a single fine-print line', () => {
+    render(
+      <MemoryRouter>
+        <BuildInfo />
+      </MemoryRouter>,
+    )
+    // One paragraph, not build info and online status as two separate lines
+    // (an earlier version) — per direct product decision, this whole footer
+    // reads as one fine-print string.
+    const paragraphs = screen.getAllByText(/Build/, { selector: 'p' })
+    expect(paragraphs).toHaveLength(1)
+    expect(paragraphs[0]).toHaveTextContent(/^Build \S+ at .+ · Online · All events$/)
+  })
+
+  it('says "Online" while online', () => {
     setNavigatorOnLine(true)
     render(
       <MemoryRouter>
         <BuildInfo />
       </MemoryRouter>,
     )
-    expect(screen.getByText('Online')).toBeInTheDocument()
-    expect(screen.queryByText('Offline')).not.toBeInTheDocument()
+    expect(screen.getByText(/Build/, { selector: 'p' })).toHaveTextContent('Online')
   })
 
-  it('says "Offline" after the build-info line while offline', () => {
+  it('says "Offline" while offline', () => {
     setNavigatorOnLine(false)
     render(
       <MemoryRouter>
         <BuildInfo />
       </MemoryRouter>,
     )
-    expect(screen.getByText('Offline')).toBeInTheDocument()
-    expect(screen.queryByText('Online')).not.toBeInTheDocument()
+    expect(screen.getByText(/Build/, { selector: 'p' })).toHaveTextContent('Offline')
+  })
+
+  it('folds extraLinks in before "All events", still on the one line', () => {
+    render(
+      <MemoryRouter>
+        <BuildInfo extraLinks={<a href="/raw">Raw data</a>} />
+      </MemoryRouter>,
+    )
+    const paragraph = screen.getByText(/Build/, { selector: 'p' })
+    expect(paragraph).toHaveTextContent(/Online · Raw data · All events$/)
   })
 })
