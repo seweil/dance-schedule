@@ -19,7 +19,7 @@
    raise its visual prominence) — no top border/margin of its own, so it
    reads as directly attached to the build-info line above it rather than a
    second, separate block. */
-.offline {
+.onlineStatus {
   margin-top: 0;
   color: #888;
   font-size: 0.75rem;

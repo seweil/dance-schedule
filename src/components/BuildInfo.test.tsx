@@ -12,23 +12,25 @@ describe('BuildInfo', () => {
     setNavigatorOnLine(true)
   })
 
-  it('does not render an offline notice while online', () => {
+  it('says "Online" after the build-info line while online', () => {
     setNavigatorOnLine(true)
     render(
       <MemoryRouter>
         <BuildInfo />
       </MemoryRouter>,
     )
-    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Online')).toBeInTheDocument()
+    expect(screen.queryByText('Offline')).not.toBeInTheDocument()
   })
 
-  it('renders an offline notice, after the build-info line, while offline', () => {
+  it('says "Offline" after the build-info line while offline', () => {
     setNavigatorOnLine(false)
     render(
       <MemoryRouter>
         <BuildInfo />
       </MemoryRouter>,
     )
-    expect(screen.getByText(/offline/i)).toBeInTheDocument()
+    expect(screen.getByText('Offline')).toBeInTheDocument()
+    expect(screen.queryByText('Online')).not.toBeInTheDocument()
   })
 })

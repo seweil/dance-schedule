@@ -32,14 +32,12 @@ export function BuildInfo({ extraLinks }: { extraLinks?: ReactNode } = {}) {
             basename-relative client-side link is correct here. */}
         <Link to="/events">All events</Link>
       </p>
-      {/* Only rendered while actually offline — the normal, online state needs no
-          announcement, same reasoning as UpdatePrompt.tsx only rendering once
-          there's something to say. navigator.onLine/the 'online'/'offline' window
-          events (useOnlineStatus.ts) reflect whether the DEVICE has a network
-          connection at all, not whether this specific origin is reachable — a
-          reasonable proxy, and the same signal the browser's own offline UI relies
-          on, but not a guarantee every fetch will succeed. */}
-      {!isOnline && <p className={styles.offline}>Offline — showing cached content</p>}
+      {/* navigator.onLine/the 'online'/'offline' window events (useOnlineStatus.ts)
+          reflect whether the DEVICE has a network connection at all, not whether
+          this specific origin is reachable — a reasonable proxy, and the same
+          signal the browser's own offline UI relies on, but not a guarantee every
+          fetch will succeed. */}
+      <p className={styles.onlineStatus}>{isOnline ? 'Online' : 'Offline'}</p>
     </>
   )
 }
