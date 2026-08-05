@@ -3,6 +3,8 @@ import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
+import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
+import { HintBalloon } from './HintBalloon'
 import { TextSizeControl } from './TextSizeControl'
 import styles from './PageMenu.module.css'
 
@@ -25,6 +27,20 @@ export function PageMenu() {
     HTMLButtonElement
   >()
   const listId = useId()
+  // Reported live: a bare "⋮" icon with no visible text (aria-label alone,
+  // for screen readers) was too easy for a new user to miss entirely — see
+  // docs/design/onboarding-hints.md. The visible "Menu" label below fixes
+  // this permanently, for everyone; the hint balloon is an additional,
+  // temporary nudge during a new user's first few launches specifically.
+  const { shouldShow: showHint, dismiss: dismissHint } = useFirstLaunchHint('kebab-menu')
+
+  function handleToggleClick() {
+    toggle()
+    // Tapping the real toggle means the hint did its job — no reason to keep
+    // showing it on THIS device's remaining onboarding launches once the
+    // person has already found the menu once.
+    dismissHint()
+  }
 
   return (
     <nav aria-label="Site navigation" className={styles.nav} ref={rootRef}>
@@ -34,15 +50,18 @@ export function PageMenu() {
         className={styles.toggle}
         aria-expanded={isOpen}
         aria-controls={listId}
-        aria-label="Menu"
-        onClick={toggle}
+        onClick={handleToggleClick}
       >
         <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true">
           <circle cx="10" cy="4" r="1.75" />
           <circle cx="10" cy="10" r="1.75" />
           <circle cx="10" cy="16" r="1.75" />
         </svg>
+        <span className={styles.label}>Menu</span>
       </button>
+      {showHint && (
+        <HintBalloon message="Tap here to find other pages" onDismiss={dismissHint} />
+      )}
       <ul id={listId} className={styles.list} data-open={isOpen}>
         {items.map((item) => (
           <li key={item.href}>

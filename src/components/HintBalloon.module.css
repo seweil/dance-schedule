@@ -1,0 +1,80 @@
+/* position: absolute; top: 100%; right: 0 — sits directly below its target and
+   flush with its right edge, the same anchor PageMenu.module.css's own .list
+   dropdown uses; the upward-pointing .pointer below then reads as pointing at
+   whatever sits just above-right of this box. z-index above PageMenu's own
+   dropdown (20) so a hint can't be hidden behind the real menu if both were
+   ever open at once (not expected in practice — PageMenu.tsx dismisses the
+   hint the moment its toggle is clicked — but this is what "above" should
+   mean if that ever changed). No animated transform (see Nav.module.css's/
+   PageMenu.module.css's own .textSizeDropdown/.list comments for the real,
+   confirmed-on-hardware WebKit bug that pattern caused) and no opacity/
+   visibility transition at all — this renders and unmounts outright based on
+   useFirstLaunchHint.ts's own shouldShow, rather than toggling a CSS state on
+   an always-mounted element the way those dropdowns do, so there's no
+   open/close animation to get wrong in the first place. */
+.balloon {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 21;
+  margin-top: var(--space-sm);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  /* Explicit width, not max-width — confirmed live this box's shrink-to-fit
+     calculation resolves against its containing block (.nav, position:
+     relative), whose own width is just wide enough for the toggle button
+     (~85px, its only in-flow content) — NOT against the viewport or this
+     balloon's own content, since neither .balloon nor .list (PageMenu's
+     dropdown, which sidesteps this because ONE of ITS children, e.g. the
+     Text-size row, happens to be wide enough to force a sensible width via
+     column-flex sizing) has an explicit width of its own. A max-width alone
+     left this rendering at ~65px, wrapping the message almost
+     character-by-character. An explicit width sidesteps shrink-to-fit
+     sizing entirely — 320px is the narrowest realistic phone width this app
+     targets (see docs/design/responsive-breakpoints.md), and 12rem (192px)
+     comfortably fits under that with room for margins either side, so no
+     min(...,100%) safety clamp is needed on top of it. */
+  width: 12rem;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+
+/* Upward-pointing triangle — same CSS-triangle technique as the level-slider's
+   thumbs (DanceScheduleFilters.module.css): a 0x0 box with only two opposite
+   borders colored, the other two transparent. Positioned near the balloon's
+   own right edge, roughly under where a toggle button anchored the same way
+   PageMenu.tsx's kebab button is would sit. */
+.pointer {
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--color-accent);
+}
+
+.message {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dismiss {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  padding: 2px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.dismiss:hover {
+  opacity: 1;
+}

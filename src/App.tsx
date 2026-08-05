@@ -13,6 +13,7 @@ import { UpdatePrompt } from './components/UpdatePrompt'
 import { ZoomableImage } from './components/ZoomableImage'
 import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
 import { TextSizeProvider } from './components/TextSizeProvider'
+import { useAppLaunchCount } from './hooks/useAppLaunchCount'
 import { useLastPagePersistence } from './hooks/useLastPagePersistence'
 import { normalizeRoutes } from './lib/buildNavTree'
 
@@ -79,6 +80,15 @@ function HomeBuildInfo() {
 }
 
 export function App() {
+  // Called for its side effect only (the increment itself) — see that hook's
+  // own comment for why nothing here needs its return value: any component
+  // that cares how many times the app has launched (useFirstLaunchHint.ts)
+  // reads the same persisted count directly instead. Called here, not inside
+  // Pages()/useLastPagePersistence() below, since it needs to run exactly
+  // once per real page load, not once per in-app route (Pages() re-renders on
+  // every navigation; App() does not).
+  useAppLaunchCount()
+
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <TextSizeProvider>

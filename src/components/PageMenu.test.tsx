@@ -86,6 +86,39 @@ describe('PageMenu', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
 
+  it('shows the kebab-menu hint balloon by default (a fresh, undismissed device)', () => {
+    renderPageMenu()
+    expect(screen.getByText('Tap here to find other pages')).toBeInTheDocument()
+  })
+
+  it('dismisses the hint balloon when the toggle itself is clicked', async () => {
+    const user = userEvent.setup()
+    renderPageMenu()
+    expect(screen.getByText('Tap here to find other pages')).toBeInTheDocument()
+
+    await user.click(getToggle())
+
+    expect(screen.queryByText('Tap here to find other pages')).not.toBeInTheDocument()
+    expect(localStorage.getItem('dance-schedule:hint-dismissed:kebab-menu')).toBe(
+      JSON.stringify(true),
+    )
+  })
+
+  it('dismisses the hint balloon when its own dismiss button is clicked', async () => {
+    const user = userEvent.setup()
+    renderPageMenu()
+
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    expect(screen.queryByText('Tap here to find other pages')).not.toBeInTheDocument()
+  })
+
+  it('does not show the hint balloon once already dismissed on a previous launch', () => {
+    localStorage.setItem('dance-schedule:hint-dismissed:kebab-menu', JSON.stringify(true))
+    renderPageMenu()
+    expect(screen.queryByText('Tap here to find other pages')).not.toBeInTheDocument()
+  })
+
   it('closes the menu when clicking outside the nav', async () => {
     const user = userEvent.setup()
     render(
