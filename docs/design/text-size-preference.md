@@ -591,6 +591,28 @@ alongside the existing `PHONE_MAX_WIDTH_PX` for this). `PageMenu.tsx`'s own
 kebab-toggle-shares-a-row-with-the-title layout is now unconditional, at
 every width and orientation it's the active nav — never hidden.
 
+### Scroll nudge on orientation change, to fix a stale `position: fixed` hit-test area
+**Why:** Reported live (real iPhone): right after rotating from portrait to
+landscape, the Text-size dropdown's actual touch-hit-test area sat offset
+from where it visually rendered — the same symptom as the `transform`-based
+WebKit hit-testing bug found and fixed earlier in this doc ("Dropdown
+show/hide drops its transform slide entirely"), but with a different
+trigger this time: no animated transform is involved, so removing one
+again wasn't the fix. This is WebKit's own `position: fixed` compositing
+going stale immediately after `orientationchange`, independent of this
+app's own CSS — confirmed live that a tiny MANUAL scroll immediately fixed
+it, meaning WebKit resyncs fixed-position hit-testing on the next scroll,
+just not proactively on rotation by itself. `useNudgeScrollOnOrientationChange`
+(`src/hooks/`, called once from `App.tsx`) does that same nudge
+programmatically — on `orientationchange`, scroll 1px down and immediately
+back — so nobody has to discover the manual workaround themselves. Global,
+not scoped to `Nav.tsx`'s own dropdown specifically: the underlying bug
+isn't about that one component, so any `position: fixed` element benefits
+the same way (`ScrollToTopButton.tsx` today, and any future one). Not
+verified on real iOS hardware in this session (Chrome-only tooling) —
+flagged for the reporter to confirm after this ships, same as the earlier
+`transform` fix was.
+
 ## Open questions
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
