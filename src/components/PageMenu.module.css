@@ -62,17 +62,21 @@
      reader skips this content while closed, not just sighted users. */
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-0.25rem);
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
+  /* No transform-based slide (dropped a translateY(-0.25rem) -> translateY(0)
+     open animation here) — see Nav.module.css's own .textSizeDropdown rule,
+     the identical pattern, for why: inspecting a real iPhone live (Safari Web
+     Inspector, not the Simulator — this only reproduced on real hardware)
+     found the actual touch-hit-testing box sitting BELOW the visually
+     displayed button text once open, matching a `position` + animated
+     `transform` hit-testing sync bug specific to WebKit on real devices.
+     Removing the transform removes the mismatch entirely. */
+  transition: opacity 150ms ease;
 }
 
 .list[data-open='true'] {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
 }
 
 .link {

@@ -476,7 +476,7 @@ min(12rem, 100%)`. Not reproducible at this doc's established 390px
 reference floor (no overflow there at any text size) either before or
 after.
 
-### Dropdown show/hide no longer transitions `visibility`, only `opacity`/`transform`
+### Dropdown show/hide no longer transitions `visibility` (first attempt — insufficient on its own)
 **Why:** Reported live: on an iPhone with the app installed as a standalone
 PWA, tapping the Normal/Large/Extra Large buttons inside either dropdown
 (`Nav.tsx`'s landscape one or `PageMenu.tsx`'s mobile kebab menu — both
@@ -502,6 +502,31 @@ correctly, so removing it changes nothing there); the iOS-specific fix
 itself couldn't be verified live (no Safari/iOS device available in this
 session's tooling) — flagged for the reporter to confirm after this
 ships.
+
+### Dropdown show/hide drops its `transform` slide entirely (the actual fix)
+**Why:** The `visibility` fix above shipped but didn't resolve it — the
+reporter confirmed the bug persisted specifically on the real device (not
+the iOS Simulator, and not a plain Safari tab — only the installed
+standalone PWA on real hardware). Diagnosed directly via Safari's Web
+Inspector attached to the real iPhone (Develop menu, over a USB
+connection): the button's actual touch-hit-testing box was rendering
+BELOW where its text visually appeared once the dropdown was open —
+confirmed by the reporter tapping the real (offset) hit-area, which worked
+immediately. Both dropdowns' open animation was `opacity` fading in
+together with `transform: translateY(-0.25rem) -> translateY(0)` (a subtle
+4px slide) in the same `transition`. That offset (hit-testing sitting
+BELOW the display, i.e. at the dropdown's PRE-transform position, since
+`translateY(-0.25rem)` moves the box UP to reveal it) matches a
+`position` + animated `transform` hit-testing desync specific to WebKit on
+real hardware — not reproducible in the iOS Simulator (software-only,
+no real touch hardware) or in Chrome, which is exactly why both earlier
+rounds of testing in this session (Chrome, at multiple sizes, and the
+Simulator) found nothing wrong. Fixed by dropping the `transform`
+slide-in entirely from both dropdowns, leaving only the `opacity` fade —
+removing the transform removes the desync outright rather than trying to
+find some other transform value/technique WebKit would sync correctly.
+Confirmed unchanged in Chrome (fades in identically, just without the
+small slide, which was purely decorative).
 
 ## Open questions
 

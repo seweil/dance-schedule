@@ -187,17 +187,24 @@
      change instead of racing WebKit's own animation of it. */
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-0.25rem);
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
+  /* No transform-based slide (dropped a translateY(-0.25rem) -> translateY(0)
+     open animation here) — inspecting the real device live (Safari Web
+     Inspector over a real iPhone, not the Simulator) found the actual
+     touch-hit-testing box sitting BELOW the visually displayed button text
+     once open: WebKit wasn't syncing hit-testing to the post-transform
+     position, only to the pre-transform (translateY(-0.25rem), i.e. shifted
+     UP from its untransformed spot) one — a `position: fixed` + animated
+     `transform` combination, on real hardware, not just this same fade
+     working fine in the Simulator or in Chrome. Removing the transform
+     removes the mismatch entirely rather than trying to out-guess which
+     specific transform value WebKit would sync correctly. */
+  transition: opacity 150ms ease;
 }
 
 .textSizeDropdown[data-open='true'] {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
