@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { PageHeader } from './PageHeader'
@@ -16,6 +16,13 @@ vi.mock('./PageMenu.module.css', () => ({
 }))
 
 describe('PageHeader', () => {
+  // Only the landscape-phone test below mocks matchMedia — restoring afterward
+  // keeps that mock from leaking into the other tests in this file, which rely
+  // on jsdom's default "no match" stub (test-setup.ts) for the normal case.
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('renders the title as an h1, alongside the mobile menu toggle', () => {
     render(
       <MemoryRouter>
@@ -28,6 +35,25 @@ describe('PageHeader', () => {
     // PageMenu's toggle is present in the DOM regardless of viewport (visibility is
     // CSS-only) — see PageMenu.test.tsx for its own behavior coverage.
     expect(screen.getByRole('button', { name: /menu/i })).toBeInTheDocument()
+  })
+
+  it('visually hides the title (but keeps it as an accessible heading) on a landscape phone', () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList)
+
+    render(
+      <MemoryRouter>
+        <TextSizeProvider>
+          <PageHeader title="Dance Schedule" />
+        </TextSizeProvider>
+      </MemoryRouter>,
+    )
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Dance Schedule' })
+    expect(heading.className).toMatch(/visuallyHidden/)
   })
 
   it('accepts a non-string ReactNode title (e.g. built from JSX, not literal text)', () => {

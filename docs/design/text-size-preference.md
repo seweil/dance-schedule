@@ -548,6 +548,25 @@ mechanics. `PageMenu.tsx`'s mobile kebab-menu dropdown was already a menu
 item in this same sense (never had an always-visible-row alternative), so
 it needed no change here.
 
+### PageHeader's page title visually hidden on a landscape phone (not just Nav's own controls)
+**Why:** Reported live: on a landscape phone specifically, `PageHeader.tsx`'s
+`<h1>` (the current page's own title, shown above every page's content) both
+ate into the same scarce vertical space already flagged for `Nav.tsx`'s Text
+size control (see the landscape decisions above) and duplicated information
+already visible elsewhere — the current page's tab in `Nav.tsx` (bold +
+accent-colored) or its selected item in `PageMenu.tsx`'s own dropdown. Scoped
+to phone width specifically (`(orientation: landscape) and (max-width:
+640px)`, matching `PageMenu.module.css`'s/`Nav.module.css`'s own 640px
+breakpoint), not every landscape window — a landscape tablet or desktop
+monitor has plenty of vertical room to spare, and the title reads as
+ordinary page content there, not a redundant duplicate. Same "still there,
+just visually hidden" approach as `TextSizeControl.tsx`'s own
+`showHeading={false}`: the `<h1>` keeps rendering (via a new colocated
+`.visuallyHidden` class in `PageHeader.module.css`, the same clip-based
+technique already used elsewhere in the app) rather than being conditionally
+unmounted, so the page keeps its one semantic heading landmark for screen
+reader users even when sighted users on a landscape phone don't see it.
+
 ## Open questions
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets
