@@ -119,23 +119,17 @@
   border-bottom: 1px solid #fff;
 }
 
-/* Sits below the tab row itself, not inside it — .list's own overflow-x: auto
-   (see its comment above) is for the tabs specifically; a non-navigation control
-   mixed into that scrollable row could scroll out of view at narrow widths.
-   Portrait/desktop only — see Nav.tsx's own LANDSCAPE_QUERY and the
-   .textSizeToggle/.textSizeDropdown rules below for the landscape-only
-   dropdown alternative. */
-.textSizeRow {
-  padding: var(--space-sm) 0;
-}
-
-/* Landscape only (see Nav.tsx's LANDSCAPE_QUERY) — lives right inside .list as
-   just another <li>'s content, same as every .link beside it (scrolls with
-   them, counts toward canScrollLeft/canScrollRight the same way), rather than
-   being a permanently-visible exception. Same tab-shaped look as .link
-   (padding/border/radius/baseline-overlap), just a <button> instead of an
-   <a> — background/border/font/cursor reset first since buttons don't
-   inherit those the way a bare <a> does. */
+/* Lives right inside .list as just another <li>'s content, same as every
+   .link beside it (scrolls with them, counts toward canScrollLeft/
+   canScrollRight the same way), rather than being a permanently-visible
+   exception. Reported live: an earlier version showed this as an
+   always-visible row below the tab bar outside of landscape, which read as
+   "buttons sitting on top of every content page" rather than a menu item,
+   inconsistent with the landscape dropdown — a top-level menu item is now
+   the only treatment, in every orientation (see Nav.tsx). Same tab-shaped
+   look as .link (padding/border/radius/baseline-overlap), just a <button>
+   instead of an <a> — background/border/font/cursor reset first since
+   buttons don't inherit those the way a bare <a> does. */
 .textSizeToggle {
   display: inline-block;
   padding: var(--space-sm) var(--space-md);

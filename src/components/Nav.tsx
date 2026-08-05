@@ -4,18 +4,8 @@ import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
-import { useMediaQuery } from '../hooks/useMediaQuery'
 import { TextSizeControl } from './TextSizeControl'
 import styles from './Nav.module.css'
-
-// A landscape phone/tablet has much less vertical room to spare than a
-// typical portrait one or a desktop monitor (always landscape-shaped, but
-// with plenty of height regardless) — reported live as the reason the
-// always-visible "Text size" row below the tab bar felt like it was eating
-// into scarce vertical space specifically there. In portrait (or on a
-// desktop monitor, where height was never the constraint), the row stays
-// exactly as it was: always visible, no extra click needed.
-const LANDSCAPE_QUERY = '(orientation: landscape)'
 
 // The desktop-only flat tab-link bar — always visible at ≥641px, hidden entirely
 // below that (see Nav.module.css), where PageMenu.tsx (rendered per-page, sharing
@@ -28,7 +18,6 @@ export function Nav() {
   const listRef = useRef<HTMLUListElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
-  const isLandscape = useMediaQuery(LANDSCAPE_QUERY)
   const {
     isOpen: isTextSizeOpen,
     setIsOpen: setIsTextSizeOpen,
@@ -161,27 +150,30 @@ export function Nav() {
               </NavLink>
             </li>
           ))}
-          {/* Landscape only — a top-level menu item alongside the page links,
-              styled to match .link and living right inside .list like every
-              other one of them: it scrolls with the rest of the tabs and
-              counts toward canScrollLeft/canScrollRight the same way, rather
-              than being a permanently-visible exception to that. Reuses
-              useDismissableMenu, the same Escape/outside-click/select-to-close
-              behavior as PageMenu.tsx's own mobile dropdown. */}
-          {isLandscape && (
-            <li ref={textSizeRootRef}>
-              <button
-                ref={textSizeToggleRef}
-                type="button"
-                className={styles.textSizeToggle}
-                aria-expanded={isTextSizeOpen}
-                aria-controls={textSizeListId}
-                onClick={toggleTextSize}
-              >
-                Text size
-              </button>
-            </li>
-          )}
+          {/* A top-level menu item alongside the page links, styled to match
+              .link and living right inside .list like every other one of
+              them: it scrolls with the rest of the tabs and counts toward
+              canScrollLeft/canScrollRight the same way, rather than being a
+              permanently-visible exception to that. Always a dropdown here
+              — reported live that an always-visible row (the previous
+              portrait/desktop behavior) read as "buttons sitting on top of
+              every content page" rather than a menu item, inconsistent with
+              the landscape dropdown; a top-level menu item is now the only
+              treatment, in every orientation. Reuses useDismissableMenu, the
+              same Escape/outside-click/select-to-close behavior as
+              PageMenu.tsx's own mobile dropdown. */}
+          <li ref={textSizeRootRef}>
+            <button
+              ref={textSizeToggleRef}
+              type="button"
+              className={styles.textSizeToggle}
+              aria-expanded={isTextSizeOpen}
+              aria-controls={textSizeListId}
+              onClick={toggleTextSize}
+            >
+              Text size
+            </button>
+          </li>
         </ul>
         {canScrollRight && (
           <button
@@ -196,13 +188,6 @@ export function Nav() {
           </button>
         )}
       </div>
-      {/* Portrait/desktop only — the complementary case to the dropdown menu
-          item above; see LANDSCAPE_QUERY's own comment for why the two differ. */}
-      {!isLandscape && (
-        <div className={styles.textSizeRow}>
-          <TextSizeControl />
-        </div>
-      )}
       {/* Portaled to document.body, not rendered inline under the toggle —
           .list's overflow-y: hidden (needed for an unrelated reason, see that
           rule's own comment) would otherwise clip this dropdown the moment it
@@ -211,8 +196,7 @@ export function Nav() {
           toggle's own getBoundingClientRect() (see the effect above) stands
           in for the normal-flow "position: absolute under its own trigger"
           PageMenu.tsx's dropdown gets for free. */}
-      {isLandscape &&
-        isTextSizeOpen &&
+      {isTextSizeOpen &&
         textSizeDropdownPosition &&
         createPortal(
           <div

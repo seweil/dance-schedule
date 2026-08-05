@@ -298,7 +298,7 @@ which has no dropdown to close) takes an optional `onSelect` callback, fired
 after `setTextSize` on every click; `PageMenu.tsx` passes
 `onSelect={() => setIsOpen(false)}`, `Nav.tsx` simply omits it.
 
-### In landscape, Nav.tsx's "Text size" becomes a dropdown menu item, not an always-visible row
+### In landscape, Nav.tsx's "Text size" becomes a dropdown menu item, not an always-visible row (superseded — see "Text size is always a dropdown menu item" below)
 **Why:** Reported live: on a landscape phone/tablet — much less vertical
 room to spare than a typical portrait one or a desktop monitor (always
 landscape-shaped, but with plenty of height regardless of that) — the
@@ -527,6 +527,26 @@ removing the transform removes the desync outright rather than trying to
 find some other transform value/technique WebKit would sync correctly.
 Confirmed unchanged in Chrome (fades in identically, just without the
 small slide, which was purely decorative).
+
+### Text size is always a dropdown menu item, in every orientation — the always-visible row is gone
+**Why:** Direct product decision, after the landscape-vs-portrait split
+above had been live for a while: reported that the portrait/desktop
+always-visible row read as "buttons sitting on top of every content page,"
+not a menu item — inconsistent with landscape's own dropdown treatment,
+and the wrong shape for a nav-level preference control. `Nav.tsx` no
+longer branches on `useMediaQuery('(orientation: landscape)')` at all for
+this decision — the toggle-plus-portaled-dropdown from the landscape case
+above is now the ONLY treatment, unconditionally, regardless of
+orientation or whether the window is a phone, tablet, or desktop monitor.
+`LANDSCAPE_QUERY` and the `useMediaQuery` import were removed from
+`Nav.tsx` entirely (no other use for them there); `.textSizeRow`
+(`Nav.module.css`) was deleted as dead CSS along with it. Everything else
+about the dropdown — the portal, the position-tracking effects, the
+right-edge clamp, the opacity-only fade — is unchanged; only the
+condition gating WHICH treatment shows disappeared, not the dropdown's own
+mechanics. `PageMenu.tsx`'s mobile kebab-menu dropdown was already a menu
+item in this same sense (never had an always-visible-row alternative), so
+it needed no change here.
 
 ## Open questions
 
