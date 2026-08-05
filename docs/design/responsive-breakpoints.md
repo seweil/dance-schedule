@@ -18,7 +18,7 @@ the actual shared token that resolves the "reconsider" flag.
 ## Sub-problems
 
 - [x] What breakpoint/orientation values are actually in use across the app,
-      and which components use each — see Decisions, "The six breakpoints"
+      and which components use each — see Decisions, "The breakpoints"
 - [x] Are any of them inconsistent with each other — see "Fixed inconsistency"
 - [x] Is there other viewport-driven logic that isn't a `@media` query at all
       (JS-computed sizes, `useMediaQuery` hooks) — see "Non-`@media` responsive logic"
@@ -31,7 +31,7 @@ the actual shared token that resolves the "reconsider" flag.
 
 ## Decisions
 
-### The six breakpoints
+### The breakpoints
 
 | # | Query | Meaning | Used by |
 |---|-------|---------|---------|
@@ -41,6 +41,7 @@ the actual shared token that resolves the "reconsider" flag.
 | 4 | `(orientation: landscape) and (min-width: 641px)` | `Nav.tsx`'s full tab bar width, landscape only — NOT phone width; this shipped backwards at first (`max-width: 640px`, phone width) before being corrected, see `docs/design/text-size-preference.md`'s own "Revised" note on this | `PageHeader.tsx` (`WIDE_LANDSCAPE_QUERY`, built from `TABLET_MIN_WIDTH_PX`) |
 | 5 | `(prefers-reduced-motion: reduce)` | not a size breakpoint — an accessibility preference, listed for completeness | `Nav.module.css`, `PageMenu.module.css`, `ScrollToTopButton.tsx` |
 | 6 | *(removed)* `(orientation: landscape)` alone, no width qualifier | historical — `Nav.tsx`'s old `LANDSCAPE_QUERY`, used to gate whether "Text size" was a dropdown or an always-visible row. Removed entirely once that control became a dropdown unconditionally (see `docs/design/text-size-preference.md`'s "Text size is always a dropdown menu item" decision) — listed here only because older commits/docs still reference it. |
+| 7 | `(max-height: 500px)` alone, no width qualifier | vertical space is genuinely limited — deliberately width-agnostic, unlike #2's combined version: a narrow PORTRAIT phone has plenty of vertical room and shouldn't match this one | `PageHeader.module.css` (reduces the margin between the title/menu row and the page content below it) |
 
 ### Shared breakpoint token: `src/breakpoints.css` + `src/lib/breakpoints.ts`
 
@@ -111,6 +112,22 @@ narrow width, confirmed live, so the extra trim only applies to the one
 combination that actually needs it. Single consumer — kept as a plain
 literal, not folded into the shared token above.
 
+### `PageHeader.module.css` reduces the menu-to-content margin below `max-height: 500px`
+**Why:** Direct product decision: when vertical space is genuinely tight,
+the fixed `margin-bottom` between the title/menu row and the page's own
+content below it should shrink too, the same instinct behind several of
+this doc's other "vertical space is short" decisions. Deliberately
+width-agnostic — no `--phone`/`max-width` condition alongside it, unlike
+breakpoint #2's combined version — since a narrow PORTRAIT phone still has
+plenty of vertical room and this margin doesn't need to shrink just because
+the screen is narrow. Reuses the same `500px` literal
+`DanceScheduleGrid.module.css` already established for its own "short
+vertical space" check (breakpoint #2) rather than inventing a new number,
+even though the two conditions aren't identical (this one drops the width
+half) — this is only the second consumer of that specific `500px` value,
+still below the "reconsider extracting a token" threshold this doc's own
+`640px`/`641px` pair crossed.
+
 ### Non-`@media` responsive logic (JS-computed, not CSS breakpoints)
 
 Not every viewport-dependent behavior is a `@media` query — a few places
@@ -173,6 +190,7 @@ row names the exact component/file to look at directly.
 | **"Text size" control** | Lives inside `PageMenu.tsx`'s hamburger dropdown, alongside the page links. | Its own top-level toggle in `Nav.tsx`'s tab bar, opening a small portaled dropdown panel below it (`Nav.module.css`'s `.textSizeDropdown`). Same three Normal/Large/Extra Large buttons either way (`TextSizeControl.tsx`) — only the surrounding menu shape differs. |
 | **Page title (`PageHeader.tsx`'s `<h1>`)** | Always shown normally, in every orientation — `PageMenu.tsx`'s hamburger toggle is closed by default and shows no page name until tapped open, so the title is the only visible page identifier at this width; hiding it here was tried and reverted as a regression, not a fix (see `docs/design/text-size-preference.md`'s "Revised" note). | **Landscape only** (breakpoint #4): visually hidden (still present for screen readers) — it duplicated `Nav.tsx`'s own already-highlighted current tab and cost scarce vertical space there. **Portrait, this width**: shown normally — plenty of vertical room, and `Nav.tsx`'s tab bar reads as ordinary page-top chrome there, not competing with the title the way landscape's cramped vertical space does. |
 | **Nav tab-bar horizontal scroll arrows** (`Nav.module.css`'s `.scrollButton`) | N/A — `Nav.tsx`'s whole bar is hidden here. | Shown only when `Nav.tsx`'s own scroll-position check confirms the tab list has more content in that direction (e.g. six tabs plus "Text size" not all fitting on one line) — a narrow desktop window can still trigger this even though it's "desktop." |
+| **Menu-row-to-content margin** (`PageHeader.module.css`, breakpoint #7) | Not gated by this table's own width columns at all — purely a height check (`max-height: 500px`), independent of phone/tablet width or orientation. A short window of either width gets the smaller `var(--space-sm)` margin between the title/menu row and the page content below it; a taller one (even a narrow phone in portrait) keeps the normal, more generous `var(--space-md)`. | Same as the left column — this one row is genuinely width-agnostic, unlike every other row in this table. |
 | **Events list layout** (`ScheduleList.module.css`) | Single flex column — date heading, then each event's time/location/description stacked. | 3-column CSS grid (time / location / description) aligned across every date section via `subgrid`, gated on `--tablet-and-up` (breakpoint #1) — a portrait iPad still gets the grid, since width (not orientation) is the actual signal for "room enough." |
 | **`<select>` (Date picker) border** (`DanceScheduleFilters.module.css`) | No border/radius — native mobile `<select>` chrome mostly ignores it anyway. | Rounded 1px border, matching `.timeLabel`'s radius elsewhere in the dance-schedule UI. |
 | **Dance-schedule grid scroll ownership** (`DanceScheduleGrid.module.css`, breakpoint #2) | The grid stops being its own scroll box; the whole page scrolls instead, room/level headers stay pinned via `position: sticky` against the real viewport, and the grid bleeds edge-to-edge. A **short landscape phone** hits this too (`max-height: 500px`), even though its width alone wouldn't. | The grid is its own bounded scroll area (`max-height: 70vh`), independent of page scroll. |

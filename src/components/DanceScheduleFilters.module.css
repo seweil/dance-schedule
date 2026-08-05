@@ -3,13 +3,21 @@
    dateGcaRow's own internal row (below) keeps Date and GCA paired whenever
    there's room. justify-content: center so dateGcaRow (narrower than the now
    full-width .levelField — see below) sits centered above it instead of
-   hugging the left edge, once the two wrap onto separate lines. */
+   hugging the left edge, once the two wrap onto separate lines.
+   row-gap bigger than column-gap — per direct product decision, more room
+   specifically above the level slider once it drops to its own line: split
+   into column-gap (unchanged, still the space between dateGcaRow and
+   .levelField whenever they DO sit side by side on a wide-enough screen) and
+   row-gap (the space BETWEEN wrapped lines specifically — a flex container's
+   gap only inserts this when there's actually more than one line, so this
+   has no effect at all on a wide screen where everything fits on one line). */
 .filters {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: var(--space-md);
+  column-gap: var(--space-md);
+  row-gap: 1.5rem;
   margin-bottom: var(--space-md);
 }
 
@@ -17,16 +25,17 @@
    longer fit side by side; without this they overflowed past the edge of the
    viewport instead of falling back to stacking (confirmed live). Still pairs
    them side by side whenever there's room, same as before.
-   gap: var(--space-sm) — the generous default; see the
-   NARROW_PORTRAIT_QUERY-scoped override far below for the tight 0.25rem this
-   used to be unconditionally, which read as needlessly cramped (reported
-   live) everywhere that trim wasn't actually needed — Normal/Large at any
-   orientation, or a wide/landscape viewport even at Extra Large. */
+   gap: var(--space-md) — per direct product decision, a little more room
+   between the Date field and the GCA checkbox than the plain var(--space-sm)
+   every other gap here uses; see the NARROW_PORTRAIT_QUERY-scoped override
+   far below for the tight 0.25rem this drops to when space genuinely isn't
+   available (Extra Large text size on a narrow portrait phone) — "when
+   possible" is exactly what gates that override, not this default. */
 .dateGcaRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
 }
 
 .field {
@@ -161,18 +170,19 @@
   }
 }
 
-/* gap: var(--space-sm) — matches .dateGcaRow's own gap so the checkbox-to-label
-   space reads the same as the date-field-to-checkbox space (confirmed live:
-   leaving this tighter than .dateGcaRow's gap, while only widening that outer
-   one, looked lopsided — tight-then-loose instead of evenly spaced controls).
+/* gap: var(--space-md) — matches .dateGcaRow's own gap (bumped alongside it,
+   for the same reason) so the checkbox-to-label space reads the same as the
+   date-field-to-checkbox space (confirmed live, previously: leaving this
+   tighter than .dateGcaRow's gap, while only widening that outer one, looked
+   lopsided — tight-then-loose instead of evenly spaced controls).
    See the NARROW_PORTRAIT_QUERY-scoped override far below for the tight
-   0.25rem this used to be unconditionally. The checkbox's own UA-default
-   margin (Chrome: ~3px/4px) stays zeroed regardless of that override — a
-   plain visual tidy-up, not part of the width-recovery trims. */
+   0.25rem this drops to when space genuinely isn't available. The checkbox's
+   own UA-default margin (Chrome: ~3px/4px) stays zeroed regardless of that
+   override — a plain visual tidy-up, not part of the width-recovery trims. */
 .checkboxField {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
 }
 
 .checkboxField input {

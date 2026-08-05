@@ -19,6 +19,20 @@
   margin: var(--space-md) 0;
 }
 
+/* Reduced margin-bottom only — not margin-top, which is the gap above THIS
+   row, a different boundary — when vertical space is genuinely limited.
+   max-height: 500px, not a width-based check: reuses the same literal
+   DanceScheduleGrid.module.css already established for "short vertical
+   space" (see docs/design/responsive-breakpoints.md), deliberately without
+   also checking width/orientation — a narrow PORTRAIT phone still has
+   plenty of vertical room and shouldn't lose this spacing just for being
+   narrow. */
+@media (max-height: 500px) {
+  .pageHeader {
+    margin-bottom: var(--space-sm);
+  }
+}
+
 .pageHeader h1 {
   margin: 0;
 }
