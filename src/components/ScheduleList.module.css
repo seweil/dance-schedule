@@ -46,11 +46,14 @@
 
 /* min-width, not orientation — a portrait iPad (~768-834px) has plenty of room for
    these narrow, content-sized columns, and gating on landscape only excluded it for
-   no real reason (see docs/design/schedule-page.md's "Breakpoint strategy"). 640px
-   matches Nav.module.css's own breakpoint (duplicated rather than extracted into a
-   shared token — see that doc section) and comfortably excludes phone portrait
-   (~390-430px) while including phone landscape and up. */
-@media (min-width: 640px) {
+   no real reason (see docs/design/schedule-page.md's "Breakpoint strategy"). Uses
+   the shared --tablet-and-up token (src/breakpoints.css) rather than a literal —
+   this rule used to say `min-width: 640px`, one pixel narrower than Nav.module.css's
+   own true complement (641px, i.e. --tablet-and-up here), a real if easy-to-miss
+   inconsistency fixed by extracting both breakpoints into src/breakpoints.css
+   together (see docs/design/responsive-breakpoints.md). Comfortably excludes phone
+   portrait (~390-430px) while including phone landscape and up either way. */
+@media (--tablet-and-up) {
   /* The list itself owns the column tracks, and every card (across every date, not
      just within one) spans them via subgrid, so time/location/description line up
      across the whole page — a single .card { display: grid } per card would size

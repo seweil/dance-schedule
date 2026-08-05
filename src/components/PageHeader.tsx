@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { PHONE_MAX_WIDTH_PX } from '../lib/breakpoints'
 import { PageMenu } from './PageMenu'
 import styles from './PageHeader.module.css'
 
-// Matches PageMenu.module.css's/Nav.module.css's own 640px breakpoint — "phone"
-// width, not just any landscape window (a landscape tablet/iPad or desktop
-// monitor has plenty of vertical room and its own already-visible selected tab
-// looks nothing like a redundant duplicate the way a phone's does — see below).
-const PHONE_LANDSCAPE_QUERY = '(orientation: landscape) and (max-width: 640px)'
+// Matches PageMenu.module.css's/Nav.module.css's own phone-width breakpoint
+// (PHONE_MAX_WIDTH_PX — the JS-side half of the shared token, see that
+// module's own comment) — "phone" width, not just any landscape window (a
+// landscape tablet/iPad or desktop monitor has plenty of vertical room and
+// its own already-visible selected tab looks nothing like a redundant
+// duplicate the way a phone's does — see below).
+const PHONE_LANDSCAPE_QUERY = `(orientation: landscape) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
 
 // Wraps every page's own title so PageMenu.tsx's mobile kebab toggle can share its
 // row instead of sitting in its own bar above the page. Only visually matters on

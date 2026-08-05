@@ -374,6 +374,13 @@ consumer of `640px`; the "reconsider extracting a shared token once a
 third component needs it" guidance from the original decision still
 stands.
 
+**Update:** that threshold was crossed (six-plus consumers) and the value
+has since been extracted into an actual shared token — `@media
+(--tablet-and-up)`, resolved via `src/breakpoints.css`/`postcss-custom-media`
+— rather than the literal `min-width: 640px` described above. See
+`docs/design/responsive-breakpoints.md` for the full breakpoint catalog and
+how the token works.
+
 ### Empty/edge states: show all events (no past-event filtering); explicit empty message
 **Why:** All events render in chronological order regardless of whether
 they're past or future — no "now" comparison logic to write or test, and

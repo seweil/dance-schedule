@@ -5,7 +5,10 @@
   display: none;
 }
 
-@media (max-width: 640px) {
+/* --phone — see src/breakpoints.css for the shared token this resolves
+   against (postcss-custom-media), and docs/design/responsive-breakpoints.md
+   for the full breakpoint catalog. */
+@media (--phone) {
   .nav {
     display: block;
     position: relative;

@@ -1,0 +1,22 @@
+/* Canonical CSS-side breakpoint tokens — the single source of truth every
+   .module.css file's own @media rules resolve against, via postcss-custom-
+   media (see postcss.config.js). Not @import'ed anywhere: postcss-custom-
+   media is configured with `importFrom` pointing at this file, so every
+   CSS Module gets these names automatically, without adding an import line
+   to each one.
+
+   These two are deliberately defined together, as an explicit pair, rather
+   than one derived from "not" the other — a real (if 1px) inconsistency
+   existed before this file: Nav.module.css hid its bar at max-width: 640px
+   while ScheduleList.module.css switched its own layout at min-width:
+   640px, one pixel earlier than Nav's true complement (641px). Defining
+   both here, side by side, makes that kind of drift visible/impossible to
+   reintroduce by accident. See docs/design/responsive-breakpoints.md for
+   the full catalog this is part of, and src/lib/breakpoints.ts for the
+   matching TS-side constant used by useMediaQuery() call sites — CSS custom
+   media and a JS constant can't share one literal value directly (a plain
+   CSS custom PROPERTY, unlike custom media, can't be used inside an
+   @media condition at all — a real spec limitation), so the two are kept
+   in sync by hand across the two files/languages. */
+@custom-media --phone (max-width: 640px);
+@custom-media --tablet-and-up (min-width: 641px);

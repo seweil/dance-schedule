@@ -24,6 +24,11 @@ The ask: only the grid's own content should pan horizontally. Nav, the
 heading, and the filters should stay put horizontally (they already
 correctly scroll away *vertically*, unaffected, and should keep doing that).
 
+(See `docs/design/responsive-breakpoints.md` for how this breakpoint
+relates to the others in the app — it's deliberately a different kind of
+check, an OR across width and height, not just a different number from the
+plain `640px` width-only cutover used elsewhere.)
+
 Two straightforward-looking CSS fixes were tried and both failed for
 specific, verifiable reasons — see Decisions below. The real fix requires
 splitting the grid into a separately-scrolling header and body.

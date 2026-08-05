@@ -210,7 +210,10 @@
 /* This whole bar is desktop-only — PageMenu.tsx (rendered per-page, next to that
    page's own title via PageHeader.tsx) is the mobile equivalent instead, so there's
    nothing left for this component to show below the breakpoint. */
-@media (max-width: 640px) {
+/* --phone — see src/breakpoints.css for the shared token this resolves
+   against (postcss-custom-media), and docs/design/responsive-breakpoints.md
+   for the full breakpoint catalog. */
+@media (--phone) {
   .nav {
     display: none;
   }

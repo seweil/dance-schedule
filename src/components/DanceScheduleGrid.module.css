@@ -44,8 +44,13 @@
    headerWrapper/bodyWrapper below take on independent scrolling roles only in this
    media query — the JS scroll-sync between them (DanceScheduleGrid.tsx) is always
    attached but naturally inert above this breakpoint, since bodyWrapper never fires
-   its own scroll event when panelWrapper is the one actually scrolling. */
-@media (max-width: 640px), (max-height: 500px) {
+   its own scroll event when panelWrapper is the one actually scrolling. The
+   width half of this OR reuses the shared --phone token (src/breakpoints.css) —
+   same underlying 640px value as the app's other phone-width checks, just OR'd
+   here with an extra height condition no other component needs (max-height:
+   500px stays a plain literal, one consumer only — see
+   docs/design/responsive-breakpoints.md). */
+@media (--phone), (max-height: 500px) {
   .panelWrapper {
     overflow: visible;
     max-height: none;

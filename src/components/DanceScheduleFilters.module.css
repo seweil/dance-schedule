@@ -152,8 +152,9 @@
    iOS) largely ignores border styling anyway, so this is scoped to where it
    actually reads as an intentional design choice rather than fighting the
    platform's own control rendering. Matches .timeLabel's 6px radius elsewhere in
-   the dance-schedule UI. */
-@media (min-width: 641px) {
+   the dance-schedule UI. Uses the shared --tablet-and-up token — see
+   src/breakpoints.css and docs/design/responsive-breakpoints.md. */
+@media (--tablet-and-up) {
   .select {
     border: 1px solid var(--color-border);
     border-radius: 6px;

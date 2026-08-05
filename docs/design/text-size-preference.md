@@ -14,6 +14,12 @@ iOS Safari limitation) — so an in-app control is a real, needed
 capability, not a duplicate of something already available. This is the
 app's first settings/preferences UI of any kind.
 
+This doc's own decisions accumulated several viewport breakpoints of their
+own along the way (the landscape-phone dropdown/title logic, the
+narrow-portrait tick-shortening) — see `docs/design/responsive-breakpoints.md`
+for a consolidated catalog of every breakpoint in the app, not just the
+ones that originated here.
+
 ## Sub-problems
 
 - [x] Mechanism for scaling text app-wide — see "Root font-size scaling"
