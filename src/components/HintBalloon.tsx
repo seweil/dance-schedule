@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import styles from './HintBalloon.module.css'
 
 export interface HintBalloonProps {
@@ -22,8 +23,32 @@ export interface HintBalloonProps {
 // screen reader user can discover at their own pace, not something that
 // needs to interrupt whatever they're already doing.
 export function HintBalloon({ message, onDismiss }: HintBalloonProps) {
+  const balloonRef = useRef<HTMLDivElement>(null)
+
+  // Reported live: dismissing this should work by tapping anywhere outside
+  // it too, not just its own × button — the same "outside click closes it"
+  // behavior useDismissableMenu.ts already gives Nav.tsx's/PageMenu.tsx's
+  // own dropdowns, but written directly here rather than reused from that
+  // hook: this isn't a reopenable toggle menu (no isOpen/Escape-to-refocus
+  // behavior needed — once dismissed, a hint never reappears), so
+  // useDismissableMenu's own shape doesn't fit. A tap on PageMenu.tsx's real
+  // toggle button also counts as "outside" here and dismisses it too, same
+  // as PageMenu.tsx's own handleToggleClick already does explicitly — both
+  // paths call the same idempotent dismiss, so there's no conflict from
+  // triggering it twice for that one tap.
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!balloonRef.current?.contains(event.target as Node)) {
+        onDismiss()
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [onDismiss])
+
   return (
-    <div className={styles.balloon} role="status">
+    <div ref={balloonRef} className={styles.balloon} role="status">
       <span className={styles.pointer} aria-hidden="true" />
       <p className={styles.message}>{message}</p>
       <button type="button" className={styles.dismiss} onClick={onDismiss} aria-label="Dismiss">

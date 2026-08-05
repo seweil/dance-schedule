@@ -18,4 +18,29 @@ describe('HintBalloon', () => {
 
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+
+  it('calls onDismiss when clicking anywhere outside the balloon', async () => {
+    const onDismiss = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <div>
+        <HintBalloon message="Tap here for the menu" onDismiss={onDismiss} />
+        <button type="button">Outside</button>
+      </div>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Outside' }))
+
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onDismiss when clicking inside the balloon (its own message text)', async () => {
+    const onDismiss = vi.fn()
+    const user = userEvent.setup()
+    render(<HintBalloon message="Tap here for the menu" onDismiss={onDismiss} />)
+
+    await user.click(screen.getByText('Tap here for the menu'))
+
+    expect(onDismiss).not.toHaveBeenCalled()
+  })
 })

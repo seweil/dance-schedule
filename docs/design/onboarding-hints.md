@@ -16,30 +16,35 @@ questions.
 
 ## Sub-problems
 
-- [x] Permanent discoverability fix — see "Visible 'Menu' label added"
+- [x] Permanent discoverability fix — see "Visible 'Menu' label added, then
+      removed in favor of a hamburger icon"
 - [x] How to persist "how many times has this app been launched" — see
       "`useAppLaunchCount`: a global, once-per-page-load counter"
 - [x] Reusable logic for "should THIS hint show right now" — see
       "`useFirstLaunchHint`: the reusable eligibility hook"
 - [x] Presentation (the actual callout UI) — see "`HintBalloon`: the
       presentational half"
-- [x] When the hint should dismiss — see "Dismissal: explicit only, two triggers"
+- [x] When the hint should dismiss — see "Dismissal: explicit only, three triggers"
 - [ ] Whether to build a general multi-step walkthrough/tour engine — see
       Open questions (deliberately deferred, not decided against forever)
 
 ## Decisions
 
-### Visible "Menu" label added
+### Visible "Menu" label added, then removed in favor of a hamburger icon
 **Why:** The permanent, everyone-benefits fix, independent of anything
-else in this doc — `PageMenu.module.css`'s `.toggle` is now `display: flex`
-with the existing "⋮" icon plus a new visible `<span>` reading "Menu"
-alongside it. The old `aria-label="Menu"` on the button was removed as
-redundant once real visible text provides the same accessible name
-automatically — matches WCAG's own "accessible name should match visible
-label" guidance, and avoids the two ever silently drifting apart if the
-copy changes later. This alone would arguably have been enough on its own;
-the hint balloon below is additional reinforcement specifically for brand
--new users, not a replacement for it.
+else in this doc. First attempt: kept the existing "⋮" kebab icon and added
+a visible `<span>` reading "Menu" next to it (`PageMenu.module.css`'s
+`.toggle` as `display: flex`), removing the old `aria-label="Menu"` as
+redundant once visible text provides the same accessible name automatically.
+
+**Revised — reported live as looking bad.** Replaced the kebab dots
+outright with a hamburger ("☰", three horizontal lines) glyph instead of
+adding a label to them — a far more universally recognized "menu" symbol
+than a kebab, so it reads as tappable on its own without needing
+accompanying text at all. `aria-label="Menu"` came back on the button
+(no more visible text to derive an accessible name from), and `.toggle`
+reverted to its original non-flex layout (a single icon child again, no
+label to lay out alongside it).
 
 ### `useAppLaunchCount`: a global, once-per-page-load counter
 **Why:** "First 3 launches" needs a persisted count of how many times the
@@ -109,15 +114,24 @@ borrow width from. Fixed with an explicit `width: 12rem` instead of
 `docs/design/responsive-breakpoints.md`) comfortably fits 192px with room
 for margins, so no additional `min(..., 100%)` clamp was needed on top.
 
-### Dismissal: explicit only, two triggers
-**Why:** The hint never auto-dismisses on a timer — it stays until the
-person does one of two things: tap the balloon's own dismiss button, or
-tap the REAL toggle it's pointing at (handled in `PageMenu.tsx`'s
-`handleToggleClick`, which calls both `toggle()` and `dismissHint()`) —
-tapping the real menu means the hint already did its job, so there's no
-reason to keep showing it on this device's remaining onboarding launches.
-Both paths persist the SAME dismissed flag, so either one permanently
-retires the hint.
+### Dismissal: explicit only, three triggers
+**Why:** The hint never auto-dismisses on a timer — it stays until one of
+three things happens: tap the balloon's own dismiss button, tap the REAL
+toggle it's pointing at (handled in `PageMenu.tsx`'s `handleToggleClick`,
+which calls both `toggle()` and `dismissHint()` — tapping the real menu
+means the hint already did its job), or **tap anywhere else on the page**.
+That third path was added after the first two shipped — reported live that
+only being able to dismiss via the × felt incomplete, the same "outside
+click closes it" behavior this app's dropdowns already have via
+`useDismissableMenu.ts`. Implemented directly inside `HintBalloon.tsx`
+(a `pointerdown` listener on `document`, checking whether the event target
+falls outside the balloon's own ref) rather than reusing that hook — a
+hint isn't a reopenable toggle menu (no `isOpen`/Escape-to-refocus
+behavior needed; once dismissed, it never reappears), so
+`useDismissableMenu`'s shape doesn't fit. All three paths persist the same
+dismissed flag, so any one of them permanently retires the hint; triggering
+more than one for the same tap (e.g. the real toggle counts as "outside"
+too) is harmless since dismissal is idempotent.
 
 ## Open questions
 

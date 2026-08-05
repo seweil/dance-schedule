@@ -15,26 +15,17 @@
   }
 }
 
-/* display: flex — icon + visible "Menu" text side by side. Reported live: the
-   bare "⋮" icon alone (aria-label only, for screen readers) was too easy for
-   a new user to miss entirely — see docs/design/onboarding-hints.md. font:
-   inherit since buttons don't inherit the page's own font by default in
-   every browser (same reason Nav.module.css's .textSizeToggle sets it). */
+/* A hamburger ("☰") glyph, not the kebab dots this used to be — reported
+   live as too easy for a new user to miss; a visible text label was tried
+   first and reported live as looking bad, so this reads as tappable on its
+   own instead. See docs/design/onboarding-hints.md. */
 .toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
   border: none;
   border-radius: 4px;
   background: none;
   padding: var(--space-sm);
   color: var(--color-text);
   cursor: pointer;
-  font: inherit;
-}
-
-.label {
-  font-size: 0.875rem;
 }
 
 .toggle[aria-expanded='true'] {

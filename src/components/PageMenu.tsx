@@ -27,11 +27,15 @@ export function PageMenu() {
     HTMLButtonElement
   >()
   const listId = useId()
-  // Reported live: a bare "⋮" icon with no visible text (aria-label alone,
-  // for screen readers) was too easy for a new user to miss entirely — see
-  // docs/design/onboarding-hints.md. The visible "Menu" label below fixes
-  // this permanently, for everyone; the hint balloon is an additional,
-  // temporary nudge during a new user's first few launches specifically.
+  // Reported live: a bare "⋮" kebab icon (aria-label alone, for screen
+  // readers) was too easy for a new user to miss entirely — see
+  // docs/design/onboarding-hints.md. A visible text label next to it was
+  // tried first and reported live as looking bad; switched to a hamburger
+  // ("☰") glyph instead — a much more universally recognized "menu" symbol
+  // than a kebab, so it doesn't need an accompanying label to read as
+  // tappable. The hint balloon below is additional, temporary reinforcement
+  // during a new user's first few launches specifically, on top of that
+  // permanent icon change.
   const { shouldShow: showHint, dismiss: dismissHint } = useFirstLaunchHint('kebab-menu')
 
   function handleToggleClick() {
@@ -50,18 +54,19 @@ export function PageMenu() {
         className={styles.toggle}
         aria-expanded={isOpen}
         aria-controls={listId}
+        aria-label="Menu"
         onClick={handleToggleClick}
       >
-        <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true">
-          <circle cx="10" cy="4" r="1.75" />
-          <circle cx="10" cy="10" r="1.75" />
-          <circle cx="10" cy="16" r="1.75" />
+        <svg viewBox="0 0 20 20" width="24" height="24" fill="none" aria-hidden="true">
+          <path
+            d="M3 6H17M3 10H17M3 14H17"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
         </svg>
-        <span className={styles.label}>Menu</span>
       </button>
-      {showHint && (
-        <HintBalloon message="Tap here to find other pages" onDismiss={dismissHint} />
-      )}
+      {showHint && <HintBalloon message="Tap here for menu" onDismiss={dismissHint} />}
       <ul id={listId} className={styles.list} data-open={isOpen}>
         {items.map((item) => (
           <li key={item.href}>

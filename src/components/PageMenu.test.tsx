@@ -88,17 +88,17 @@ describe('PageMenu', () => {
 
   it('shows the kebab-menu hint balloon by default (a fresh, undismissed device)', () => {
     renderPageMenu()
-    expect(screen.getByText('Tap here to find other pages')).toBeInTheDocument()
+    expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
   })
 
   it('dismisses the hint balloon when the toggle itself is clicked', async () => {
     const user = userEvent.setup()
     renderPageMenu()
-    expect(screen.getByText('Tap here to find other pages')).toBeInTheDocument()
+    expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
 
     await user.click(getToggle())
 
-    expect(screen.queryByText('Tap here to find other pages')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
     expect(localStorage.getItem('dance-schedule:hint-dismissed:kebab-menu')).toBe(
       JSON.stringify(true),
     )
@@ -110,13 +110,30 @@ describe('PageMenu', () => {
 
     await user.click(screen.getByRole('button', { name: 'Dismiss' }))
 
-    expect(screen.queryByText('Tap here to find other pages')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
   })
 
   it('does not show the hint balloon once already dismissed on a previous launch', () => {
     localStorage.setItem('dance-schedule:hint-dismissed:kebab-menu', JSON.stringify(true))
     renderPageMenu()
-    expect(screen.queryByText('Tap here to find other pages')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+  })
+
+  it('dismisses the hint balloon when tapping anywhere outside it', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/installation']}>
+        <TextSizeProvider>
+          <PageMenu />
+          <button type="button">Outside</button>
+        </TextSizeProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /outside/i }))
+
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
   })
 
   it('closes the menu when clicking outside the nav', async () => {
