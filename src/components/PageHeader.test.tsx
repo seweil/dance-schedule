@@ -16,7 +16,7 @@ vi.mock('./PageMenu.module.css', () => ({
 }))
 
 describe('PageHeader', () => {
-  // Only the landscape-phone test below mocks matchMedia — restoring afterward
+  // Only the wide-landscape test below mocks matchMedia — restoring afterward
   // keeps that mock from leaking into the other tests in this file, which rely
   // on jsdom's default "no match" stub (test-setup.ts) for the normal case.
   afterEach(() => {
@@ -37,7 +37,7 @@ describe('PageHeader', () => {
     expect(screen.getByRole('button', { name: /menu/i })).toBeInTheDocument()
   })
 
-  it('visually hides the title (but keeps it as an accessible heading) on a landscape phone', () => {
+  it('visually hides the title (but keeps it as an accessible heading) when Nav\'s full tab bar shows in landscape', () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue({
       matches: true,
       addEventListener: vi.fn(),

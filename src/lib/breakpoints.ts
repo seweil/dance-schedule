@@ -8,3 +8,10 @@
 // files/languages. See docs/design/responsive-breakpoints.md for the full
 // breakpoint catalog both are part of.
 export const PHONE_MAX_WIDTH_PX = 640
+
+// The complementary half — mirrors src/breakpoints.css's `--tablet-and-up`
+// (`min-width: 641px`). Kept as its own named constant, not
+// `PHONE_MAX_WIDTH_PX + 1` computed inline at each call site, so a reader
+// doesn't have to do that arithmetic themselves to recognize it as the
+// other side of the same breakpoint.
+export const TABLET_MIN_WIDTH_PX = 641

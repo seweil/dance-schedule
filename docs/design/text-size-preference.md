@@ -554,7 +554,7 @@ mechanics. `PageMenu.tsx`'s mobile kebab-menu dropdown was already a menu
 item in this same sense (never had an always-visible-row alternative), so
 it needed no change here.
 
-### PageHeader's page title visually hidden on a landscape phone (not just Nav's own controls)
+### PageHeader's page title visually hidden on a landscape phone (not just Nav's own controls) (revised — see below)
 **Why:** Reported live: on a landscape phone specifically, `PageHeader.tsx`'s
 `<h1>` (the current page's own title, shown above every page's content) both
 ate into the same scarce vertical space already flagged for `Nav.tsx`'s Text
@@ -572,6 +572,24 @@ just visually hidden" approach as `TextSizeControl.tsx`'s own
 technique already used elsewhere in the app) rather than being conditionally
 unmounted, so the page keeps its one semantic heading landmark for screen
 reader users even when sighted users on a landscape phone don't see it.
+
+**Revised — the condition above was wrong, in the opposite direction from
+what it looks like.** `(orientation: landscape) and (max-width: 640px)`
+is phone-narrow width, i.e. exactly when `PageMenu.tsx`'s kebab toggle
+(not `Nav.tsx`'s tab bar) is the active nav — but the kebab toggle is
+closed by default and shows no page name of its own until tapped open, so
+at that width the title is the ONLY visible page identifier, in every
+orientation; hiding it there removed the one thing telling a sighted user
+what page they're on, not a redundant duplicate of anything. The
+redundancy this was meant to fix is specifically with `Nav.tsx`'s own
+already-highlighted current tab, which only ever shows at
+`Nav.module.css`'s complementary width (`--tablet-and-up`, `min-width:
+641px`) — so the real condition is `(orientation: landscape) and
+(min-width: 641px)` (`WIDE_LANDSCAPE_QUERY`, `PageHeader.tsx`; the JS-side
+`TABLET_MIN_WIDTH_PX = 641` constant was added to `src/lib/breakpoints.ts`
+alongside the existing `PHONE_MAX_WIDTH_PX` for this). `PageMenu.tsx`'s own
+kebab-toggle-shares-a-row-with-the-title layout is now unconditional, at
+every width and orientation it's the active nav — never hidden.
 
 ## Open questions
 

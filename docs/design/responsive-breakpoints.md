@@ -35,10 +35,10 @@ the actual shared token that resolves the "reconsider" flag.
 
 | # | Query | Meaning | Used by |
 |---|-------|---------|---------|
-| 1 | `--phone` (`max-width: 640px`) / `--tablet-and-up` (`min-width: 641px`) | phone vs. tablet-and-up — the app's primary cutover | `Nav.module.css`, `PageMenu.module.css`, `DanceScheduleFilters.module.css` (`.select` border), `ScheduleList.module.css`, `DanceScheduleGrid.module.css` (width half of #2 below); `PHONE_MAX_WIDTH_PX` on the JS side (`PageHeader.tsx`) |
+| 1 | `--phone` (`max-width: 640px`) / `--tablet-and-up` (`min-width: 641px`) | phone vs. tablet-and-up — the app's primary cutover | `Nav.module.css`, `PageMenu.module.css`, `DanceScheduleFilters.module.css` (`.select` border), `ScheduleList.module.css`, `DanceScheduleGrid.module.css` (width half of #2 below); `PHONE_MAX_WIDTH_PX`/`TABLET_MIN_WIDTH_PX` on the JS side (`PageHeader.tsx`, see #4 below) |
 | 2 | `--phone, (max-height: 500px)` | narrow-portrait **or** short-landscape phone (an OR, not just width) | `DanceScheduleGrid.module.css` |
 | 3 | `(orientation: portrait) and (max-width: 480px)` | the single narrowest realistic phone width, portrait only | `DanceScheduleFilters.tsx` (`NARROW_PORTRAIT_QUERY`), duplicated in `DanceScheduleFilters.module.css` |
-| 4 | `(orientation: landscape) and (max-width: 640px)` | phone specifically, landscape only (not a landscape tablet/desktop) | `PageHeader.tsx` (`PHONE_LANDSCAPE_QUERY`, built from `PHONE_MAX_WIDTH_PX`) |
+| 4 | `(orientation: landscape) and (min-width: 641px)` | `Nav.tsx`'s full tab bar width, landscape only — NOT phone width; this shipped backwards at first (`max-width: 640px`, phone width) before being corrected, see `docs/design/text-size-preference.md`'s own "Revised" note on this | `PageHeader.tsx` (`WIDE_LANDSCAPE_QUERY`, built from `TABLET_MIN_WIDTH_PX`) |
 | 5 | `(prefers-reduced-motion: reduce)` | not a size breakpoint — an accessibility preference, listed for completeness | `Nav.module.css`, `PageMenu.module.css`, `ScrollToTopButton.tsx` |
 | 6 | *(removed)* `(orientation: landscape)` alone, no width qualifier | historical — `Nav.tsx`'s old `LANDSCAPE_QUERY`, used to gate whether "Text size" was a dropdown or an always-visible row. Removed entirely once that control became a dropdown unconditionally (see `docs/design/text-size-preference.md`'s "Text size is always a dropdown menu item" decision) — listed here only because older commits/docs still reference it. |
 
@@ -69,14 +69,16 @@ across the two files since neither can express the other's half:
   is the currently-recommended replacement for exactly this "Modular CSS"
   case (each CSS Module file is processed independently, so a plugin can't
   otherwise see a `@custom-media` declared in a different file).
-- **TS side** — `src/lib/breakpoints.ts` exports `PHONE_MAX_WIDTH_PX = 640`,
-  the same literal, for `useMediaQuery()` call sites that build a query
-  *string* at runtime rather than writing a static `@media` rule (currently
-  just `PageHeader.tsx`'s `PHONE_LANDSCAPE_QUERY`).
+- **TS side** — `src/lib/breakpoints.ts` exports both `PHONE_MAX_WIDTH_PX =
+  640` and `TABLET_MIN_WIDTH_PX = 641`, the same two literals, for
+  `useMediaQuery()` call sites that build a query *string* at runtime
+  rather than writing a static `@media` rule (currently just
+  `PageHeader.tsx`'s `WIDE_LANDSCAPE_QUERY`, built from the latter).
 
 Both are named as directly as possible (`--phone`/`--tablet-and-up`,
-`PHONE_MAX_WIDTH_PX`) rather than something more generic like `--breakpoint-1`,
-so a reader doesn't need this doc open to guess what either one means.
+`PHONE_MAX_WIDTH_PX`/`TABLET_MIN_WIDTH_PX`) rather than something more
+generic like `--breakpoint-1`, so a reader doesn't need this doc open to
+guess what either one means.
 
 ### Narrow-portrait-or-short-landscape (`DanceScheduleGrid.module.css`) is deliberately an OR of two different dimensions, not the same 640px rule
 
@@ -167,9 +169,9 @@ row names the exact component/file to look at directly.
 
 | Feature | ≤640px (phone, either orientation) | ≥641px (tablet/desktop) |
 |---|---|---|
-| **Top-level navigation** | `PageMenu.tsx`'s `⋮` kebab button, opening a dropdown with every page link plus "Text size" — shares a row with the page's own title (`PageHeader.tsx`). `Nav.tsx`'s own bar is `display: none`. | `Nav.tsx`'s horizontal tab bar (one `<a>` per page, current page bold + accent-colored + "merged into" the page below), plus a "Text size" toggle as the last tab. `PageMenu.tsx`'s `.nav` is `display: none`. |
-| **"Text size" control** | Lives inside `PageMenu.tsx`'s kebab dropdown, alongside the page links. | Its own top-level toggle in `Nav.tsx`'s tab bar, opening a small portaled dropdown panel below it (`Nav.module.css`'s `.textSizeDropdown`). Same three Normal/Large/Extra Large buttons either way (`TextSizeControl.tsx`) — only the surrounding menu shape differs. |
-| **Page title (`PageHeader.tsx`'s `<h1>`)** | **Landscape only** (breakpoint #4): visually hidden (still present for screen readers) — see `docs/design/text-size-preference.md`'s "PageHeader's page title visually hidden on a landscape phone" decision; it duplicated the already-visible current tab/menu item and cost scarce vertical space there. **Portrait**: shown normally, same as desktop. | Always shown normally — plenty of vertical room, and no equally-prominent "current page" indicator competing with it the way a landscape phone's tab bar does. |
+| **Top-level navigation** | `PageMenu.tsx`'s hamburger ("☰") button, opening a dropdown with every page link plus "Text size" — shares a row with the page's own title (`PageHeader.tsx`), in every orientation. `Nav.tsx`'s own bar is `display: none`. | `Nav.tsx`'s horizontal tab bar (one `<a>` per page, current page bold + accent-colored + "merged into" the page below), plus a "Text size" toggle as the last tab. `PageMenu.tsx`'s `.nav` is `display: none`. |
+| **"Text size" control** | Lives inside `PageMenu.tsx`'s hamburger dropdown, alongside the page links. | Its own top-level toggle in `Nav.tsx`'s tab bar, opening a small portaled dropdown panel below it (`Nav.module.css`'s `.textSizeDropdown`). Same three Normal/Large/Extra Large buttons either way (`TextSizeControl.tsx`) — only the surrounding menu shape differs. |
+| **Page title (`PageHeader.tsx`'s `<h1>`)** | Always shown normally, in every orientation — `PageMenu.tsx`'s hamburger toggle is closed by default and shows no page name until tapped open, so the title is the only visible page identifier at this width; hiding it here was tried and reverted as a regression, not a fix (see `docs/design/text-size-preference.md`'s "Revised" note). | **Landscape only** (breakpoint #4): visually hidden (still present for screen readers) — it duplicated `Nav.tsx`'s own already-highlighted current tab and cost scarce vertical space there. **Portrait, this width**: shown normally — plenty of vertical room, and `Nav.tsx`'s tab bar reads as ordinary page-top chrome there, not competing with the title the way landscape's cramped vertical space does. |
 | **Nav tab-bar horizontal scroll arrows** (`Nav.module.css`'s `.scrollButton`) | N/A — `Nav.tsx`'s whole bar is hidden here. | Shown only when `Nav.tsx`'s own scroll-position check confirms the tab list has more content in that direction (e.g. six tabs plus "Text size" not all fitting on one line) — a narrow desktop window can still trigger this even though it's "desktop." |
 | **Events list layout** (`ScheduleList.module.css`) | Single flex column — date heading, then each event's time/location/description stacked. | 3-column CSS grid (time / location / description) aligned across every date section via `subgrid`, gated on `--tablet-and-up` (breakpoint #1) — a portrait iPad still gets the grid, since width (not orientation) is the actual signal for "room enough." |
 | **`<select>` (Date picker) border** (`DanceScheduleFilters.module.css`) | No border/radius — native mobile `<select>` chrome mostly ignores it anyway. | Rounded 1px border, matching `.timeLabel`'s radius elsewhere in the dance-schedule UI. |
