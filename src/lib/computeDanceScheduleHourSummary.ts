@@ -18,6 +18,14 @@ const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEV
 // unified into one shared constant.
 const MIN_CALLER_HOURS = 3
 
+// "GCA Caller Showcase Dance" sessions credit a caller like any other structured
+// session (see computeDanceScheduleHourSummary's own doc comment), but a caller
+// whose ONLY credited hours come from this event type is a fundamentally different
+// kind of entry than a real headline caller — see DanceScheduleHourSummaryTable's
+// `groupBoundary`. Exported so computeDanceScheduleCallerLayout.ts's own, unrelated
+// exclusion of this event type can't drift from this exact string.
+export const GCA_CALLER_SHOWCASE_EVENT_TYPE = 'GCA Caller Showcase Dance'
+
 export interface DanceScheduleHourSummaryColumn {
   label: string
   // One entry per DanceScheduleHourSummary.dates, in the same order.
@@ -34,6 +42,13 @@ export interface DanceScheduleHourSummaryTable {
   columns: DanceScheduleHourSummaryColumn[]
   totalByDate: number[]
   grandTotal: number
+  // Index into `columns` separating a leading "headline" group (anyone with at
+  // least one non-GCA-showcase session) from a trailing "GCA showcase only" group
+  // (everyone left, whose entire credited total came from GCA_CALLER_SHOWCASE_EVENT_TYPE
+  // sessions) — only set on the caller table, and only when both groups are
+  // non-empty (nothing to separate otherwise). Consumers render a divider at this
+  // boundary; see scripts/generate-dance-schedule-hour-tabs.ts.
+  groupBoundary?: number
 }
 
 export interface DanceScheduleHourSummary {
@@ -41,7 +56,9 @@ export interface DanceScheduleHourSummary {
   // Columns in LEVEL_DISPLAY_ORDER, omitting any level with zero hours across the
   // whole event.
   levels: DanceScheduleHourSummaryTable
-  // Columns alphabetical by name, omitting anyone at or under MIN_CALLER_HOURS.
+  // Columns grouped headline-first, each group sorted by descending total hours
+  // (ties broken alphabetically) — see DanceScheduleHourSummaryTable's
+  // `groupBoundary`. Omits anyone at or under MIN_CALLER_HOURS.
   callers: DanceScheduleHourSummaryTable
 }
 
@@ -64,7 +81,7 @@ export function formatHours(hours: number): string {
 function buildTable(
   totals: Map<string, number[]>,
   dateCount: number,
-  compareLabels: (a: string, b: string) => number,
+  compare: (a: DanceScheduleHourSummaryColumn, b: DanceScheduleHourSummaryColumn) => number,
   minTotal: number,
 ): DanceScheduleHourSummaryTable {
   const columns = Array.from(totals.entries())
@@ -74,7 +91,7 @@ function buildTable(
       total: hoursByDate.reduce((sum, hours) => sum + hours, 0),
     }))
     .filter((column) => column.total > minTotal)
-    .sort((a, b) => compareLabels(a.label, b.label))
+    .sort(compare)
 
   const totalByDate = new Array<number>(dateCount).fill(0)
   for (const column of columns) {
@@ -125,6 +142,11 @@ export function computeDanceScheduleHourSummary(
 
   const levelTotals = new Map<string, number[]>()
   const callerTotals = new Map<string, number[]>()
+  // Per caller name, whether at least one of their credited sessions is NOT a GCA
+  // showcase slot — see GCA_CALLER_SHOWCASE_EVENT_TYPE and `groupBoundary`. A
+  // caller who both headlines and does a showcase slot still counts as headline;
+  // their showcase hours aren't excluded from their total, just from this flag.
+  const callerHasHeadlineHours = new Map<string, boolean>()
 
   const addShare = (totals: Map<string, number[]>, label: string, dateIndex: number, hours: number) => {
     const perDate = totals.get(label) ?? new Array<number>(dates.length).fill(0)
@@ -145,10 +167,12 @@ export function computeDanceScheduleHourSummary(
         addShare(levelTotals, level, dateIndex, levelShare)
       }
 
+      const isShowcase = session.eventType === GCA_CALLER_SHOWCASE_EVENT_TYPE
       const callers = new Set(session.callers)
       const callerShare = hours / callers.size
       for (const caller of callers) {
         addShare(callerTotals, caller, dateIndex, callerShare)
+        callerHasHeadlineHours.set(caller, (callerHasHeadlineHours.get(caller) ?? false) || !isShowcase)
       }
     }
   })
@@ -157,10 +181,27 @@ export function computeDanceScheduleHourSummary(
   const levels = buildTable(
     levelTotals,
     dates.length,
-    (a, b) => (levelOrderIndex.get(a) ?? Infinity) - (levelOrderIndex.get(b) ?? Infinity),
+    (a, b) => (levelOrderIndex.get(a.label) ?? Infinity) - (levelOrderIndex.get(b.label) ?? Infinity),
     0,
   )
-  const callers = buildTable(callerTotals, dates.length, (a, b) => a.localeCompare(b), minCallerHours)
+  const callers = buildTable(
+    callerTotals,
+    dates.length,
+    (a, b) => {
+      const aHeadline = callerHasHeadlineHours.get(a.label) ?? false
+      const bHeadline = callerHasHeadlineHours.get(b.label) ?? false
+      if (aHeadline !== bHeadline) {
+        return aHeadline ? -1 : 1
+      }
+      return b.total - a.total || a.label.localeCompare(b.label)
+    },
+    minCallerHours,
+  )
+  const groupBoundary = callers.columns.findIndex((column) => !(callerHasHeadlineHours.get(column.label) ?? false))
 
-  return { dates, levels, callers }
+  return {
+    dates,
+    levels,
+    callers: groupBoundary > 0 && groupBoundary < callers.columns.length ? { ...callers, groupBoundary } : callers,
+  }
 }

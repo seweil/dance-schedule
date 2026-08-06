@@ -331,12 +331,58 @@ good fit for what formulas are for. Instead, `scripts/generate-dance-schedule-ho
 `scripts/edit-test-data.mjs`, not a one-off) reuses the app's own real
 `loadDanceScheduleData`/`buildDanceSchedule`/`computeDanceScheduleHourSummary`
 TypeScript pipeline to compute the numbers once and writes them as plain
-values (full precision, with a `numFmt` applied for ≤2-decimal display —
-matching `formatHours`'s own convention visually while keeping exact
-values available for further math in Excel). **Accepted tradeoff:** these
-two tabs go stale if a day sheet is edited without re-running the
-generator afterward — flagged both in a note row inside the generated
-tabs themselves and here.
+values, each rounded to `formatHours`'s own ≤2-decimal convention before
+writing (not just displayed that way via `numFmt`) — a share that's
+conceptually a whole number (e.g. an un-split 1-hour session) previously
+stored as a near-integer float like `0.9999999999999999`, which
+`numFmt: '0.##'` would round for display but not collapse into a clean
+integer, leaving a dangling "1." Rounding the stored value itself, not
+just its display, fixes that at the cost of the full-precision values
+this tab used to preserve for further Excel-side math. **Accepted
+tradeoff:** these two tabs go stale if a day sheet is edited without
+re-running the generator afterward — flagged both in a note row and a
+live "Status" formula (see below) inside the generated tabs themselves,
+and here.
+
+**A live "Status" formula flags staleness, without reimplementing the
+parsing pipeline in Excel.** Each tab's footer gets a "Calculated at"
+cell (a real Excel date/time value, not text) and a "Status" cell holding
+`=IF(NOW()>calculatedAt+TIME(0,2,0),"⚠ stale…","✓ up to date…")`. `NOW()`
+is volatile, so Excel/Sheets recalculate it — and this formula — every
+time ANY cell in the workbook changes, not just on open; as long as
+nothing is edited, the formula's cached display stays exactly what the
+script wrote. The 2-minute buffer exists so the script's own brief
+calc-then-`writeFile` gap (milliseconds in practice) never itself reads
+as "modified." This can't detect a specific edit or verify totals are
+still correct — no plain Excel formula can re-derive this app's parsing
+logic (see above) — it's a coarse "has this workbook been touched since
+generation" tripwire, not a substitute for re-running the generator.
+Timezone handling: Excel dates carry no timezone at all — a literal date
+cell and `NOW()` are both just "whatever the local wall clock said." The
+generator constructs the "Calculated at" cell from this machine's own
+local wall-clock fields (not UTC) precisely so it's comparable to a later
+`NOW()` recalculation — a same-machine-in-practice heuristic (this
+spreadsheet is generated and edited by the same organizer), not something
+provably correct across timezones, which would need VBA.
+
+**Caller columns are grouped headline-first, then GCA-showcase-only, each
+sorted by descending hours.** Previously alphabetical. A caller whose
+*entire* credited total comes from `GCA_CALLER_SHOWCASE_EVENT_TYPE`
+sessions (a rotating short-slot exhibition block, not indicative of a
+caller's real weekend workload) is a fundamentally different kind of
+entry than someone who actually headlined a real session — mixing them
+into one alphabetical list buried real, lower-hour headline callers (e.g.
+a caller co-teaching one short session) among a dozen 0.5-hour showcase
+credits. `computeDanceScheduleHourSummary`'s `DanceScheduleHourSummaryTable`
+now carries an optional `groupBoundary` (the count of leading headline
+columns), set only on the caller table and only when both groups are
+non-empty; the generator script renders a medium-weight right border on
+that boundary column, across the header/date/Total rows, so the sheet
+itself makes the split visually obvious. A caller who both headlines one
+session and does a showcase slot still counts as headline (their
+showcase hours aren't excluded from their total, only from this
+grouping) — see `computeDanceScheduleHourSummary.ts`'s own
+`callerHasHeadlineHours` tracking.
 
 **A build-breaking gotcha this surfaced:** the real build-time parser
 (`vite-plugin-dance-schedule.ts` → `read-excel-file`) reads *every*

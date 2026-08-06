@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { computeDanceScheduleHourSummary, formatHours } from './computeDanceScheduleHourSummary'
+import {
+  computeDanceScheduleHourSummary,
+  formatHours,
+  GCA_CALLER_SHOWCASE_EVENT_TYPE,
+} from './computeDanceScheduleHourSummary'
 import type { DanceSession } from '../types/danceSchedule'
 
 function makeSession(overrides: Partial<DanceSession> = {}): DanceSession {
@@ -114,7 +118,7 @@ describe('computeDanceScheduleHourSummary', () => {
   })
 
   it('counts a "GCA Caller Showcase Dance" session like any other structured session', () => {
-    const session = makeLongSession({ eventType: 'GCA Caller Showcase Dance', callers: ['Janienne Alexander'] })
+    const session = makeLongSession({ eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE, callers: ['Janienne Alexander'] })
     const summary = computeDanceScheduleHourSummary([session])
 
     expect(summary.callers.columns).toEqual([{ label: 'Janienne Alexander', hoursByDate: [4], total: 4 }])
@@ -187,11 +191,81 @@ describe('computeDanceScheduleHourSummary', () => {
     ])
   })
 
-  it('orders caller columns alphabetically', () => {
-    const sessions = [makeLongSession({ callers: ['Vic Ceder'] }), makeLongSession({ callers: ['Allan Hurst'] })]
+  it('orders caller columns by descending total hours, ties broken alphabetically', () => {
+    const sessions = [
+      makeLongSession({ callers: ['Vic Ceder'] }), // 4h
+      makeSession({
+        callers: ['Allan Hurst'],
+        startTime: new Date('2026-07-02T12:00:00.000Z'),
+        endTime: new Date('2026-07-02T18:00:00.000Z'), // 6h
+      }),
+      makeLongSession({ callers: ['Terri Sherrer'] }), // 4h — ties Vic Ceder
+    ]
     const summary = computeDanceScheduleHourSummary(sessions)
 
-    expect(summary.callers.columns.map((column) => column.label)).toEqual(['Allan Hurst', 'Vic Ceder'])
+    expect(summary.callers.columns.map((column) => column.label)).toEqual([
+      'Allan Hurst',
+      'Terri Sherrer',
+      'Vic Ceder',
+    ])
+    expect(summary.callers.groupBoundary).toBeUndefined()
+  })
+
+  describe('headline vs. GCA-showcase-only grouping', () => {
+    it('leaves groupBoundary unset when every included caller is showcase-only', () => {
+      const session = makeLongSession({ eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE, callers: ['Janienne Alexander'] })
+      const summary = computeDanceScheduleHourSummary([session])
+
+      expect(summary.callers.columns.map((column) => column.label)).toEqual(['Janienne Alexander'])
+      expect(summary.callers.groupBoundary).toBeUndefined()
+    })
+
+    it('groups headline callers first (each group sorted by descending hours), with a boundary between them', () => {
+      const sessions = [
+        makeLongSession({ callers: ['Vic Ceder'] }), // headline, 4h
+        makeSession({
+          callers: ['Allan Hurst'],
+          startTime: new Date('2026-07-02T12:00:00.000Z'),
+          endTime: new Date('2026-07-02T18:00:00.000Z'), // headline, 6h
+        }),
+        makeLongSession({ eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE, callers: ['Janienne Alexander'] }), // showcase-only, 4h
+        makeSession({
+          eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE,
+          callers: ['Bill van Melle'],
+          startTime: new Date('2026-07-02T12:00:00.000Z'),
+          endTime: new Date('2026-07-02T15:30:00.000Z'), // showcase-only, 3.5h
+        }),
+      ]
+      const summary = computeDanceScheduleHourSummary(sessions)
+
+      expect(summary.callers.columns.map((column) => column.label)).toEqual([
+        'Allan Hurst',
+        'Vic Ceder',
+        'Janienne Alexander',
+        'Bill van Melle',
+      ])
+      expect(summary.callers.groupBoundary).toBe(2)
+    })
+
+    it('treats a caller with both a headline session and a showcase session as headline', () => {
+      const sessions = [
+        makeLongSession({ callers: ['Vic Ceder'] }), // headline, 4h
+        makeSession({
+          eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE,
+          callers: ['Vic Ceder'],
+          startTime: new Date('2026-07-02T12:00:00.000Z'),
+          endTime: new Date('2026-07-02T13:30:00.000Z'), // +1.5h showcase, still headline overall
+        }),
+        makeLongSession({ eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE, callers: ['Janienne Alexander'] }), // showcase-only, 4h
+      ]
+      const summary = computeDanceScheduleHourSummary(sessions)
+
+      expect(summary.callers.columns).toEqual([
+        { label: 'Vic Ceder', hoursByDate: [5.5], total: 5.5 },
+        { label: 'Janienne Alexander', hoursByDate: [4], total: 4 },
+      ])
+      expect(summary.callers.groupBoundary).toBe(1)
+    })
   })
 
   it('gives each date its own column position, in chronological order, with zero for days with no activity for that row', () => {

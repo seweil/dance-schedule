@@ -1,6 +1,6 @@
 import { assignLanesPerSlot } from './assignLanes'
 import { computeDanceScheduleTimeAxis, type TimeMark } from './computeDanceScheduleTimeAxis'
-import { sessionHours } from './computeDanceScheduleHourSummary'
+import { GCA_CALLER_SHOWCASE_EVENT_TYPE, sessionHours } from './computeDanceScheduleHourSummary'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 // Independent from ROOM_COLUMN_WIDTH_REM/LEVEL_COLUMN_WIDTH_REM (not shared) since
@@ -20,12 +20,11 @@ export function callerColumnWidthRem(maxLaneCount: number): number {
   return CALLER_COLUMN_WIDTH_REM * (1 + 0.5 * (maxLaneCount - 1))
 }
 
-// "GCA Caller Showcase Dance" sessions credit a caller, but per direct product
+// GCA_CALLER_SHOWCASE_EVENT_TYPE sessions credit a caller, but per direct product
 // decision this view omits them entirely — they're not representative of what a
 // caller normally does, and mixing them in would inflate a caller's own hour total
 // (see MIN_CALLER_HOURS below) with a session type this page isn't meant to
 // surface at all.
-const GCA_CALLER_SHOWCASE_EVENT_TYPE = 'GCA Caller Showcase Dance'
 
 // A caller's column only appears once they have more than this many hours across
 // the WHOLE EVENT (every date, not just the one currently selected) — per direct
