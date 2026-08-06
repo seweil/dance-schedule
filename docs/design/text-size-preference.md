@@ -613,6 +613,30 @@ verified on real iOS hardware in this session (Chrome-only tooling) —
 flagged for the reporter to confirm after this ships, same as the earlier
 `transform` fix was.
 
+### Level slider gets more edge margin, to escape Safari's edge-swipe-back gesture zone
+**Why:** Reported live: on an iPhone (Safari tab), dragging the min thumb
+rightward from its default (leftmost) position instead triggered Safari's
+own edge-swipe "go back" gesture. This is an OS-level gesture, not
+something the page's own `touch-action: none` (already set on
+`.sliderRoot`) reliably controls — confirmed live that bug still happened
+with that in place, since Safari's edge-swipe recognizer takes priority
+over page touch handling within roughly its outer 20px regardless of CSS.
+There's no web API to disable the OS gesture directly, so the fix is
+keeping the thumb's own draggable hit-area out of that zone entirely:
+measured live (390px reference width) the min thumb's leftmost point sat
+at just 18px from the true viewport edge — squarely inside it. Increased
+`.levelField`'s margin from a bare 0.125rem sliver to 0.75rem, pushing
+that same point out to 28px, comfortably clear. Confirmed live this
+doesn't reintroduce the tick-label-overlap problem that sliver was
+originally kept tiny to avoid — the tightest gap ("C3A"/"C3B+" at Extra
+Large on the same narrow phone) stayed ~3px, unchanged — apparently enough
+slack existed elsewhere in the already-tuned tick-fitting budget to absorb
+this. Only the min thumb was actually at risk (a rightward drag starting
+near the *left* edge is the specific gesture pattern); the max thumb, near
+the *right* edge, has no equivalent Safari gesture to collide with, so
+this fix is symmetric (both sides gain the same margin, for visual
+centering) rather than because the right side needed it too.
+
 ## Open questions
 
 - Should this get Playwright e2e coverage? CLAUDE.md's e2e rule targets

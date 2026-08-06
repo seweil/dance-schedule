@@ -86,13 +86,25 @@
      (1): a narrow phone still needs this to shrink below its own preferred
      width, just never grow past it. */
   flex-grow: 0;
-  /* Tiny, not var(--space-sm) — every bit of margin here is width the ticks
-     don't get; per direct product decision, a sliver of edge gap is enough,
-     freeing up as much room as possible for the tick labels themselves
-     (below) to have a fighting chance of not touching at Extra Large on a
-     narrow phone with both combineA1A2/combineC3BC4 merges active (the
-     widest real label set, "A1/A2" next to "Plus"). */
-  margin: 0 0.125rem;
+  /* 0.75rem, not the original 0.125rem sliver — reported live: on a narrow
+     iPhone (Safari tab, not the installed PWA), dragging the min thumb
+     rightward from its default (leftmost) position instead triggered
+     Safari's OWN edge-swipe "go back" gesture — an OS-level gesture that
+     `touch-action: none` on .sliderRoot below does NOT reliably suppress
+     (confirmed live: the bug still happened with that already in place),
+     since Safari's edge-swipe recognizer sits above the page's own touch
+     handling specifically within roughly its outer 20px, regardless of
+     what the page's CSS asks for. There's no web API to disable the OS
+     gesture directly — confirmed live (390px reference width) the min
+     thumb's own leftmost hit-area sat at just 18px from the true viewport
+     edge, squarely inside that zone. This margin increase is what actually
+     fixes it: pushes the thumb's leftmost point out to 28px, comfortably
+     past it. Every extra bit of margin here is still width the tick labels
+     don't get (see below) — confirmed live this specific increase doesn't
+     reintroduce the tick-overlap problem that value was originally kept
+     tiny to avoid (tightest gap, "C3A"/"C3B+" at Extra Large, stayed ~3px,
+     unchanged), but a much larger increase could revisit that tradeoff. */
+  margin: 0 0.75rem;
   /* Reserves room for the first/last tick LABEL's own text to overhang past its
      centered anchor point (see .tick's `transform: translateX(-50%)` below) without
      getting clipped at the edge of a narrow viewport — the mark/thumb position
