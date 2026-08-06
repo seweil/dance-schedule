@@ -55,6 +55,9 @@ separate, later phase.
       see Decisions
 - [x] Debug/dump summary of total hours per level and per caller — see
       Decisions
+- [x] Duplicating the hour summary into the real spreadsheet as tabs, and
+      how to keep the build from choking on a non-day tab once one exists
+      — see Decisions
 
 ## Decisions
 
@@ -306,6 +309,69 @@ filtering happens before the Total row/column are computed, a filtered-out
 caller's hours don't silently leak into either table's own totals — the
 displayed grand total is honestly just the sum of the callers actually
 shown.
+
+### Hour summaries also live in the real spreadsheet, as generated static tabs — not live formulas, and not an allow-list of tab names
+**Why:** Direct request — duplicate the debug page's two hour-summary
+tables (above) as real worksheet tabs inside the actual source
+`dance-schedule.xlsx` for the default content set
+(`content/backtrack2abq/`), so anyone opening the file in Excel sees the
+same totals without visiting the app, omitting the caller table's own
+`MIN_CALLER_HOURS` floor for simplicity (every caller with any measured
+hours appears). `gca` credit needed no extra exclusion — it was never
+counted toward anyone's hours to begin with.
+
+**Static values, not live Excel formulas.** A session's cell text is a
+compound parsed string (level + event type + caller(s) + optional GCA/
+multi-room directives) — replicating this app's crediting logic (even-
+split across distinct levels/callers, dedup, GCA exclusion) as native
+Excel formulas would mean reimplementing that parsing in spreadsheet-
+formula form, which this codebase has never done anywhere and isn't a
+good fit for what formulas are for. Instead, `scripts/generate-dance-schedule-hour-tabs.ts`
+(a permanent, reusable, re-runnable tool — same model as
+`scripts/edit-test-data.mjs`, not a one-off) reuses the app's own real
+`loadDanceScheduleData`/`buildDanceSchedule`/`computeDanceScheduleHourSummary`
+TypeScript pipeline to compute the numbers once and writes them as plain
+values (full precision, with a `numFmt` applied for ≤2-decimal display —
+matching `formatHours`'s own convention visually while keeping exact
+values available for further math in Excel). **Accepted tradeoff:** these
+two tabs go stale if a day sheet is edited without re-running the
+generator afterward — flagged both in a note row inside the generated
+tabs themselves and here.
+
+**A build-breaking gotcha this surfaced:** the real build-time parser
+(`vite-plugin-dance-schedule.ts` → `read-excel-file`) reads *every*
+worksheet in the workbook unconditionally, and `parseSheetDate` throws an
+*uncaught* `Unrecognized date format` error for any sheet name that isn't
+a recognized date pattern — there was no existing way to add a non-day tab
+to this workbook without crashing the real build the moment it's added.
+
+**Fixed with a `-`-prefix convention, not a hardcoded allow-list of
+specific tab names** — `isNonScheduleSheetName`/`NON_SCHEDULE_SHEET_PREFIX`
+(`parseDanceScheduleSheet.ts`) treat any sheet name starting with `-` as
+non-schedule content, skipped before the plugin's loop even attempts to
+parse it as a day. Considered and rejected an exact-name allow-list
+(`Set(['Hours by Level', 'Hours by Caller'])`) first — a prefix is more
+general (any future notes/utility tab opts out the same way, with no code
+change needed to "register" its exact name) while preserving the same
+safety property either design would have: a genuinely mistyped *real* day
+sheet name never starts with `-`, so it still fails the build loudly
+exactly as before, rather than being silently skipped. The generated tabs
+are named `- Hours by Level` / `- Hours by Caller`; the generator script's
+own idempotent re-run logic (removing a previous version of each tab
+before adding a fresh one) matches those two exact names specifically,
+deliberately *not* "remove anything `-`-prefixed" — that broader rule
+belongs only to the parser's general skip check, so a hypothetical
+unrelated `-`-prefixed tab someone adds by hand later is never touched by
+this script.
+
+**New `tsx` devDependency** — needed so the generator script can import
+the real pipeline's `.ts` source directly rather than risk drifting from
+it by reimplementing the logic in plain JS (this repo's other `scripts/*.mjs`
+tools are plain JS with no TS-execution capability). Invoke it via `node
+--import=tsx scripts/generate-dance-schedule-hour-tabs.ts`, not `pnpm exec
+tsx ...`/the bare `tsx` CLI — the latter's IPC-socket setup failed with
+`EPERM` in the sandboxed environment this was developed in; `node
+--import=tsx` runs the identical transform without that wrapper.
 
 ### Room-spanning and roomless sessions: a `location` field, not `room: string`
 **Why:** Before the real display page is built (see the deferred

@@ -25,6 +25,7 @@
     "vite.config.ts",
     "playwright.config.ts",
     "vite-plugin-schedule.ts",
-    "vite-plugin-dance-schedule.ts"
+    "vite-plugin-dance-schedule.ts",
+    "scripts/generate-dance-schedule-hour-tabs.ts"
   ]
 }

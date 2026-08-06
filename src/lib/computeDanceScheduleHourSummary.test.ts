@@ -141,6 +141,16 @@ describe('computeDanceScheduleHourSummary', () => {
       expect(summary.callers.grandTotal).toBe(0)
     })
 
+    it('includes a caller at or under the default 3-hour floor when minCallerHours is overridden to 0', () => {
+      const session = makeSession({
+        startTime: new Date('2026-07-02T12:00:00.000Z'),
+        endTime: new Date('2026-07-02T15:00:00.000Z'), // exactly 3 hours — excluded by default, per the test above
+      })
+      const summary = computeDanceScheduleHourSummary([session], { minCallerHours: 0 })
+
+      expect(summary.callers.columns).toEqual([{ label: 'Vic Ceder', hoursByDate: [3], total: 3 }])
+    })
+
     it('includes a caller whose total is more than 3 hours', () => {
       const session = makeSession({
         startTime: new Date('2026-07-02T12:00:00.000Z'),

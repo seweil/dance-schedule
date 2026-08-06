@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseDanceScheduleSheet } from './parseDanceScheduleSheet'
+import { isNonScheduleSheetName, parseDanceScheduleSheet } from './parseDanceScheduleSheet'
 
 // Fixed so "July 2"-style sheet-name dates resolve deterministically via year inference.
 const REFERENCE_DATE = new Date(Date.UTC(2026, 6, 1)) // July 1, 2026
@@ -8,6 +8,22 @@ function parseOneCell(cellText: string, header: string[] = ['Time', 'Ballroom Ce
   const rows = [header, ['12:30p-1:30p', cellText]]
   return parseDanceScheduleSheet('Thursday July 2', rows, REFERENCE_DATE)
 }
+
+describe('isNonScheduleSheetName', () => {
+  it('treats a "-"-prefixed name as non-schedule content', () => {
+    expect(isNonScheduleSheetName('- Hours by Level')).toBe(true)
+    expect(isNonScheduleSheetName('-Hours by Caller')).toBe(true)
+  })
+
+  it('treats a real date-like sheet name as schedule content', () => {
+    expect(isNonScheduleSheetName('Thursday July 2')).toBe(false)
+  })
+
+  it('treats a mistyped/bogus (but non-"-"-prefixed) name as schedule content too — still not exempt from parseSheetDate\'s own loud failure', () => {
+    expect(isNonScheduleSheetName('Thusday Jly 2')).toBe(false)
+    expect(isNonScheduleSheetName('Notes')).toBe(false)
+  })
+})
 
 describe('parseDanceScheduleSheet', () => {
   it('derives the date from the sheet name, stripping the weekday', () => {

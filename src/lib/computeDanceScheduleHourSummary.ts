@@ -107,8 +107,19 @@ function buildTable(
  * so each table's own grand total always equals the total structured-session
  * hours scheduled, never double- or under-counted (modulo whichever callers the
  * hour threshold excludes).
+ *
+ * `options.minCallerHours` overrides MIN_CALLER_HOURS for the caller table only
+ * (the level table has no such floor to begin with) — added for
+ * scripts/generate-dance-schedule-hour-tabs.ts, which passes 0 ("every caller
+ * with any measured hours," per direct product decision to omit the debug
+ * page's own 3-hour floor for that spreadsheet tab). Defaults to MIN_CALLER_HOURS
+ * so the debug page's own call site (no options passed) is unaffected.
  */
-export function computeDanceScheduleHourSummary(sessions: DanceSession[]): DanceScheduleHourSummary {
+export function computeDanceScheduleHourSummary(
+  sessions: DanceSession[],
+  options: { minCallerHours?: number } = {},
+): DanceScheduleHourSummary {
+  const minCallerHours = options.minCallerHours ?? MIN_CALLER_HOURS
   const groups = groupDanceSessionsByDate(sessions)
   const dates = groups.map((group) => group.date)
 
@@ -149,7 +160,7 @@ export function computeDanceScheduleHourSummary(sessions: DanceSession[]): Dance
     (a, b) => (levelOrderIndex.get(a) ?? Infinity) - (levelOrderIndex.get(b) ?? Infinity),
     0,
   )
-  const callers = buildTable(callerTotals, dates.length, (a, b) => a.localeCompare(b), MIN_CALLER_HOURS)
+  const callers = buildTable(callerTotals, dates.length, (a, b) => a.localeCompare(b), minCallerHours)
 
   return { dates, levels, callers }
 }
