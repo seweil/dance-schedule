@@ -830,6 +830,58 @@ instead (which would add non-redundant information), but decided against
 it to avoid a second color-mapping concept; simplicity won over the
 marginal visual gain.
 
+### Level slider and GCA checkbox scope to the selected date's present levels
+
+**Why:** an event whose registration starts above the bottom of the fixed
+level taxonomy (e.g. MotivateToSeattle, `A2` and up — no `SSD`/`MS`/`Plus`/`A1`
+sessions at all, per its `config.yaml` comment) always had 3 of the level
+slider's 8 stops permanently dead — real travel wasted on levels that can
+never be scheduled. Separately, an event with no `GCA:` credit lines
+anywhere in its data (also true for MotivateToSeattle — the `GCA` column in
+its `dance-schedule-dump.md` is blank on every row) rendered a "Show GCA
+callers" checkbox that could never do anything.
+
+**Shape: a stable index space plus a per-date visibility layer**, the same
+two-part pattern already used for the caller-columns view's `callerOrder`
+(stable, computed event-wide) versus a session's actual visibility in
+`dateSessions`/`visibleSessions` (see "Caller-columns view" below) — not a
+repeat of that view's own `MIN_CALLER_HOURS` instability bug, since neither
+of these two controls has a stability requirement to violate; both are
+explicitly meant to react to the selected date, and that view's bug was
+about protecting something *else* (a caller's column identity) from
+day-to-day churn.
+
+- `slots` (`getLevelSlots`) is untouched — still the single, stable,
+  config-driven index space every other level computation depends on. No
+  remapping, no interaction with `combineA1A2`/`combineC3BC4` beyond what
+  already existed.
+- `getPresentLevelIndexRange(sessions, slots)` (`levelOrder.ts`) walks a
+  date's own sessions and returns the `[minIndex, maxIndex]` sub-range of
+  `slots` they actually use — the slider's `Slider.Root` `min`/`max` (and
+  which ticks render at all) become this range instead of the fixed
+  `0`/`slots.length - 1`. `useDanceScheduleFilters` computes it from
+  `dateSessions`, exposes it as `minPresentLevelIndex`/
+  `maxPresentLevelIndex`, and clamps `minLevelIndex`/`maxLevelIndex` into it
+  — synchronously on mount (no first-paint flash of the untrimmed range),
+  and via an effect keyed only on the present-range bounds (not the level
+  indices themselves) on every date switch, so it never fights the user's
+  own in-day slider drags. Each page's `onShowAllLevels` empty-state
+  callback resets to this present range, not the old absolute
+  `0`/`slots.length - 1` — required, not cosmetic, since the slider's own
+  Radix bounds no longer extend that far.
+- `hasGcaOnSelectedDate` (`dateSessions.some(s => s.kind === 'structured' &&
+  !!s.gca)`) simply gates whether `DanceScheduleFilters` renders the
+  checkbox `<label>` at all — no filtering-pipeline change, since a day with
+  no `gca` values already renders no `GCA:` line regardless of the
+  checkbox's state.
+
+**Only the dead ends are trimmed, not internal gaps** — a day missing one
+level in the middle of an otherwise-present range still gets every tick in
+between. Real data never exercises the gap case, and it's the same call
+already made for the level-columns view's own compound multi-level-span
+case (see Open Questions below): "simplified rather than fully general...
+never observed in real data."
+
 ### Overlap lanes: two sessions can share a level at an overlapping time
 
 **Why:** A room is exclusive real estate — the parser and the room-columns

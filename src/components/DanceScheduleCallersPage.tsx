@@ -29,8 +29,11 @@ export function DanceScheduleCallersPage() {
     minLevelIndex,
     maxLevelIndex,
     setLevelRange,
+    minPresentLevelIndex,
+    maxPresentLevelIndex,
     showGca,
     setShowGca,
+    hasGcaOnSelectedDate,
     dateSessions,
     visibleSessions,
   } = useDanceScheduleFilters(
@@ -55,13 +58,16 @@ export function DanceScheduleCallersPage() {
         minLevelIndex={minLevelIndex}
         maxLevelIndex={maxLevelIndex}
         onLevelRangeChange={setLevelRange}
+        minPresentLevelIndex={minPresentLevelIndex}
+        maxPresentLevelIndex={maxPresentLevelIndex}
         showGca={showGca}
         onShowGcaChange={setShowGca}
+        hasGcaOnSelectedDate={hasGcaOnSelectedDate}
       />
       <DanceScheduleCallerGrid
         layout={layout}
         showGca={showGca}
-        onShowAllLevels={() => setLevelRange(0, slots.length - 1)}
+        onShowAllLevels={() => setLevelRange(minPresentLevelIndex, maxPresentLevelIndex)}
       />
     </>
   )

@@ -71,8 +71,16 @@ export interface DanceScheduleFiltersProps {
   minLevelIndex: number
   maxLevelIndex: number
   onLevelRangeChange: (minLevelIndex: number, maxLevelIndex: number) => void
+  // Trims the slider's own draggable range (and rendered ticks) down to what's
+  // actually scheduled on the selected date — see getPresentLevelIndexRange
+  // (levelOrder.ts) and useDanceScheduleFilters, which computes these.
+  minPresentLevelIndex: number
+  maxPresentLevelIndex: number
   showGca: boolean
   onShowGcaChange: (showGca: boolean) => void
+  // Omits the "Show GCA callers" checkbox entirely when the selected date has no GCA
+  // caller-credit lines for it to toggle.
+  hasGcaOnSelectedDate: boolean
 }
 
 // Date combo-box, GCA-visibility checkbox, and dual-thumb skill-level slider for
@@ -91,13 +99,26 @@ export function DanceScheduleFilters({
   minLevelIndex,
   maxLevelIndex,
   onLevelRangeChange,
+  minPresentLevelIndex,
+  maxPresentLevelIndex,
   showGca,
   onShowGcaChange,
+  hasGcaOnSelectedDate,
 }: DanceScheduleFiltersProps) {
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
   const shortenA1A2Tick = textSize === 'x-large' && isNarrowPortrait
-  const maxLevelFieldWidthPx = LEVEL_FIELD_FIXED_INSET_PX + (slots.length - 1) * MAX_TICK_GAP_PX
+  // Ticks only render for slots within [minPresentLevelIndex, maxPresentLevelIndex] —
+  // the visible tick count (not slots.length) is what the field's width should budget
+  // for, or it reserves dead whitespace for hidden ticks.
+  const presentLevelIndexSpan = maxPresentLevelIndex - minPresentLevelIndex
+  // Math.max(..., 1) guards the degenerate single-present-slot day (span 0), so the
+  // field still reserves one tick-gap's worth of room instead of collapsing to just
+  // its fixed inset.
+  const maxLevelFieldWidthPx = LEVEL_FIELD_FIXED_INSET_PX + Math.max(presentLevelIndexSpan, 1) * MAX_TICK_GAP_PX
+  const visibleSlots = slots
+    .map((slot, index) => ({ slot, index }))
+    .filter(({ index }) => index >= minPresentLevelIndex && index <= maxPresentLevelIndex)
 
   return (
     <div className={styles.filters}>
@@ -125,10 +146,12 @@ export function DanceScheduleFilters({
           </select>
         </label>
 
-        <label className={styles.checkboxField}>
-          <input type="checkbox" checked={showGca} onChange={(event) => onShowGcaChange(event.target.checked)} />
-          Show GCA callers
-        </label>
+        {hasGcaOnSelectedDate && (
+          <label className={styles.checkboxField}>
+            <input type="checkbox" checked={showGca} onChange={(event) => onShowGcaChange(event.target.checked)} />
+            Show GCA callers
+          </label>
+        )}
       </div>
 
       <div
@@ -158,8 +181,8 @@ export function DanceScheduleFilters({
             the slider, not below — the mark sits under the label (closest to the
             slider) so the reading order is label, mark, then the track it belongs to. */}
         <div className={styles.ticks}>
-          {slots.map((slot, index) => {
-            const fraction = index / (slots.length - 1)
+          {visibleSlots.map(({ slot, index }) => {
+            const fraction = presentLevelIndexSpan > 0 ? (index - minPresentLevelIndex) / presentLevelIndexSpan : 0.5
             return (
               <button
                 key={slot.label}
@@ -186,8 +209,8 @@ export function DanceScheduleFilters({
         </div>
         <Slider.Root
           className={styles.sliderRoot}
-          min={0}
-          max={slots.length - 1}
+          min={minPresentLevelIndex}
+          max={maxPresentLevelIndex}
           step={1}
           value={[minLevelIndex, maxLevelIndex]}
           onValueChange={([min, max]) => {

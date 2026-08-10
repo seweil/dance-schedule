@@ -116,3 +116,39 @@ export function isSessionInLevelRange(
     return index !== -1 && index >= minIndex && index <= maxIndex
   })
 }
+
+// The [minIndex, maxIndex] sub-range of `slots` actually used by `sessions` — meant
+// for a single date's worth of sessions, to trim the level slider's dead ends down to
+// what's scheduled that day (e.g. an event whose registration starts at A2 never
+// needs SSD/MS/Plus slider stops). Deliberately only trims the ends, not internal
+// gaps (a day missing one level in the middle of an otherwise-present range still
+// gets every tick in between) — mirrors this codebase's existing "simplified rather
+// than fully general" precedent for a similar compound case (see Open Questions in
+// docs/design/dance-schedule.md). Falls back to the full range when `sessions` has no
+// ordered-level sessions at all (e.g. an all-Various/freeform day), so a slider never
+// collapses to nothing. Callers are responsible for date-scoping `sessions` first,
+// same division of responsibility as isSessionInLevelRange above.
+export function getPresentLevelIndexRange(
+  sessions: readonly DanceSession[],
+  slots: readonly LevelSlot[],
+): { minIndex: number; maxIndex: number } {
+  let minIndex: number | undefined
+  let maxIndex: number | undefined
+  for (const session of sessions) {
+    if (session.kind !== 'structured') continue
+    for (const level of session.levels) {
+      if (!isOrderedLevel(level)) continue
+      const index = slots.findIndex((slot) => slot.levels.includes(level))
+      if (index === -1) continue
+      if (minIndex === undefined || index < minIndex) minIndex = index
+      if (maxIndex === undefined || index > maxIndex) maxIndex = index
+    }
+  }
+  return minIndex === undefined || maxIndex === undefined
+    ? { minIndex: 0, maxIndex: slots.length - 1 }
+    : { minIndex, maxIndex }
+}
+
+export function clampLevelIndex(value: number, range: { minIndex: number; maxIndex: number }): number {
+  return Math.min(Math.max(value, range.minIndex), range.maxIndex)
+}

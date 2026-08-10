@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LEVEL_ORDER, getLevelSlots, isSessionInLevelRange } from './levelOrder'
+import { LEVEL_ORDER, getLevelSlots, getPresentLevelIndexRange, isSessionInLevelRange } from './levelOrder'
 import type { DanceSession, LevelCode, StructuredSession } from '../types/danceSchedule'
 
 function makeStructured(levels: LevelCode[], overrides: Partial<StructuredSession> = {}): StructuredSession {
@@ -176,6 +176,56 @@ describe('isSessionInLevelRange', () => {
     it('is hidden when the combined range excludes the C3B+ slot', () => {
       const ssdIndex = C3B_PLUS_SLOTS.findIndex((slot) => slot.label === 'SSD')
       expect(isSessionInLevelRange(makeStructured(['C4']), ssdIndex, ssdIndex, C3B_PLUS_SLOTS)).toBe(false)
+    })
+  })
+})
+
+const FREEFORM_SESSION: DanceSession = {
+  kind: 'freeform',
+  date: new Date('2026-07-02T00:00:00.000Z'),
+  startTime: new Date('2026-07-02T21:00:00.000Z'),
+  endTime: new Date('2026-07-02T21:30:00.000Z'),
+  location: { kind: 'roomless' },
+  description: 'Lunch Break',
+}
+
+describe('getPresentLevelIndexRange', () => {
+  it('returns a single-index range for one ordered level', () => {
+    const plusIndex = LEVEL_ORDER.indexOf('Plus')
+    expect(getPresentLevelIndexRange([makeStructured(['Plus'])], BASE_SLOTS)).toEqual({
+      minIndex: plusIndex,
+      maxIndex: plusIndex,
+    })
+  })
+
+  it('spans the min and max slot index across multiple sessions', () => {
+    const sessions = [makeStructured(['C1']), makeStructured(['A2']), makeStructured(['C3A'])]
+    expect(getPresentLevelIndexRange(sessions, BASE_SLOTS)).toEqual({
+      minIndex: LEVEL_ORDER.indexOf('A2'),
+      maxIndex: LEVEL_ORDER.indexOf('C3A'),
+    })
+  })
+
+  it('ignores unordered levels (Advanced/Intro/Various) and freeform sessions when computing the span', () => {
+    const sessions = [makeStructured(['C1']), makeStructured(['Various']), FREEFORM_SESSION]
+    const c1Index = LEVEL_ORDER.indexOf('C1')
+    expect(getPresentLevelIndexRange(sessions, BASE_SLOTS)).toEqual({ minIndex: c1Index, maxIndex: c1Index })
+  })
+
+  it('falls back to the full range when there are no ordered-level sessions at all', () => {
+    const sessions = [makeStructured(['Various']), FREEFORM_SESSION]
+    expect(getPresentLevelIndexRange(sessions, BASE_SLOTS)).toEqual({ minIndex: 0, maxIndex: BASE_SLOTS.length - 1 })
+  })
+
+  it('falls back to the full range for an empty sessions array', () => {
+    expect(getPresentLevelIndexRange([], BASE_SLOTS)).toEqual({ minIndex: 0, maxIndex: BASE_SLOTS.length - 1 })
+  })
+
+  it('resolves a merged slot (e.g. A1/A2) from either of its member levels, not a raw LEVEL_ORDER index', () => {
+    const a1a2Index = COMBINED_SLOTS.findIndex((slot) => slot.label === 'A1/A2')
+    expect(getPresentLevelIndexRange([makeStructured(['A2'])], COMBINED_SLOTS)).toEqual({
+      minIndex: a1a2Index,
+      maxIndex: a1a2Index,
     })
   })
 })

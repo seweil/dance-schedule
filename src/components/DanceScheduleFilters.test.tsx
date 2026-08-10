@@ -18,6 +18,10 @@ function renderFilters(overrides: Partial<ComponentProps<typeof DanceScheduleFil
   const onDateChange = vi.fn()
   const onLevelRangeChange = vi.fn()
   const onShowGcaChange = vi.fn()
+  // Derived from the effective (possibly overridden) slots, not a fixed constant —
+  // otherwise a test overriding `slots` to a smaller combined-slots array without
+  // also overriding these would get a maxPresentLevelIndex one past its end.
+  const slots = overrides.slots ?? BASE_SLOTS
 
   render(
     <TextSizeProvider>
@@ -29,8 +33,11 @@ function renderFilters(overrides: Partial<ComponentProps<typeof DanceScheduleFil
         minLevelIndex={0}
         maxLevelIndex={BASE_SLOTS.length - 1}
         onLevelRangeChange={onLevelRangeChange}
+        minPresentLevelIndex={0}
+        maxPresentLevelIndex={slots.length - 1}
         showGca
         onShowGcaChange={onShowGcaChange}
+        hasGcaOnSelectedDate
         {...overrides}
       />
     </TextSizeProvider>,
@@ -181,5 +188,30 @@ describe('DanceScheduleFilters', () => {
     expect(checkbox).toBeChecked()
     fireEvent.click(checkbox)
     expect(onShowGcaChange).toHaveBeenCalledWith(false)
+  })
+
+  it('omits the GCA checkbox entirely when the selected date has no GCA sessions', () => {
+    renderFilters({ hasGcaOnSelectedDate: false })
+    expect(screen.queryByRole('checkbox', { name: /gca callers/i })).not.toBeInTheDocument()
+  })
+
+  describe('with a present-level range narrower than the full slots', () => {
+    it('renders ticks only for slots within [minPresentLevelIndex, maxPresentLevelIndex]', () => {
+      renderFilters({ minPresentLevelIndex: 2, maxPresentLevelIndex: 5 })
+      const expectedLabels = BASE_SLOTS.slice(2, 6).map((slot) => slot.label)
+      expect(screen.getAllByRole('button', { name: /./ })).toHaveLength(expectedLabels.length)
+      for (const label of expectedLabels) {
+        expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      }
+      expect(screen.queryByRole('button', { name: 'SSD' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'C4' })).not.toBeInTheDocument()
+    })
+
+    it('narrows the slider\'s own min/max to the present range, not the full slots range', () => {
+      renderFilters({ minPresentLevelIndex: 2, maxPresentLevelIndex: 5, minLevelIndex: 2, maxLevelIndex: 5 })
+      const [minThumb, maxThumb] = screen.getAllByRole('slider')
+      expect(minThumb).toHaveAttribute('aria-valuemin', '2')
+      expect(maxThumb).toHaveAttribute('aria-valuemax', '5')
+    })
   })
 })

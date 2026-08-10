@@ -33,6 +33,7 @@ const day1Session = makeSession(
   '2026-07-02T13:00:00.000Z',
   '2026-07-02T14:00:00.000Z',
   located('Ballroom Centre'),
+  { gca: 'Some Caller' },
 )
 const day1AdvancedSession = makeSession(
   '2026-07-02T00:00:00.000Z',
@@ -123,5 +124,62 @@ describe('useDanceScheduleFilters', () => {
     // selectedDate falls back to "now" (resolveStoredDate) when there are no dates
     // to pick from — not asserted against an exact value, just that it's a real Date.
     expect(result.current.selectedDate).toBeInstanceOf(Date)
+  })
+
+  describe('per-day present level range', () => {
+    const narrowDaySession = makeSession(
+      '2026-07-01T00:00:00.000Z',
+      '2026-07-01T13:00:00.000Z',
+      '2026-07-01T14:00:00.000Z',
+      located('Ballroom Centre'),
+      { levels: ['Plus'] },
+    )
+    const NARROW_FIRST_SESSIONS = [narrowDaySession, day1Session, day1AdvancedSession, day2Session]
+
+    it('exposes minPresentLevelIndex/maxPresentLevelIndex for the (full-range) default day', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+      expect(result.current.minPresentLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
+      expect(result.current.maxPresentLevelIndex).toBe(LEVEL_ORDER.indexOf('C4'))
+    })
+
+    it('clamps the initial minLevelIndex/maxLevelIndex to the earliest date\'s own present range, not the full slots range', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(NARROW_FIRST_SESSIONS, false, false))
+      const plusIndex = LEVEL_ORDER.indexOf('Plus')
+      expect(result.current.minPresentLevelIndex).toBe(plusIndex)
+      expect(result.current.maxPresentLevelIndex).toBe(plusIndex)
+      expect(result.current.minLevelIndex).toBe(plusIndex)
+      expect(result.current.maxLevelIndex).toBe(plusIndex)
+    })
+
+    it('re-scopes minLevelIndex/maxLevelIndex to the new date\'s present range after switching dates', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+
+      const ssdIndex = LEVEL_ORDER.indexOf('SSD')
+      expect(result.current.minPresentLevelIndex).toBe(ssdIndex)
+      expect(result.current.maxPresentLevelIndex).toBe(ssdIndex)
+      expect(result.current.minLevelIndex).toBe(ssdIndex)
+      expect(result.current.maxLevelIndex).toBe(ssdIndex)
+    })
+
+    it('does not fight a manual in-day level-range narrowing', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+
+      act(() => result.current.setLevelRange(LEVEL_ORDER.indexOf('SSD'), LEVEL_ORDER.indexOf('Plus')))
+
+      expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
+      expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.indexOf('Plus'))
+    })
+  })
+
+  describe('hasGcaOnSelectedDate', () => {
+    it('is true when the selected date has a session with a gca credit, false otherwise', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+      expect(result.current.hasGcaOnSelectedDate).toBe(true)
+
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+      expect(result.current.hasGcaOnSelectedDate).toBe(false)
+    })
   })
 })
