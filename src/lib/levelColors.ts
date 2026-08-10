@@ -2,16 +2,16 @@ import { LEVEL_ORDER, isOrderedLevel } from './levelOrder'
 import type { DanceSession, LevelCode } from '../types/danceSchedule'
 
 // Approximated from the reference paper schedule's own legend (scratch/Dance
-// Schedule.pdf) — SSD/MS share one color, as does Advanced with A1/A2. Intro and
-// Various aren't in that legend at all; see colorForSession's doc comment for how
-// they're resolved.
+// Schedule.pdf) — SSD/MS share one color, as do A1/A2. Intro and Various aren't in
+// that legend at all; see colorForSession's doc comment for how they're resolved.
+// "Advanced" isn't a LevelCode at all (see LEVEL_CODES's own comment) — it's
+// normalized to A2 at parse time, so it never reaches this lookup.
 const LEVEL_COLORS: Record<LevelCode, string> = {
   SSD: '#c8e6c9',
   MS: '#c8e6c9',
   Intro: '#c8e6c9',
   Various: '#c8e6c9',
   Plus: '#bbdefb',
-  Advanced: '#d1c4e9',
   A1: '#d1c4e9',
   A2: '#d1c4e9',
   C1: '#fff9c4',

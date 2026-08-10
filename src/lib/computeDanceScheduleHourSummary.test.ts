@@ -172,23 +172,16 @@ describe('computeDanceScheduleHourSummary', () => {
     })
   })
 
-  it('orders level columns by the real skill progression, with Advanced/Intro/Various trailing', () => {
+  it('orders level columns by the real skill progression, with Intro/Various trailing', () => {
     const sessions = [
       makeSession({ levels: ['Various'] }),
       makeSession({ levels: ['C1'] }),
       makeSession({ levels: ['Intro'] }),
       makeSession({ levels: ['SSD'] }),
-      makeSession({ levels: ['Advanced'] }),
     ]
     const summary = computeDanceScheduleHourSummary(sessions)
 
-    expect(summary.levels.columns.map((column) => column.label)).toEqual([
-      'SSD',
-      'C1',
-      'Advanced',
-      'Intro',
-      'Various',
-    ])
+    expect(summary.levels.columns.map((column) => column.label)).toEqual(['SSD', 'C1', 'Intro', 'Various'])
   })
 
   it('orders caller columns by descending total hours, ties broken alphabetically', () => {

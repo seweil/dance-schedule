@@ -39,7 +39,7 @@ function spreadsheetRoomOrder(allSessions: DanceSession[]): string[] {
 // occupies; a session spanning two rooms contributes its level(s) to both, since
 // it really does run in both rooms at once. Only `kind === 'structured'` sessions
 // with at least one ordered level contribute anything — a freeform session, or one
-// tagged only Advanced/Intro/Various, has no numeric level to weigh in with.
+// tagged only Intro/Various, has no numeric level to weigh in with.
 function collectRoomLevelIndices(allSessions: DanceSession[]): Map<string, number[]> {
   const byRoom = new Map<string, number[]>()
   for (const session of allSessions) {

@@ -210,7 +210,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     expect(layout.placements[0]).toMatchObject({ rowSpan: 1 })
   })
 
-  it('gives a structured session tagged only Advanced/Intro/Various its own Other column, not a float across everything', () => {
+  it('gives a structured session tagged only Intro/Various its own Other column, not a float across everything', () => {
     // Has a real room (Salon A-C), just no ordered level — this used to float across
     // every column like a roomless session, which silently rendered underneath
     // whichever single column's cards happened to occupy the same row range (CSS

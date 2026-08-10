@@ -70,7 +70,7 @@ describe('deriveRoomOrder', () => {
     const leveled = makeSession(located('Leveled Room'), { levels: ['C4'] }) // hardest level
     const freeformOnly1 = makeFreeform(located('Freeform Room 1'))
     const freeformOnly2 = makeFreeform(located('Freeform Room 2'))
-    // A structured session with only Advanced/Intro/Various also has no ordered
+    // A structured session with only Intro/Various also has no ordered
     // level — same "no data point" treatment as a freeform session.
     const unorderedLevelOnly = makeSession(located('Unordered Room'), { levels: ['Various'] })
     const allSessions = [freeformOnly1, unorderedLevelOnly, leveled, freeformOnly2]

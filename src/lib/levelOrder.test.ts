@@ -111,8 +111,7 @@ describe('isSessionInLevelRange', () => {
     expect(isSessionInLevelRange(session, minIndex, maxIndex, BASE_SLOTS)).toBe(false)
   })
 
-  it('is always visible for levels not on the ordered scale (Advanced/Intro/Various)', () => {
-    expect(isSessionInLevelRange(makeStructured(['Advanced']), 0, 0, BASE_SLOTS)).toBe(true)
+  it('is always visible for levels not on the ordered scale (Intro/Various)', () => {
     expect(isSessionInLevelRange(makeStructured(['Intro']), 0, 0, BASE_SLOTS)).toBe(true)
     expect(isSessionInLevelRange(makeStructured(['Various']), 0, 0, BASE_SLOTS)).toBe(true)
   })
@@ -206,7 +205,7 @@ describe('getPresentLevelIndexRange', () => {
     })
   })
 
-  it('ignores unordered levels (Advanced/Intro/Various) and freeform sessions when computing the span', () => {
+  it('ignores unordered levels (Intro/Various) and freeform sessions when computing the span', () => {
     const sessions = [makeStructured(['C1']), makeStructured(['Various']), FREEFORM_SESSION]
     const c1Index = LEVEL_ORDER.indexOf('C1')
     expect(getPresentLevelIndexRange(sessions, BASE_SLOTS)).toEqual({ minIndex: c1Index, maxIndex: c1Index })

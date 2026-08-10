@@ -232,15 +232,21 @@ usually already kept in practice.
 
 ### Cell format details
 
-- **Level(s):** must be one of `SSD`, `MS`, `Plus`, `Advanced`, `C1`, `C2`,
-  `C3A`, `C3B`, `C4`, `A1`, `A2`, `Intro`, `Various`. An unrecognized level
-  code fails the build — check spelling/capitalization exactly.
+- **Level(s):** must be one of `SSD`, `MS`, `Plus`, `C1`, `C2`, `C3A`, `C3B`,
+  `C4`, `A1`, `A2`, `Intro`, `Various`. An unrecognized level code fails the
+  build — check spelling/capitalization exactly. `Advanced` is also
+  accepted, as a writing convenience — it's automatically normalized to
+  `A2`, since "Advanced" without further detail is assumed to mean the
+  fuller A1+A2 track. Write `A1` explicitly if a session is specifically
+  A1, not A2.
 - **Multiple levels in one session:** join with `&` or `/` — both work the
   same way, e.g. `C1 & C2 : Dancing - Vic Ceder` or `A1/A2 : Dancing - ...`.
 - **Multiple callers teaching together:** join with `&` in the caller
   position, e.g. `SSD : Dancing - Michael Kellogg & Terri Sherrer`.
-- **A GCA (caller-in-training) credit:** add a second line inside the same
-  cell, starting with `GCA:`:
+- **A GCA (non-headline caller) credit:** for a caller who's calling
+  alongside the main caller(s) without top billing — not a statement about
+  their skill level. Add a second line inside the same cell, starting with
+  `GCA:`:
 
   ```
   SSD : Dancing - Vic Ceder

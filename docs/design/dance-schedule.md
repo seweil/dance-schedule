@@ -103,11 +103,29 @@ two sessions. The level-portion (text before the first `:`) is split on
 `/[&/]/` to support **both** real separators (`"C1 & C2"` and
 `"A1/A2"`), each piece validated against a fixed `LEVEL_CODES` list
 (`src/types/danceSchedule.ts`) — an unrecognized code fails the
-build. `LEVEL_CODES` includes `MS`/`Advanced` preemptively (present in
-the convention's printed legend but not in this 3-day excerpt's actual
-data) alongside everything actually observed, including the informal
+build. `LEVEL_CODES` includes `MS` preemptively (present in the
+convention's printed legend but not in this 3-day excerpt's actual data)
+alongside everything actually observed, including the informal
 `Intro`/`Various` tags — easy to adjust later if the taxonomy turns out
 to need it.
+
+### "Advanced" isn't a level of its own — normalized to A2 at parse time
+**Why:** Organizers commonly write "Advanced" in a proposal spreadsheet to
+mean the fuller A1+A2 track, not a distinct third level alongside A1/A2 —
+treating it as its own `LEVEL_CODES` entry (as an earlier version of this
+taxonomy did) meant it behaved like `Intro`/`Various`: always visible
+regardless of the level slider, its own always-there color, its own bucket
+in the hour-summary/room-order/level-columns "unordered" handling —
+none of which is true of what "Advanced" actually means. `LEVEL_ALIASES`
+(`parseDanceScheduleSheet.ts`) normalizes the literal text `"Advanced"` to
+`'A2'` *before* `isValidLevel` is ever consulted, so it never exists as a
+distinct value anywhere downstream — `LEVEL_CODES` itself doesn't include
+it at all. A session that's specifically A1 (not A2) must be written as
+`A1` explicitly; "Advanced" always means A2, never A1. This only affects
+the level-portion of a cell (before the first `:`) — "Advanced" is also
+common inside an event-type string (e.g. `"A1/A2 : Advanced Hothash -
+..."`), which is untouched, since that's parsed as free text, not a level
+token.
 
 ### Callers are a list; GCA is a separate, distinctly-triggered field
 **Why (a real correction made mid-design):** initially assumed a co-
@@ -304,7 +322,7 @@ data columns at all.)
 
 Every `kind === 'structured'` session counts toward both tables, including
 a `"GCA Caller Showcase Dance"` one and one tagged only with an unordered
-level (`Advanced`/`Intro`/`Various`) — this is meant to be a complete,
+level (`Intro`/`Various`) — this is meant to be a complete,
 honest accounting of the raw parsed data, not a mirror of the Dance by
 Caller page's own curated exclusions (that page deliberately omits
 showcase dances and low-hour callers for UX reasons that don't apply to a
@@ -317,7 +335,7 @@ lists (a literal duplicate name counts once, not twice) — so each table's
 own grand total always equals the day's total structured-session hours,
 never double- or under-counted (modulo whichever callers the hour
 threshold below excludes). Level columns sort by the real skill
-progression (`LEVEL_ORDER`, then `Advanced`/`Intro`/`Various` trailing)
+progression (`LEVEL_ORDER`, then `Intro`/`Various` trailing)
 rather than alphabetically; caller columns sort alphabetically. A level
 with zero hours is omitted entirely as a column, same as before.
 
@@ -629,7 +647,7 @@ this doc's existing precedent for `computeDanceScheduleTimeAxis.ts`/
   combination contributes one `LEVEL_ORDER` index to that room's data set —
   a session spanning two rooms counts toward both; a session with two levels
   counts both. A room with no leveled sessions at all (only freeform, or
-  only Advanced/Intro/Various) has no data points, so it's treated as
+  only Intro/Various) has no data points, so it's treated as
   median/average `+Infinity` — sorts after every leveled room, and ties with
   every other such room, which is resolved by the same final tiebreak
   everything else falls back to: original spreadsheet order. This mirrors
@@ -795,7 +813,7 @@ was already unconditionally visible regardless of the level-range filter
 before this column existed.
 
 **A session with no ordered level** (a freeform session, or a structured
-session tagged only `Advanced`/`Intro`/`Various` — not in `LEVEL_ORDER`)
+session tagged only `Intro`/`Various` — not in `LEVEL_ORDER`)
 gets its own dedicated `"Other"` column (a synthetic `LevelSlot` appended
 after the ordered-level slice — `OTHER_LEVEL_SLOT`,
 `computeDanceScheduleLevelLayout.ts`) if it has a real room, or floats

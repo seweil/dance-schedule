@@ -40,6 +40,20 @@ function isValidLevel(value: string): value is LevelCode {
   return (LEVEL_CODES as readonly string[]).includes(value)
 }
 
+// "Advanced" isn't a real level of its own (see LEVEL_CODES's own comment) — it's a
+// common informal way organizers write A2 in a proposal spreadsheet, since "Advanced"
+// dancing without further qualification is assumed to mean the fuller A1+A2 track,
+// not A1 alone. Normalized here, before isValidLevel is ever consulted, so an author
+// can write either one; write "A1" explicitly (not "Advanced") for a session that's
+// specifically A1, not A2.
+const LEVEL_ALIASES: Record<string, LevelCode> = {
+  Advanced: 'A2',
+}
+
+function normalizeLevel(value: string): string {
+  return LEVEL_ALIASES[value] ?? value
+}
+
 // Sheet names are like "Thursday July 2" — weekday + month + day, no year. Strip the
 // weekday and let parseEventDate's year-inference resolve the rest.
 function parseSheetDate(sheetName: string, referenceDate?: Date): Date {
@@ -229,7 +243,7 @@ function parseCell(
   const levelPortion = mainText.slice(0, colonIndex).trim()
   const rest = mainText.slice(colonIndex + 1).trim()
 
-  const levels = levelPortion.split(LEVEL_SEPARATOR).map((level) => level.trim())
+  const levels = levelPortion.split(LEVEL_SEPARATOR).map((level) => normalizeLevel(level.trim()))
   for (const level of levels) {
     if (!isValidLevel(level)) {
       throw new Error(`Unrecognized level code ${JSON.stringify(level)} in ${JSON.stringify(trimmed)}`)

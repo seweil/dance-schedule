@@ -123,6 +123,24 @@ describe('parseDanceScheduleSheet', () => {
     })
   })
 
+  it('normalizes a bare "Advanced" level to A2, not a distinct level of its own', () => {
+    const { sessions, errors } = parseOneCell('Advanced : Dancing - Vic Ceder')
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({ levels: ['A2'] })
+  })
+
+  it('leaves an explicit "A1" level as A1, not normalized to A2', () => {
+    const { sessions, errors } = parseOneCell('A1 : Dancing - Vic Ceder')
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({ levels: ['A1'] })
+  })
+
+  it('normalizes "Advanced" within a multi-level cell too', () => {
+    const { sessions, errors } = parseOneCell('Advanced & C1 : Dancing - Vic Ceder')
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({ levels: ['A2', 'C1'] })
+  })
+
   it('parses co-primary callers joined by "&" (not a GCA)', () => {
     const { sessions, errors } = parseOneCell(
       'SSD : Leather Tip - Michael Kellogg & Terri Sherrer',

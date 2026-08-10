@@ -31,16 +31,14 @@ describe('colorForSession', () => {
     expect(colorForSession(makeStructured(['C1', 'C2']))).toBe(c1Color)
   })
 
-  it('gives Advanced, A1, and A2 the same color', () => {
-    const advanced = colorForSession(makeStructured(['Advanced']))
+  it('gives A1 and A2 the same color', () => {
     const a1 = colorForSession(makeStructured(['A1']))
     const a2 = colorForSession(makeStructured(['A2']))
-    expect(a1).toBe(advanced)
-    expect(a2).toBe(advanced)
+    expect(a1).toBe(a2)
   })
 
   it('shares A1/A2\'s color for a multi-level "A1/A2" session', () => {
-    expect(colorForSession(makeStructured(['A1', 'A2']))).toBe(colorForSession(makeStructured(['Advanced'])))
+    expect(colorForSession(makeStructured(['A1', 'A2']))).toBe(colorForSession(makeStructured(['A1'])))
   })
 
   it('treats Various as the SSD/MS bucket', () => {

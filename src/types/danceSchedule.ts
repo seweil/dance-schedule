@@ -1,11 +1,14 @@
-// MS and Advanced appear in the convention's printed legend but not in the current
-// spreadsheet's actual data — included preemptively since they're part of the same
-// taxonomy; trivial to remove if they turn out to be unused.
+// MS appears in the convention's printed legend but not in the current spreadsheet's
+// actual data — included preemptively since it's part of the same taxonomy; trivial
+// to remove if it turns out to be unused. "Advanced" is NOT one of these codes,
+// deliberately — it isn't a real level of its own, just a common informal way
+// organizers write A2 (see parseDanceScheduleSheet.ts's LEVEL_ALIASES, which
+// normalizes it to 'A2' before this list is ever consulted — write "A1" explicitly
+// if that's what's actually meant).
 export const LEVEL_CODES = [
   'SSD',
   'MS',
   'Plus',
-  'Advanced',
   'C1',
   'C2',
   'C3A',

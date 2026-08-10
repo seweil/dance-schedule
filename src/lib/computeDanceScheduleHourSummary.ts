@@ -4,8 +4,9 @@ import type { DanceSession } from '../types/danceSchedule'
 
 // LEVEL_CODES entries that aren't part of the linear LEVEL_ORDER progression (see
 // levelOrder.ts's comment on why the two differ) — shown after it, in this fixed
-// order, rather than LEVEL_CODES' own declared order.
-const UNORDERED_LEVELS = ['Advanced', 'Intro', 'Various'] as const
+// order, rather than LEVEL_CODES' own declared order. "Advanced" isn't in this list —
+// it isn't a real LevelCode at all, normalized to A2 at parse time.
+const UNORDERED_LEVELS = ['Intro', 'Various'] as const
 const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEVELS]
 
 // A caller only appears in the caller table at all once their OWN total (summed
@@ -110,7 +111,7 @@ function buildTable(
  * listing, as a quick sanity-check summary (rendered as a cross-tab with days as
  * rows and levels/callers as columns — see DanceScheduleHourSummaryTable). Every
  * kind === 'structured' session counts, including a "GCA Caller Showcase Dance"
- * one and one tagged with an unordered level like Intro/Various/Advanced — this is
+ * one and one tagged with an unordered level like Intro/Various — this is
  * meant to be a complete, honest accounting of the raw parsed data, not a mirror
  * of any page's own curated display rules (contrast the Dance by Caller page,
  * which deliberately omits showcase dances and callers under a dance-COUNT

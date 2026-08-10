@@ -32,7 +32,7 @@ export function levelColumnWidthRem(maxLaneCount: number): number {
 }
 
 // A session with a real room but no ordered level (e.g. a freeform "Country Western
-// Dance" entry, or a structured session tagged only Advanced/Intro/Various) gets its
+// Dance" entry, or a structured session tagged only Intro/Various) gets its
 // own dedicated column, appended after every ordered-level column — see
 // buildRawEntries and computeDanceScheduleLevelLayout below. It used to float across
 // every visible column instead (mirroring roomless-session treatment in the
@@ -249,7 +249,7 @@ function mergeIntoPlacements(
  * needs the unfiltered `dateSessions` list at all, only `visibleSessions`.
  *
  * A session with a real room but no ordered level (freeform, or structured with only
- * Advanced/Intro/Various tags) gets its own dedicated "Other" column, appended after
+ * Intro/Various tags) gets its own dedicated "Other" column, appended after
  * every ordered-level column (see OTHER_LEVEL_SLOT). A genuinely roomless session
  * (no location at all) instead floats across every visible column, mirroring
  * roomless-session treatment in the room-columns view. A multi-level session (e.g.

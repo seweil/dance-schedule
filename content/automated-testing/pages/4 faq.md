@@ -6,8 +6,8 @@ screen icon and keeps it working without a signal (see
 [Installation](/installation)).
 
 **What does "GCA" mean on a session?**
-It credits a caller who's working toward certification, dancing alongside
-that session's main caller(s).
+It credits a caller who isn't the session's headliner — someone calling
+alongside the main caller(s) without top billing.
 
 **Can I see just my level?**
 Yes — the Dance Schedule and Dance by Level pages both have a level-range
