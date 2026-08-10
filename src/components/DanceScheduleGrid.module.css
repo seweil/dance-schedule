@@ -9,11 +9,38 @@
    is sticky at every size (below) specifically so the room/level header row stays
    pinned through vertical scroll too, not just horizontal. Room columns get a
    fixed, touch-friendly width (set inline, since the column count is data-driven —
-   see DanceScheduleGrid.tsx's ROOM_COLUMN_WIDTH). */
+   see DanceScheduleGrid.tsx's ROOM_COLUMN_WIDTH).
+
+   width: fit-content, centered via margin auto — same reasoning as index.css's
+   own table rule: with no width constraint at all, this panel just renders as
+   wide as its own content (however many columns today's data/filter/view
+   produces) and sits flush against the page's left edge, while
+   DanceScheduleFilters.module.css's `.filters` row centers itself against the
+   FULL page width above it — on a wide desktop with a narrow grid (e.g. a
+   4-room event), the two visibly diverge, controls appearing to hang out past
+   the grid's right edge.
+
+   max-width: 100%, not relying on fit-content alone — UNLIKE index.css's table
+   (whose cells can shrink, so min-content < max-content there), this grid's
+   columns are fixed pixel widths (ROOM_COLUMN_WIDTH) with no shrink
+   flexibility, so its min-content already equals its max-content. fit-content
+   is defined to never size below min-content even when that exceeds the
+   available space, so on its own it silently stopped clamping to the
+   container at all once the grid got wide enough to need its own internal
+   horizontal scroll — confirmed live (a real desktop-width regression against
+   a many-room event, caught by e2e/dance-schedule.spec.ts's "the panel itself
+   scrolls both directions" test). max-width: 100% is a separate, harder cap
+   that still wins regardless of how fit-content resolved, restoring the
+   original "wide grid scrolls within its own box" behavior while still
+   letting a narrower grid center at its own true width. Overridden below
+   (phone/short-landscape) back to edge-to-edge, same as before this change. */
 .panelWrapper {
   overflow: auto;
   max-height: 70vh;
   border: 1px solid var(--color-border);
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 /* Sticky at every size — see .panelWrapper's comment above for why. */
@@ -54,6 +81,20 @@
   .panelWrapper {
     overflow: visible;
     max-height: none;
+    /* width: auto (not fit-content, unlike the desktop rule above) — bodyWrapper's
+       own overflow-x: auto (below) needs panelWrapper/bodyWrapper bounded to the
+       viewport's width to have anything to scroll WITHIN; fit-content here would
+       size panelWrapper to the grid's own (often wider) true content width instead,
+       leaving bodyWrapper equally wide and never actually overflowing itself. */
+    width: auto;
+    /* max-width: none, resetting the desktop rule's 100% cap — that percentage
+       resolves against the containing block's own (un-bled) width, which doesn't
+       account for the negative margins directly below extending this box OUTSIDE
+       that width on purpose (into body's cancelled padding) — left at 100% here it
+       clamped the box back to the narrower, non-bled width, silently reintroducing
+       the very left/right inset this margin trick exists to cancel (confirmed live
+       via e2e/dance-schedule.spec.ts's "no left/right inset" test). */
+    max-width: none;
     margin-left: calc(-1 * var(--space-sm));
     margin-right: calc(-1 * var(--space-sm));
   }
