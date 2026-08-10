@@ -1,4 +1,4 @@
-import type { DanceSession } from '../types/danceSchedule'
+import { DEFAULT_EVENT_TYPE, type DanceSession } from '../types/danceSchedule'
 
 // Session date/time values are wall-clock values from the spreadsheet, not real
 // instants (see buildDanceSchedule.ts) — pinned to UTC so they display exactly as
@@ -34,7 +34,7 @@ export function formatSessionCallerDetails(session: DanceSession): string {
 // separator so a caller can concatenate this directly before the caller name(s);
 // empty string (freeform, or eventType "Dancing") when there's nothing to show.
 export function formatSessionEventTypePrefix(session: DanceSession): string {
-  if (session.kind !== 'structured' || session.eventType === 'Dancing') {
+  if (session.kind !== 'structured' || session.eventType === DEFAULT_EVENT_TYPE) {
     return ''
   }
   return `${session.eventType} - `

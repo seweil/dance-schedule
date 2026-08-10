@@ -225,7 +225,10 @@ usually already kept in practice.
   Level : Type - Caller
   ```
 
-  For example: `SSD : Dancing - Vic Ceder`
+  For example: `SSD : Dancing - Vic Ceder`. The `Type -` part is optional —
+  if the session is just ordinary dancing with nothing more specific to say,
+  write `Level : Caller` and the type is assumed to be "Dancing" (e.g.
+  `SSD : Vic Ceder` means the same thing as the example above).
 
 ### Cell format details
 

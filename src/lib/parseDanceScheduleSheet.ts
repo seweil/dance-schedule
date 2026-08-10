@@ -2,6 +2,7 @@ import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
 import {
   LEVEL_CODES,
+  DEFAULT_EVENT_TYPE,
   type LevelCode,
   type DanceSessionData,
   type SessionLocation,
@@ -235,12 +236,13 @@ function parseCell(
     }
   }
 
+  // A cell may omit the "Type - " portion entirely ("Level : Caller") when the
+  // session is just ordinary dancing with nothing more specific to say — the type
+  // then defaults to "Dancing", the same string the display layer already treats as
+  // the no-op default (see formatSessionEventTypePrefix in formatDanceSession.ts).
   const dashIndex = rest.indexOf(' - ')
-  if (dashIndex === -1) {
-    throw new Error(`Cell doesn't match "Type - Caller": ${JSON.stringify(trimmed)}`)
-  }
-  const eventType = rest.slice(0, dashIndex).trim()
-  const callerPortion = rest.slice(dashIndex + 3).trim()
+  const eventType = dashIndex === -1 ? DEFAULT_EVENT_TYPE : rest.slice(0, dashIndex).trim()
+  const callerPortion = dashIndex === -1 ? rest : rest.slice(dashIndex + 3).trim()
   const callers = callerPortion
     .split('&')
     .map((caller) => caller.trim())

@@ -64,6 +64,38 @@ describe('parseDanceScheduleSheet', () => {
     ])
   })
 
+  it('parses a cell with no "Type - " portion, defaulting eventType to "Dancing"', () => {
+    const { sessions, errors } = parseOneCell('SSD : Ted Lizotte')
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({
+      levels: ['SSD'],
+      eventType: 'Dancing',
+      callers: ['Ted Lizotte'],
+      gca: undefined,
+    })
+  })
+
+  it('parses co-primary callers joined by "&" with no "Type - " portion', () => {
+    const { sessions, errors } = parseOneCell('SSD : Michael Kellogg & Terri Sherrer')
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({
+      eventType: 'Dancing',
+      callers: ['Michael Kellogg', 'Terri Sherrer'],
+      gca: undefined,
+    })
+  })
+
+  it('parses a GCA line on a cell with no "Type - " portion', () => {
+    const { sessions, errors } = parseOneCell('Plus : Kris Jensen\nGCA: Tim Stephens')
+    expect(errors).toEqual([])
+    expect(sessions[0]).toMatchObject({
+      levels: ['Plus'],
+      eventType: 'Dancing',
+      callers: ['Kris Jensen'],
+      gca: 'Tim Stephens',
+    })
+  })
+
   it('parses an explicit GCA line', () => {
     const { sessions, errors } = parseOneCell('Plus : Dancing - Kris Jensen\nGCA: Tim Stephens')
     expect(errors).toEqual([])

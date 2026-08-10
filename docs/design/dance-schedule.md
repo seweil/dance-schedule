@@ -58,6 +58,8 @@ separate, later phase.
 - [x] Duplicating the hour summary into the real spreadsheet as tabs, and
       how to keep the build from choking on a non-day tab once one exists
       — see Decisions
+- [x] Making the "Type - " portion of a cell optional for plain dancing —
+      see Decisions
 
 ## Decisions
 
@@ -131,6 +133,28 @@ fail-loud philosophy for spreadsheet data (`docs/design/schedule-page.md`).
 The 2 real non-conforming cells found got the `"* "` prefix added
 directly (`data/dance-schedule.xlsx`), rather than having the parser
 guess at an unstated pattern.
+
+### "Type - " is optional — defaults to "Dancing"
+**Why:** Direct request from a real event (MotivateToSeattle) whose whole
+grid is ordinary rotating dance sessions with no per-slot description worth
+typing out every time — requiring `Level : Dancing - Caller` on every single
+cell was pure ceremony. `parseCell` (`parseDanceScheduleSheet.ts`) now looks
+for the first literal `" - "` in the post-colon text only to *split off* a
+type; if there isn't one, the whole remainder is the caller portion and
+`eventType` defaults to the shared `DEFAULT_EVENT_TYPE` constant
+(`'Dancing'`, `src/types/danceSchedule.ts`) — so `SSD : Vic Ceder` means
+the same thing as `SSD : Dancing - Vic Ceder`. That constant is imported
+by both the parser (to set the default) and
+`formatSessionEventTypePrefix` (`formatDanceSession.ts`, the display-layer
+function that already suppressed a literal `"Dancing"` eventType as
+redundant noise on cards) — one shared source instead of two independent
+`'Dancing'` string literals that could drift apart. The raw debug table and
+markdown dump are unaffected: they always show `eventType` verbatim
+(`formatSessionCallerDetails`), so a defaulted cell reads as `Dancing -
+Vic Ceder` there, identical to an explicit one — faithful-echo behavior
+unchanged, just fed a defaulted value now. Co-callers (`&`) and the `GCA:`
+line both still work unchanged, since they're resolved independently of
+where the type/caller split falls.
 
 ### Time format: reused, extended to accept bare `a`/`p`
 **Why:** The real data uses `"12:30p-1:30p"` — no trailing `m` at all.
