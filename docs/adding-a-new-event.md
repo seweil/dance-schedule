@@ -253,6 +253,12 @@ usually already kept in practice.
   GCA: Tim Stephens
   ```
 
+  (To add that second line *within* the cell in Excel — a plain
+  Enter/Return moves to the next cell instead — press **Alt+Enter** on
+  Windows, or **Option+Return** on Mac (older Excel versions: try
+  **Control+Option+Return** instead), while typing in the cell. Same key
+  combo for the `ROOMS:` lines below.)
+
 - **A session spanning more than one room** (e.g. a combined all-attendee
   dance): either
   - write a `ROOMS:` line in **one** of the spanned rooms' cells listing
