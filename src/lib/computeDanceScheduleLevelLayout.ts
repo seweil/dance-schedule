@@ -47,6 +47,23 @@ export function levelColumnWidthRem(maxLaneCount: number): number {
 // correct, since it really does mean "nothing else happening in any room."
 const OTHER_LEVEL_SLOT: LevelSlot = { label: 'Other', levels: [] }
 
+// Unlike every ordered-level column (always shown across the slider's own range,
+// regardless of the day's actual content — see computeDanceScheduleLevelLayout's
+// own doc comment), "Other" IS data-derived: it only needs to exist at all when at
+// least one VISIBLE session actually has a real room but no ordered level. A day
+// with nothing like that (e.g. every session already has a real level, and any
+// freeform break is genuinely roomless — floats across every column instead, see
+// OTHER_LEVEL_SLOT's own comment) would otherwise show a permanently, pointlessly
+// empty column. Computed from the same `visibleSessions`/level-range inputs
+// buildRawEntries itself uses, so the two can't disagree about which sessions land
+// in "Other."
+function needsOtherColumn(visibleSessions: DanceSession[]): boolean {
+  return visibleSessions.some((session) => {
+    const orderedLevels = session.kind === 'structured' ? session.levels.filter(isOrderedLevel) : []
+    return orderedLevels.length === 0 && session.location.kind !== 'roomless'
+  })
+}
+
 export interface DanceLevelSessionPlacement {
   session: DanceSession
   rowStart: number
@@ -250,7 +267,9 @@ function mergeIntoPlacements(
  *
  * A session with a real room but no ordered level (freeform, or structured with only
  * Intro/Various tags) gets its own dedicated "Other" column, appended after
- * every ordered-level column (see OTHER_LEVEL_SLOT). A genuinely roomless session
+ * every ordered-level column, but ONLY on a day that actually has one (see
+ * needsOtherColumn/OTHER_LEVEL_SLOT) — unlike the ordered-level columns themselves,
+ * which always show regardless of the day's content. A genuinely roomless session
  * (no location at all) instead floats across every visible column, mirroring
  * roomless-session treatment in the room-columns view. A multi-level session (e.g.
  * "C1, C2") gets one spanning placement when its slots are contiguous and conflict-
@@ -273,7 +292,8 @@ export function computeDanceScheduleLevelLayout(
   }
   const { rowStartFor, rowSpanFor } = timeAxis
 
-  const visibleSlots = [...slots.slice(minLevelIndex, maxLevelIndex + 1), OTHER_LEVEL_SLOT]
+  const orderedSlots = slots.slice(minLevelIndex, maxLevelIndex + 1)
+  const visibleSlots = needsOtherColumn(visibleSessions) ? [...orderedSlots, OTHER_LEVEL_SLOT] : orderedSlots
 
   const rawEntries = buildRawEntries(
     visibleSessions,

@@ -83,9 +83,8 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout([session], SLOTS, 2, 5)
 
-    // "Other" (for no-ordered-level, real-room sessions) is always appended after
-    // the ordered-level slice — see OTHER_LEVEL_SLOT.
-    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['Plus', 'A1', 'A2', 'C1', 'Other'])
+    // No "Other" column — nothing here needs it (see needsOtherColumn).
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['Plus', 'A1', 'A2', 'C1'])
     expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 1 })
   })
 
@@ -100,7 +99,28 @@ describe('computeDanceScheduleLevelLayout', () => {
     )
     const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, 3)
 
-    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'A1', 'Other'])
+    // No "Other" column here either — same reason as above.
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['SSD', 'MS', 'Plus', 'A1'])
+  })
+
+  it('omits the "Other" column entirely on a day with no no-ordered-level, real-room session', () => {
+    const session = makeSession(
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      'Ballroom Centre',
+      { levels: ['SSD'] },
+    )
+    const lunch: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T12:00:00.000Z'),
+      endTime: new Date('2026-07-02T13:00:00.000Z'),
+      location: { kind: 'roomless' }, // roomless floats instead — doesn't need Other
+      description: 'Lunch Break',
+    }
+    const layout = computeDanceScheduleLevelLayout([session, lunch], SLOTS, 0, SLOTS.length - 1)
+
+    expect(layout.visibleSlots.some((slot) => slot.label === 'Other')).toBe(false)
   })
 
   it('gives a contiguous multi-level session a single spanning placement', () => {
@@ -178,7 +198,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     ])
   })
 
-  it('floats a freeform roomless session across every visible slot column, including Other', () => {
+  it('floats a freeform roomless session across every visible slot column', () => {
     const lunch: DanceSession = {
       kind: 'freeform',
       date: new Date('2026-07-02T00:00:00.000Z'),
@@ -189,8 +209,33 @@ describe('computeDanceScheduleLevelLayout', () => {
     }
     const layout = computeDanceScheduleLevelLayout([lunch], SLOTS, 2, 5)
 
-    // 4 ordered slots (Plus, A1, A2, C1) + Other = 5.
-    expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 5 })
+    // 4 ordered slots (Plus, A1, A2, C1) — no Other, since a roomless session alone
+    // doesn't need it (it floats instead — see needsOtherColumn).
+    expect(layout.placements[0]).toMatchObject({ columnStart: 0, columnSpan: 4 })
+  })
+
+  it('floats a roomless session across Other too, when something else that day needs it', () => {
+    const lunch: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T12:00:00.000Z'),
+      endTime: new Date('2026-07-02T13:00:00.000Z'),
+      location: { kind: 'roomless' },
+      description: 'Lunch Break',
+    }
+    const countryWestern: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-02T00:00:00.000Z'),
+      startTime: new Date('2026-07-02T21:00:00.000Z'),
+      endTime: new Date('2026-07-02T22:00:00.000Z'),
+      location: { kind: 'located', rooms: ['Drummond Ballroom'] },
+      description: 'Country Western Dance',
+    }
+    const layout = computeDanceScheduleLevelLayout([lunch, countryWestern], SLOTS, 2, 5)
+
+    // 4 ordered slots (Plus, A1, A2, C1) + Other = 5, now that something else needs it.
+    const lunchPlacement = layout.placements.find((p) => p.session === lunch)
+    expect(lunchPlacement).toMatchObject({ columnStart: 0, columnSpan: 5 })
   })
 
   it('collapses a long floating roomless session with nothing else scheduled during it to rowSpan 1', () => {

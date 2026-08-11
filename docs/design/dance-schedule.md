@@ -797,29 +797,40 @@ padding) similarly moved to `src/lib/danceScheduleCardSizing.ts`, and the
 `shouldCombineLevelAndDetails` to `primaryText`/`shouldCombinePrimaryAndDetails`
 now that it's shared by both grids with different bold-label semantics.
 
-**Columns are the filter's own range, not data-derived:** unlike rooms
-(discovered per-date via `deriveRoomOrder`, hidden once nothing in a room
-is visible), a level-columns view's ordered-level columns are exactly
-`getLevelSlots(combineA1A2, combineC3BC4).slice(minLevelIndex, maxLevelIndex + 1)`, plus
-one more fixed `"Other"` column always appended after them (see below) — the
-level-range slider directly picks the ordered-level range, always shown in
-full even for a slot with nothing scheduled that day. This is a genuine
+**Ordered-level columns are the filter's own range, not data-derived:**
+unlike rooms (discovered per-date via `deriveRoomOrder`, hidden once
+nothing in a room is visible), a level-columns view's ordered-level
+columns are exactly `getLevelSlots(combineA1A2,
+combineC3BC4).slice(minLevelIndex, maxLevelIndex + 1)` — the level-range
+slider directly picks the ordered-level range, always shown in full even
+for a slot with nothing scheduled that day. This is a genuine
 simplification versus the room view (no "hide an empty column" logic needed
 at all) and matches what a level-range selection should mean in this view:
 "show me these levels," not "show me these levels, except any with nothing
-in it." `"Other"` sits outside the slider's own range entirely (not a
-selectable/filterable position) — matching that a no-ordered-level session
-was already unconditionally visible regardless of the level-range filter
-before this column existed.
+in it."
+
+**`"Other"` — appended after that range as one more column (see
+below) — is the one exception, and IS data-derived** (`needsOtherColumn`,
+`computeDanceScheduleLevelLayout.ts`): it only exists on a day where at
+least one *visible* session actually needs it (a real-room session with no
+ordered level). A day without one used to still show a permanently, pointlessly
+empty "Other" column — reported live against MotivateToSeattle's Saturday,
+which has no such session — fixed by computing the same condition
+`buildRawEntries` already uses per-session to decide whether the column
+itself belongs in `visibleSlots` at all. `"Other"` sits outside the
+slider's own range regardless (not a selectable/filterable position) —
+matching that a no-ordered-level session was already unconditionally
+visible regardless of the level-range filter before this column existed.
 
 **A session with no ordered level** (a freeform session, or a structured
 session tagged only `Intro`/`Various` — not in `LEVEL_ORDER`)
 gets its own dedicated `"Other"` column (a synthetic `LevelSlot` appended
 after the ordered-level slice — `OTHER_LEVEL_SLOT`,
 `computeDanceScheduleLevelLayout.ts`) if it has a real room, or floats
-across every visible column (including `"Other"`) if it's genuinely
-roomless — mirroring roomless-session treatment in the room-columns view for
-that latter case only. Originally *every* no-ordered-level session floated
+across every visible column (including `"Other"`, on a day something else
+makes it exist) if it's genuinely roomless — mirroring roomless-session
+treatment in the room-columns view for that latter case only. Originally
+*every* no-ordered-level session floated
 across every column, unconditionally, but that broke for the common
 real-room case: CSS Grid allows multiple items to occupy overlapping grid
 cells with no collision detection, so a full-width card with a normal,
