@@ -111,6 +111,97 @@ here as the codebase grows.
 None of these are urgent — call them out here so a gap is a known, named
 tradeoff instead of a surprise.
 
+## Hand-calculating the dance-schedule hour-summary totals
+
+The "Hours by level" and "Hours by caller" cross-tabs (`computeDanceScheduleHourSummary.ts`)
+render on the raw debug page (`/<content-set>/debug/dance-schedule`) and in each
+content set's committed `data/dance-schedule-dump.md`. If you're writing or
+checking a test assertion against these — most directly
+`computeDanceScheduleHourSummary.test.ts`, but also anything asserting on the
+`automated-testing` fixture's dump — here's the exact arithmetic so you can
+verify a number by hand instead of just trusting whatever the code currently
+outputs:
+
+1. **Per-session hours** = `(endTime - startTime)` in hours (`sessionHours()`)
+   — a 90-minute session contributes `1.5`.
+2. **A session with more than one *distinct* level or caller splits its hours
+   evenly** across them. A 1-hour session tagged `['C1', 'C2']` contributes
+   `0.5` to each of C1 and C2's totals; one co-taught by `['Vic Ceder', 'Ted
+   Lizotte']` splits the same way between callers. A literal duplicate (e.g.
+   the same caller listed twice by mistake) still only counts as **one**
+   share, not two — both lists are deduped via `Set` before splitting.
+3. **Only `kind === 'structured'` sessions count at all** — a freeform session
+   (no level, no caller) contributes nothing to either table. Every
+   structured session counts toward both tables, including a `"GCA Caller
+   Showcase Dance"` one; `gca` itself is never counted as a caller, only
+   `session.callers`.
+4. **Sum each level's/caller's per-day shares into a grand total**, then apply
+   each table's own floor: a level with a grand total of exactly `0` is
+   omitted as a column entirely (no separate threshold otherwise); a caller
+   is omitted unless their grand total exceeds `MIN_CALLER_HOURS` (`3`,
+   `computeDanceScheduleHourSummary.ts` — strictly greater than, so exactly
+   3.0 is still excluded). Both thresholds apply to the caller's/level's
+   **own total across every day**, not any single day's total.
+5. **Displayed values are rounded** to at most 2 decimal places with trailing
+   zeros dropped (`formatHours()`) — a `1/3` split reads as `0.33`, a whole
+   number as `4`, not `4.00`.
+
+Column *order* isn't a totals question but trips people up alongside it:
+level columns follow `LEVEL_ORDER`'s real skill progression with
+`Intro`/`Various` trailing (not alphabetical, not spreadsheet order); caller
+columns sort by descending total hours (ties broken alphabetically), with a
+headline-callers-first / GCA-showcase-only-callers-last split
+(`groupBoundary`) — a caller whose *only* credited hours come from
+`GCA_CALLER_SHOWCASE_EVENT_TYPE` sessions still gets a column (if over the
+hour floor) but sorts after every real headliner.
+
+## Regenerating the totals baked into the real spreadsheet
+
+The numbers above aren't just displayed in the app — `scripts/generate-dance-schedule-hour-tabs.ts`
+writes the same two tables as static `"- Hours by Level"`/`"- Hours by Caller"`
+tabs directly into `content/backtrack2abq/data/dance-schedule.xlsx`, so anyone
+who opens the real spreadsheet in Excel sees the same totals without visiting
+the app. It currently only targets that one workbook — `WORKBOOK_PATH` is a
+hardcoded constant in the script, not a `CONTENT_SET`-driven path, so using
+this for a different event's spreadsheet means editing that constant (or
+generalizing the script) first.
+
+```
+node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts
+```
+
+Not `pnpm exec tsx ...` or the bare `tsx` CLI — the script's own header
+comment notes its IPC-socket setup fails with `EPERM` in at least one
+sandboxed environment; `node --import=tsx` runs the identical transform
+without that wrapper.
+
+A few things worth knowing before you run it or read its output:
+
+- **This is a manual, permanent tool, not part of any build** — it doesn't
+  run in `pnpm build`/`pnpm dev`, CI, or the Amplify deploy. The tab values
+  are static snapshots, not live formulas (the source cells are compound
+  parsed strings — `"Level : Type - Caller"` — not something a plain Excel
+  formula can re-derive), so **re-run it any time a day's schedule in the
+  workbook changes**, or the tabs silently go stale.
+- **The spreadsheet's caller table has no hour floor** — it's generated with
+  `minCallerHours: 0`, so every caller with any measured hours gets a row,
+  unlike the debug page/dump's own version (and this doc's hand-calculation
+  steps above), which drops anyone at or under `MIN_CALLER_HOURS` (`3`). Per
+  direct product decision, to keep the spreadsheet's own version simpler than
+  the app's curated one — expect the two to disagree on caller *count* for
+  that reason alone, even when every individual total matches.
+- **Each generated tab has a built-in staleness check** — a "Calculated" row
+  (a fixed timestamp from when the script ran) next to a "Saved" row (a live
+  `=NOW()` formula, seeded to match "Calculated" until the workbook is
+  actually edited) and a "Status" formula comparing the two. If "Status"
+  reads as stale, the tab's numbers no longer necessarily match the day
+  sheets — re-run the script. (Google Sheets recalculates `NOW()` on every
+  open regardless of edits, so "Status" can read as stale there just from
+  opening the file — a real platform gap, not a bug.)
+- **Both tab names start with `"-"`** (`isNonScheduleSheetName`,
+  `parseDanceScheduleSheet.ts`) so the real schedule parser skips them
+  instead of trying to parse them as another day's grid.
+
 ## Previewing a different config.yaml value without editing it
 
 `config.yaml` is one value per content set — there's no way to have, say,
