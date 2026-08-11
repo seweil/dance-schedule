@@ -1,6 +1,6 @@
-// Regenerates the "- Hours by Level"/"- Hours by Caller" summary tabs inside
-// content/backtrack2abq/data/dance-schedule.xlsx — static snapshots of the same
-// two tables the /debug/dance-schedule page computes and displays
+// Regenerates the "- Hours by Level"/"- Hours by Caller" summary tabs inside a
+// content set's data/dance-schedule.xlsx — static snapshots of the same two
+// tables the /debug/dance-schedule page computes and displays
 // (computeDanceScheduleHourSummary.ts), so anyone opening the real spreadsheet
 // in Excel sees the same totals without visiting the app. The caller table
 // omits that page's own 3-hour floor (minCallerHours: 0 below) — every caller
@@ -30,22 +30,35 @@
 // non-schedule content and skips them, rather than trying (and failing) to
 // parse them as another day's schedule.
 //
-// Usage: node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts
+// Usage: CONTENT_SET=<name> node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts
 // (NOT `pnpm exec tsx ...`/the bare `tsx` CLI — its IPC-socket setup fails with
 // EPERM in at least one sandboxed environment this was developed in; `node
 // --import=tsx` runs the identical transform without that wrapper, including
-// resolving this script's own relative .ts imports correctly.)
+// resolving this script's own relative .ts imports correctly.) CONTENT_SET is
+// required, not defaulted — this writes directly to a real content set's
+// workbook on disk, so a missing/mistyped value should fail loud rather than
+// silently regenerate the wrong event's spreadsheet.
 
 import ExcelJS from 'exceljs'
 import { loadDanceScheduleData } from '../vite-plugin-dance-schedule'
 import { buildDanceSchedule } from '../src/lib/buildDanceSchedule'
+import { assertContentSetExists } from '../content-config'
 import {
   computeDanceScheduleHourSummary,
   formatHours,
   type DanceScheduleHourSummaryTable,
 } from '../src/lib/computeDanceScheduleHourSummary'
 
-const WORKBOOK_PATH = 'content/backtrack2abq/data/dance-schedule.xlsx'
+const CONTENT_SET = process.env.CONTENT_SET
+if (!CONTENT_SET) {
+  throw new Error(
+    'Set CONTENT_SET to the content set whose dance-schedule.xlsx should be regenerated, e.g. ' +
+      'CONTENT_SET=MotivateToSeattle node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts',
+  )
+}
+assertContentSetExists(process.cwd(), CONTENT_SET, 'CONTENT_SET')
+
+const WORKBOOK_PATH = `content/${CONTENT_SET}/data/dance-schedule.xlsx`
 
 // Matches RawDanceScheduleTable.tsx's own columnDateFormatter exactly, so a
 // date label here reads identically to the debug page's own column headers.

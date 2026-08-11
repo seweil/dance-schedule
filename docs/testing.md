@@ -159,16 +159,17 @@ hour floor) but sorts after every real headliner.
 
 The numbers above aren't just displayed in the app — `scripts/generate-dance-schedule-hour-tabs.ts`
 writes the same two tables as static `"- Hours by Level"`/`"- Hours by Caller"`
-tabs directly into `content/backtrack2abq/data/dance-schedule.xlsx`, so anyone
+tabs directly into `content/<CONTENT_SET>/data/dance-schedule.xlsx`, so anyone
 who opens the real spreadsheet in Excel sees the same totals without visiting
-the app. It currently only targets that one workbook — `WORKBOOK_PATH` is a
-hardcoded constant in the script, not a `CONTENT_SET`-driven path, so using
-this for a different event's spreadsheet means editing that constant (or
-generalizing the script) first.
+the app.
 
 ```
-node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts
+CONTENT_SET=<your-event-name> node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts
 ```
+
+`CONTENT_SET` is required (not defaulted) — this writes directly to a real
+content set's workbook on disk, so a missing/mistyped value fails loud
+(`assertContentSetExists`) rather than silently touching the wrong event.
 
 Not `pnpm exec tsx ...` or the bare `tsx` CLI — the script's own header
 comment notes its IPC-socket setup fails with `EPERM` in at least one
