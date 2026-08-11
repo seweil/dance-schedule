@@ -8,7 +8,13 @@ import {
 } from '../lib/danceScheduleFiltersStorage'
 import { filterDanceSessions } from '../lib/filterDanceSessions'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
-import { clampLevelIndex, getLevelSlots, getPresentLevelIndexRange, type LevelSlot } from '../lib/levelOrder'
+import {
+  clampLevelIndex,
+  getLevelSlots,
+  getPresentLevelIndexRange,
+  labelSlotsByPresence,
+  type LevelSlot,
+} from '../lib/levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
 
 export interface UseDanceScheduleFiltersResult {
@@ -55,9 +61,13 @@ export function useDanceScheduleFilters(
 ): UseDanceScheduleFiltersResult {
   const groups = useMemo(() => groupDanceSessionsByDate(sessions), [sessions])
   const dates = useMemo(() => groups.map((group) => group.date), [groups])
+  // labelSlotsByPresence runs against the FULL, event-wide `sessions` — not
+  // dateSessions/visibleSessions — so a merged slot's label ("A1/A2" vs. just "A2")
+  // stays stable across date switches instead of flickering with whichever day
+  // happens to be selected.
   const slots = useMemo(
-    () => getLevelSlots(combineA1A2, combineC3BC4),
-    [combineA1A2, combineC3BC4],
+    () => labelSlotsByPresence(getLevelSlots(combineA1A2, combineC3BC4), sessions),
+    [combineA1A2, combineC3BC4, sessions],
   )
 
   // Read once, at mount — a stable lazy useState initializer, not a plain call, so

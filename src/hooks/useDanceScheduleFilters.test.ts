@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { useDanceScheduleFilters } from './useDanceScheduleFilters'
-import { LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
+import { LEVEL_ORDER, getLevelSlots, labelSlotsByPresence } from '../lib/levelOrder'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
 function located(...rooms: string[]): SessionLocation {
@@ -109,9 +109,10 @@ describe('useDanceScheduleFilters', () => {
     expect(result.current.maxLevelIndex).toBe(getLevelSlots(true, false).length - 1)
   })
 
-  it('exposes the "C3B+" merged slot and a smaller full-range default when combineC3BC4 is true', () => {
+  it('exposes a smaller full-range default when combineC3BC4 is true, relabeled to just "C4" since C3B never occurs in this fixture', () => {
     const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, true))
-    expect(result.current.slots).toEqual(getLevelSlots(false, true))
+    expect(result.current.slots).toEqual(labelSlotsByPresence(getLevelSlots(false, true), ALL_SESSIONS))
+    expect(result.current.slots.find((slot) => slot.levels.includes('C4'))).toMatchObject({ label: 'C4' })
     expect(result.current.maxLevelIndex).toBe(getLevelSlots(false, true).length - 1)
   })
 
@@ -170,6 +171,49 @@ describe('useDanceScheduleFilters', () => {
 
       expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
       expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.indexOf('Plus'))
+    })
+  })
+
+  describe('merged slot labeling', () => {
+    const a2OnlySession = makeSession(
+      '2026-07-02T00:00:00.000Z',
+      '2026-07-02T13:00:00.000Z',
+      '2026-07-02T14:00:00.000Z',
+      located('Ballroom Centre'),
+      { levels: ['A2'] },
+    )
+    const a1OnlySession = makeSession(
+      '2026-07-03T00:00:00.000Z',
+      '2026-07-03T13:00:00.000Z',
+      '2026-07-03T14:00:00.000Z',
+      located('Ballroom Centre'),
+      { levels: ['A1'] },
+    )
+
+    it('relabels the merged slot to just "A2" when no A1 session exists anywhere in the event', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters([a2OnlySession], true, false))
+      expect(result.current.slots.find((slot) => slot.levels.includes('A2'))).toMatchObject({ label: 'A2' })
+    })
+
+    it('keeps the "A1/A2" label when both levels occur, even on different dates', () => {
+      const { result } = renderHook(() =>
+        useDanceScheduleFilters([a1OnlySession, a2OnlySession], true, false),
+      )
+      expect(result.current.slots.find((slot) => slot.levels.includes('A2'))).toMatchObject({ label: 'A1/A2' })
+    })
+
+    it('keeps the "A1/A2" label stable across a date switch, even though each individual date only has one of the two levels', () => {
+      const { result } = renderHook(() =>
+        useDanceScheduleFilters([a2OnlySession, a1OnlySession], true, false),
+      )
+      // Starts on the earlier date (A2 only) — event-wide presence still sees A1 too.
+      expect(result.current.selectedDate).toEqual(new Date('2026-07-02T00:00:00.000Z'))
+      expect(result.current.slots.find((slot) => slot.levels.includes('A2'))).toMatchObject({ label: 'A1/A2' })
+
+      // Switching dates re-scopes minPresentLevelIndex/maxPresentLevelIndex, but the
+      // slot LABEL itself is computed event-wide and must not flicker along with it.
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+      expect(result.current.slots.find((slot) => slot.levels.includes('A2'))).toMatchObject({ label: 'A1/A2' })
     })
   })
 

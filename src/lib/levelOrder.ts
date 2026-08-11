@@ -90,6 +90,41 @@ export function getLevelSlots(combineA1A2: boolean, combineC3BC4: boolean): read
   return buildLevelSlots(merges)
 }
 
+// A merge's own label (e.g. "A1/A2") implies both member levels actually occur
+// somewhere in the event — misleading for an event whose registration starts at A2,
+// say, with no A1 sessions at all (combineA1A2 is still worth turning on there, to
+// avoid a dead A1-only slider stop, but the resulting slot reads as though A1
+// sessions might exist too). Relabels a merged slot down to just the one level code
+// that's actually present, event-wide — deliberately computed from EVERY session,
+// not a single date's worth: this is the same "stable identity, not something that
+// flickers as the selected day changes" reasoning `combineA1A2`/`combineC3BC4`
+// themselves are already build-time-constant for for, not per-day derived.
+// `slot.levels` itself is left untouched either way (still both member codes) —
+// this only changes the label; filtering/index-lookup behavior can't meaningfully
+// differ when one of the two never occurs regardless. A slot with zero or both
+// members present keeps its original merge label — only the exactly-one-of-two case
+// changes.
+export function labelSlotsByPresence(
+  slots: readonly LevelSlot[],
+  sessions: readonly DanceSession[],
+): readonly LevelSlot[] {
+  const presentLevels = new Set<LevelCode>()
+  for (const session of sessions) {
+    if (session.kind !== 'structured') continue
+    for (const level of session.levels) {
+      presentLevels.add(level)
+    }
+  }
+
+  return slots.map((slot) => {
+    if (slot.levels.length < 2) {
+      return slot
+    }
+    const present = slot.levels.filter((level) => presentLevels.has(level))
+    return present.length === 1 ? { ...slot, label: present[0]! } : slot
+  })
+}
+
 // True if `session` should be visible under the given [minIndex, maxIndex] slider
 // range (indices into `slots`, from getLevelSlots). A session with no ordered
 // levels at all — a freeform session, or a structured one whose only levels are

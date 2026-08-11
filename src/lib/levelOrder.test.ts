@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { LEVEL_ORDER, getLevelSlots, getPresentLevelIndexRange, isSessionInLevelRange } from './levelOrder'
+import {
+  LEVEL_ORDER,
+  getLevelSlots,
+  getPresentLevelIndexRange,
+  isSessionInLevelRange,
+  labelSlotsByPresence,
+} from './levelOrder'
 import type { DanceSession, LevelCode, StructuredSession } from '../types/danceSchedule'
 
 function makeStructured(levels: LevelCode[], overrides: Partial<StructuredSession> = {}): StructuredSession {
@@ -226,5 +232,64 @@ describe('getPresentLevelIndexRange', () => {
       minIndex: a1a2Index,
       maxIndex: a1a2Index,
     })
+  })
+})
+
+describe('labelSlotsByPresence', () => {
+  it('relabels a merged slot down to just the one member level actually present, event-wide', () => {
+    const sessions = [makeStructured(['A2']), makeStructured(['C1'])]
+    const relabeled = labelSlotsByPresence(COMBINED_SLOTS, sessions)
+    const a1a2Slot = relabeled.find((slot) => slot.levels.includes('A2'))
+    expect(a1a2Slot).toMatchObject({ label: 'A2', levels: ['A1', 'A2'] })
+  })
+
+  it('keeps the merge label when both member levels are present', () => {
+    const sessions = [makeStructured(['A1']), makeStructured(['A2'])]
+    const relabeled = labelSlotsByPresence(COMBINED_SLOTS, sessions)
+    const a1a2Slot = relabeled.find((slot) => slot.levels.includes('A2'))
+    expect(a1a2Slot).toMatchObject({ label: 'A1/A2' })
+  })
+
+  it('keeps the merge label when NEITHER member level is present (nothing scheduled yet)', () => {
+    const sessions = [makeStructured(['C1'])]
+    const relabeled = labelSlotsByPresence(COMBINED_SLOTS, sessions)
+    const a1a2Slot = relabeled.find((slot) => slot.levels.includes('A2'))
+    expect(a1a2Slot).toMatchObject({ label: 'A1/A2' })
+  })
+
+  it('leaves every non-merged (single-level) slot untouched', () => {
+    const sessions = [makeStructured(['A2'])]
+    const relabeled = labelSlotsByPresence(COMBINED_SLOTS, sessions)
+    expect(relabeled.filter((slot) => slot.levels.length === 1)).toEqual(
+      COMBINED_SLOTS.filter((slot) => slot.levels.length === 1),
+    )
+  })
+
+  it('relabels the C3B+ merge down to just C4 when C3B never occurs', () => {
+    const sessions = [makeStructured(['C4'])]
+    const relabeled = labelSlotsByPresence(C3B_PLUS_SLOTS, sessions)
+    const mergedSlot = relabeled.find((slot) => slot.levels.includes('C4'))
+    expect(mergedSlot).toMatchObject({ label: 'C4' })
+  })
+
+  it('relabels the C3B+ merge down to just C3B when C4 never occurs', () => {
+    const sessions = [makeStructured(['C3B'])]
+    const relabeled = labelSlotsByPresence(C3B_PLUS_SLOTS, sessions)
+    const mergedSlot = relabeled.find((slot) => slot.levels.includes('C3B'))
+    expect(mergedSlot).toMatchObject({ label: 'C3B' })
+  })
+
+  it('ignores freeform sessions (no levels to contribute)', () => {
+    const freeform: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2026-07-04T00:00:00.000Z'),
+      startTime: new Date('2026-07-04T21:00:00.000Z'),
+      endTime: new Date('2026-07-04T21:30:00.000Z'),
+      location: { kind: 'roomless' },
+      description: 'Lunch Break',
+    }
+    const relabeled = labelSlotsByPresence(COMBINED_SLOTS, [freeform])
+    const a1a2Slot = relabeled.find((slot) => slot.levels.includes('A2'))
+    expect(a1a2Slot).toMatchObject({ label: 'A1/A2' })
   })
 })
