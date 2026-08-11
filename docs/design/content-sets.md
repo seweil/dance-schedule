@@ -86,7 +86,7 @@ with zero permanent dependency footprint. The generated fixture was
 validated by running it through the real parsing pipeline (`pnpm build:test`)
 rather than reimplementing validation in the generation script.
 
-### `content/automated-testing/pages/index.md` no longer hardcodes `content/pages/`
+### `content/automated-testing/pages/home.md` no longer hardcodes `content/pages/`
 **Why:** The path is now set-dependent; wording generalized to "this content
 set's `pages/` directory" so it's correct regardless of which set is active.
 

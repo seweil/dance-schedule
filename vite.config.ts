@@ -19,6 +19,15 @@ import {
 } from './content-config'
 import { generateContentSetIcons } from './content-icons'
 
+// vite-plugin-pages types its own onRoutesGenerated callback as (routes: any[]) =>
+// ... — this is just the shape this file's own hook actually reads/writes on each
+// leaf route, not a full re-declaration of the plugin's internal route type.
+interface GeneratedPageRoute {
+  path: string
+  element?: string
+  children?: GeneratedPageRoute[]
+}
+
 // Baked in at build time (never re-evaluated client-side) so the debug page can
 // show which build is running — the short commit hash doubles as a build number
 // since this project has no CI-assigned incrementing build counter.
@@ -118,6 +127,24 @@ export default defineConfig(async () => {
         ],
         extensions: ['md', 'tsx'],
         resolver: 'react',
+        // vite-plugin-pages' own convention for "this file IS the route '/'" is the
+        // literal filename "index" — hardcoded in its route-computation source
+        // (computeReactRoutes, isIndexRoute = node.endsWith('index')), not exposed as
+        // an option. This project's own convention is "home.md" instead (more
+        // obviously "the home page" to a content author than "index.md" — see
+        // docs/adding-a-new-event.md), so this hook re-implements the same "/" mapping
+        // ourselves for that one filename, running after the plugin's own route
+        // computation (onRoutesGenerated receives the final route array, each leaf's
+        // source file path already on `.element`) — every OTHER filename still goes
+        // through the plugin's own unmodified logic.
+        onRoutesGenerated(routes: GeneratedPageRoute[]) {
+          for (const route of routes) {
+            if (route.element?.endsWith('/home.md')) {
+              route.path = '/'
+            }
+          }
+          return routes
+        },
       }),
       schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
       danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data`, contentDir: CONTENT_DIR }),

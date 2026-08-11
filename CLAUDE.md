@@ -91,7 +91,7 @@ content/
                             # size the PWA manifest needs. Falls back to a generated
                             # placeholder if absent — see docs/design/content-config.md
     pages/
-      index.md                  # → route "/"
+      home.md                   # → route "/"
       2 installation.md         # → route "/installation" (nav-sorted 2nd)
       assets/                   # images referenced by the markdown files above
                                  # (only present if a set's pages reference images)
@@ -158,7 +158,12 @@ picks up the `.md` extension.
   route's path before it's registered (`App.tsx`), so the live route always matches
   the clean nav href — never the raw filename. This works identically in `pnpm dev`
   (HMR on file add/remove/rename) and in `pnpm build` (statically resolved) — no
-  custom watch code.
+  custom watch code. `home.md` → route `"/"` is this project's own convention, not
+  vite-plugin-pages' own (its hardcoded equivalent is the literal filename `index`,
+  not configurable) — `vite.config.ts`'s `Pages({...})` passes an `onRoutesGenerated`
+  hook that remaps the one route built from a file literally named `home.md` back to
+  `"/"` after the plugin's own route computation runs; every other filename is
+  unaffected.
 - **Compilation**: `@mdx-js/rollup` compiles each `.md` into a React component
   (`format: 'md'` keeps JSX-in-content disabled — authors write plain markdown only).
 - **Tables and other GFM syntax**: `remark-gfm` is enabled (`vite.config.ts`), so

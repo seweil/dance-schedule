@@ -33,7 +33,7 @@ content/<your-event-name>/
   config.yaml       (optional) event name + a couple of feature flags
   icon.png          (optional) app icon — see step 5
   pages/
-    index.md        the event's home page
+    home.md         the event's home page
     2 installation.md   (etc. — any other pages you want)
   data/
     event-schedule.xlsx   the simple flat event list — step 3
@@ -62,11 +62,11 @@ needed.
 
 - **File naming:** kebab-case (`getting-started.md`, not `Getting Started.md`).
   A leading number and a space (`2 installation.md`) controls where it sits
-  in the nav menu — lower numbers come first, "Home" (from `index.md`)
+  in the nav menu — lower numbers come first, "Home" (from `home.md`)
   always comes first regardless. Files with no number sort after numbered
   ones.
-- **`index.md` is required** — it becomes the home page (`/`), and every
-  other event's `index.md` does the same for its own URL. Without one, your
+- **`home.md` is required** — it becomes the home page (`/`), and every
+  other event's `home.md` does the same for its own URL. Without one, your
   event's home page won't render.
 - **No frontmatter** — just start writing markdown. The filename (minus the
   number prefix and `.md`) becomes both the URL and the nav label
@@ -85,7 +85,7 @@ needed.
   step 3), and 12/13 for "Dance Schedule" / "Dance by Level" (step 4). Those
   three pages appear in your nav automatically; you don't create them.
 
-A minimal `pages/index.md`:
+A minimal `pages/home.md`:
 
 ```markdown
 # Welcome to Spring 2027

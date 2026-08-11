@@ -1,6 +1,6 @@
 import { test, expect, devices } from '@playwright/test'
 
-test('renders the home page generated from content/index.md', async ({ page }) => {
+test('renders the home page generated from content/home.md', async ({ page }) => {
   await page.goto('/automated-testing/')
   await expect(page.getByRole('heading', { name: /welcome to montreal mix/i })).toBeVisible()
 })
