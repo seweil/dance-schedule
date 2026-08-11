@@ -9,16 +9,6 @@ describe('HintBalloon', () => {
     expect(screen.getByText('Tap here for the menu')).toBeInTheDocument()
   })
 
-  it('calls onDismiss when the dismiss button is clicked', async () => {
-    const onDismiss = vi.fn()
-    const user = userEvent.setup()
-    render(<HintBalloon message="Tap here for the menu" onDismiss={onDismiss} />)
-
-    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
-
-    expect(onDismiss).toHaveBeenCalledTimes(1)
-  })
-
   it('calls onDismiss when clicking anywhere outside the balloon', async () => {
     const onDismiss = vi.fn()
     const user = userEvent.setup()

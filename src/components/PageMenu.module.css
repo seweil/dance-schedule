@@ -20,6 +20,18 @@
    first and reported live as looking bad, so this reads as tappable on its
    own instead. See docs/design/onboarding-hints.md. */
 .toggle {
+  /* display: inline-flex + centering — a plain inline-block button lets its SVG
+     child sit on the surrounding inline formatting context's text baseline,
+     which leaves a few px of descender-reserved space below the icon that
+     isn't there above it. That's invisible on its own, but once
+     [data-hint-visible='true']'s outline below draws a circle around this
+     button's own (symmetric) padding box, the icon inside reads as sitting a
+     few px above that circle's true center — confirmed live. Flex-centering
+     the icon directly removes the baseline gap instead of trying to
+     compensate for it with an offset hack. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 4px;
   background: none;
@@ -30,6 +42,29 @@
 
 .toggle[aria-expanded='true'] {
   background: #e6e6e6;
+}
+
+/* Extra reinforcement alongside the hint balloon (HintBalloon.tsx) pointing at
+   this same button — outline, not border, so it doesn't shift the icon by
+   taking up layout space; outline-offset opens a small gap between the
+   button's own edge and the ring instead of hugging it flush. Deliberately
+   small (1px, not e.g. 4px) — confirmed live that a wider offset pushed the
+   ring's own bottom edge down far enough to visually collide with
+   HintBalloon's upward-pointing arrow just below it (`.balloon`'s
+   margin-top minus `.pointer`'s own height leaves only a couple px of real
+   clearance there to begin with). border-radius: 50% here (not .toggle's
+   own 4px) rounds this state into a true circle — outline follows
+   border-radius in every modern browser — since ".toggle" is roughly
+   square once you count its padding around the 24px icon; only applied for
+   this state so the ordinary/expanded look keeps its subtler rounded-square
+   shape. No animation (e.g. a pulse) — deliberately static, consistent with
+   this app's general avoidance of animated dropdown/toggle states after the
+   repeated real-device WebKit bugs documented elsewhere in this codebase
+   (see Nav.module.css's/.list's own comments above). */
+.toggle[data-hint-visible='true'] {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 50%;
 }
 
 .list {

@@ -82,8 +82,10 @@ future second hint calls this exact same hook with its own `id`; nothing
 about it is specific to the kebab-menu case that motivated it.
 
 ### `HintBalloon`: the presentational half
-**Why:** A small dismissible callout — message + an upward-pointing arrow
-+ a dismiss (×) button — kept deliberately UN-generalized on positioning:
+**Why:** A small dismissible callout — message + an upward-pointing arrow,
+dismissed by tapping anywhere outside it (see "Dismissal" below; it
+originally also had its own explicit × button, removed once that outside-tap
+path made it redundant) — kept deliberately UN-generalized on positioning:
 `.balloon`'s own CSS bakes in `position: absolute; top: 100%; right: 0`
 (sit below and flush-right of whatever it's placed inside), matching
 `PageMenu.module.css`'s own `.list` dropdown anchor exactly, since that's
@@ -114,24 +116,45 @@ borrow width from. Fixed with an explicit `width: 12rem` instead of
 `docs/design/responsive-breakpoints.md`) comfortably fits 192px with room
 for margins, so no additional `min(..., 100%)` clamp was needed on top.
 
-### Dismissal: explicit only, three triggers
+### Dismissal: explicit only, two triggers
 **Why:** The hint never auto-dismisses on a timer — it stays until one of
-three things happens: tap the balloon's own dismiss button, tap the REAL
-toggle it's pointing at (handled in `PageMenu.tsx`'s `handleToggleClick`,
-which calls both `toggle()` and `dismissHint()` — tapping the real menu
-means the hint already did its job), or **tap anywhere else on the page**.
-That third path was added after the first two shipped — reported live that
-only being able to dismiss via the × felt incomplete, the same "outside
-click closes it" behavior this app's dropdowns already have via
-`useDismissableMenu.ts`. Implemented directly inside `HintBalloon.tsx`
-(a `pointerdown` listener on `document`, checking whether the event target
-falls outside the balloon's own ref) rather than reusing that hook — a
-hint isn't a reopenable toggle menu (no `isOpen`/Escape-to-refocus
-behavior needed; once dismissed, it never reappears), so
-`useDismissableMenu`'s shape doesn't fit. All three paths persist the same
-dismissed flag, so any one of them permanently retires the hint; triggering
-more than one for the same tap (e.g. the real toggle counts as "outside"
-too) is harmless since dismissal is idempotent.
+two things happens: tap the REAL toggle it's pointing at (handled in
+`PageMenu.tsx`'s `handleToggleClick`, which calls both `toggle()` and
+`dismissHint()` — tapping the real menu means the hint already did its
+job), or **tap anywhere else on the page**. That second path was added
+after the balloon originally shipped with its own explicit × dismiss
+button — reported live that only being able to dismiss via the × felt
+incomplete, the same "outside click closes it" behavior this app's
+dropdowns already have via `useDismissableMenu.ts`. Implemented directly
+inside `HintBalloon.tsx` (a `pointerdown` listener on `document`, checking
+whether the event target falls outside the balloon's own ref) rather than
+reusing that hook — a hint isn't a reopenable toggle menu (no
+`isOpen`/Escape-to-refocus behavior needed; once dismissed, it never
+reappears), so `useDismissableMenu`'s shape doesn't fit. Once the
+outside-tap path existed, the × button was redundant (any tap not on the
+real toggle already counted as "outside" and dismissed it) — removed
+rather than kept as a second way to do the same thing. Both remaining
+paths persist the same dismissed flag, so either one permanently retires
+the hint; triggering both for the same tap (the real toggle counts as
+"outside" too) is harmless since dismissal is idempotent.
+
+### A dashed ring around the real toggle, extra reinforcement alongside the balloon
+**Why:** The balloon points an arrow at the toggle, but on a small icon that
+alone can still be easy to skim past. `PageMenu.tsx` passes `showHint` down
+to the toggle `<button>` itself as `data-hint-visible`, and
+`PageMenu.module.css`'s `.toggle[data-hint-visible='true']` rule adds a
+dashed `outline` (not `border` — outline doesn't take up layout space, so
+the icon doesn't shift when the ring appears/disappears) with
+`outline-offset` opening a visible gap around the button rather than
+hugging it flush, plus `border-radius: 50%` **only** in this state so the
+ring reads as a circle around the icon rather than following the button's
+own default 4px rounded-square shape. Static, not animated (e.g. a pulse) —
+consistent with this app's general avoidance of animated dropdown/toggle
+states after the repeated real-device WebKit bugs already documented
+elsewhere in this codebase (`Nav.module.css`'s/`PageMenu.module.css`'s own
+`.list` comments). Driven by the same `showHint` the balloon itself uses, so
+the two always appear and disappear together with no separate state to keep
+in sync.
 
 ## Open questions
 

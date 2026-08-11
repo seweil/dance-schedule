@@ -56,6 +56,7 @@ export function PageMenu() {
         aria-controls={listId}
         aria-label="Menu"
         onClick={handleToggleClick}
+        data-hint-visible={showHint}
       >
         <svg viewBox="0 0 20 20" width="24" height="24" fill="none" aria-hidden="true">
           <path

@@ -89,6 +89,7 @@ describe('PageMenu', () => {
   it('shows the kebab-menu hint balloon by default (a fresh, undismissed device)', () => {
     renderPageMenu()
     expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
+    expect(getToggle()).toHaveAttribute('data-hint-visible', 'true')
   })
 
   it('dismisses the hint balloon when the toggle itself is clicked', async () => {
@@ -99,24 +100,17 @@ describe('PageMenu', () => {
     await user.click(getToggle())
 
     expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+    expect(getToggle()).toHaveAttribute('data-hint-visible', 'false')
     expect(localStorage.getItem('dance-schedule:hint-dismissed:kebab-menu')).toBe(
       JSON.stringify(true),
     )
-  })
-
-  it('dismisses the hint balloon when its own dismiss button is clicked', async () => {
-    const user = userEvent.setup()
-    renderPageMenu()
-
-    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
-
-    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
   })
 
   it('does not show the hint balloon once already dismissed on a previous launch', () => {
     localStorage.setItem('dance-schedule:hint-dismissed:kebab-menu', JSON.stringify(true))
     renderPageMenu()
     expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+    expect(getToggle()).toHaveAttribute('data-hint-visible', 'false')
   })
 
   it('dismisses the hint balloon when tapping anywhere outside it', async () => {
@@ -134,6 +128,7 @@ describe('PageMenu', () => {
     await user.click(screen.getByRole('button', { name: /outside/i }))
 
     expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+    expect(getToggle()).toHaveAttribute('data-hint-visible', 'false')
   })
 
   it('closes the menu when clicking outside the nav', async () => {
