@@ -341,7 +341,7 @@ with zero hours is omitted entirely as a column, same as before.
 
 **The caller table also drops any caller whose own total is 3 hours or
 under** (`MIN_CALLER_HOURS`) — per direct product decision, a separate,
-independent threshold of the same name and value as the Dance by Caller
+independent threshold of the same name and value as the Caller Schedule
 page's own `MIN_CALLER_HOURS` (same unit, same number, and — as of the fix
 described in that page's own section below — the same event-wide-total
 scope too, though the two constants remain independent rather than shared,
@@ -772,10 +772,10 @@ them needed to change for the second flag — exactly the payoff the original
 ### Level-columns view: a second grid, same filters, level slots as columns
 
 **Why:** Alongside the room-column × time-row grid (`DanceScheduleGrid.tsx`,
-`/dance-schedule`), some users want to scan a single skill level across every
+`/room-schedule`), some users want to scan a single skill level across every
 room at once — e.g. "what's running at C1 all day?" — which the room-columns
 view doesn't answer directly. Rather than adding a mode toggle to the existing
-page, this is a second page (`/dance-by-level`,
+page, this is a second page (`/dancing-by-level`,
 `DanceScheduleLevelsPage.tsx`) reusing the exact same date/level-range/GCA
 selectors (`DanceScheduleFilters.tsx`, unchanged) and the exact same
 `useDanceScheduleFilters` hook — including its `localStorage` persistence, so
@@ -1256,7 +1256,7 @@ validate it.
 
 **Why:** Alongside room-columns and level-columns, some users want to scan a
 single caller across the whole day — "what is Vic Ceder doing all day?" —
-which neither prior view answers directly. A third page (`/dance-by-caller`,
+which neither prior view answers directly. A third page (`/caller-schedule`,
 `DanceScheduleCallersPage.tsx`) reuses the exact same date/level-range/GCA
 selectors and the exact same `useDanceScheduleFilters` hook as the other
 two, unchanged, so switching between all three views keeps the same

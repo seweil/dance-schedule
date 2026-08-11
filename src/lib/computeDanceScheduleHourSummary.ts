@@ -113,7 +113,7 @@ function buildTable(
  * kind === 'structured' session counts, including a "GCA Caller Showcase Dance"
  * one and one tagged with an unordered level like Intro/Various — this is
  * meant to be a complete, honest accounting of the raw parsed data, not a mirror
- * of any page's own curated display rules (contrast the Dance by Caller page,
+ * of any page's own curated display rules (contrast the Caller Schedule page,
  * which deliberately omits showcase dances and callers under a dance-COUNT
  * threshold — this file's own caller table instead filters by total HOURS, a
  * different, unrelated threshold — see MIN_CALLER_HOURS). A freeform session

@@ -12,7 +12,7 @@ import { TextSizeProvider } from './TextSizeProvider'
 // content set (pnpm test always pins CONTENT_SET to it, see CLAUDE.md) rather than
 // mocking virtual:dance-schedule/virtual:content-config, so these facts come
 // straight from content/automated-testing/data/dance-schedule.xlsx — the same
-// fixture e2e/dance-schedule.spec.ts already asserts against.
+// fixture e2e/room-schedule.spec.ts already asserts against.
 //
 // Deliberately does NOT test the "Show all levels" empty-state link here: narrowing
 // the level range alone can't reach a true zero-placement state anywhere in this

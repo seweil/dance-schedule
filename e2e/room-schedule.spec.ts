@@ -1,11 +1,11 @@
 import { test, expect, devices } from '@playwright/test'
 
-test('nav links to the dance schedule page, which renders the default date\'s grid', async ({
+test('nav links to the room schedule page, which renders the default date\'s grid', async ({
   page,
 }) => {
   await page.goto('/automated-testing/')
-  await page.getByRole('link', { name: /dance schedule/i }).click()
-  await expect(page.getByRole('heading', { name: /dance schedule/i })).toBeVisible()
+  await page.getByRole('link', { name: /room schedule/i }).click()
+  await expect(page.getByRole('heading', { name: /room schedule/i })).toBeVisible()
   // At least one room column header renders for the default (earliest) date.
   await expect(page.locator('[class*="roomHeader"]').first()).toBeVisible()
 })
@@ -13,8 +13,8 @@ test('nav links to the dance schedule page, which renders the default date\'s gr
 test('the redundant "Dancing -" prefix is omitted, and the caller name renders bold', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
-  await expect(page.getByRole('heading', { name: /dance schedule/i })).toBeVisible()
+  await page.goto('/automated-testing/room-schedule')
+  await expect(page.getByRole('heading', { name: /room schedule/i })).toBeVisible()
 
   // Thursday (the default date) has real "Dancing"-type sessions — none of their
   // cards should show the literal "Dancing -" prefix.
@@ -27,7 +27,7 @@ test('the redundant "Dancing -" prefix is omitted, and the caller name renders b
 test('a non-"Dancing" event type keeps its plain-text prefix before the bold caller name', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
 
   await expect(page.getByText('Skirt Work Hour -')).toBeVisible()
   const caller = page.locator('[class*="details"] strong', { hasText: 'Wendy VanderMeulen' }).first()
@@ -37,7 +37,7 @@ test('a non-"Dancing" event type keeps its plain-text prefix before the bold cal
 test('desktop: the panel itself scrolls both directions, unaffected by the mobile split-header behavior', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   const panel = page.locator('[class*="panelWrapper"]')
   const { scrollWidth, clientWidth, scrollHeight, clientHeight } = await panel.evaluate((el) => ({
     scrollWidth: el.scrollWidth,
@@ -65,7 +65,7 @@ test('desktop: the panel itself scrolls both directions, unaffected by the mobil
 })
 
 test('changing the date select swaps the grid to that date', async ({ page }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   await expect(page.getByText('All Callers Dance')).not.toBeVisible()
 
   // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
@@ -76,7 +76,7 @@ test('changing the date select swaps the grid to that date', async ({ page }) =>
 })
 
 test('a session spanning multiple rooms renders as one block, not two', async ({ page }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
   // regardless of the exact year parseEventDate's year-inference resolves to.
   await page.getByLabel('Date').selectOption({ index: 1 })
@@ -86,7 +86,7 @@ test('a session spanning multiple rooms renders as one block, not two', async ({
 })
 
 test('a roomless session renders as a full-width banner with its time range', async ({ page }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
   // regardless of the exact year parseEventDate's year-inference resolves to.
   await page.getByLabel('Date').selectOption({ index: 1 })
@@ -98,7 +98,7 @@ test('a roomless session renders as a full-width banner with its time range', as
 test('narrowing the level slider hides out-of-range sessions and their now-empty room column', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
   // regardless of the exact year parseEventDate's year-inference resolves to.
   await page.getByLabel('Date').selectOption({ index: 1 })
@@ -125,7 +125,7 @@ test('narrowing the level slider hides out-of-range sessions and their now-empty
 test('clicking a level tick label sets the range directly, without using the slider thumbs', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   const maxThumb = page.getByRole('slider', { name: /maximum level/i })
   // 7 — "C3B+"'s slot index (getLevelSlots merges A1/A2 and C3B/C4 each into one
   // stop when combineA1A2/combineC3BC4 are both true, src/lib/levelOrder.ts): the
@@ -146,7 +146,7 @@ test('clicking a level tick label sets the range directly, without using the sli
 test('unchecking "Show GCA callers" hides the GCA line without hiding the session', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   await expect(page.getByText(/^GCA:/).first()).toBeVisible()
 
   const detailsBefore = await page.locator('[class*="details"]').first().textContent()
@@ -159,18 +159,18 @@ test('unchecking "Show GCA callers" hides the GCA line without hiding the sessio
   await expect(page.locator('[class*="details"]').first()).toHaveText(detailsBefore ?? '')
 })
 
-test('app shell still renders the dance schedule page when offline after the SW takes control', async ({
+test('app shell still renders the room schedule page when offline after the SW takes control', async ({
   page,
   context,
 }) => {
-  await page.goto('/automated-testing/dance-schedule')
+  await page.goto('/automated-testing/room-schedule')
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload()
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: /dance schedule/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /room schedule/i })).toBeVisible()
   await expect(page.locator('[class*="roomHeader"]').first()).toBeVisible()
   await context.setOffline(false)
 })
@@ -193,7 +193,7 @@ test.describe('mobile viewport', () => {
       test('room header pins to the top of the viewport as the page scrolls down', async ({
         page,
       }) => {
-        await page.goto('/automated-testing/dance-schedule')
+        await page.goto('/automated-testing/room-schedule')
         const firstHeader = page.locator('[class*="roomHeader"]').first()
         await expect(firstHeader).toBeVisible()
 
@@ -211,11 +211,11 @@ test.describe('mobile viewport', () => {
       })
 
       test('heading and filters scroll out of view as the page scrolls down', async ({ page }) => {
-        await page.goto('/automated-testing/dance-schedule')
+        await page.goto('/automated-testing/room-schedule')
         // Not the nav link — on mobile it's inside PageMenu.tsx's still-closed kebab
         // menu, so it's never visible without toggling it first. The page's own
         // heading is the always-visible mobile equivalent.
-        const heading = page.getByRole('heading', { name: /dance schedule/i })
+        const heading = page.getByRole('heading', { name: /room schedule/i })
         const dateSelect = page.getByLabel('Date')
         await expect(heading).toBeVisible()
         await expect(dateSelect).toBeVisible()
@@ -231,7 +231,7 @@ test.describe('mobile viewport', () => {
       })
 
       test('grid spans the full viewport width with no left/right inset', async ({ page }) => {
-        await page.goto('/automated-testing/dance-schedule')
+        await page.goto('/automated-testing/room-schedule')
         const panel = page.locator('[class*="panelWrapper"]')
         await expect(panel).toBeVisible()
 
@@ -244,7 +244,7 @@ test.describe('mobile viewport', () => {
       test('only the grid body scrolls horizontally — the page itself never overflows', async ({
         page,
       }) => {
-        await page.goto('/automated-testing/dance-schedule')
+        await page.goto('/automated-testing/room-schedule')
         const body = page.locator('[class*="bodyWrapper"]')
         const { scrollWidth, clientWidth } = await body.evaluate((el) => ({
           scrollWidth: el.scrollWidth,
@@ -263,8 +263,8 @@ test.describe('mobile viewport', () => {
       test('scrolling the grid body horizontally leaves heading and filters in place', async ({
         page,
       }) => {
-        await page.goto('/automated-testing/dance-schedule')
-        const heading = page.getByRole('heading', { name: /dance schedule/i })
+        await page.goto('/automated-testing/room-schedule')
+        const heading = page.getByRole('heading', { name: /room schedule/i })
         const dateSelect = page.getByLabel('Date')
         const [headingBoxBefore, dateBoxBefore] = await Promise.all([
           heading.boundingBox(),
@@ -287,7 +287,7 @@ test.describe('mobile viewport', () => {
       test('scrolling the grid body horizontally mirrors onto the header (room names track their column)', async ({
         page,
       }) => {
-        await page.goto('/automated-testing/dance-schedule')
+        await page.goto('/automated-testing/room-schedule')
         const firstHeaderBefore = await page.locator('[class*="roomHeader"]').first().boundingBox()
 
         const body = page.locator('[class*="bodyWrapper"]')
@@ -315,7 +315,7 @@ test.describe('mobile viewport', () => {
       })
 
       test('switching date resets horizontal scroll position', async ({ page }) => {
-        await page.goto('/automated-testing/dance-schedule')
+        await page.goto('/automated-testing/room-schedule')
         const body = page.locator('[class*="bodyWrapper"]')
         await body.evaluate((el) => {
           el.scrollLeft = 300

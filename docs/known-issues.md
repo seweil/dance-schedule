@@ -158,7 +158,7 @@ the newer `combineC3BC4`, added the same day — see
 `docs/design/dance-schedule.md`'s "second merge flag" decision) to `true`,
 matching the docs — including `content/automated-testing/config.yaml`, which
 briefly overrode `combineC3BC4` back to `false` to keep
-`e2e/dance-schedule.spec.ts`'s hardcoded slot indices stable, then dropped
+`e2e/room-schedule.spec.ts`'s hardcoded slot indices stable, then dropped
 that override in favor of updating the test's indices instead (that set is
 never deployed to a real event, so there's no reason for its config to differ
 from the recommended default — see `docs/design/content-config.md`'s
@@ -448,7 +448,7 @@ constants, `danceScheduleCardSizing.ts`) to `repeat(N, minmax(28px, auto))`
 correctly distributing a row-spanning card's height need across the rows it
 spans (standard CSS Grid track-sizing behavior, no JS involved). This closes
 the vertical-clipping gap for ordinary content; live-verified against real
-data (`automated-testing` and `dance-by-level`) with zero clipped cards.
+data (`automated-testing` and `dancing-by-level`) with zero clipped cards.
 
 The whole `shouldCombinePrimaryAndDetails`/`estimateCardFit.ts`/
 `estimateWrappedLineCount.ts`/`measureTextWidth.ts` combine-onto-one-line

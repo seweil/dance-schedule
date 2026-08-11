@@ -13,7 +13,7 @@ The Schedule page (`content/test/data/event-schedule.xlsx`) exercises:
 - An accented `Location`/`Description` ("Café Montréal Hall" / "Soirée
   Dansante").
 
-The Dance Schedule page (`content/test/data/dance-schedule.xlsx`) exercises:
+The Room Schedule page (`content/test/data/dance-schedule.xlsx`) exercises:
 
 - The minimum (`SSD`) and maximum (`C4`) points on the ordered skill scale.
 - An unordered level (`Various`) that stays visible no matter the level

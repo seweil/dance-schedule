@@ -6,9 +6,9 @@ through C4.
 
 - **Event Schedule** — meals, socials, workshops, and everything else on
   the calendar that isn't a dance session.
-- **Dance Schedule** — the full room-by-room dance floor lineup: who's
+- **Room Schedule** — the full room-by-room dance floor lineup: who's
   calling, what level, and where.
-- **Dance by Level** — the same lineup, organized by skill level instead of
+- **Dancing by Level** — the same lineup, organized by skill level instead of
   by room, if that's easier to scan for what you want to dance.
 
 New here? See [Installation](/installation) to add this schedule to your

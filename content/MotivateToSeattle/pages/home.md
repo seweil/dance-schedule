@@ -10,10 +10,10 @@ with GCA caller slots and a trail-in dance, and running through Sunday
 afternoon.
 
 - [**Event Schedule**](/event-schedule) — Overall schedule
-- [**Dance Schedule**](/dance-schedule) — Detailed dance schedule
-- [**Dancing by Level**](/dance-by-level) — Dance sessions, organized by
+- [**Dancing by Level**](/dancing-by-level) — Dance sessions, organized by
   skill level instead.
-- [**Caller schedule**](/dance-by-caller) - Don't miss your favorite callers
+- [**Room Schedule**](/room-schedule) — Detailed dance schedule
+- [**Caller Schedule**](/caller-schedule) - Don't miss your favorite callers
 
 See [Installation](/installation) to add this schedule to your
 phone's home screen — handy for checking between tips if the hotel's Wi-Fi

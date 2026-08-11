@@ -101,10 +101,10 @@ its name is never deployed to a real event — see its own `config.yaml`
 comment) combines both pairs, matching the built-in default and
 `docs/adding-a-new-event.md`'s recommendation. An earlier version of
 `automated-testing/config.yaml` explicitly overrode `combineC3BC4` to `false`
-specifically so `e2e/dance-schedule.spec.ts` could exercise the *uncombined*
+specifically so `e2e/room-schedule.spec.ts` could exercise the *uncombined*
 slot-index case live — but that made an artificial, never-real-event
 combination a load-bearing part of the sample set's config purely to serve
-one test file, and `e2e/dance-schedule.spec.ts`'s own slot-index assertions
+one test file, and `e2e/room-schedule.spec.ts`'s own slot-index assertions
 are written against whatever `getLevelSlots` produces for these flags, not a
 guarantee of any particular flag value. The uncombined case (and the
 individually-combined and both-combined cases) has thorough, faster-running
@@ -225,7 +225,7 @@ existence.
 
 ### `danceSchedule.roomOrder` — a per-event override for the dance-schedule room-columns view's column order
 
-**Why:** The room-columns view (`/dance-schedule`) defaulted to ordering its
+**Why:** The room-columns view (`/room-schedule`) defaulted to ordering its
 room columns by their first appearance in the source spreadsheet — a side
 effect of the parser, not a considered choice. Per direct product decision,
 the default is now increasing median dance level (average as tiebreak,

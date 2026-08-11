@@ -83,7 +83,7 @@ needed.
   text is left alone as a normal image tooltip.
 - **Numbering convention:** keep your own page numbers below 10 — 10, 12, 13,
   and 14 are reserved for the automatically-generated "Event Schedule" (see
-  step 3), "Dance Schedule", "Dance by Level", and "Dance by Caller" (step 4)
+  step 3), "Dancing by Level", "Room Schedule", and "Caller Schedule" (step 4)
   pages respectively. Those four pages appear in your nav automatically; you
   don't create them. Below 10, any number works for any page — there's no
   fixed assignment of, say, "2" to any particular page; use whatever order
@@ -104,11 +104,11 @@ flags below default to `true` already. It has two independent sections:
 
 ```yaml
 features:
-  # Whether the Dance Schedule level slider treats A1 and A2 as one combined
-  # stop, instead of two separate ones. Most events have too few A1-only
-  # dances to bother distinguishing — set to false only if yours genuinely
-  # needs A1 and A2 kept separate. (Defaults to true — shown explicitly here
-  # for clarity.)
+  # Whether the level slider (shared by the Room Schedule, Dancing by Level,
+  # and Caller Schedule pages) treats A1 and A2 as one combined stop, instead
+  # of two separate ones. Most events have too few A1-only dances to bother
+  # distinguishing — set to false only if yours genuinely needs A1 and A2
+  # kept separate. (Defaults to true — shown explicitly here for clarity.)
   combineA1A2: true
   # Same idea, for C3B and C4 — the combined stop is labeled "C3B+" (square-
   # dance convention for "C3B and above"). Set to false only if your event has
@@ -133,7 +133,7 @@ the `/events` landing page instead of alphabetically alongside real events.
 
 ### Dance-schedule room column order (`danceSchedule.roomOrder`)
 
-Also optional. The "Dance Schedule" page's room columns default to
+Also optional. The "Room Schedule" page's room columns default to
 increasing dance level — specifically, each room's median dance level
 across the **whole event** (every day combined, not recomputed per day —
 ties broken by average level, then by the room's position in
@@ -208,8 +208,9 @@ wrong or missing event.
 
 ## Step 4: The detailed dance grid (`dance-schedule.xlsx`)
 
-This spreadsheet drives the richer "Dance Schedule" and "Dance by Level"
-pages — multiple rooms running in parallel, skill levels, named callers.
+This spreadsheet drives the richer "Room Schedule", "Dancing by Level", and
+"Caller Schedule" pages — multiple rooms running in parallel, skill levels,
+named callers.
 It's laid out as a **grid**, one sheet per day, matching how these are
 usually already kept in practice.
 

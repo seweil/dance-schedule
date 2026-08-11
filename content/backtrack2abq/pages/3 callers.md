@@ -1,7 +1,7 @@
 # Callers
 
-Meet the callers and cuers of Back Track 2 ABQ. See the Dance Schedule and
-Dance by Level pages for who's calling which session.
+Meet the callers and cuers of Back Track 2 ABQ. See the Room Schedule and
+Dancing by Level pages for who's calling which session.
 
 ## Trail-In Dance
 

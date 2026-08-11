@@ -43,7 +43,7 @@ export function DanceSchedulePage() {
 
   return (
     <>
-      <PageHeader title="Dance Schedule" />
+      <PageHeader title="Room Schedule" />
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}

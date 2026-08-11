@@ -84,8 +84,8 @@ test('desktop nav shows the flat link list with no kebab toggle', async ({ page 
 
 test('nav links to the schedule page, which renders events', async ({ page }) => {
   await page.goto('/automated-testing/')
-  // Exact name — "Dance Schedule" is also a nav link, so a bare /schedule/i regex
-  // now matches both.
+  // Exact name — "Room Schedule" and "Caller Schedule" are also nav links, so a
+  // bare /schedule/i regex now matches more than one.
   await page.getByRole('link', { name: 'Event Schedule' }).click()
   await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
   // Asserts structurally (at least one event renders) rather than exact event content,

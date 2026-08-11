@@ -380,7 +380,7 @@ these run fine in this sandbox, verified throughout this session):**
 - The scroll-sync `useEffect` itself is not meaningfully unit-testable in
   jsdom (no real layout/scroll metrics) — covered by e2e instead.
 
-**E2e tests (`e2e/dance-schedule.spec.ts`, mobile viewport block — this
+**E2e tests (`e2e/room-schedule.spec.ts`, mobile viewport block — this
 sandbox cannot launch Chromium at all, confirmed this session on every test
 including pre-existing, untouched ones; run these for real via `pnpm
 test:e2e` outside this sandbox, or CI):**

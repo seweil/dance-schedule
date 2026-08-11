@@ -233,9 +233,11 @@ The short version:
   `"<digits> "` order-prefix filename convention, same `buildNavTree` logic, no
   special-casing needed in `Nav.tsx`.
 - **Nav ordering convention**: prefixes `10`, `12`, `13`, `14`
-  (`src/pages/10 event-schedule.tsx`, `12 dance-schedule.tsx`,
-  `13 dance-by-level.tsx`, `14 dance-by-caller.tsx`) are reserved for those
-  auto-generated pages. A content page should use a prefix below `10` (any
+  (`src/pages/10 event-schedule.tsx`, `12 dancing-by-level.tsx`,
+  `13 room-schedule.tsx`, `14 caller-schedule.tsx` — nav labels "Event
+  Schedule", "Dancing by Level", "Room Schedule", "Caller Schedule"
+  respectively) are reserved for those auto-generated pages. A content page
+  should use a prefix below `10` (any
   number in that range — nothing about which specific single-digit number
   goes with which page is fixed) so it sorts before all of them; a future
   page meant to sort after them should use `15` or higher (`11` is

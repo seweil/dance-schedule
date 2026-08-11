@@ -10,9 +10,9 @@ It credits a caller who isn't the session's headliner — someone calling
 alongside the main caller(s) without top billing.
 
 **Can I see just my level?**
-Yes — the Dance Schedule and Dance by Level pages both have a level-range
-slider. Drag either end, or tap a level label directly, to narrow the
-range.
+Yes — the Room Schedule, Dancing by Level, and Caller Schedule pages all
+have a level-range slider. Drag either end, or tap a level label directly,
+to narrow the range.
 
 **Will this reflect last-minute changes to the schedule?**
 It reflects the schedule as of the last update before the event started.

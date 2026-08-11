@@ -10,9 +10,9 @@ charitable organization — donations are tax deductible.
 
 - [**Event Schedule**](/event-schedule) — meals, ceremonies, socials, and
   everything else on the calendar that isn't a dance session.
-- [**Dance Schedule**](/dance-schedule) — the full dance session grid, room
+- [**Room Schedule**](/room-schedule) — the full dance session grid, room
   by room.
-- [**Dance by Level**](/dance-by-level) — the same sessions, organized by
+- [**Dancing by Level**](/dancing-by-level) — the same sessions, organized by
   skill level instead.
 - [**Callers**](/callers) — who's calling and cueing this convention.
 

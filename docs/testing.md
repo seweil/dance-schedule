@@ -87,11 +87,12 @@ here as the codebase grows.
 
 **Known gaps** (surfaced by a coverage pass, not exhaustive):
 
-- `src/components/DanceScheduleLevelsPage.tsx` (the `/dance-by-level` route)
-  has no unit test *and* no e2e spec navigates to it — the only page in the
-  app with literally zero test coverage of its own, not just a missing unit
-  test. `DanceSchedulePage.tsx`/`SchedulePage.tsx` are thin wrappers with the
-  same "no unit test" gap, but at least get reached by e2e.
+- `src/components/SchedulePage.tsx` (the `/event-schedule` route) has no unit
+  test of its own — the only remaining page in that state.
+  `DanceSchedulePage.tsx`/`DanceScheduleLevelsPage.tsx`/`DanceScheduleCallersPage.tsx`
+  (routes `/room-schedule`/`/dancing-by-level`/`/caller-schedule`) each now
+  have their own unit test plus e2e coverage — this bullet used to flag all
+  four as gaps; only `SchedulePage.tsx` still is.
 - `src/components/BuildInfo.tsx` and `src/components/UpdatePrompt.tsx` have
   no unit test and aren't asserted on by any e2e spec either.
 - Three root Vite plugins (`vite-plugin-schedule.ts`,

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// Caller-columns counterpart of e2e/dance-schedule.spec.ts's filter-behavior tests —
+// Caller-columns counterpart of e2e/room-schedule.spec.ts's filter-behavior tests —
 // same underlying automated-testing fixture and filter wiring (useDanceScheduleFilters
 // + DanceScheduleFilters are shared, byte-identical, across all three dance-schedule
 // pages — see docs/design/dance-schedule.md), so this deliberately trims down to the
@@ -17,12 +17,12 @@ import { test, expect } from '@playwright/test'
 // caller never clears the threshold on any day, unlike the room/level views
 // which show it regardless).
 
-test('nav links to the dance-by-caller page, which renders the default date\'s grid', async ({
+test('nav links to the caller-schedule page, which renders the default date\'s grid', async ({
   page,
 }) => {
   await page.goto('/automated-testing/')
-  await page.getByRole('link', { name: /dance by caller/i }).click()
-  await expect(page.getByRole('heading', { name: /dance by caller/i })).toBeVisible()
+  await page.getByRole('link', { name: /caller schedule/i }).click()
+  await expect(page.getByRole('heading', { name: /caller schedule/i })).toBeVisible()
   // At least one caller-column header renders for the default (earliest) date —
   // "roomHeader" is the literal, shared CSS class every column header uses in all
   // three grids, whatever the column actually represents.
@@ -30,7 +30,7 @@ test('nav links to the dance-by-caller page, which renders the default date\'s g
 })
 
 test('changing the date select swaps the grid to that date', async ({ page }) => {
-  await page.goto('/automated-testing/dance-by-caller')
+  await page.goto('/automated-testing/caller-schedule')
   // Thursday (the default date) — Dayle Hodge has no sessions at all, so no column
   // even though she's eligible event-wide.
   await expect(page.getByText('Dayle Hodge', { exact: true })).not.toBeVisible()
@@ -47,7 +47,7 @@ test('changing the date select swaps the grid to that date', async ({ page }) =>
 test('narrowing the level slider hides out-of-range sessions and their now-empty caller column', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-by-caller')
+  await page.goto('/automated-testing/caller-schedule')
   // .count() doesn't auto-wait like an assertion does — make sure the grid has
   // actually rendered before taking the "before" snapshot.
   await expect(page.locator('[class*="roomHeader"]').first()).toBeVisible()
@@ -73,7 +73,7 @@ test('narrowing the level slider hides out-of-range sessions and their now-empty
 test('unchecking "Show GCA callers" hides the GCA line without hiding the session', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-by-caller')
+  await page.goto('/automated-testing/caller-schedule')
   await expect(page.getByText(/^GCA:/).first()).toBeVisible()
 
   await page.getByLabel(/show gca callers/i).uncheck()

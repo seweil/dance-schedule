@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// Level-columns counterpart of e2e/dance-schedule.spec.ts's filter-behavior tests —
+// Level-columns counterpart of e2e/room-schedule.spec.ts's filter-behavior tests —
 // same underlying automated-testing fixture and filter wiring (useDanceScheduleFilters
 // + DanceScheduleFilters are shared, byte-identical, across all three dance-schedule
 // pages — see docs/design/dance-schedule.md), so this deliberately trims down to the
@@ -8,12 +8,12 @@ import { test, expect } from '@playwright/test'
 // mobile viewport, offline/PWA shell, etc.) that's already exercised there and isn't
 // page-specific.
 
-test('nav links to the dance-by-level page, which renders the default date\'s grid', async ({
+test('nav links to the dancing-by-level page, which renders the default date\'s grid', async ({
   page,
 }) => {
   await page.goto('/automated-testing/')
-  await page.getByRole('link', { name: /dance by level/i }).click()
-  await expect(page.getByRole('heading', { name: /dance by level/i })).toBeVisible()
+  await page.getByRole('link', { name: /dancing by level/i }).click()
+  await expect(page.getByRole('heading', { name: /dancing by level/i })).toBeVisible()
   // At least one level-column header renders for the default (earliest) date —
   // "roomHeader" is the literal, shared CSS class every column header uses in all
   // three grids, whatever the column actually represents.
@@ -21,7 +21,7 @@ test('nav links to the dance-by-level page, which renders the default date\'s gr
 })
 
 test('changing the date select swaps the grid to that date', async ({ page }) => {
-  await page.goto('/automated-testing/dance-by-level')
+  await page.goto('/automated-testing/dancing-by-level')
   await expect(page.getByText('All Callers Dance')).not.toBeVisible()
 
   // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
@@ -34,7 +34,7 @@ test('changing the date select swaps the grid to that date', async ({ page }) =>
 test('narrowing the level slider hides out-of-range sessions and their now-empty level column', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-by-level')
+  await page.goto('/automated-testing/dancing-by-level')
   // Index 1 — Friday is always the 2nd of the 3 known dates.
   await page.getByLabel('Date').selectOption({ index: 1 })
 
@@ -61,7 +61,7 @@ test('narrowing the level slider hides out-of-range sessions and their now-empty
 test('unchecking "Show GCA callers" hides the GCA line without hiding the session', async ({
   page,
 }) => {
-  await page.goto('/automated-testing/dance-by-level')
+  await page.goto('/automated-testing/dancing-by-level')
   await expect(page.getByText(/^GCA:/).first()).toBeVisible()
 
   await page.getByLabel(/show gca callers/i).uncheck()

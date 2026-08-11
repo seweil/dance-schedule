@@ -168,7 +168,7 @@ from within the running app.
 in practice it held a realistic-but-generic convention's data (Montreal
 Mix 2026) with no real deploy target of its own — and both unit tests
 (`src/App.test.tsx`) and most of `e2e/`'s coverage (`e2e/app.spec.ts`,
-`e2e/dance-schedule.spec.ts`) asserted directly against its exact content
+`e2e/room-schedule.spec.ts`) asserted directly against its exact content
 (specific caller names, session details, page copy), since `pnpm dev`/
 `build`/`test:e2e` all defaulted to it with no env var set. That coupling
 is a problem the moment this set's content is ever actually swapped in for
