@@ -34,7 +34,7 @@ content/<your-event-name>/
   icon.png          (optional) app icon — see step 5
   pages/
     home.md         the event's home page
-    2 installation.md   (etc. — any other pages you want)
+    2 installation.md   e.g. — any other pages you want, any number below 10
   data/
     event-schedule.xlsx   the simple flat event list — step 3
     dance-schedule.xlsx   the detailed room/time grid — step 4
@@ -61,10 +61,11 @@ becomes a page and a navigation-menu entry automatically — no routing setup
 needed.
 
 - **File naming:** kebab-case (`getting-started.md`, not `Getting Started.md`).
-  A leading number and a space (`2 installation.md`) controls where it sits
-  in the nav menu — lower numbers come first, "Home" (from `home.md`)
-  always comes first regardless. Files with no number sort after numbered
-  ones.
+  A leading number and a space (e.g. `2 installation.md` — the `2` is just an
+  example; pick any number that fits the "Numbering convention" below)
+  controls where it sits in the nav menu — lower numbers come first, "Home"
+  (from `home.md`) always comes first regardless. Files with no number sort
+  after numbered ones.
 - **`home.md` is required** — it becomes the home page (`/`), and every
   other event's `home.md` does the same for its own URL. Without one, your
   event's home page won't render.
@@ -80,10 +81,13 @@ needed.
   `small`, `medium`, or `large`:
   `![Jane Doe](./assets/caller-jane-doe.jpg "thumbnail")`. Any other title
   text is left alone as a normal image tooltip.
-- **Numbering convention:** keep your own page numbers below 10 — number 10
-  is reserved for the automatically-generated "Event Schedule" page (see
-  step 3), and 12/13 for "Dance Schedule" / "Dance by Level" (step 4). Those
-  three pages appear in your nav automatically; you don't create them.
+- **Numbering convention:** keep your own page numbers below 10 — 10, 12, 13,
+  and 14 are reserved for the automatically-generated "Event Schedule" (see
+  step 3), "Dance Schedule", "Dance by Level", and "Dance by Caller" (step 4)
+  pages respectively. Those four pages appear in your nav automatically; you
+  don't create them. Below 10, any number works for any page — there's no
+  fixed assignment of, say, "2" to any particular page; use whatever order
+  makes sense for your event.
 
 A minimal `pages/home.md`:
 

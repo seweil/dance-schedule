@@ -92,7 +92,10 @@ content/
                             # placeholder if absent — see docs/design/content-config.md
     pages/
       home.md                   # → route "/"
-      2 installation.md         # → route "/installation" (nav-sorted 2nd)
+      2 installation.md         # → route "/installation" (nav-sorted 2nd) — the "2"
+                                 # is just an example; any content page can use any
+                                 # number below 10, see the Naming/Nav ordering
+                                 # convention notes below
       assets/                   # images referenced by the markdown files above
                                  # (only present if a set's pages reference images)
     data/
@@ -148,7 +151,10 @@ picks up the `.md` extension.
 
 - **Naming**: content filenames are kebab-case (`getting-started.md`, not
   `Getting Started.md`) and may start with a sort-order number followed by a single
-  space — `2 installation.md`. That `"<digits> "` prefix controls nav order only; it
+  space — e.g. `2 installation.md`, though the actual digits are arbitrary (any
+  content page can use any number below 10 — see "Nav ordering convention" below;
+  `2` here is just an illustrative example, not a fixed slot `installation.md`
+  specifically must occupy). That `"<digits> "` prefix controls nav order only; it
   and the extension are stripped to produce both the route and the title-cased label
   (`2 installation.md` → route `/installation`, label "Installation"). Files with no
   prefix sort after prefixed ones, in filesystem order.
@@ -226,10 +232,15 @@ The short version:
   gets picked up and appears in the nav exactly like a content page — same
   `"<digits> "` order-prefix filename convention, same `buildNavTree` logic, no
   special-casing needed in `Nav.tsx`.
-- **Nav ordering convention**: prefix `10` (`src/pages/10 event-schedule.tsx`) is
-  reserved for the Event Schedule page. Content pages using prefixes below `10` sort
-  before it; any future page meant to sort after it should use a prefix of `10` or
-  higher.
+- **Nav ordering convention**: prefixes `10`, `12`, `13`, `14`
+  (`src/pages/10 event-schedule.tsx`, `12 dance-schedule.tsx`,
+  `13 dance-by-level.tsx`, `14 dance-by-caller.tsx`) are reserved for those
+  auto-generated pages. A content page should use a prefix below `10` (any
+  number in that range — nothing about which specific single-digit number
+  goes with which page is fixed) so it sorts before all of them; a future
+  page meant to sort after them should use `15` or higher (`11` is
+  currently free too, but avoid it — it sits confusingly between Event
+  Schedule and the dance-schedule pages).
 - Route files still need a default export (a file-based routing requirement), which
   is in tension with "prefer named exports" below — resolved by keeping the route
   file a thin `export { X as default } from '../components/X'` wrapper around a
