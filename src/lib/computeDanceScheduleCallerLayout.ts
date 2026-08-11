@@ -57,15 +57,38 @@ function isEligibleCallerSession(session: DanceSession): session is StructuredSe
   return session.kind === 'structured' && session.eventType !== GCA_CALLER_SHOWCASE_EVENT_TYPE
 }
 
+// Recognized collective-caller placeholders — a session credited to "everyone
+// headlining this event" rather than one or more specific, trackable callers.
+// Hardcoded rather than inferred from session shape (e.g. "listed as the sole
+// caller of a multi-room session") since a real multi-room session can legitimately
+// have one specific caller too (see docs/adding-a-new-event.md's own worked
+// example), so room count alone isn't a safe signal. Same one-hardcoded-string-set
+// precedent as GCA_CALLER_SHOWCASE_EVENT_TYPE above. Add a name here if a future
+// event's spreadsheet uses different placeholder wording.
+const ALL_HEADLINERS_CALLER_NAMES = new Set(['All Headliners', 'All Callers'])
+
+// A session "credited" only to a collective placeholder, not any specific caller —
+// see ALL_HEADLINERS_CALLER_NAMES. Deliberately requires EVERY listed caller to be a
+// recognized placeholder (not just one of several) — a session co-crediting a real
+// caller alongside "All Headliners" has never been observed, and if it ever
+// happened, treating it as a normal per-caller session (so the real caller still
+// gets their own column placement) is the safer default than floating it.
+export function isAllHeadlinersSession(session: StructuredSession): boolean {
+  return session.callers.length > 0 && session.callers.every((caller) => ALL_HEADLINERS_CALLER_NAMES.has(caller))
+}
+
 export interface DanceCallerSessionPlacement {
   session: StructuredSession
   rowStart: number
   rowSpan: number
-  // 0-based index into `visibleCallers`. Always span 1 — a co-taught session's
-  // identical card lands independently in each of its callers' own columns rather
-  // than merging into one spanning block, since two arbitrary callers' column order
-  // carries no adjacency meaning the way two rooms or two levels can (see
-  // docs/design/dance-schedule.md).
+  // 0-based index into `visibleCallers`. Always span 1 for an ordinary session — a
+  // co-taught session's identical card lands independently in each of its callers'
+  // own columns rather than merging into one spanning block, since two arbitrary
+  // callers' column order carries no adjacency meaning the way two rooms or two
+  // levels can (see docs/design/dance-schedule.md). An all-headliners session (see
+  // isAllHeadlinersSession) is the one exception: columnStart is always 0 and
+  // columnSpan spans every visible caller column, mirroring the room/level views'
+  // own roomless-session floating treatment.
   columnStart: number
   columnSpan: number
   // 0-based sub-column index within this placement's column, for the defensive
@@ -108,11 +131,14 @@ function firstNameOf(name: string): string {
 // order). A freeform session (no `callers` field at all) contributes nothing —
 // this whole view skips a session with no caller entirely, rather than floating
 // it or giving it a dedicated column the way the other two views handle a session
-// that doesn't fit their own axis (see docs/design/dance-schedule.md).
+// that doesn't fit their own axis (see docs/design/dance-schedule.md). An
+// all-headliners session (see isAllHeadlinersSession) also contributes nothing
+// here — it floats across every column rather than claiming/ordering one of its
+// own, so its placeholder name must never appear in visibleCallers.
 function deriveCallerOrder(dateSessions: DanceSession[]): string[] {
   const callers = new Set<string>()
   for (const session of dateSessions) {
-    if (!isEligibleCallerSession(session)) {
+    if (!isEligibleCallerSession(session) || isAllHeadlinersSession(session)) {
       continue
     }
     for (const caller of session.callers) {
@@ -128,11 +154,15 @@ function deriveCallerOrder(dateSessions: DanceSession[]): string[] {
 // entry per name it lists (deduped via Set — a session listing the same name twice
 // has never been observed and isn't prevented by the parser, but assignLanesPerSlot
 // below absorbs that gracefully rather than needing an explicit guard beyond this).
+// slotIndex is null for an all-headliners session (see isAllHeadlinersSession) —
+// mirrors the room/level views' own roomless-session convention (see
+// assignLanes.ts's LaneEntry): it floats across every visible column instead of
+// claiming one, and never participates in lane-overlap assignment.
 interface RawEntry {
   session: StructuredSession
   rowStart: number
   rowSpan: number
-  slotIndex: number
+  slotIndex: number | null
   lane: number
   laneCount: number
 }
@@ -148,6 +178,11 @@ function buildRawEntries(
   for (const session of structuredVisible) {
     const rowStart = rowStartFor(session.startTime)
     const rowSpan = rowSpanFor(session.startTime, session.endTime)
+
+    if (isAllHeadlinersSession(session)) {
+      entries.push({ session, rowStart, rowSpan, slotIndex: null, lane: 0, laneCount: 1 })
+      continue
+    }
 
     for (const caller of new Set(session.callers)) {
       const slotIndex = visibleCallers.indexOf(caller)
@@ -244,6 +279,11 @@ function compressToOccupiedRows(
 function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number): number[] {
   const maxLaneCounts = new Array<number>(visibleCallerCount).fill(1)
   for (const entry of entries) {
+    if (entry.slotIndex === null) {
+      // Floats across every column instead of claiming one — doesn't affect any
+      // single column's own peak-concurrency width.
+      continue
+    }
     maxLaneCounts[entry.slotIndex] = Math.max(maxLaneCounts[entry.slotIndex]!, entry.laneCount)
   }
   return maxLaneCounts.map(callerColumnWidthRem)
@@ -266,6 +306,15 @@ function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number)
  * sessions): two arbitrary callers' column order carries no adjacency meaning, so a
  * co-taught session's identical card is simply placed independently in each of its
  * callers' own columns.
+ *
+ * One further exception: a session credited only to a collective placeholder like
+ * "All Headliners"/"All Callers" (see ALL_HEADLINERS_CALLER_NAMES) rather than any
+ * specific, trackable caller floats across every visible caller column instead of
+ * being skipped — the same slotIndex: null floating mechanism (assignLanes.ts)
+ * already used by the room/level views for a roomless/unordered session. Without
+ * this, such a session would otherwise vanish from this page entirely: its
+ * placeholder name can never individually clear MIN_CALLER_HOURS the way a real
+ * caller's own name does.
  *
  * `dateSessions` must be every session for the date (unfiltered) — used only to
  * derive a stable caller order, so it never reshuffles as the level filter changes.
@@ -341,8 +390,8 @@ export function computeDanceScheduleCallerLayout(
     session: entry.session,
     rowStart: entry.rowStart,
     rowSpan: entry.rowSpan,
-    columnStart: entry.slotIndex,
-    columnSpan: 1,
+    columnStart: entry.slotIndex ?? 0,
+    columnSpan: entry.slotIndex === null ? Math.max(visibleCallers.length, 1) : 1,
     lane: entry.lane,
     laneCount: entry.laneCount,
   }))

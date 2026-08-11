@@ -51,13 +51,14 @@ export function testDanceSchedulePageFilters(pageName: string, Page: ComponentTy
     it('changing the date select swaps the grid to that date', () => {
       renderPage()
       // Compares the grid panel's own rendered text wholesale rather than pinning to
-      // one specific session's text: a fact like "All Callers Dance" (Friday-only in
-      // the room/level views) doesn't work as a shared, page-agnostic check here,
-      // since the caller view deliberately excludes that same session (its caller,
-      // "All Callers", never clears MIN_CALLER_HOURS) — see
-      // computeDanceScheduleCallerLayout.ts. Scoped to "panelWrapper" (shared by all
-      // three grids), not document.body, since the date <select>'s own selected
-      // option text changes regardless of whether the grid itself updates.
+      // one specific session's text: a fact like "All Callers Dance" (Friday-only)
+      // doesn't work as a shared, page-agnostic check here, since the caller view
+      // renders it as a floating cross-column card with different text than the
+      // room/level views' own cards for the same session (see
+      // isAllHeadlinersSession in computeDanceScheduleCallerLayout.ts). Scoped to
+      // "panelWrapper" (shared by all three grids), not document.body, since the
+      // date <select>'s own selected option text changes regardless of whether the
+      // grid itself updates.
       const panel = document.querySelector('[class*="panelWrapper"]')
       const textBeforeSwitch = panel?.textContent
 

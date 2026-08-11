@@ -1,12 +1,13 @@
 import type { CSSProperties } from 'react'
 import {
   CALLER_COLUMN_WIDTH,
+  isAllHeadlinersSession,
   type DanceCallerSessionPlacement,
   type DanceScheduleCallerLayout,
 } from '../lib/computeDanceScheduleCallerLayout'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsWithRoomContent } from '../lib/danceScheduleCardContent'
-import { formatSessionGca, formatSessionLevels } from '../lib/formatDanceSession'
+import { formatSessionGca, formatSessionLevels, formatSessionTimeRange } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import { StickyScrollGrid } from './StickyScrollGrid'
 // Reused as-is — every dance-schedule grid shares the exact same visual language
@@ -26,19 +27,22 @@ function SessionCard({
   showGca: boolean
 }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
+  const isFloating = isAllHeadlinersSession(session)
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
     // already 1-based for the axis's first row (see computeDanceScheduleTimeAxis.ts
     // and docs/design/dance-schedule-mobile-scroll.md).
     gridRow: `${rowStart} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
-    backgroundColor: colorForSession(session),
+    backgroundColor: isFloating ? undefined : colorForSession(session),
   }
 
   // A laneCount > 1 placement shares its column with another entry overlapping it in
   // time — realistically only a data-entry error here (the same caller can't
   // legitimately double-book themselves), but handled the same defensive way the
-  // level grid handles its own (real) overlap case — see assignLanes.ts.
+  // level grid handles its own (real) overlap case — see assignLanes.ts. An
+  // all-headliners session never has laneCount > 1 (it floats rather than claiming
+  // a column, so it can't share one with anything — see assignLanesPerSlot).
   if (laneCount > 1) {
     const widthPercent = 100 / laneCount
     style.width = `${widthPercent}%`
@@ -47,11 +51,23 @@ function SessionCard({
 
   const levels = formatSessionLevels(session)
   const gca = formatSessionGca(session)
-  const showGcaLine = showGca && !!gca
+  const showGcaLine = !isFloating && showGca && !!gca
 
   // See DanceScheduleLevelGrid.tsx's identical rule — a visible divider between two
   // lane-split cards sharing one column, so they don't read as a single merged card.
-  const cardClassName = `${styles.card}${lane > 0 ? ` ${styles.laneDivider}` : ''}`
+  const cardClassName = isFloating ? styles.roomlessCard : `${styles.card}${lane > 0 ? ` ${styles.laneDivider}` : ''}`
+
+  if (isFloating) {
+    return (
+      <div className={cardClassName} style={style}>
+        <div className={styles.roomlessCardContent}>
+          {levels && <p className={styles.levels}>{levels}</p>}
+          <p className={styles.details}>{detailsWithRoomContent(session)}</p>
+          <p className={styles.gca}>{formatSessionTimeRange(session)}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={cardClassName} style={style}>
@@ -66,13 +82,21 @@ function SessionCard({
 // rationale also in docs/design/dance-schedule-mobile-scroll.md) — this component
 // only supplies what a caller-columns view needs: columns are headline callers
 // (layout.visibleCallers) instead of rooms or levels, plus its own SessionCard
-// rendering. Unlike either other grid, every placement here is guaranteed
-// kind === 'structured' (a session with no caller is skipped entirely by
-// computeDanceScheduleCallerLayout.ts, not floated or given a dedicated column), so
-// there's no roomless-card treatment to render at all — every card is an ordinary,
-// single-column card. Caller is already implied by the column, so the card shows
-// level(s) plain (first line, like the room-columns grid) then event type + bold
-// room (second line) instead of a bolded caller name.
+// rendering. Every placement here is guaranteed kind === 'structured' (a session
+// with no caller at all is skipped entirely by computeDanceScheduleCallerLayout.ts,
+// not floated or given a dedicated column) — but a session credited only to a
+// collective placeholder ("All Headliners"/"All Callers", see
+// isAllHeadlinersSession) DOES get the same roomless-card floating treatment the
+// room/level grids give a session that doesn't fit their own axis: it spans every
+// visible column, undyed by level color, with the session's own time range shown in
+// place of a GCA line (its row/column position already conveys the time visually
+// for an ordinary card, but a floating card can span a compressed range of rows
+// that doesn't, by itself, make the covered time obvious). An ordinary card's
+// caller is already implied by its column, so it shows level(s) plain (first line,
+// like the room-columns grid) then event type + bold room (second line) instead of
+// a bolded caller name; a floating card keeps that same room-first text since it,
+// too, is still accurate — the placeholder name itself is redundant with the card
+// already spanning every column.
 export function DanceScheduleCallerGrid({
   layout,
   showGca,

@@ -379,6 +379,103 @@ describe('computeDanceScheduleCallerLayout', () => {
     })
   })
 
+  describe('all-headliners sessions (collective caller placeholder)', () => {
+    it('floats across every visible caller column instead of vanishing', () => {
+      const padding = padHours('Vic Ceder')
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', [
+        'All Headliners',
+      ])
+      const sessions = [...padding, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const placement = layout.placements.find((p) => p.session === allHeadliners)
+      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length })
+    })
+
+    it('recognizes "All Callers" as the same kind of placeholder', () => {
+      const padding = padHours('Vic Ceder')
+      const allCallers = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Callers'])
+      const sessions = [...padding, allCallers]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const placement = layout.placements.find((p) => p.session === allCallers)
+      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length })
+    })
+
+    it('never appears in visibleCallers or claims its own column', () => {
+      const padding = padHours('Vic Ceder')
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', [
+        'All Headliners',
+      ])
+      const sessions = [...padding, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      expect(layout.visibleCallers).toEqual(['Vic Ceder'])
+    })
+
+    it('still contributes its own time range to the axis and row occupancy', () => {
+      const padding = padHours('Vic Ceder')
+      const allHeadliners = makeSession('2026-07-02T21:00:00.000Z', '2026-07-02T22:00:00.000Z', [
+        'All Headliners',
+      ])
+      const sessions = [...padding, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      expect(layout.timeMarks.some((mark) => mark.label === '9:00 PM')).toBe(true)
+      expect(layout.placements.find((p) => p.session === allHeadliners)).toBeDefined()
+    })
+
+    it('renders alongside a real caller session sharing the same row without lane-splitting either', () => {
+      const padding = padHours('Vic Ceder')
+      const real = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['Vic Ceder'], {
+        location: located('Ballroom East'),
+      })
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', [
+        'All Headliners',
+      ])
+      const sessions = [...padding, real, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const realPlacement = layout.placements.find((p) => p.session === real)
+      const floatingPlacement = layout.placements.find((p) => p.session === allHeadliners)
+      expect(realPlacement).toMatchObject({ columnStart: 0, columnSpan: 1, lane: 0, laneCount: 1 })
+      expect(floatingPlacement).toMatchObject({ columnStart: 0, columnSpan: 1, lane: 0, laneCount: 1 })
+    })
+
+    it('spans exactly 1 (not 0) when it is the only session of the day, with no real caller columns at all', () => {
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', [
+        'All Headliners',
+      ])
+      const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners], [allHeadliners])
+
+      expect(layout.visibleCallers).toEqual([])
+      expect(layout.placements).toMatchObject([{ columnStart: 0, columnSpan: 1 }])
+    })
+
+    it('does not affect any real column\'s width', () => {
+      const padding = padHours('Vic Ceder')
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', [
+        'All Headliners',
+      ])
+      const sessions = [...padding, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      expect(layout.columnWidthsRem[0]).toBe(CALLER_COLUMN_WIDTH_REM)
+    })
+
+    it('is excluded from the GCA-showcase-style event-wide hour totals but still floats regardless of its own hours', () => {
+      // An all-headliners session doesn't need to clear MIN_CALLER_HOURS at all —
+      // unlike a real caller, its eligibility isn't hour-gated, since it never
+      // claims a column of its own to be eligible FOR.
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T19:30:00.000Z', [
+        'All Headliners',
+      ])
+      const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners], [allHeadliners])
+
+      expect(layout.placements.find((p) => p.session === allHeadliners)).toBeDefined()
+    })
+  })
+
   describe('column width growth', () => {
     it('grows a column by 50% per additional lane past the first', () => {
       expect(callerColumnWidthRem(1)).toBe(CALLER_COLUMN_WIDTH_REM)

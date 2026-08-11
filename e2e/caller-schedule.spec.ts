@@ -12,10 +12,7 @@ import { test, expect } from '@playwright/test'
 // MIN_CALLER_HOURS (> 3), which computeDanceScheduleCallerLayout.ts computes
 // event-wide, not per-day (see that file's own comment on why). So she's eligible
 // for a column every day, but only actually shows one on a day she has a session
-// at all — a real, day-varying fact used below instead of a session the caller
-// view would exclude outright (e.g. "All Callers Dance", whose "All Callers"
-// caller never clears the threshold on any day, unlike the room/level views
-// which show it regardless).
+// at all.
 
 test('nav links to the caller-schedule page, which renders the default date\'s grid', async ({
   page,
@@ -42,6 +39,39 @@ test('changing the date select swaps the grid to that date', async ({ page }) =>
   // Dayle Hodge has real sessions on Saturday, so her column now appears — proof
   // the grid actually re-rendered for the new date.
   await expect(page.getByText('Dayle Hodge', { exact: true })).toBeVisible()
+})
+
+test('an all-callers session renders as a full-width banner spanning every caller column', async ({
+  page,
+}) => {
+  await page.goto('/automated-testing/caller-schedule')
+  // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
+  // regardless of the exact year parseEventDate's year-inference resolves to. Its
+  // "All Callers Dance" session's only caller, "All Callers," is a collective
+  // placeholder that never individually clears MIN_CALLER_HOURS, so it can't get an
+  // ordinary column of its own — see isAllHeadlinersSession in
+  // computeDanceScheduleCallerLayout.ts.
+  await page.getByLabel('Date').selectOption({ index: 1 })
+
+  // Caller is implied by spanning every column here (contrast the room-columns
+  // grid, whose card bolds the caller name) — this grid's card bolds the room
+  // instead, same as any ordinary card (see detailsWithRoomContent).
+  await expect(page.getByText('All Callers Dance', { exact: false })).toBeVisible()
+
+  const columnCount = await page.locator('[class*="roomHeader"]').count()
+  expect(columnCount).toBeGreaterThan(1)
+
+  // The outer floating-card element (not its sticky, fit-content inner text
+  // wrapper — see .roomlessCardContent) should span every column, not just one —
+  // exclude by class substring since "roomlessCardContent"'s hashed CSS-module
+  // class name contains "roomlessCard" as a prefix.
+  const banner = page.locator('div[class*="roomlessCard"]:not([class*="roomlessCardContent"])')
+  await expect(banner).toHaveCount(1)
+  const bannerBox = await banner.boundingBox()
+  const firstColumnBox = await page.locator('[class*="roomHeader"]').first().boundingBox()
+  expect(bannerBox).not.toBeNull()
+  expect(firstColumnBox).not.toBeNull()
+  expect(bannerBox!.width).toBeGreaterThan(firstColumnBox!.width * 1.5)
 })
 
 test('narrowing the level slider hides out-of-range sessions and their now-empty caller column', async ({
