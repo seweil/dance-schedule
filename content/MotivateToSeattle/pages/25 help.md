@@ -8,14 +8,13 @@ available even when you don't have a signal or Wi-Fi.
 
 ### On iPhone or iPad
 
-1. Open this site in **Safari**. (Other browsers on iOS, like Chrome or
-   Firefox, can't add it to your home screen — it has to be Safari.)
+1. Open this site ([sqdance.app](sqdance.app)) in **Safari**. Other browsers on iOS, like Chrome or
+   Firefox, can't add it to your home screen — it has to be Safari.
 2. Tap the **••• (more)** button to the right of the address bar.
 3. Tap **Share** in the menu that opens.
 4. Scroll down and tap **Add to Home Screen**. If you don't see it, tap
-   **View More** at the bottom of the list first — some versions of Safari
-   tuck it under there instead of showing it directly.
-5. Tap **Add** in the top right.
+   **View More** at the bottom of the list first.
+5. Tap **Add to Home Screen**.
 
 ### On Android
 
