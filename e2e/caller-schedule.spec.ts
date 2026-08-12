@@ -41,7 +41,7 @@ test('changing the date select swaps the grid to that date', async ({ page }) =>
   await expect(page.getByText('Dayle Hodge', { exact: true })).toBeVisible()
 })
 
-test('an all-callers session renders as a full-width banner spanning every caller column', async ({
+test('an all-callers session renders as a "busy"-colored full-width banner spanning every caller column', async ({
   page,
 }) => {
   await page.goto('/automated-testing/caller-schedule')
@@ -49,7 +49,7 @@ test('an all-callers session renders as a full-width banner spanning every calle
   // regardless of the exact year parseEventDate's year-inference resolves to. Its
   // "All Callers Dance" session's only caller, "All Callers," is a collective
   // placeholder that never individually clears MIN_CALLER_HOURS, so it can't get an
-  // ordinary column of its own — see isAllHeadlinersSession in
+  // ordinary column of its own — see structuredFloatKind in
   // computeDanceScheduleCallerLayout.ts.
   await page.getByLabel('Date').selectOption({ index: 1 })
 
@@ -61,17 +61,47 @@ test('an all-callers session renders as a full-width banner spanning every calle
   const columnCount = await page.locator('[class*="roomHeader"]').count()
   expect(columnCount).toBeGreaterThan(1)
 
-  // The outer floating-card element (not its sticky, fit-content inner text
+  // Scoped by text, not just "any roomlessCard" — Friday also has a Lunch Break
+  // floating banner (a different test below), so an unscoped locator would match
+  // both. The outer floating-card element (not its sticky, fit-content inner text
   // wrapper — see .roomlessCardContent) should span every column, not just one —
   // exclude by class substring since "roomlessCardContent"'s hashed CSS-module
   // class name contains "roomlessCard" as a prefix.
-  const banner = page.locator('div[class*="roomlessCard"]:not([class*="roomlessCardContent"])')
+  const banner = page
+    .locator('div[class*="roomlessCard"]:not([class*="roomlessCardContent"])')
+    .filter({ hasText: 'All Callers Dance' })
   await expect(banner).toHaveCount(1)
+  // "busy" (an all-callers/all-headliners session) gets the light desaturated
+  // busyFloatingCard modifier, distinct from an ordinary "free" floating card
+  // (e.g. the Lunch Break banner below) — see DanceScheduleGrid.module.css.
+  await expect(banner).toHaveClass(/busyFloatingCard/)
   const bannerBox = await banner.boundingBox()
   const firstColumnBox = await page.locator('[class*="roomHeader"]').first().boundingBox()
   expect(bannerBox).not.toBeNull()
   expect(firstColumnBox).not.toBeNull()
   expect(bannerBox!.width).toBeGreaterThan(firstColumnBox!.width * 1.5)
+})
+
+test('a break (freeform session) now renders as a "free"-colored full-width banner instead of being invisible', async ({
+  page,
+}) => {
+  await page.goto('/automated-testing/caller-schedule')
+  // Index 1 — Friday, same fixture date as the all-callers test above. Its
+  // 12:00–1:30 PM "Lunch Break" freeform session used to be dropped entirely by
+  // computeDanceScheduleCallerLayout.ts (no caller field at all) — it now floats
+  // the same way an all-callers session does, but styled as "free" (no headline
+  // caller busy) rather than "busy."
+  await page.getByLabel('Date').selectOption({ index: 1 })
+
+  await expect(page.getByText('Lunch Break', { exact: false })).toBeVisible()
+
+  const banner = page
+    .locator('div[class*="roomlessCard"]:not([class*="roomlessCardContent"])')
+    .filter({ hasText: 'Lunch Break' })
+  await expect(banner).toHaveCount(1)
+  // NOT busy-colored — a break means callers are free, the opposite of an
+  // all-callers session.
+  await expect(banner).not.toHaveClass(/busyFloatingCard/)
 })
 
 test('narrowing the level slider hides out-of-range sessions and their now-empty caller column', async ({

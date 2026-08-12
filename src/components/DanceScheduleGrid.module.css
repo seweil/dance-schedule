@@ -270,6 +270,20 @@
   color: var(--color-text);
 }
 
+/* Modifier, applied alongside .roomlessCard only by DanceScheduleCallerGrid.tsx's
+   SessionCard, only for a "busy" floating card (an all-headliners/all-callers
+   session — every headline caller is occupied together). A very light orange,
+   deliberately distinct from .roomlessCard's own plain background above (used
+   unmodified for a "free" floating card — a break, or a session naming only
+   non-headline participants, where headline callers have nothing scheduled) and
+   from every color in levelColors.ts's LEVEL_COLORS palette (including C3A/C3B's
+   own, more saturated peach/orange tones) so it never reads as implying a
+   specific level. The room/level grids have no busy-vs-free distinction — just
+   one kind of roomless card — so this class is unused there. */
+.busyFloatingCard {
+  background: #ffe0cc;
+}
+
 /* A roomless session (e.g. a meal break) spans every visible room/level column
    (columnSpan set in computeDanceScheduleLayout.ts/computeDanceScheduleLevelLayout.ts)
    — often much wider than the viewport. justify-content: center above only

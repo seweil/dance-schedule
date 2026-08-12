@@ -301,19 +301,38 @@ usually already kept in practice.
   * Lunch Break
   ROOMS: NONE
   ```
+  On the Caller Schedule page, a session like this (any freeform cell — see
+  "Anything that isn't a structured..." below, whether roomless or not) renders
+  as a full-width gray banner spanning every visible caller column, meaning
+  "no headline caller has anything scheduled right now."
 - **A session credited to everyone headlining the event, not one or more
   specific callers** (e.g. a combined closing dance): write the caller as
   exactly `All Headliners` or `All Callers` — these two exact, case-sensitive
   spellings are recognized as collective placeholders. On the Caller Schedule
   page, a session like this renders as a full-width banner spanning every
-  visible caller column, instead of needing (or being able to get) a caller
-  column of its own — a placeholder name can never individually qualify for a
-  column the way a real caller's name does. Any other wording (e.g.
+  visible caller column too, instead of needing (or being able to get) a
+  caller column of its own — a placeholder name can never individually
+  qualify for a column the way a real caller's name does. Unlike a break,
+  though, this means the OPPOSITE thing — everyone (including every headline
+  caller) is busy together — so it renders in a distinct very light orange
+  color instead of the plain gray a break/meal uses. Any other wording (e.g.
   "Everyone," "All Instructors") is treated as an ordinary, specific caller
   name and won't get this treatment.
   ```
   SSD : Combined Dance - All Callers
   ROOMS: Ballroom Centre, Ballroom East
+  ```
+- **A session run by non-headline callers, where headline callers are free**
+  (e.g. the event's GCA/non-headline callers practicing on their own while the
+  headliners rest): write the caller as exactly `GCA Callers` — recognized the
+  same way `All Headliners`/`All Callers` is, but with the opposite meaning:
+  it renders on the Caller Schedule page in the same plain gray a break/meal
+  uses (headline callers are free), not the busy color. This is a different
+  mechanism from the `GCA:` trailing-line credit above — that's a subordinate
+  credit alongside a real headline caller; this is the ENTIRE caller field,
+  naming no specific headline caller at all.
+  ```
+  A2, C1 : GCA Callers
   ```
 - **Anything that isn't a structured "Level : Type - Caller" session**
   (an announcement, a break, anything freeform): prefix the cell with `* `

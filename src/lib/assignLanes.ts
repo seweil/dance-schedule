@@ -6,8 +6,13 @@
 export interface LaneEntry {
   rowStart: number
   rowSpan: number
-  // null marks an entry that floats across every column instead of claiming one —
-  // it never participates in lane assignment (see assignLanesPerSlot below).
+  // null marks an entry that floats across every column instead of claiming one.
+  // It's grouped with every OTHER null-slotIndex entry as one shared virtual
+  // "slot" (see assignLanesPerSlot below) — two floating entries overlapping in
+  // time (e.g. an all-evening "Registration" freeform session spanning a more
+  // specific session within it) lane-split against each other exactly like two
+  // ordinary entries sharing a real column would, rather than silently
+  // overlap-drawing.
   slotIndex: number | null
   lane: number
   laneCount: number
@@ -38,12 +43,12 @@ export function assignLanes(cluster: LaneEntry[]): void {
 
 // Assigns lanes independently per slot index — a placement's overlap partners are
 // only ever the other entries claiming the *same* column, never a different one.
+// Every null-slotIndex (floating) entry shares one virtual slot with every OTHER
+// floating entry, whatever real slot indices happen to exist alongside them — see
+// LaneEntry's own comment on slotIndex.
 export function assignLanesPerSlot<T extends LaneEntry>(entries: T[]): void {
-  const bySlot = new Map<number, T[]>()
+  const bySlot = new Map<number | null, T[]>()
   for (const entry of entries) {
-    if (entry.slotIndex === null) {
-      continue
-    }
     const list = bySlot.get(entry.slotIndex)
     if (list) {
       list.push(entry)

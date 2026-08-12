@@ -165,34 +165,50 @@ describe('computeDanceScheduleCallerLayout', () => {
     expect(layout.visibleCallers).toEqual(['Allan Hurst'])
   })
 
-  it('skips a freeform session with no caller entirely — no column, no placement', () => {
+  it('floats a freeform session (a break) as a "free" placement instead of skipping it', () => {
     const lunch = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', {
       description: 'Lunch Break',
       location: { kind: 'roomless' },
     })
     const layout = computeDanceScheduleCallerLayout([lunch], [lunch], [lunch])
 
-    expect(layout).toEqual({
-      visibleCallers: [],
-      columnWidthsRem: [],
-      totalRows: 0,
-      timeMarks: [],
-      placements: [],
-    })
+    expect(layout.visibleCallers).toEqual([])
+    expect(layout.placements).toMatchObject([
+      { session: lunch, columnStart: 0, columnSpan: 1, floatKind: 'free' },
+    ])
   })
 
-  it('does not let a callerless session contribute a time-axis row alongside real sessions', () => {
+  it('lets a freeform session contribute its own time-axis row now that it floats', () => {
     const padding = padHours('Vic Ceder')
     const countryWestern = makeFreeform('2026-07-02T21:00:00.000Z', '2026-07-02T22:00:00.000Z')
     const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, countryWestern, session]
     const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
 
-    // The freeform session's 9-10pm range contributes nothing to the axis, and its
-    // own placement never exists — only the padding + real session's rows show up.
-    expect(layout.timeMarks.some((mark) => mark.label === '9:00 PM')).toBe(false)
-    expect(layout.placements.find((p) => p.session === countryWestern)).toBeUndefined()
+    // The freeform session now floats, so its 9-10pm range DOES contribute to the
+    // axis, and it gets its own "free" placement alongside the real session's.
+    expect(layout.timeMarks.some((mark) => mark.label === '9:00 PM')).toBe(true)
+    const countryWesternPlacement = layout.placements.find((p) => p.session === countryWestern)
+    expect(countryWesternPlacement).toMatchObject({ floatKind: 'free' })
     expect(layout.placements.find((p) => p.session === session)).toBeDefined()
+  })
+
+  it('does not compress away a freeform break\'s row now that it occupies it', () => {
+    const morning = backToBackDances('Vic Ceder', 2, 9) // 9am-11am, back-to-back
+    const lunch = makeFreeform('2026-07-02T11:00:00.000Z', '2026-07-02T12:00:00.000Z', {
+      description: 'Lunch Break',
+      location: { kind: 'roomless' },
+    })
+    const afternoon = backToBackDances('Vic Ceder', 2, 13) // 1pm-3pm, back-to-back
+    const sessions = [...morning, lunch, ...afternoon]
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+    // 2 morning rows + 1 lunch row + 2 afternoon rows = 5 — the lunch row survives
+    // compression (it's occupied by the floating break), but the genuinely idle
+    // 12-1pm gap between lunch ending and the afternoon starting still compresses
+    // away to zero rows.
+    expect(layout.totalRows).toBe(5)
+    expect(layout.placements.find((p) => p.session === lunch)).toMatchObject({ rowStart: 3, rowSpan: 1 })
   })
 
   it('omits "GCA Caller Showcase Dance" sessions entirely, even for an otherwise-qualifying caller', () => {
@@ -389,7 +405,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
 
       const placement = layout.placements.find((p) => p.session === allHeadliners)
-      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length })
+      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length, floatKind: 'busy' })
     })
 
     it('recognizes "All Callers" as the same kind of placeholder', () => {
@@ -399,7 +415,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
 
       const placement = layout.placements.find((p) => p.session === allCallers)
-      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length })
+      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length, floatKind: 'busy' })
     })
 
     it('never appears in visibleCallers or claims its own column', () => {
@@ -449,7 +465,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners], [allHeadliners])
 
       expect(layout.visibleCallers).toEqual([])
-      expect(layout.placements).toMatchObject([{ columnStart: 0, columnSpan: 1 }])
+      expect(layout.placements).toMatchObject([{ columnStart: 0, columnSpan: 1, floatKind: 'busy' }])
     })
 
     it('does not affect any real column\'s width', () => {
@@ -473,6 +489,151 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners], [allHeadliners])
 
       expect(layout.placements.find((p) => p.session === allHeadliners)).toBeDefined()
+    })
+  })
+
+  describe('caller-free-time sessions (non-headline placeholder, e.g. "GCA Callers")', () => {
+    it('floats with floatKind "free", not "busy"', () => {
+      const padding = padHours('Vic Ceder')
+      const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
+      const sessions = [...padding, gcaCallers]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const placement = layout.placements.find((p) => p.session === gcaCallers)
+      expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length, floatKind: 'free' })
+    })
+
+    it('never appears in visibleCallers or claims its own column, regardless of accumulated hours', () => {
+      // 4 hours would clear MIN_CALLER_HOURS on a raw sum if it were ever eligible
+      // to be treated as a real caller — it must never be, no matter how much time
+      // accumulates under this literal placeholder name.
+      const gcaCallers = Array.from({ length: 4 }, (_, i) =>
+        makeSession(`2026-07-02T0${i}:00:00.000Z`, `2026-07-02T0${i + 1}:00:00.000Z`, ['GCA Callers']),
+      )
+      const layout = computeDanceScheduleCallerLayout(gcaCallers, gcaCallers, gcaCallers)
+
+      expect(layout.visibleCallers).toEqual([])
+    })
+
+    it('renders alongside a real caller session sharing the same row without lane-splitting either', () => {
+      const padding = padHours('Vic Ceder')
+      const real = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['Vic Ceder'], {
+        location: located('Ballroom East'),
+      })
+      const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
+      const sessions = [...padding, real, gcaCallers]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const realPlacement = layout.placements.find((p) => p.session === real)
+      const floatingPlacement = layout.placements.find((p) => p.session === gcaCallers)
+      expect(realPlacement).toMatchObject({ columnStart: 0, columnSpan: 1, lane: 0, laneCount: 1 })
+      expect(floatingPlacement).toMatchObject({ columnStart: 0, columnSpan: 1, lane: 0, laneCount: 1, floatKind: 'free' })
+    })
+
+    it('renders alongside an all-headliners ("busy") session on a different row, each keeping its own floatKind', () => {
+      const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Headliners'])
+      const sessions = [gcaCallers, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      expect(layout.placements.find((p) => p.session === gcaCallers)).toMatchObject({ floatKind: 'free' })
+      expect(layout.placements.find((p) => p.session === allHeadliners)).toMatchObject({ floatKind: 'busy' })
+    })
+  })
+
+  describe('overlapping floating sessions (regression — real MotivateToSeattle data)', () => {
+    // Mirrors a real reported bug/refinement: an all-evening freeform
+    // "Registration" session (5:30-8:00 PM) overlaps BOTH a "GCA Callers"
+    // free-time session (6:30-7:00 PM) AND a "Trail-In Dance - All Headliners"
+    // busy session (7:00-8:00 PM) within it. First fixed by lane-splitting all
+    // three (they'd otherwise render stacked directly on top of one another —
+    // illegible), but a "free" entry's own claim ("no headline caller has
+    // anything scheduled") stops being true the moment something else starts
+    // inside it — so clipFreeFloatingEntries now clips Registration's RENDERED
+    // span to end right when "GCA Callers" begins, which also means it no
+    // longer even overlaps either later session, so no lane-splitting is needed
+    // at all: each renders full-width for its own portion of the evening.
+    it("clips a free entry's span at the first other entry within it, instead of lane-splitting", () => {
+      const registration = makeFreeform('2026-07-02T17:30:00.000Z', '2026-07-02T20:00:00.000Z', {
+        description: 'Registration',
+        location: { kind: 'roomless' },
+      })
+      const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Headliners'])
+      const sessions = [registration, gcaCallers, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const registrationPlacement = layout.placements.find((p) => p.session === registration)
+      const gcaPlacement = layout.placements.find((p) => p.session === gcaCallers)
+      const allHeadlinersPlacement = layout.placements.find((p) => p.session === allHeadliners)
+
+      // Registration's rowSpan is clipped to run only from its own start (row 1)
+      // up to gcaCallers' start (row 2) — one row, not the three its own
+      // 5:30-8:00 PM range would otherwise span. Its own SESSION (and therefore
+      // its card's displayed "5:30 PM – 8:00 PM" text) is untouched — only the
+      // rendered geometry shrinks.
+      expect(registrationPlacement).toMatchObject({ rowStart: 1, rowSpan: 1, floatKind: 'free', lane: 0, laneCount: 1 })
+      expect(registrationPlacement!.session).toBe(registration)
+      // Neither later session overlaps the now-clipped Registration span, so
+      // both get their own full-width lane, same as if Registration weren't
+      // there at all.
+      expect(gcaPlacement).toMatchObject({ floatKind: 'free', lane: 0, laneCount: 1 })
+      expect(allHeadlinersPlacement).toMatchObject({ floatKind: 'busy', lane: 0, laneCount: 1 })
+    })
+
+    it('does not clip a "busy" entry, even when something else starts inside its own span', () => {
+      // A "busy" session means everyone is occupied together — its own claim
+      // never needs to defer to anything else starting inside it the way a
+      // "free" entry's does. (Two genuinely overlapping busy/ordinary entries
+      // are a data-entry-error case handled defensively by lane-splitting, not
+      // by clipping — see the "does not lane-split..." test below.)
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T21:00:00.000Z', [
+        'All Headliners',
+      ])
+      const gcaCallers = makeSession('2026-07-02T20:00:00.000Z', '2026-07-02T20:30:00.000Z', ['GCA Callers'])
+      const sessions = [allHeadliners, gcaCallers]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const allHeadlinersPlacement = layout.placements.find((p) => p.session === allHeadliners)
+      expect(allHeadlinersPlacement!.rowSpan).toBeGreaterThan(1)
+    })
+
+    it('still lane-splits two floating entries that start at exactly the same time (clipping cannot apply)', () => {
+      // Clipping only looks at entries starting STRICTLY AFTER another entry's
+      // own start — two entries starting simultaneously never trigger it, so
+      // the lane-split mechanism (assignLanesPerSlot) is still needed for this
+      // defensive, data-entry-error-like case.
+      const lunch = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', {
+        description: 'Lunch Break',
+        location: { kind: 'roomless' },
+      })
+      const allHeadliners = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', [
+        'All Headliners',
+      ])
+      const sessions = [lunch, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      const lunchPlacement = layout.placements.find((p) => p.session === lunch)
+      const allHeadlinersPlacement = layout.placements.find((p) => p.session === allHeadliners)
+      expect(lunchPlacement).toMatchObject({ laneCount: 2 })
+      expect(allHeadlinersPlacement).toMatchObject({ laneCount: 2 })
+      expect(lunchPlacement!.lane).not.toBe(allHeadlinersPlacement!.lane)
+    })
+
+    it('does not lane-split a floating entry against a real per-caller entry it overlaps', () => {
+      // Floating entries and real per-column entries are independent virtual
+      // "slots" — an all-headliners session overlapping a real caller's own session
+      // (different caller, different column) must not affect that caller's lane.
+      const padding = padHours('Vic Ceder')
+      const real = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T19:30:00.000Z', ['Vic Ceder'], {
+        location: located('Ballroom East'),
+      })
+      const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Headliners'])
+      const sessions = [...padding, real, allHeadliners]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+
+      expect(layout.placements.find((p) => p.session === real)).toMatchObject({ lane: 0, laneCount: 1 })
+      expect(layout.placements.find((p) => p.session === allHeadliners)).toMatchObject({ lane: 0, laneCount: 1 })
     })
   })
 

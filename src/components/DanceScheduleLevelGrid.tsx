@@ -74,14 +74,16 @@ function SessionCard({
   const slot = !isRoomless ? slots[columnStart] : undefined
   const levelPrefix = slot && slot.levels.length > 1 ? formatSessionLevels(session) : undefined
 
-  // A visible divider between two lane-split events sharing one column — without
-  // it they can read as a single merged card, especially since lane-splitting only
-  // ever happens within one level slot, so the two ARE usually the identical
-  // level-tinted color (colorForSession above). Only lane > 0 gets it — lane 0's
-  // own left edge is the column's natural boundary, not a seam between two events.
-  const cardClassName = isRoomless
-    ? styles.roomlessCard
-    : `${styles.card}${lane > 0 ? ` ${styles.laneDivider}` : ''}`
+  // A visible divider between two lane-split events sharing one column (usually
+  // the identical level-tinted color, colorForSession above, since lane-splitting
+  // mostly happens within one level slot) — or, for a roomless card, sharing the
+  // floating "virtual slot" every roomless entry lane-splits against (e.g. an
+  // all-evening roomless session overlapping a shorter one within it — see
+  // assignLanes.ts). Without it, two lane-split cards can read as a single merged
+  // one. Only lane > 0 gets it — lane 0's own left edge is the column's natural
+  // boundary, not a seam between two events.
+  const laneDividerClass = lane > 0 ? ` ${styles.laneDivider}` : ''
+  const cardClassName = isRoomless ? `${styles.roomlessCard}${laneDividerClass}` : `${styles.card}${laneDividerClass}`
 
   return (
     <div className={cardClassName} style={style}>

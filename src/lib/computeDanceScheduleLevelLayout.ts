@@ -104,8 +104,10 @@ const EMPTY_LEVEL_LAYOUT: DanceScheduleLevelLayout = {
 // single-slot granularity first, mirroring how the room algorithm's non-contiguous
 // multi-room fallback already works; entries get merged back into a wider span in
 // mergeIntoPlacements below, only for the common conflict-free case. `slotIndex:
-// null` marks a genuinely roomless "floating" entry, handled separately — it never
-// participates in overlap-lane assignment. A no-ordered-level entry with a real room
+// null` marks a genuinely roomless "floating" entry — it doesn't claim a real
+// column, but DOES lane-split against every other floating entry it overlaps in
+// time (assignLanesPerSlot in assignLanes.ts groups every null-slotIndex entry
+// into one shared virtual slot). A no-ordered-level entry with a real room
 // instead gets OTHER_LEVEL_SLOT's own fixed index (see buildRawEntries) and flows
 // through the ordinary per-slot pipeline just like any real level.
 interface RawEntry {

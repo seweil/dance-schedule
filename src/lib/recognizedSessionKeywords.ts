@@ -50,3 +50,18 @@ export const ALL_HEADLINERS_CALLER_NAMES = new Set(['All Headliners', 'All Calle
 export function isAllHeadlinersSession(session: StructuredSession): boolean {
   return session.callers.length > 0 && session.callers.every((caller) => ALL_HEADLINERS_CALLER_NAMES.has(caller))
 }
+
+// Recognized NON-headline placeholders — the opposite of ALL_HEADLINERS_CALLER_NAMES
+// above. A session naming only these callers means every HEADLINE caller is free
+// during it (e.g. the event's non-headline/GCA callers running their own session
+// while the headliners rest), not that everyone is occupied together. On the
+// Caller Schedule page this floats the same way an all-headliners session does, but
+// styled to look like a break (see computeDanceScheduleCallerLayout.ts) rather than
+// like a busy block. Add a name here if a future event's spreadsheet uses different
+// wording for this same "headliners have nothing scheduled" concept.
+export const CALLER_FREE_TIME_NAMES = new Set(['GCA Callers'])
+
+// Same shape and rationale as isAllHeadlinersSession — see that function's comment.
+export function isCallerFreeTimeSession(session: StructuredSession): boolean {
+  return session.callers.length > 0 && session.callers.every((caller) => CALLER_FREE_TIME_NAMES.has(caller))
+}

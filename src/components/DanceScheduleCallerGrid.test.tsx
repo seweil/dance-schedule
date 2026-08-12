@@ -6,7 +6,7 @@ import type {
   DanceScheduleCallerLayout,
 } from '../lib/computeDanceScheduleCallerLayout'
 import { colorForSession } from '../lib/levelColors'
-import type { StructuredSession } from '../types/danceSchedule'
+import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 vi.mock('./DanceScheduleGrid.module.css', () => ({
   default: new Proxy({}, { get: (_target, prop) => prop }) as Record<string, string>,
@@ -24,6 +24,37 @@ const STRUCTURED_SESSION: StructuredSession = {
   gca: 'Tim Stephens',
 }
 
+const ALL_HEADLINERS_SESSION: StructuredSession = {
+  kind: 'structured',
+  date: new Date('2026-07-02T00:00:00.000Z'),
+  startTime: new Date('2026-07-02T19:00:00.000Z'),
+  endTime: new Date('2026-07-02T20:00:00.000Z'),
+  location: { kind: 'located', rooms: ['Glacier', 'Horizon'] },
+  levels: ['A2', 'C1'],
+  eventType: 'Trail-In Dance',
+  callers: ['All Headliners'],
+}
+
+const GCA_CALLERS_SESSION: StructuredSession = {
+  kind: 'structured',
+  date: new Date('2026-07-02T00:00:00.000Z'),
+  startTime: new Date('2026-07-02T18:30:00.000Z'),
+  endTime: new Date('2026-07-02T19:00:00.000Z'),
+  location: { kind: 'located', rooms: ['Glacier', 'Horizon'] },
+  levels: ['A2', 'C1'],
+  eventType: 'Dancing',
+  callers: ['GCA Callers'],
+}
+
+const LUNCH_BREAK_SESSION: DanceSession = {
+  kind: 'freeform',
+  date: new Date('2026-07-02T00:00:00.000Z'),
+  startTime: new Date('2026-07-02T12:00:00.000Z'),
+  endTime: new Date('2026-07-02T13:00:00.000Z'),
+  location: { kind: 'roomless' },
+  description: 'Lunch Break (on your own)',
+}
+
 function placement(
   overrides: Partial<DanceCallerSessionPlacement> = {},
 ): DanceCallerSessionPlacement {
@@ -35,6 +66,7 @@ function placement(
     columnSpan: 1,
     lane: 0,
     laneCount: 1,
+    floatKind: null,
     ...overrides,
   }
 }
@@ -266,5 +298,102 @@ describe('DanceScheduleCallerGrid', () => {
       />,
     )
     expect(screen.getAllByText('Ballroom Centre')).toHaveLength(2)
+  })
+
+  describe('floating cards (floatKind !== null)', () => {
+    it('renders a "busy" placement with the busy modifier class and bold room text', () => {
+      const { container } = render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({
+            visibleCallers: ['Michael Kellogg'],
+            placements: [
+              placement({
+                session: ALL_HEADLINERS_SESSION,
+                columnStart: 0,
+                columnSpan: 1,
+                floatKind: 'busy',
+              }),
+            ],
+          })}
+          showGca
+          onShowAllLevels={() => {}}
+        />,
+      )
+      const card = container.querySelector('.roomlessCard') as HTMLElement
+      expect(card).toHaveClass('roomlessCard', 'busyFloatingCard')
+      const room = screen.getByText('Glacier, Horizon')
+      expect(room.tagName).toBe('STRONG')
+    })
+
+    it('renders a "free" structured placeholder placement (e.g. "GCA Callers") without the busy modifier, bolding the caller instead of the room', () => {
+      const { container } = render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({
+            visibleCallers: ['Michael Kellogg'],
+            placements: [
+              placement({
+                session: GCA_CALLERS_SESSION,
+                columnStart: 0,
+                columnSpan: 1,
+                floatKind: 'free',
+              }),
+            ],
+          })}
+          showGca
+          onShowAllLevels={() => {}}
+        />,
+      )
+      const card = container.querySelector('.roomlessCard') as HTMLElement
+      expect(card).toHaveClass('roomlessCard')
+      expect(card).not.toHaveClass('busyFloatingCard')
+      const caller = screen.getByText('GCA Callers')
+      expect(caller.tagName).toBe('STRONG')
+      expect(screen.queryByText('Glacier, Horizon')).not.toBeInTheDocument()
+    })
+
+    it('renders a "free" freeform placement (a break) with its plain description, no busy modifier', () => {
+      const { container } = render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({
+            visibleCallers: ['Michael Kellogg'],
+            placements: [
+              placement({
+                session: LUNCH_BREAK_SESSION,
+                columnStart: 0,
+                columnSpan: 1,
+                floatKind: 'free',
+              }),
+            ],
+          })}
+          showGca
+          onShowAllLevels={() => {}}
+        />,
+      )
+      const card = container.querySelector('.roomlessCard') as HTMLElement
+      expect(card).not.toHaveClass('busyFloatingCard')
+      expect(screen.getByText('Lunch Break (on your own)')).toBeInTheDocument()
+    })
+
+    it('shows the session time range instead of a GCA line on a floating card, even when showGca is true', () => {
+      render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({
+            visibleCallers: ['Michael Kellogg'],
+            placements: [
+              placement({
+                session: ALL_HEADLINERS_SESSION,
+                columnStart: 0,
+                columnSpan: 1,
+                floatKind: 'busy',
+              }),
+            ],
+          })}
+          showGca
+          onShowAllLevels={() => {}}
+        />,
+      )
+      expect(screen.getByText('7:00 PM – 8:00 PM')).toBeInTheDocument()
+      expect(screen.queryByText(/^GCA:/)).not.toBeInTheDocument()
+    })
   })
 })

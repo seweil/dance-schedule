@@ -1252,7 +1252,7 @@ test would be the natural next step for durable regression coverage; not
 added here since Playwright can't be run from this project's sandbox to
 validate it.
 
-### Caller-columns view: a third grid, headline callers as columns, skipping sessions with no caller
+### Caller-columns view: a third grid, headline callers as columns
 
 **Why:** Alongside room-columns and level-columns, some users want to scan a
 single caller across the whole day — "what is Vic Ceder doing all day?" —
@@ -1280,24 +1280,19 @@ present in `visibleSessions`, same as before — only the ordering rule
 changed. This keeps the column set stable as the level range narrows, same
 guarantee the room view already provides.
 
-**A session with no caller is skipped entirely, not floated or given a
-dedicated "Other" column:** a freeform session (e.g. a lunch break, or the
-"Country Western Dance" entry the level view's own `OTHER_LEVEL_SLOT` was
-built for) has no `callers` field at all. Both other views give a
-"doesn't fit my axis" session somewhere to go — the room view floats a
-roomless session across every room, the level view floats a roomless
-session or gives a real-room-but-no-level session a dedicated `"Other"`
-column. This view does neither: per direct product decision, a session with
-no caller simply isn't part of "what is this caller doing all day" and is
-dropped before layout even begins — `computeDanceScheduleCallerLayout`
-filters `visibleSessions` down to `kind === 'structured'` sessions before
-doing anything else, including before computing the shared time axis, so a
-skipped session contributes no column, no placement, and no time-axis row
-(a lunch break's time range simply doesn't appear on this page at all).
-This is the one place this view's design deliberately doesn't mirror either
-prior view's precedent, rather than extending it — **except** for the one
-narrower case of a collective-placeholder caller name, which DOES float; see
-"All-headliners sessions float across every caller column" below.
+**Every session renders as one of three things — an ordinary per-caller card,
+a "busy" floating card, or a "free" floating card — never skipped:** this
+started out as "a session with no caller is skipped entirely, not floated or
+given a dedicated 'Other' column" (a freeform session, e.g. a lunch break, has
+no `callers` field at all, and this view originally didn't extend either
+other view's own "doesn't fit my axis" floating treatment to it, per direct
+product decision — "what is this caller doing all day" seemed to have nothing
+to say about a break). That decision was reversed after a real report: a
+break being completely invisible on this page — no indication callers had any
+time off at all, the page just skipped straight from one dance session to the
+next — was itself the problem, not a deliberate simplification worth keeping.
+See "Meals/breaks float too, distinguished from 'busy' by color" below for the
+fix and the closely-related "GCA Callers" case that prompted revisiting this.
 
 **"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
 needs more than 3 hours to get a column at all:** both per direct product
@@ -1371,19 +1366,17 @@ at its second consumer, also deliberately ignorant of domain-specific
 fields). `computeDanceScheduleLevelLayout.ts` now imports from this shared
 file instead of defining its own copy — pure refactor, no behavior change.
 
-**Cards show level(s) and room, never the caller** (already implied by the
-column) — `.levels` line first, plain, same as the room view; `.details`
-line second, event-type-prefix + bold **room** (`detailsWithRoomContent`, a
-new sibling of `detailsContent` in `danceScheduleCardContent.tsx` bolding
-`formatSessionRoom` instead of `formatSessionCallers`); the existing
-optional GCA line unchanged. Since every placement here is guaranteed
-`kind === 'structured'` (freeform sessions are filtered out before layout
-runs), an ordinary card never needs roomless-card treatment — every
-non-floating card renders as a normal single-column card, even one whose own
-`location.kind === 'roomless'` (still lands under its real caller's column;
-`formatSessionRoom` just renders `"—"` for it, no special-casing needed). The
-one placement that DOES get roomless-card-style treatment is the
-all-headliners floating case — see below.
+**An ordinary card shows level(s) and room, never the caller** (already
+implied by the column) — `.levels` line first, plain, same as the room view;
+`.details` line second, event-type-prefix + bold **room**
+(`detailsWithRoomContent`, a sibling of `detailsContent` in
+`danceScheduleCardContent.tsx` bolding `formatSessionRoom` instead of
+`formatSessionCallers`); the existing optional GCA line unchanged. An
+ordinary card is always `kind === 'structured'` with a real, specific caller
+— even one whose own `location.kind === 'roomless'` still lands under its
+real caller's column (`formatSessionRoom` just renders `"—"` for it, no
+special-casing needed). A floating card (see below) gets different treatment
+depending on which of the two floating kinds it is.
 
 **Idle rows are dropped entirely, not just capped at one row apiece:**
 `computeDanceScheduleTimeAxis.ts`'s "axis is not a clock" model already
@@ -1427,8 +1420,7 @@ headliners' should show on 'Caller Schedule' spanning all rows") and fixed by
 recognizing the placeholder and floating that one session across every
 visible caller column instead, reusing the exact `slotIndex: null` mechanism
 `assignLanes.ts` already defines and the room/level views already use for
-their own roomless/unordered sessions — no changes needed to `assignLanes.ts`
-itself.
+their own roomless/unordered sessions.
 
 **Detection is a small hardcoded recognized-name set
 (`ALL_HEADLINERS_CALLER_NAMES`, `isAllHeadlinersSession()` — both in
@@ -1444,24 +1436,123 @@ observed, and if it ever happened, treating it as an ordinary per-caller
 session (so the real caller still gets their own column) is the safer
 default than floating it and losing that attribution.
 
+### Meals/breaks float too, distinguished from "busy" by color
+
+**Why:** a spreadsheet audit (comparing `event-schedule.xlsx` against
+`dance-schedule.xlsx`) found MotivateToSeattle's Friday 6:30–7:00 PM "GCA
+Callers" session (`A2, C1 : GCA Callers` — the event's non-headline callers
+running their own session while the headliners rest) had the exact same
+silent-vanishing bug the all-headliners fix above had just solved: its caller
+name isn't individually trackable, so it never cleared `MIN_CALLER_HOURS`,
+and it wasn't `ALL_HEADLINERS_CALLER_NAMES` either. Fixing it prompted
+revisiting the *other* still-standing "session with no caller is skipped
+entirely" decision (see above) — a genuine break being invisible on this page
+was really the same underlying complaint (a page that's supposed to show what
+callers are doing has nothing to say about a stretch when they're doing
+nothing), just for a structural reason (`kind === 'freeform'`, no caller
+field at all) instead of a placeholder-name reason.
+
+**Three floating categories, not two — `FloatKind = 'busy' | 'free' | null`**
+(`computeDanceScheduleCallerLayout.ts`): `null` is an ordinary per-caller
+placement, unchanged. `'busy'` is the existing all-headliners case — every
+headline caller occupied together. `'free'` is new and covers TWO different
+underlying reasons that read as the same thing on the page — headline callers
+have *nothing* scheduled: a freeform session (any break/meal, `kind ===
+'freeform'`, always `'free'`) and a structured session naming only
+non-headline participants (`isCallerFreeTimeSession()`,
+`CALLER_FREE_TIME_NAMES = new Set(['GCA Callers'])` — same
+hardcoded-recognized-set shape as `ALL_HEADLINERS_CALLER_NAMES`, same
+rationale, in `recognizedSessionKeywords.ts`). `isEligibleForCallerPage`
+(replacing the old structured-only `isEligibleCallerSession` gate everywhere
+except the still-structured-only hour-total/column-derivation helpers) admits
+freeform sessions into `computeDanceScheduleTimeAxis` and `buildRawEntries`
+for the first time — the only sessions still excluded outright are "GCA
+Caller Showcase Dance" ones, unchanged.
+
+**`'busy'` and `'free'` are STYLED and WORDED differently, since they mean
+opposite things** (`DanceScheduleCallerGrid.tsx`): both get the existing
+`.roomlessCard` treatment (centered, sticky content, session's own time range
+in place of a GCA line), but `'busy'` additionally gets a new
+`.busyFloatingCard` modifier — a very light orange, distinct from
+`.roomlessCard`'s own plain gray (kept for `'free'`, unchanged) and from
+every color in `levelColors.ts`'s palette. Text differs too: `'busy'` keeps
+`detailsWithRoomContent` (bold **room** — caller is implied by "spans every
+column," same reasoning as an ordinary card). `'free'` switches to
+`detailsContent` instead (bold **caller**, or the freeform `description`
+directly) — a break's description already conveys everything either function
+would show, but a "GCA Callers" session's bold ROOM alone would give no hint
+why headline callers have nothing scheduled there; the caller field is the
+whole point for this kind, not a redundant fact.
+
+**A previously-latent bug surfaced immediately, on real data: two floating
+sessions can genuinely overlap in time.** MotivateToSeattle's Friday has an
+all-evening freeform "Registration" session (5:30–8:00 PM) spanning BOTH the
+new "GCA Callers" session (6:30–7:00 PM) and the existing "Trail-In Dance -
+All Headliners" session (7:00–8:00 PM) within it. `assignLanesPerSlot`
+(`assignLanes.ts`) previously skipped every null-`slotIndex` entry outright —
+harmless when floating entries were rare and never observed overlapping each
+other, but with breaks now floating too, three real cards ended up drawn
+directly on top of one another, illegible. Fixed generically, in the shared
+utility (benefiting the level view's own roomless floating case too, not just
+this one): every null-`slotIndex` entry is now grouped into one shared
+virtual "slot" and lane-split against every OTHER floating entry it overlaps,
+using the exact same greedy interval-scheduling algorithm real per-column
+overlaps already used. `DanceScheduleCallerGrid.tsx`'s existing
+`.laneDivider` seam (previously ordinary-card-only) now also applies to a
+lane-split floating card, and `DanceScheduleLevelGrid.tsx`'s roomless card
+gets the identical fix for consistency, since it shares the same underlying
+utility and had the same latent gap (unobserved in real data, but the exact
+same bug). This mechanism is still what handles two floating entries that
+start at exactly the same time (a data-entry-error-like case the clipping
+rule below can't reach, since clipping only looks at entries starting
+STRICTLY AFTER another one).
+
+**But lane-splitting alone was the wrong call for THIS real case, and got
+refined into clipping instead:** side-by-side half-width lanes for the whole
+5:30–8:00 PM span technically resolved the overlap, but it's not what the
+data means. Registration's own "no headline caller has anything scheduled"
+claim is only true for the first hour (5:30–6:30 PM) — from 6:30 PM on,
+headline callers ARE doing something (per "GCA Callers," then "Trail-In
+Dance"), so Registration continuing to visually claim half the width for the
+rest of the evening is actively misleading, and it needlessly squeezes the
+two real, callers-relevant cards down to half width too. Fixed with
+`clipFreeFloatingEntries` (`computeDanceScheduleCallerLayout.ts`, runs right
+after `buildRawEntries`, before `assignLanesPerSlot`): a `'free'` entry's
+RENDERED `rowSpan` is clipped to end at the earliest OTHER entry's `rowStart`
+within its own range — any kind of other entry (ordinary, `'busy'`, or even
+another `'free'` one) counts, since any of them means "something IS scheduled
+now," the thing a free claim is specifically about the absence of. Only the
+placement's geometry is clipped; the underlying `session` (and therefore the
+card's own displayed time-range text, which reads `session.startTime`/
+`endTime` directly, never the clipped geometry) still says the session's real
+"5:30 PM – 8:00 PM" span. On the real data, clipping Registration to end
+exactly when "GCA Callers" starts means it no longer overlaps either later
+session at all, so lane-splitting doesn't even trigger anymore — each of the
+three renders full-width for its own actual portion of the evening.
+Deliberately doesn't try to "resume" a free entry's span after a later gap
+(e.g. if something were scheduled 6:30–7:00 PM but nothing after that until
+8:00 PM) — punting on that compound case as "never needed by real data,"
+matching this doc's own precedent elsewhere for a similar simplification (see
+the Open Questions section).
+
+**`'busy'` entries are never clipped** — only `'free'` ones. A busy claim
+("everyone's occupied together") has no "the remaining time doesn't count"
+scenario the way a free claim does; if something else genuinely started
+inside a busy entry's span in real data, that would be a data conflict worth
+surfacing via lane-splitting (still handled by `assignLanesPerSlot`), not
+something to silently clip away.
+
 **`computeDanceScheduleCallerLayout.ts` changes, mirroring the room/level
-views' own roomless handling:** `RawEntry.slotIndex` widened from `number` to
-`number | null`; `deriveCallerOrder` excludes an all-headliners session (its
-placeholder name must never occupy a real column slot); `buildRawEntries`
-pushes one `slotIndex: null` entry for it instead of a per-caller lookup;
-`computeColumnWidthsRem` skips null-slotIndex entries (they don't affect any
-single column's peak-concurrency width); and the final placements map sets
-`columnStart: 0, columnSpan: Math.max(visibleCallers.length, 1)` for a
-null-slotIndex entry instead of the ordinary `columnStart: entry.slotIndex,
-columnSpan: 1` (the `Math.max(..., 1)` guards the degenerate case of zero
-other visible callers that day, so the span is never 0).
-`DanceScheduleCallerGrid.tsx` renders it with the same `.roomlessCard`/
-`.roomlessCardContent` styling the room view already uses (undyed by level
-color, centered, sticky content), keeping `detailsWithRoomContent`'s
-event-type + bold room text (still accurate — caller is now implied by
-spanning every column instead of by a specific column) and showing the
-session's own time range in place of a GCA line, same as the room view's own
-roomless card.
+views' own roomless handling:** `RawEntry`/`DanceCallerSessionPlacement.session`
+widened from `StructuredSession` to `DanceSession` (a freeform session can now
+be a placement); both gain a `floatKind: FloatKind` field. `deriveCallerOrder`
+and `visibleCallerSet` both exclude ANY floating structured session (not just
+all-headliners) — a floating placeholder name must never occupy a real column
+slot, regardless of its own accumulated hours in `hourTotals`.
+`computeColumnWidthsRem` is unaffected (already skipped null-slotIndex
+entries generically). The final placements map sets `columnStart: 0,
+columnSpan: Math.max(visibleCallers.length, 1)` for ANY null-slotIndex entry,
+same as before, now used by both floating kinds.
 
 ### Recognized spreadsheet-derived classification keywords consolidated into one module
 
@@ -1480,6 +1571,11 @@ it as the living answer to "what spreadsheet-derived values does the app
 treat specially, downstream of ordinary parsing" — so a future fourth such
 value has one obvious place to join. Pure move, no behavior change; every
 consumer's import path updated accordingly.
+
+That predicted fourth value arrived almost immediately: `CALLER_FREE_TIME_NAMES`
+(`GCA Callers` — see "Meals/breaks float too, distinguished from 'busy' by
+color" below), added directly to this module rather than starting a fifth
+scattered copy of the same pattern.
 
 **Deliberately NOT swept into the same module:** `LEVEL_CODES` (stays in
 `types/danceSchedule.ts` — a type-level vocabulary constant `LevelCode`
