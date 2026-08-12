@@ -36,7 +36,7 @@ content/<your-event-name>/
     home.md         the event's home page
     2 installation.md   e.g. — any other pages you want, any number below 10
   data/
-    event-schedule.xlsx   the simple flat event list — step 3
+    event-schedule.xlsx   (optional) the simple flat event list — step 3
     dance-schedule.xlsx   the detailed room/time grid — step 4
   scratch/          (optional) your own staging area — raw material you want to
                     keep around (e.g. a higher-resolution source photo before
@@ -164,11 +164,20 @@ danceSchedule:
 A room not scheduled on a particular day is simply skipped that day — the
 list is one event-wide setting, not one per day.
 
-## Step 3: The simple event list (`event-schedule.xlsx`)
+## Step 3: The simple event list (`event-schedule.xlsx`) — optional
 
 This is a flat, one-row-per-event spreadsheet for the "Event Schedule" page
 (things like meals, socials, workshops — anything that isn't the detailed
-dance grid covered in step 4). One sheet, one header row, exactly these four
+dance grid covered in step 4). **Skip this step entirely if your event
+doesn't need it** — a simple, single-venue event with nothing beyond what
+the dance grid already covers (step 4's meals/breaks already show up there
+too) doesn't gain anything from a separate flat list. Just don't create
+`data/event-schedule.xlsx` at all: the build detects its absence and omits
+the "Event Schedule" page and its nav entry entirely, rather than showing an
+empty page. (Nothing to configure — there's no flag for this, presence of
+the file is the only signal.)
+
+If you do want it, one sheet, one header row, exactly these four
 column headers:
 
 | Date | Start time - End time | Location | Description |

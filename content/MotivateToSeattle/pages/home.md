@@ -13,8 +13,6 @@ Keeps the schedule available even when the hotel Wi-Fi is spotty — see
 
 ### Other schedules
 
-- [Event Schedule](/event-schedule) — meals, socials, and everything else
-  on the calendar
 - [Room Schedule](/room-schedule) — detailed dance schedule, by room
 - [Caller Schedule](/caller-schedule) — don't miss your favorite callers
 

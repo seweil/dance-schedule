@@ -99,11 +99,16 @@ content/
       assets/                   # images referenced by the markdown files above
                                  # (only present if a set's pages reference images)
     data/
-      event-schedule.xlsx     # schedule source data — see "Schedule data pipeline" below
+      event-schedule.xlsx     # optional — schedule source data for the flat "Event
+                              # Schedule" page; see "Schedule data pipeline" below.
+                              # If absent, that page and its nav entry are simply
+                              # omitted (e.g. a simple single-venue event with
+                              # nothing beyond what dance-schedule.xlsx already
+                              # covers doesn't need it)
       dance-schedule.xlsx     # multi-day/multi-room convention schedule source data —
-                              # see docs/design/dance-schedule.md (debug page only so
-                              # far at /debug/dance-schedule — no real page renders
-                              # this yet)
+                              # required; see docs/design/dance-schedule.md and the
+                              # Room Schedule / Dancing by Level / Caller Schedule
+                              # pages, all generated from this one file
     scratch/                # optional — a content author's own staging area for raw
                             # material (e.g. a higher-resolution source photo before
                             # cropping) that isn't itself built content. Nothing in the
@@ -222,6 +227,15 @@ The short version:
   the client, and automatically covered by the existing PWA precache since the
   parsed data ends up in the route's own JS chunk. Editing the spreadsheet requires
   a rebuild+redeploy to take effect.
+- **`event-schedule.xlsx` is optional**, per content set (`vite.config.ts`'s
+  `HAS_EVENT_SCHEDULE`, computed via `existsSync` at config-eval time, same pattern
+  as a set's own optional `icon.png`). When absent, the Event Schedule page and its
+  nav entry are omitted entirely — `onRoutesGenerated` filters the route out of
+  what `vite-plugin-pages` generates before any client code exists to reference it,
+  and `schedulePlugin` itself isn't even registered, so nothing ever tries to read
+  the missing file. `Nav.tsx`/`buildNavTree.ts` need no changes, since they already
+  derive the menu generically from whichever routes exist. See
+  `docs/design/schedule-page.md`'s "`event-schedule.xlsx` is optional" decision.
 - Date/time cells are parsed forgivingly (multiple date formats, AM/PM or 24-hour
   time, meridiem/year inference for ambiguous input) — see `src/lib/parseEventDate.ts`
   and `src/lib/parseTimeRange.ts` and their colocated table-driven tests, which are

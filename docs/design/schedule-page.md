@@ -273,6 +273,48 @@ nav entry outside this system.
 - No changes needed to `buildNavTree.ts` or `Nav.tsx` themselves — this is
   the reason this approach was chosen over hand-wiring a route.
 
+### `event-schedule.xlsx` is optional, omitted via `onRoutesGenerated` route filtering
+**Why:** For a simple, single-venue event with nothing beyond what
+`dance-schedule.xlsx` already covers (its own meals/breaks show up on the
+Room/Caller Schedule pages too — see `docs/design/dance-schedule.md`'s
+"Meals/breaks float too" decision), a separate flat Event Schedule page is
+pure duplication. First real case: MotivateToSeattle, whose
+`event-schedule.xlsx` moved to `scratch/` (the existing "content author's
+own staging area, unread by the build" convention) once this landed.
+
+**Because "the least-invasive integration is to make the Schedule page look
+like just another route" (see the "Routing & nav integration" decision
+above), the exact same principle applies here — omission just means never
+letting that route exist for a build, at the same `onRoutesGenerated` hook
+that already does the `home.md` → `/` remap:**
+- `vite.config.ts` computes `HAS_EVENT_SCHEDULE = existsSync(<content
+  set>/data/event-schedule.xlsx)` once, at config-eval time — same
+  `existsSync`-gated-optionality pattern already used for a set's own
+  `icon.png` (`content-icons.ts`).
+- Confirmed by reading `vite-plugin-pages`'s own compiled source
+  (`node_modules/.../vite-plugin-pages/dist/index.js`): `onRoutesGenerated`'s
+  return value is exactly what `generateClientCode`/`stringifyRoutes` walks
+  to emit one `React.lazy(() => import("path"))` per route. So filtering the
+  event-schedule route out of that returned array — `routes.filter((route) =>
+  !route.element?.endsWith('/10 event-schedule.tsx'))` when
+  `!HAS_EVENT_SCHEDULE` — means `src/pages/10 event-schedule.tsx` (and
+  therefore its `virtual:schedule` import) is **never referenced by anything
+  in that build's module graph at all**, not just hidden behind a route guard
+  at runtime. `Nav.tsx`/`buildNavTree.ts` need no changes, for the exact same
+  reason the original integration decision above didn't need them: both
+  already derive the menu generically from whatever routes exist.
+- `schedulePlugin` is also only registered (`vite.config.ts`'s `plugins`
+  array) when `HAS_EVENT_SCHEDULE` — deliberately not relying on the route
+  filter alone. If a future bug ever left the route in place despite a
+  missing file, an unregistered plugin makes `import 'virtual:schedule'` fail
+  loudly ("failed to resolve import") instead of quietly doing something
+  wrong — the same fail-loud instinct as `assertContentSetExists`, rather
+  than teaching `vite-plugin-schedule.ts` itself to silently tolerate a
+  missing file and return empty data (which would also mask a genuine
+  accidental deletion for a content set that DOES expect the file to exist).
+- `dance-schedule.xlsx` is unaffected and stays required — this is scoped to
+  the flat Event Schedule page only.
+
 ### PWA/offline behavior: no new caching strategy needed
 **Why:** Since the schedule data is baked in at build time via the virtual
 module (per the "runtime data shape" decision above), it ships as part of

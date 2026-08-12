@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
@@ -51,6 +52,17 @@ if (process.env.CONTENT_SET) {
   assertContentSetExists(process.cwd(), process.env.CONTENT_SET, 'CONTENT_SET env var')
 }
 const CONTENT_DIR = `content/${CONTENT_SET}`
+
+// event-schedule.xlsx is optional, per content set — a simple event with
+// nothing beyond what the dance-schedule pages already cover (e.g.
+// MotivateToSeattle) can just omit it. When absent, the "Event Schedule" page
+// and its nav entry are omitted entirely (see the onRoutesGenerated filter
+// below and the schedulePlugin registration further down) rather than the
+// build failing — see docs/design/schedule-page.md's "event-schedule.xlsx is
+// optional" decision. Same existsSync-gated-optionality pattern already used
+// for a set's own icon.png (content-icons.ts).
+const EVENT_SCHEDULE_FILE = path.join(process.cwd(), CONTENT_DIR, 'data', 'event-schedule.xlsx')
+const HAS_EVENT_SCHEDULE = existsSync(EVENT_SCHEDULE_FILE)
 
 // Path prefix this build's assets/routes are served under — "/" for the default
 // set's unprefixed mirror, "/<set>/" for every set's own prefixed copy. Set by
@@ -143,10 +155,27 @@ export default defineConfig(async () => {
               route.path = '/'
             }
           }
-          return routes
+          // No event-schedule.xlsx for this content set — drop the route
+          // entirely rather than let it render an empty/broken page. This is
+          // what actually makes the page "not exist": vite-plugin-pages'
+          // stringifyRoutes walks exactly this returned array to emit one
+          // React.lazy(() => import(...)) per route, so a filtered-out route's
+          // component (src/pages/10 event-schedule.tsx, and therefore its
+          // virtual:schedule import) is never referenced anywhere in the
+          // build. Nav.tsx/buildNavTree.ts need no changes — they already
+          // derive the menu generically from whatever routes exist.
+          return HAS_EVENT_SCHEDULE
+            ? routes
+            : routes.filter((route) => !route.element?.endsWith('/10 event-schedule.tsx'))
         },
       }),
-      schedulePlugin({ dataDir: `${CONTENT_DIR}/data` }),
+      // Only registered when the file exists — belt-and-suspenders alongside
+      // the route filter above, not redundant with it: if a future bug ever
+      // left the route in place despite a missing file, this makes
+      // `import 'virtual:schedule'` fail loudly ("failed to resolve import")
+      // instead of silently misbehaving, matching this file's own
+      // assertContentSetExists fail-loud precedent.
+      ...(HAS_EVENT_SCHEDULE ? [schedulePlugin({ dataDir: `${CONTENT_DIR}/data` })] : []),
       danceSchedulePlugin({ dataDir: `${CONTENT_DIR}/data`, contentDir: CONTENT_DIR }),
       // dataDir is the content set's own root (config.yaml sits alongside pages/data,
       // not inside data/) — see docs/design/content-config.md.
