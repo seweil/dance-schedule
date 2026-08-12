@@ -7,7 +7,7 @@ See what's dancing right now, organized by skill level.
 ## Add to your home screen
 
 Keeps the schedule available even when the hotel Wi-Fi is spotty — see
-[Installation](/installation) for setup steps.
+[Help](/help) for setup steps.
 
 ---
 

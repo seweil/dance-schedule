@@ -1,11 +1,13 @@
-# Installation
+# Help
+
+## Installation
 
 Dance Schedule works right in your browser — no app store needed. Adding it
 to your home screen lets it open like any other app, and keeps the schedule
 available even when you don't have a signal or Wi-Fi — handy for checking
 between tips if the hotel's Wi-Fi is spotty.
 
-## On iPhone or iPad
+### On iPhone or iPad
 
 1. Open this site in **Safari**. (Other browsers on iOS, like Chrome or
    Firefox, can't add it to your home screen — it has to be Safari.)
@@ -16,7 +18,7 @@ between tips if the hotel's Wi-Fi is spotty.
    tuck it under there instead of showing it directly.
 5. Tap **Add** in the top right.
 
-## On Android
+### On Android
 
 1. Open this site in **Chrome**.
 2. Tap the **⋮** menu in the top right.
@@ -27,9 +29,16 @@ between tips if the hotel's Wi-Fi is spotty.
 Chrome may also show an **Install** banner or icon in the address bar on its
 own after a couple of visits — tapping that works the same way.
 
+## Text size
+
+Need bigger text? Tap **Text size** in the menu (top of the screen on
+desktop, in the ☰ menu on phone) and choose Normal, Large, or Extra Large —
+it applies everywhere in the app right away, and is remembered the next
+time you open it.
+
 ## Troubleshooting
 
-Dance Schedule remembers your selected date, level filters, and GCA setting
-so they're there the next time you open it. If something looks stuck or
-out of date, [clear saved settings](/clear-storage) to reset everything
-back to its defaults.
+Dance Schedule remembers your selected date, level filters, GCA setting,
+and text size so they're there the next time you open it. If something
+looks stuck or out of date, [clear saved settings](/clear-storage) to reset
+everything back to its defaults.
