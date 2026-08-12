@@ -1,5 +1,6 @@
 import { groupDanceSessionsByDate } from './groupDanceSessionsByDate'
 import { LEVEL_ORDER } from './levelOrder'
+import { GCA_CALLER_SHOWCASE_EVENT_TYPE } from './recognizedSessionKeywords'
 import type { DanceSession } from '../types/danceSchedule'
 
 // LEVEL_CODES entries that aren't part of the linear LEVEL_ORDER progression (see
@@ -18,14 +19,6 @@ const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEV
 // total across every day; that one is a per-day total) and not meant to be
 // unified into one shared constant.
 const MIN_CALLER_HOURS = 3
-
-// "GCA Caller Showcase Dance" sessions credit a caller like any other structured
-// session (see computeDanceScheduleHourSummary's own doc comment), but a caller
-// whose ONLY credited hours come from this event type is a fundamentally different
-// kind of entry than a real headline caller — see DanceScheduleHourSummaryTable's
-// `groupBoundary`. Exported so computeDanceScheduleCallerLayout.ts's own, unrelated
-// exclusion of this event type can't drift from this exact string.
-export const GCA_CALLER_SHOWCASE_EVENT_TYPE = 'GCA Caller Showcase Dance'
 
 export interface DanceScheduleHourSummaryColumn {
   label: string

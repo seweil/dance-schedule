@@ -1,6 +1,7 @@
 import { assignLanesPerSlot } from './assignLanes'
 import { computeDanceScheduleTimeAxis, type TimeMark } from './computeDanceScheduleTimeAxis'
-import { GCA_CALLER_SHOWCASE_EVENT_TYPE, sessionHours } from './computeDanceScheduleHourSummary'
+import { sessionHours } from './computeDanceScheduleHourSummary'
+import { GCA_CALLER_SHOWCASE_EVENT_TYPE, isAllHeadlinersSession } from './recognizedSessionKeywords'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 // Independent from ROOM_COLUMN_WIDTH_REM/LEVEL_COLUMN_WIDTH_REM (not shared) since
@@ -55,26 +56,6 @@ const MIN_CALLER_HOURS = 3
 
 function isEligibleCallerSession(session: DanceSession): session is StructuredSession {
   return session.kind === 'structured' && session.eventType !== GCA_CALLER_SHOWCASE_EVENT_TYPE
-}
-
-// Recognized collective-caller placeholders — a session credited to "everyone
-// headlining this event" rather than one or more specific, trackable callers.
-// Hardcoded rather than inferred from session shape (e.g. "listed as the sole
-// caller of a multi-room session") since a real multi-room session can legitimately
-// have one specific caller too (see docs/adding-a-new-event.md's own worked
-// example), so room count alone isn't a safe signal. Same one-hardcoded-string-set
-// precedent as GCA_CALLER_SHOWCASE_EVENT_TYPE above. Add a name here if a future
-// event's spreadsheet uses different placeholder wording.
-const ALL_HEADLINERS_CALLER_NAMES = new Set(['All Headliners', 'All Callers'])
-
-// A session "credited" only to a collective placeholder, not any specific caller —
-// see ALL_HEADLINERS_CALLER_NAMES. Deliberately requires EVERY listed caller to be a
-// recognized placeholder (not just one of several) — a session co-crediting a real
-// caller alongside "All Headliners" has never been observed, and if it ever
-// happened, treating it as a normal per-caller session (so the real caller still
-// gets their own column placement) is the safer default than floating it.
-export function isAllHeadlinersSession(session: StructuredSession): boolean {
-  return session.callers.length > 0 && session.callers.every((caller) => ALL_HEADLINERS_CALLER_NAMES.has(caller))
 }
 
 export interface DanceCallerSessionPlacement {
@@ -308,8 +289,9 @@ function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number)
  * callers' own columns.
  *
  * One further exception: a session credited only to a collective placeholder like
- * "All Headliners"/"All Callers" (see ALL_HEADLINERS_CALLER_NAMES) rather than any
- * specific, trackable caller floats across every visible caller column instead of
+ * "All Headliners"/"All Callers" (see ALL_HEADLINERS_CALLER_NAMES in
+ * recognizedSessionKeywords.ts) rather than any specific, trackable caller floats
+ * across every visible caller column instead of
  * being skipped — the same slotIndex: null floating mechanism (assignLanes.ts)
  * already used by the room/level views for a roomless/unordered session. Without
  * this, such a session would otherwise vanish from this page entirely: its

@@ -1295,7 +1295,9 @@ doing anything else, including before computing the shared time axis, so a
 skipped session contributes no column, no placement, and no time-axis row
 (a lunch break's time range simply doesn't appear on this page at all).
 This is the one place this view's design deliberately doesn't mirror either
-prior view's precedent, rather than extending it.
+prior view's precedent, rather than extending it — **except** for the one
+narrower case of a collective-placeholder caller name, which DOES float; see
+"All-headliners sessions float across every caller column" below.
 
 **"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
 needs more than 3 hours to get a column at all:** both per direct product
@@ -1376,11 +1378,12 @@ new sibling of `detailsContent` in `danceScheduleCardContent.tsx` bolding
 `formatSessionRoom` instead of `formatSessionCallers`); the existing
 optional GCA line unchanged. Since every placement here is guaranteed
 `kind === 'structured'` (freeform sessions are filtered out before layout
-runs), this grid needs no roomless-card treatment at all, unlike the other
-two — every card renders as an ordinary single-column card, even one whose
-own `location.kind === 'roomless'` (still lands under its real caller's
-column; `formatSessionRoom` just renders `"—"` for it, no special-casing
-needed).
+runs), an ordinary card never needs roomless-card treatment — every
+non-floating card renders as a normal single-column card, even one whose own
+`location.kind === 'roomless'` (still lands under its real caller's column;
+`formatSessionRoom` just renders `"—"` for it, no special-casing needed). The
+one placement that DOES get roomless-card-style treatment is the
+all-headliners floating case — see below.
 
 **Idle rows are dropped entirely, not just capped at one row apiece:**
 `computeDanceScheduleTimeAxis.ts`'s "axis is not a clock" model already
@@ -1412,6 +1415,82 @@ all three views, not just this one — `DanceScheduleGrid`/
 styled like an inline text link (`.emptyLink` in
 `DanceScheduleGrid.module.css`) rather than a real `<a>`, since it resets
 filter state instead of navigating anywhere.
+
+### All-headliners sessions float across every caller column
+
+**Why:** a session credited only to a collective placeholder like "All
+Headliners" (MotivateToSeattle) or "All Callers" (automated-testing/
+backtrack2abq) — e.g. a combined closing dance — could never individually
+clear `MIN_CALLER_HOURS`, so it silently vanished from the Caller Schedule
+page entirely: no column, no card, nothing. Reported directly ("'All
+headliners' should show on 'Caller Schedule' spanning all rows") and fixed by
+recognizing the placeholder and floating that one session across every
+visible caller column instead, reusing the exact `slotIndex: null` mechanism
+`assignLanes.ts` already defines and the room/level views already use for
+their own roomless/unordered sessions — no changes needed to `assignLanes.ts`
+itself.
+
+**Detection is a small hardcoded recognized-name set
+(`ALL_HEADLINERS_CALLER_NAMES`, `isAllHeadlinersSession()` — both in
+`recognizedSessionKeywords.ts`, see below), not a room-count heuristic:** a
+tempting shortcut would be "a session spanning more than one room has no real
+specific caller," but that's false — a legitimate multi-room session can have
+one real, specific caller too (`SSD : Combined Dance - Vic Ceder` spanning two
+ballrooms is this doc's own worked example above). `isAllHeadlinersSession`
+instead checks the session's actual `callers` list against the recognized
+set, requiring EVERY listed caller to match (not just one) — a session
+co-crediting a real caller alongside "All Headliners" has never been
+observed, and if it ever happened, treating it as an ordinary per-caller
+session (so the real caller still gets their own column) is the safer
+default than floating it and losing that attribution.
+
+**`computeDanceScheduleCallerLayout.ts` changes, mirroring the room/level
+views' own roomless handling:** `RawEntry.slotIndex` widened from `number` to
+`number | null`; `deriveCallerOrder` excludes an all-headliners session (its
+placeholder name must never occupy a real column slot); `buildRawEntries`
+pushes one `slotIndex: null` entry for it instead of a per-caller lookup;
+`computeColumnWidthsRem` skips null-slotIndex entries (they don't affect any
+single column's peak-concurrency width); and the final placements map sets
+`columnStart: 0, columnSpan: Math.max(visibleCallers.length, 1)` for a
+null-slotIndex entry instead of the ordinary `columnStart: entry.slotIndex,
+columnSpan: 1` (the `Math.max(..., 1)` guards the degenerate case of zero
+other visible callers that day, so the span is never 0).
+`DanceScheduleCallerGrid.tsx` renders it with the same `.roomlessCard`/
+`.roomlessCardContent` styling the room view already uses (undyed by level
+color, centered, sticky content), keeping `detailsWithRoomContent`'s
+event-type + bold room text (still accurate — caller is now implied by
+spanning every column instead of by a specific column) and showing the
+session's own time range in place of a GCA line, same as the room view's own
+roomless card.
+
+### Recognized spreadsheet-derived classification keywords consolidated into one module
+
+**Why:** by the time the all-headliners fix above landed, three
+"downstream classification" magic values — `DEFAULT_EVENT_TYPE`,
+`GCA_CALLER_SHOWCASE_EVENT_TYPE`, and `ALL_HEADLINERS_CALLER_NAMES` — were
+scattered across three unrelated files (`types/danceSchedule.ts`,
+`computeDanceScheduleHourSummary.ts`, `computeDanceScheduleCallerLayout.ts`
+respectively), each added independently at a different time by whichever file
+happened to need it first. `ALL_HEADLINERS_CALLER_NAMES`'s own comment already
+cited `GCA_CALLER_SHOWCASE_EVENT_TYPE` as "same one-hardcoded-string-set
+precedent" — the code itself was flagging a repeated pattern, not sharing it.
+All three moved into one new file, `src/lib/recognizedSessionKeywords.ts`
+(along with `isAllHeadlinersSession()`), whose own top-of-file comment frames
+it as the living answer to "what spreadsheet-derived values does the app
+treat specially, downstream of ordinary parsing" — so a future fourth such
+value has one obvious place to join. Pure move, no behavior change; every
+consumer's import path updated accordingly.
+
+**Deliberately NOT swept into the same module:** `LEVEL_CODES` (stays in
+`types/danceSchedule.ts` — a type-level vocabulary constant `LevelCode`
+itself derives from, a different kind of thing from a plain recognized-flag
+value) and the raw cell-syntax tokens in `parseDanceScheduleSheet.ts`
+(`FREEFORM_PREFIX`, `GCA_PREFIX`, `ROOMS_PREFIX`, `ROOMS_NONE`,
+`DITTO_MARKER`, `LEVEL_SEPARATOR`, `LEVEL_ALIASES`,
+`NON_SCHEDULE_SHEET_PREFIX`) — those are already correctly single-sourced,
+have exactly one consumer each, and are genuinely coupled to the parsing
+logic that reads them, unlike the three moved values above, which are each
+read by multiple unrelated downstream files.
 
 ### Sticky-scroll grid shell extracted at its third consumer
 

@@ -55,7 +55,7 @@ export function testDanceSchedulePageFilters(pageName: string, Page: ComponentTy
       // doesn't work as a shared, page-agnostic check here, since the caller view
       // renders it as a floating cross-column card with different text than the
       // room/level views' own cards for the same session (see
-      // isAllHeadlinersSession in computeDanceScheduleCallerLayout.ts). Scoped to
+      // isAllHeadlinersSession in recognizedSessionKeywords.ts). Scoped to
       // "panelWrapper" (shared by all three grids), not document.body, since the
       // date <select>'s own selected option text changes regardless of whether the
       // grid itself updates.

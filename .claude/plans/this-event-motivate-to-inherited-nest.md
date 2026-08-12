@@ -1,115 +1,140 @@
-# Day-scoped level slider & GCA checkbox
+# Rationalize spreadsheet "magic keywords"
 
 ## Context
 
-MotivateToSeattle's registration levels start at A2 (`combineA1A2: true`, `combineC3BC4: true` in its `config.yaml`, with an explicit comment that there are "no SSD/MS/Plus/A1 sessions at all"). The dance-schedule filter row's level slider always spans the full fixed taxonomy (SSD, MS, Plus, A1/A2, C1, C2, C3A, C3B+ — 8 stops with both merge flags on), so 3 of those 8 stops (SSD, MS, Plus — 37.5% of the slider's travel) are permanently dead for this event, every single day. Separately, the "Show GCA callers" checkbox is currently rendered unconditionally, but `dance-schedule-dump.md` confirms the `GCA` column is blank on every row of this event's data — the checkbox does nothing for MotivateToSeattle.
+Both source spreadsheets (`event-schedule.xlsx`, `dance-schedule.xlsx`) rely on a
+number of exact literal strings/tokens that trigger special parsing or rendering
+behavior, beyond ordinary free-text cell content — column headers, cell-syntax
+markers (`* `, `GCA:`, `ROOMS:`, `"`), recognized level codes, and a couple of
+recognized *values* within already-parsed fields (an event-type string, two
+caller-name placeholders). A full-codebase sweep (below) found these are already
+each individually well-defined and mostly single-sourced, but:
 
-Goal: make both controls reflect what's actually scheduled **for the currently selected day**, while keeping the filter row's hand-tuned layout (documented at length in `DanceScheduleFilters.module.css`) ergonomic and visually balanced. This is investigated and designed already (two Explore passes + a Plan-agent critique); this plan is execution-ready.
+1. Three "downstream classification" magic values — `DEFAULT_EVENT_TYPE`,
+   `GCA_CALLER_SHOWCASE_EVENT_TYPE`, `ALL_HEADLINERS_CALLER_NAMES` — are scattered
+   across three unrelated files by historical accident (each added at a different
+   time, in whichever file happened to need it first), even though they're the
+   same *kind* of thing: an exact-match literal recognized in already-parsed
+   session data, not spreadsheet syntax itself. `ALL_HEADLINERS_CALLER_NAMES`'s own
+   comment already explicitly cites `GCA_CALLER_SHOWCASE_EVENT_TYPE` as "same
+   one-hardcoded-string-set precedent" — the code itself flags this as a repeated
+   pattern, not a coincidence.
+2. Several real, currently-recognized keywords are entirely undocumented in
+   `docs/adding-a-new-event.md` (the user-facing authoring guide), so an event
+   organizer has no way to discover them.
+3. `docs/design/dance-schedule.md`'s own "Caller-columns view" decision section is
+   now stale — it still says a callerless session is "skipped entirely, not
+   floated," which was true before this session's "All Headliners" floating fix
+   (commit `715bf59`) and is no longer accurate.
 
-**Design shape:** don't touch `slots`/`getLevelSlots` (the fixed, config-driven index space everything else depends on) — instead compute a per-day *present sub-range* within that same stable index space, and use it to narrow the Radix slider's actual `min`/`max` (dead-end trim only, not internal gaps) and to gate the GCA checkbox's visibility. This mirrors the codebase's existing two-layer pattern for the caller-columns view (stable event-wide `callerOrder`/eligibility + per-date visibility) rather than repeating the `MIN_CALLER_HOURS` instability bug that pattern was built to fix — here there's no stability requirement to violate, since both features are explicitly meant to react to the selected day.
+Goal: consolidate the three scattered classification constants into one
+purpose-built module (a real code change, not just documentation), and fix the
+doc gaps/staleness so the inventory below stays discoverable and accurate going
+forward.
 
-Internal gaps (a day missing one level in the middle of an otherwise-present range) are deliberately NOT trimmed — only the dead ends. Real data never exercises the gap case, and `docs/design/dance-schedule.md`'s Open Questions section already has a precedent for punting an analogous compound case as "simplified rather than fully general... never observed in real data."
+## The full inventory (for reference — this table is also given directly in chat)
 
-## Implementation
+| # | Keyword / token | Where (file, field) | Defined in | Documented in adding-a-new-event.md? |
+|---|---|---|---|---|
+| 1 | `Date`, `Start time - End time`, `Location`, `Description` | event-schedule.xlsx header row | `vite-plugin-schedule.ts` | Yes |
+| 2 | Date formats (ISO/slash/long, year-optional) | event-schedule.xlsx `Date`; dance-schedule.xlsx sheet names | `parseEventDate.ts` | Yes |
+| 3 | Time-range formats (`-`/`–`/`—`/`to`, meridiem-optional) | `Start time - End time`; dance-schedule.xlsx column A | `parseTimeRange.ts` | Yes (dash variants not called out) |
+| 4 | Sheet name prefix `-` | dance-schedule.xlsx sheet/tab name | `parseDanceScheduleSheet.ts` (`NON_SCHEDULE_SHEET_PREFIX`) | **No** |
+| 5 | Sheet name `Weekday Month Day` | dance-schedule.xlsx sheet name | `parseDanceScheduleSheet.ts` | Yes |
+| 6 | Level codes `SSD,MS,Plus,C1,C2,C3A,C3B,C4,A1,A2,Intro,Various` | cell level portion | `types/danceSchedule.ts` (`LEVEL_CODES`) | Yes |
+| 7 | Level alias `Advanced` → `A2` | cell level portion | `parseDanceScheduleSheet.ts` (`LEVEL_ALIASES`) | Yes |
+| 8 | Level separators `&`, `/` | cell level portion | `parseDanceScheduleSheet.ts` (`LEVEL_SEPARATOR`) | Yes |
+| 9 | `Intro`, `Various` unordered levels | cell level portion | `levelOrder.ts` (`UNORDERED_LEVELS`) | Partial (listed as valid codes; special "always visible" behavior not explained) |
+| 10 | `:` splitting level from rest | cell content | `parseDanceScheduleSheet.ts` | Yes (via format `Level : Type - Caller`) |
+| 11 | `' - '` splitting type from caller(s) | cell content | `parseDanceScheduleSheet.ts` | Implied by example, not stated as a strict rule |
+| 12 | Caller separator `&` | cell caller portion | `parseDanceScheduleSheet.ts` | Yes |
+| 13 | Freeform prefix `'* '` | cell content | `parseDanceScheduleSheet.ts` (`FREEFORM_PREFIX`) | Yes |
+| 14 | `GCA:` trailing line | cell content, 2nd line | `parseDanceScheduleSheet.ts` (`GCA_PREFIX`) | Yes (case-insensitivity not noted) |
+| 15 | `ROOMS:` trailing line | cell content, 2nd/3rd line | `parseDanceScheduleSheet.ts` (`ROOMS_PREFIX`) | Yes (case-insensitivity not noted) |
+| 16 | `ROOMS: NONE` | value of `ROOMS:` line | `parseDanceScheduleSheet.ts` (`ROOMS_NONE`) | Yes (case-insensitivity not noted) |
+| 17 | Ditto mark `"` | cell content | `parseDanceScheduleSheet.ts` (`DITTO_MARKER`) | Yes |
+| 18 | `Dancing` (implied default event type) | cell content, omitted `Type -` | `types/danceSchedule.ts` (`DEFAULT_EVENT_TYPE`) | Yes |
+| 19 | `GCA Caller Showcase Dance` | value of parsed `eventType` | `computeDanceScheduleHourSummary.ts` (`GCA_CALLER_SHOWCASE_EVENT_TYPE`) | **No** |
+| 20 | `All Headliners`, `All Callers` | value(s) of parsed `callers` | `computeDanceScheduleCallerLayout.ts` (`ALL_HEADLINERS_CALLER_NAMES`) | **No** |
+| 21 | Excel serial/native date cells | event-schedule.xlsx `Date` | `parseEventDate.ts` | Not called out (non-issue in practice) |
 
-### 1. `src/lib/levelOrder.ts` — new helper
+Rows 4, 19, 20 are the real documentation gaps. Rows 18–20 are the three
+scattered "downstream classification" constants being consolidated (row 4 is a
+raw parser token, correctly staying put — see below).
 
-Add near `isSessionInLevelRange`:
+## Code change: consolidate rows 18–20 into one module
 
-```ts
-export function getPresentLevelIndexRange(
-  sessions: readonly DanceSession[],
-  slots: readonly LevelSlot[],
-): { minIndex: number; maxIndex: number } {
-  let minIndex: number | undefined
-  let maxIndex: number | undefined
-  for (const session of sessions) {
-    if (session.kind !== 'structured') continue
-    for (const level of session.levels) {
-      if (!isOrderedLevel(level)) continue
-      const index = slots.findIndex((slot) => slot.levels.includes(level))
-      if (index === -1) continue
-      if (minIndex === undefined || index < minIndex) minIndex = index
-      if (maxIndex === undefined || index > maxIndex) maxIndex = index
-    }
-  }
-  return minIndex === undefined || maxIndex === undefined
-    ? { minIndex: 0, maxIndex: slots.length - 1 }
-    : { minIndex, maxIndex }
-}
+**New file `src/lib/recognizedSessionKeywords.ts`**, with a top-of-file doc
+comment explicitly framing it as the answer to "what spreadsheet-derived values
+does the app treat specially, downstream of ordinary parsing" — the living
+inventory, so a future 4th such value has one obvious place to join instead of
+re-deriving the pattern a third time in a fourth random file. Contents (moved,
+not duplicated):
 
-export function clampLevelIndex(value: number, range: { minIndex: number; maxIndex: number }): number {
-  return Math.min(Math.max(value, range.minIndex), range.maxIndex)
-}
-```
+- `DEFAULT_EVENT_TYPE` — moved from `src/types/danceSchedule.ts`. Update its
+  import in `parseDanceScheduleSheet.ts` and `formatDanceSession.ts`.
+- `GCA_CALLER_SHOWCASE_EVENT_TYPE` — moved from
+  `src/lib/computeDanceScheduleHourSummary.ts`. Update its import in that file,
+  `computeDanceScheduleCallerLayout.ts`, and `computeDanceScheduleHourSummary.test.ts`.
+- `ALL_HEADLINERS_CALLER_NAMES` and `isAllHeadlinersSession()` — moved from
+  `src/lib/computeDanceScheduleCallerLayout.ts`. Update its import there, and in
+  `src/components/DanceScheduleCallerGrid.tsx` (currently imports
+  `isAllHeadlinersSession` re-exported from the layout file — repoint it straight
+  at the new module instead of through the layout file).
 
-Falls back to the full range when a day has no ordered-level sessions (all Various/Intro/freeform) — avoids an all-dead slider. Doc comment should note it deliberately doesn't special-case internal gaps (cite the Open Questions precedent) and that callers are responsible for date-scoping `sessions` first, mirroring `isSessionInLevelRange`'s own division of responsibility.
+`types/danceSchedule.ts` keeps `LEVEL_CODES` (row 6) as-is — that's a type-level
+vocabulary constant (`LevelCode` derives from it), a different kind of thing from
+a plain recognized-literal flag, and moving it would touch far more call sites for
+no discoverability benefit. Raw cell-syntax tokens (rows 4, 7–8, 10–17) stay in
+`parseDanceScheduleSheet.ts` — they're already correctly single-sourced,
+parser-internal, and genuinely coupled to the parsing logic that reads them
+(unlike rows 18–20, which are read by multiple unrelated downstream consumers).
 
-**Tests** (`src/lib/levelOrder.test.ts`, new `describe('getPresentLevelIndexRange', ...)`): single ordered level → min===max at that slot's index; multiple sessions spanning a sub-range → correct min/max; day with only unordered levels or only freeform sessions → full-range fallback; mixed ordered+unordered → unordered ignored; empty sessions → full-range fallback; with `combineA1A2`/`combineC3BC4` slots, an A2-only session resolves to the merged "A1/A2" slot index, not `LEVEL_ORDER.indexOf('A2')`.
+No behavior change anywhere — pure move + import-path updates. Existing tests for
+all three files continue to pass unchanged except for import paths.
 
-### 2. `src/hooks/useDanceScheduleFilters.ts`
+## Documentation fixes
 
-Reorder so `dateSessions` is computed before the level-index state (it currently comes after). Then:
+**`docs/adding-a-new-event.md`** (step 4, "Cell format details" and "Checking
+your work"):
+- Document `GCA Caller Showcase Dance` as a recognized event-type value: what
+  happens when you use it (omitted entirely from the Caller Schedule page; grouped
+  separately as "showcase-only" on the hour-summary tabs/debug page).
+- Document `All Headliners`/`All Callers` as recognized caller-placeholder values:
+  what happens (floats as a full-width banner across every caller column on the
+  Caller Schedule page, instead of getting/needing its own column) and that the
+  match is exact and case-sensitive against just these two spellings — a
+  differently-worded placeholder (e.g. "Everyone") won't get this treatment.
+- Add a short caution against naming a real day-sheet starting with `-` (row 4) —
+  reserved for internal generated/utility tabs.
+- Note `GCA:`/`ROOMS:` prefixes and `ROOMS: NONE`'s value are matched
+  case-insensitively (currently only shown capitalized in examples).
+- State the `' - '` (space-hyphen-space) delimiter explicitly as the required
+  separator between type and caller, not just implied by example.
 
-- `const { minIndex: minPresentLevelIndex, maxIndex: maxPresentLevelIndex } = useMemo(() => getPresentLevelIndexRange(dateSessions, slots), [dateSessions, slots])` (or two separate memoized values — keep it simple).
-- Initial `minLevelIndex`/`maxLevelIndex` state: after computing `resolveStoredLevelRange(initialStoredFilters, slots.length)` as today, clamp the result through `clampLevelIndex` against the initial day's present range — computed synchronously in the same render (hooks execute top-to-bottom), so there's no first-paint flash of an untrimmed range.
-- New effect, keyed on the **primitive** bounds (not an object, to match this hook's flat-field style and avoid identity churn):
-  ```ts
-  useEffect(() => {
-    setMinLevelIndex((prev) => clampLevelIndex(prev, { minIndex: minPresentLevelIndex, maxIndex: maxPresentLevelIndex }))
-    setMaxLevelIndex((prev) => clampLevelIndex(prev, { minIndex: minPresentLevelIndex, maxIndex: maxPresentLevelIndex }))
-  }, [minPresentLevelIndex, maxPresentLevelIndex])
-  ```
-  Fires on date switches (and harmlessly on mount) but NOT on manual `setLevelRange` calls, since its deps are only the present-range bounds — so it re-scopes across day switches without fighting the user's own in-day slider drags. Note in a comment: this can cause one redundant localStorage write on a date switch (persistence effect fires once before the clamp lands, once after) — harmless, not worth engineering around.
-- Add `hasGcaOnSelectedDate = useMemo(() => dateSessions.some((s) => s.kind === 'structured' && !!s.gca), [dateSessions])`.
-- Return `minPresentLevelIndex`, `maxPresentLevelIndex`, `hasGcaOnSelectedDate` as new flat fields on `UseDanceScheduleFiltersResult`.
-
-**Tests** (`src/hooks/useDanceScheduleFilters.test.ts`): existing 7 tests pass unchanged — hand-traced (and independently re-verified) that `day1Session`(SSD) + `day1AdvancedSession`(C4) together span the full range on day1 in every combine-flag scenario tested. Add:
-- A day whose *earliest* date only has a narrow-range session (e.g. a new `day0Session` before `day1Session`, `levels: ['Plus']` only) → assert `minLevelIndex === maxLevelIndex === LEVEL_ORDER.indexOf('Plus')` at mount (proves the synchronous initial clamp).
-- Switch to `day2Session`'s date (`levels: ['SSD']` only) from day1 (full range) → assert both indices collapse to `LEVEL_ORDER.indexOf('SSD')` (proves the effect re-scopes on switch, including the degenerate single-index case).
-- `hasGcaOnSelectedDate`: add `gca: 'Some Caller'` to one day1 session, assert `true` on day1 / `false` on day2 (no gca in that fixture), re-check after `setSelectedDate`.
-
-### 3. `src/components/DanceScheduleFilters.tsx`
-
-- New required props: `minPresentLevelIndex: number`, `maxPresentLevelIndex: number`, `hasGcaOnSelectedDate: boolean`.
-- `Slider.Root`: `min={minPresentLevelIndex}`, `max={maxPresentLevelIndex}` (was `0`/`slots.length - 1`).
-- Ticks: filter `slots` (with index) to `index >= minPresentLevelIndex && index <= maxPresentLevelIndex` before mapping — don't map-then-return-null (avoids a hole in the key list). `onClick` still calls `moveNearestThumb(index, ...)` with the real, unshifted index — no change to `moveNearestThumb.ts`.
-- `fraction` and `maxLevelFieldWidthPx`: recompute relative to `[minPresentLevelIndex, maxPresentLevelIndex]` instead of `[0, slots.length - 1]`, each guarded against a degenerate single-slot day (`maxPresentLevelIndex === minPresentLevelIndex`): `fraction = range > 0 ? (index - min) / range : 0.5`; width uses `Math.max(maxPresentLevelIndex - minPresentLevelIndex, 1) * MAX_TICK_GAP_PX + LEVEL_FIELD_FIXED_INSET_PX` so a single-tick day doesn't collapse the field to just its inset.
-- GCA checkbox: wrap the existing `<label className={styles.checkboxField}>` block in `{hasGcaOnSelectedDate && (...)}`.
-- No CSS changes needed in `DanceScheduleFilters.module.css` — confirmed `.dateGcaRow` (`display: flex; gap: var(--space-md)`, no `justify-content` override) degrades gracefully to one child (CSS `gap` only inserts space *between* rendered children), and `.levelField`'s width/margin formula is unchanged in shape, just fed different live inputs.
-
-**Tests** (`src/components/DanceScheduleFilters.test.tsx`): fix `renderFilters()`'s defaults to derive from the *effective* slots, not a fixed constant — otherwise the existing "combined slots" describe blocks (which override `slots` to a 9-entry array but not the new props) get `maxPresentLevelIndex` one past the end:
-  ```ts
-  const slots = overrides.slots ?? BASE_SLOTS
-  // ...
-  minPresentLevelIndex: 0,
-  maxPresentLevelIndex: slots.length - 1,
-  hasGcaOnSelectedDate: true,
-  ...overrides,
-  ```
-  Add: fewer ticks render when present bounds are a strict subset (assert exact count + which labels are present/absent); Radix's rendered `min`/`max` (via thumbs' `aria-valuemin`/`aria-valuemax`) reflect the narrowed props; GCA checkbox absent when `hasGcaOnSelectedDate={false}`, present when `true`. Existing combined-slots tests pass unchanged once the helper default is fixed.
-
-### 4. Three page components
-
-`src/pages/DanceSchedulePage.tsx`, `DanceScheduleLevelsPage.tsx`, `DanceScheduleCallersPage.tsx` — identical change in all three, keeping them byte-identical per existing convention:
-- Destructure `minPresentLevelIndex`, `maxPresentLevelIndex`, `hasGcaOnSelectedDate` from `useDanceScheduleFilters(...)` and pass them into `<DanceScheduleFilters>`.
-- Change `onShowAllLevels={() => setLevelRange(0, slots.length - 1)}` → `onShowAllLevels={() => setLevelRange(minPresentLevelIndex, maxPresentLevelIndex)}`. This is required, not cosmetic: once Radix's own `min`/`max` no longer extend to `0`/`slots.length - 1`, the old call would set state outside the slider's own enforced bounds.
-
-`src/components/danceSchedulePageFilterContract.tsx`: no changes needed — the `automated-testing` fixture's default (earliest) date already has a full present range, so existing shared assertions (column count, the 7-ArrowRight level-narrowing test, GCA toggle) are unaffected.
-
-### 5. `docs/design/dance-schedule.md`
-
-Add a new decision entry (after the "Level-columns view" section, near the two merge-flag decisions) — "Level slider and GCA checkbox scope to the selected date's present levels":
-- Why: the MotivateToSeattle report (dead slider ends, inert GCA checkbox).
-- The two-layer shape (stable `slots` index space, unchanged, + per-date `presentLevelRange`/`hasGcaOnSelectedDate`), explicitly drawn as parallel to the caller-columns view's `callerOrder`/eligibility-vs-visibility split — not a repeat of the `MIN_CALLER_HOURS` instability bug, since neither new feature has a stability requirement to violate.
-- Explicit statement that internal gaps aren't trimmed, citing the existing Open Questions precedent.
-- Note this doesn't touch `getLevelSlots`/`LevelSlot`/combine-flag interaction at all.
-
-`docs/adding-a-new-event.md`: no changes — fully derived from existing spreadsheet data, no new authoring syntax.
+**`docs/design/dance-schedule.md`** ("Caller-columns view" section):
+- Correct the now-stale "A session with no caller is skipped entirely, not
+  floated or given a dedicated 'Other' column" paragraph (~line 1283) — still true
+  for freeform (callerless) sessions, no longer true for an all-headliners
+  session, which now floats. Similarly correct "this grid needs no roomless-card
+  treatment at all" (~line 1372–1383).
+- Add a new decision entry after the caller-columns section (before "Sticky-scroll
+  grid shell...") documenting the all-headliners floating mechanism: why a
+  hardcoded recognized-name set rather than a room-count heuristic (a legitimate
+  multi-room session can have one real, specific caller), reuse of the existing
+  `slotIndex: null` floating mechanism (`assignLanes.ts`), and a pointer to the
+  new `recognizedSessionKeywords.ts` consolidation.
+- Add a short decision entry noting the `recognizedSessionKeywords.ts`
+  consolidation itself and why (discoverability; the repeated-precedent comment
+  that motivated it).
 
 ## Verification
 
-- `pnpm typecheck && pnpm lint && pnpm test` (covers the new/updated unit and component tests above).
-- `pnpm dev` (or `CONTENT_SET=MotivateToSeattle pnpm dev`) and visually check the filter row on a MotivateToSeattle date: slider should span only A1/A2 through C3B+ (SSD/MS/Plus stops gone), field width/tick spacing still balanced (no dead whitespace), GCA checkbox absent on every day. Switch content sets (e.g. `automated-testing`, which does have GCA data on some day) to confirm the checkbox still appears there and the slider still spans its full real range.
-- Check a date switch within MotivateToSeattle doesn't visibly jump/flicker the slider, and that "Show all levels" (if reachable — an empty-state link) resets within the new trimmed bounds rather than snapping to the old absolute full range.
-- `pnpm build && pnpm test:e2e` if the Playwright dance-schedule spec exercises the slider's tick count or GCA checkbox presence (check `e2e/dance-schedule.spec.ts` for assertions tied to fixed tick counts against the `automated-testing` fixture, since those should be unaffected but are worth confirming green).
+- `pnpm typecheck && pnpm lint && pnpm test` — confirms the pure-move refactor
+  didn't break anything (existing tests for hour-summary, caller-layout, and the
+  caller-grid component all still pass with updated import paths only).
+- Grep the repo afterward for the old constant locations to confirm no leftover
+  duplicate definitions or stale imports.
+- No `pnpm build`/e2e run needed — this is an internal reorganization plus docs,
+  with no behavior change (already covered end-to-end by this session's earlier
+  e2e verification of the all-headliners floating behavior itself).

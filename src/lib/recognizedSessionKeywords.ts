@@ -1,0 +1,52 @@
+import type { StructuredSession } from '../types/danceSchedule'
+
+// The single home for every exact-literal value the app treats specially in
+// already-*parsed* session data — as opposed to raw spreadsheet cell SYNTAX
+// (the "Level : Type - Caller" grammar, "GCA:"/"ROOMS:" prefixes, the ditto
+// mark, etc.), which stays parser-internal in parseDanceScheduleSheet.ts since
+// it's genuinely coupled to the parsing logic that reads it and has exactly one
+// consumer. Everything below is instead read by MULTIPLE unrelated downstream
+// files — hour-summary computation, caller-column layout, card formatting — and
+// used to live scattered across whichever of those files happened to need it
+// first. That scattering was never a deliberate design choice: this file's own
+// history is three copies of the same "hardcoded recognized-string" pattern,
+// each one's own comment citing the previous as precedent instead of sharing
+// code with it. If a fourth such value is ever needed (a new recognized event
+// type, a new collective-caller placeholder, etc.), it belongs here too, not in
+// whichever downstream file happens to need it first.
+//
+// See docs/adding-a-new-event.md's "Cell format details" and
+// docs/design/dance-schedule.md's decision entries for the user-facing and
+// full-rationale explanations of each value below, respectively.
+
+// The implied event type when a cell omits "Type - " entirely ("Level : Caller"),
+// and the one type formatSessionEventTypePrefix (formatDanceSession.ts) suppresses
+// as redundant on real display cards — shared so the parser's default and the
+// formatter's no-op check can't drift apart.
+export const DEFAULT_EVENT_TYPE = 'Dancing'
+
+// "GCA Caller Showcase Dance" sessions credit a caller like any other structured
+// session, but a caller whose ONLY credited hours come from this event type is a
+// fundamentally different kind of entry than a real headline caller — see
+// DanceScheduleHourSummaryTable's `groupBoundary` (computeDanceScheduleHourSummary.ts)
+// and the caller-columns view's own exclusion of it (computeDanceScheduleCallerLayout.ts).
+export const GCA_CALLER_SHOWCASE_EVENT_TYPE = 'GCA Caller Showcase Dance'
+
+// Recognized collective-caller placeholders — a session credited to "everyone
+// headlining this event" rather than one or more specific, trackable callers.
+// Hardcoded rather than inferred from session shape (e.g. "listed as the sole
+// caller of a multi-room session") since a real multi-room session can legitimately
+// have one specific caller too (see docs/adding-a-new-event.md's own worked
+// example), so room count alone isn't a safe signal. Add a name here if a future
+// event's spreadsheet uses different placeholder wording.
+export const ALL_HEADLINERS_CALLER_NAMES = new Set(['All Headliners', 'All Callers'])
+
+// A session "credited" only to a collective placeholder, not any specific caller —
+// see ALL_HEADLINERS_CALLER_NAMES. Deliberately requires EVERY listed caller to be a
+// recognized placeholder (not just one of several) — a session co-crediting a real
+// caller alongside "All Headliners" has never been observed, and if it ever
+// happened, treating it as a normal per-caller session (so the real caller still
+// gets their own column placement) is the safer default than floating it.
+export function isAllHeadlinersSession(session: StructuredSession): boolean {
+  return session.callers.length > 0 && session.callers.every((caller) => ALL_HEADLINERS_CALLER_NAMES.has(caller))
+}

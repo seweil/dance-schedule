@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  computeDanceScheduleHourSummary,
-  formatHours,
-  GCA_CALLER_SHOWCASE_EVENT_TYPE,
-} from './computeDanceScheduleHourSummary'
+import { computeDanceScheduleHourSummary, formatHours } from './computeDanceScheduleHourSummary'
+import { GCA_CALLER_SHOWCASE_EVENT_TYPE } from './recognizedSessionKeywords'
 import type { DanceSession } from '../types/danceSchedule'
 
 function makeSession(overrides: Partial<DanceSession> = {}): DanceSession {

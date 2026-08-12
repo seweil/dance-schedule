@@ -1,12 +1,7 @@
 import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
-import {
-  LEVEL_CODES,
-  DEFAULT_EVENT_TYPE,
-  type LevelCode,
-  type DanceSessionData,
-  type SessionLocation,
-} from '../types/danceSchedule'
+import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
+import { LEVEL_CODES, type LevelCode, type DanceSessionData, type SessionLocation } from '../types/danceSchedule'
 
 const WEEKDAY_PREFIX = /^\w+day,?\s+/i
 const LEVEL_SEPARATOR = /[&/]/

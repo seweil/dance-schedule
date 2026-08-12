@@ -1,4 +1,5 @@
-import { DEFAULT_EVENT_TYPE, type DanceSession } from '../types/danceSchedule'
+import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
+import type { DanceSession } from '../types/danceSchedule'
 
 // Session date/time values are wall-clock values from the spreadsheet, not real
 // instants (see buildDanceSchedule.ts) — pinned to UTC so they display exactly as

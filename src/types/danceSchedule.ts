@@ -21,12 +21,6 @@ export const LEVEL_CODES = [
 ] as const
 export type LevelCode = (typeof LEVEL_CODES)[number]
 
-// The implied event type when a cell omits "Type - " entirely ("Level : Caller"),
-// and the one type formatSessionEventTypePrefix (formatDanceSession.ts) suppresses
-// as redundant on real display cards — shared so the parser's default and the
-// formatter's no-op check can't drift apart.
-export const DEFAULT_EVENT_TYPE = 'Dancing'
-
 // A session either occupies one or more named rooms (the common case is exactly one),
 // or has no room at all (e.g. a lunch break) — see docs/design/dance-schedule.md for
 // the "ROOMS:"/ditto-mark authoring conventions that produce each variant.

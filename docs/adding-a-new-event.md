@@ -219,6 +219,11 @@ usually already kept in practice.
 - **One sheet per day.** Sheet name = weekday + month + day, no year, e.g.
   `Thursday July 2`. The year is inferred the same way as event dates
   (step 3) — include it in the sheet name only if you need to override that.
+  Don't start a real day sheet's name with a hyphen (`-`) — that prefix is
+  reserved to mark a tab as non-schedule content (e.g. the generated
+  "Hours by Level"/"Hours by Caller" summary tabs — see "Checking your work"
+  below), so a sheet named that way is silently skipped rather than parsed as
+  a day.
 - **Row 1** = room names, one per column (can differ per sheet, e.g. a room
   only used on Saturday).
 - **Column A** = a time slot per row (e.g. `12:30p-1:30p`, same flexible
@@ -233,7 +238,9 @@ usually already kept in practice.
   For example: `SSD : Dancing - Vic Ceder`. The `Type -` part is optional —
   if the session is just ordinary dancing with nothing more specific to say,
   write `Level : Caller` and the type is assumed to be "Dancing" (e.g.
-  `SSD : Vic Ceder` means the same thing as the example above).
+  `SSD : Vic Ceder` means the same thing as the example above). When you do
+  include a type, the separator between it and the caller must be exactly
+  a space, hyphen, space (` - `) — not a bare hyphen or an em/en dash.
 
 ### Cell format details
 
@@ -251,7 +258,8 @@ usually already kept in practice.
 - **A GCA (non-headline caller) credit:** for a caller who's calling
   alongside the main caller(s) without top billing — not a statement about
   their skill level. Add a second line inside the same cell, starting with
-  `GCA:`:
+  `GCA:` (matched case-insensitively — `gca:` works too, but the examples
+  here use the capitalized form):
 
   ```
   SSD : Dancing - Vic Ceder
@@ -264,11 +272,21 @@ usually already kept in practice.
   **Control+Option+Return** instead), while typing in the cell. Same key
   combo for the `ROOMS:` lines below.)
 
+- **A recognized "GCA Caller Showcase Dance" type:** write it as the `Type`
+  portion exactly, e.g. `SSD : GCA Caller Showcase Dance - Michael Maltenfort`.
+  This is a real, specially-recognized type name (not just descriptive text
+  like any other `Type`): a session using it is left off the Caller Schedule
+  page entirely, and on the hour-summary tabs/debug page, a caller whose
+  *entire* credited total comes from sessions of this type is grouped
+  separately from callers with real headline sessions. The match is exact and
+  case-sensitive — a typo or different wording (e.g. "GCA Showcase") is just
+  ordinary descriptive text and won't get this treatment.
 - **A session spanning more than one room** (e.g. a combined all-attendee
   dance): either
-  - write a `ROOMS:` line in **one** of the spanned rooms' cells listing
-    every room it spans (comma-separated, including that cell's own room),
-    and leave the other spanned rooms' cells for that row blank:
+  - write a `ROOMS:` line (also matched case-insensitively) in **one** of the
+    spanned rooms' cells listing every room it spans (comma-separated,
+    including that cell's own room), and leave the other spanned rooms'
+    cells for that row blank:
     ```
     SSD : Combined Dance - Vic Ceder
     ROOMS: Ballroom Centre, Ballroom East
@@ -278,10 +296,24 @@ usually already kept in practice.
     cell — no `ROOMS:` line needed. It means "same session as the cell to
     my left."
 - **A session with no room at all** (e.g. a lunch break): write
-  `ROOMS: NONE`:
+  `ROOMS: NONE` (`NONE` is also matched case-insensitively):
   ```
   * Lunch Break
   ROOMS: NONE
+  ```
+- **A session credited to everyone headlining the event, not one or more
+  specific callers** (e.g. a combined closing dance): write the caller as
+  exactly `All Headliners` or `All Callers` — these two exact, case-sensitive
+  spellings are recognized as collective placeholders. On the Caller Schedule
+  page, a session like this renders as a full-width banner spanning every
+  visible caller column, instead of needing (or being able to get) a caller
+  column of its own — a placeholder name can never individually qualify for a
+  column the way a real caller's name does. Any other wording (e.g.
+  "Everyone," "All Instructors") is treated as an ordinary, specific caller
+  name and won't get this treatment.
+  ```
+  SSD : Combined Dance - All Callers
+  ROOMS: Ballroom Centre, Ballroom East
   ```
 - **Anything that isn't a structured "Level : Type - Caller" session**
   (an announcement, a break, anything freeform): prefix the cell with `* `

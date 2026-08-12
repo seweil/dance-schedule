@@ -1,13 +1,13 @@
 import type { CSSProperties } from 'react'
 import {
   CALLER_COLUMN_WIDTH,
-  isAllHeadlinersSession,
   type DanceCallerSessionPlacement,
   type DanceScheduleCallerLayout,
 } from '../lib/computeDanceScheduleCallerLayout'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsWithRoomContent } from '../lib/danceScheduleCardContent'
 import { formatSessionGca, formatSessionLevels, formatSessionTimeRange } from '../lib/formatDanceSession'
+import { isAllHeadlinersSession } from '../lib/recognizedSessionKeywords'
 import { colorForSession } from '../lib/levelColors'
 import { StickyScrollGrid } from './StickyScrollGrid'
 // Reused as-is — every dance-schedule grid shares the exact same visual language
