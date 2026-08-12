@@ -90,7 +90,7 @@ here as the codebase grows.
 - `src/components/SchedulePage.tsx` (the `/event-schedule` route) has no unit
   test of its own — the only remaining page in that state.
   `DanceSchedulePage.tsx`/`DanceScheduleLevelsPage.tsx`/`DanceScheduleCallersPage.tsx`
-  (routes `/room-schedule`/`/dancing-by-level`/`/caller-schedule`) each now
+  (routes `/room-schedule`/`/dance-schedule`/`/caller-schedule`) each now
   have their own unit test plus e2e coverage — this bullet used to flag all
   four as gaps; only `SchedulePage.tsx` still is.
 - `src/components/BuildInfo.tsx` and `src/components/UpdatePrompt.tsx` have

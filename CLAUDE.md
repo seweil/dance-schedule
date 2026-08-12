@@ -107,7 +107,7 @@ content/
                               # covers doesn't need it)
       dance-schedule.xlsx     # multi-day/multi-room convention schedule source data —
                               # required; see docs/design/dance-schedule.md and the
-                              # Room Schedule / Dancing by Level / Caller Schedule
+                              # Room Schedule / Dance Schedule / Caller Schedule
                               # pages, all generated from this one file
     scratch/                # optional — a content author's own staging area for raw
                             # material (e.g. a higher-resolution source photo before
@@ -247,9 +247,9 @@ The short version:
   `"<digits> "` order-prefix filename convention, same `buildNavTree` logic, no
   special-casing needed in `Nav.tsx`.
 - **Nav ordering convention**: prefixes `10`, `12`, `13`, `14`
-  (`src/pages/10 event-schedule.tsx`, `12 dancing-by-level.tsx`,
+  (`src/pages/10 event-schedule.tsx`, `12 dance-schedule.tsx`,
   `13 room-schedule.tsx`, `14 caller-schedule.tsx` — nav labels "Event
-  Schedule", "Dancing by Level", "Room Schedule", "Caller Schedule"
+  Schedule", "Dance Schedule", "Room Schedule", "Caller Schedule"
   respectively) are reserved for those auto-generated pages. A content page
   should use a prefix below `10` (any
   number in that range — nothing about which specific single-digit number

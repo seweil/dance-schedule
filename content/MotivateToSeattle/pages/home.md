@@ -1,8 +1,8 @@
 # Motivate to Seattle
 
-## [Dancing by Level](/dancing-by-level)
+## [Dance Schedule](/dance-schedule)
 
-See what's dancing right now, organized by skill level.
+See what's dancing right now, organized by dance program.
 
 ## Add to your home screen
 

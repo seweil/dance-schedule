@@ -47,7 +47,7 @@ export function DanceScheduleLevelsPage() {
 
   return (
     <>
-      <PageHeader title="Dancing by Level" />
+      <PageHeader title="Dance Schedule" />
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}

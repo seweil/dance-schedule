@@ -12,8 +12,8 @@ charitable organization — donations are tax deductible.
   everything else on the calendar that isn't a dance session.
 - [**Room Schedule**](/room-schedule) — the full dance session grid, room
   by room.
-- [**Dancing by Level**](/dancing-by-level) — the same sessions, organized by
-  skill level instead.
+- [**Dance Schedule**](/dance-schedule) — the same sessions, organized by
+  dance program instead.
 - [**Callers**](/callers) — who's calling and cueing this convention.
 
 New here? See [Installation](/installation) to add this schedule to your

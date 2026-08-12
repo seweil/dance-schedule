@@ -448,7 +448,7 @@ constants, `danceScheduleCardSizing.ts`) to `repeat(N, minmax(28px, auto))`
 correctly distributing a row-spanning card's height need across the rows it
 spans (standard CSS Grid track-sizing behavior, no JS involved). This closes
 the vertical-clipping gap for ordinary content; live-verified against real
-data (`automated-testing` and `dancing-by-level`) with zero clipped cards.
+data (`automated-testing` and `dance-schedule`) with zero clipped cards.
 
 The whole `shouldCombinePrimaryAndDetails`/`estimateCardFit.ts`/
 `estimateWrappedLineCount.ts`/`measureTextWidth.ts` combine-onto-one-line

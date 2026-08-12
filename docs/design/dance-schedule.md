@@ -772,10 +772,10 @@ them needed to change for the second flag — exactly the payoff the original
 ### Level-columns view: a second grid, same filters, level slots as columns
 
 **Why:** Alongside the room-column × time-row grid (`DanceScheduleGrid.tsx`,
-`/room-schedule`), some users want to scan a single skill level across every
+`/room-schedule`), some users want to scan a single dance program across every
 room at once — e.g. "what's running at C1 all day?" — which the room-columns
 view doesn't answer directly. Rather than adding a mode toggle to the existing
-page, this is a second page (`/dancing-by-level`,
+page, this is a second page (`/dance-schedule`,
 `DanceScheduleLevelsPage.tsx`) reusing the exact same date/level-range/GCA
 selectors (`DanceScheduleFilters.tsx`, unchanged) and the exact same
 `useDanceScheduleFilters` hook — including its `localStorage` persistence, so
