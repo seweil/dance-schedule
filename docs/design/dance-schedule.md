@@ -1471,18 +1471,28 @@ Caller Showcase Dance" ones, unchanged.
 
 **`'busy'` and `'free'` are STYLED and WORDED differently, since they mean
 opposite things** (`DanceScheduleCallerGrid.tsx`): both get the existing
-`.roomlessCard` treatment (centered, sticky content, session's own time range
-in place of a GCA line), but `'busy'` additionally gets a new
-`.busyFloatingCard` modifier — a very light orange, distinct from
-`.roomlessCard`'s own plain gray (kept for `'free'`, unchanged) and from
-every color in `levelColors.ts`'s palette. Text differs too: `'busy'` keeps
-`detailsWithRoomContent` (bold **room** — caller is implied by "spans every
-column," same reasoning as an ordinary card). `'free'` switches to
-`detailsContent` instead (bold **caller**, or the freeform `description`
-directly) — a break's description already conveys everything either function
-would show, but a "GCA Callers" session's bold ROOM alone would give no hint
-why headline callers have nothing scheduled there; the caller field is the
-whole point for this kind, not a redundant fact.
+`.roomlessCard` treatment (centered, sticky content, no GCA line), but
+`'busy'` additionally gets a new `.busyFloatingCard` modifier — a very light
+orange, distinct from `.roomlessCard`'s own plain gray (kept for `'free'`,
+unchanged) and from every color in `levelColors.ts`'s palette. Text differs
+too: `'busy'` keeps `detailsWithRoomContent` (bold **room** — caller is
+implied by "spans every column," same reasoning as an ordinary card).
+`'free'` switches to `detailsContent` instead (bold **caller**, or the
+freeform `description` directly) — a break's description already conveys
+everything either function would show, but a "GCA Callers" session's bold
+ROOM alone would give no hint why headline callers have nothing scheduled
+there; the caller field is the whole point for this kind, not a redundant
+fact.
+
+**No time-range line, unlike the room/level views' own roomless cards** (a
+later refinement, per direct product feedback): a floating card's own row
+height already lines up exactly with the sticky time labels to its left on
+THIS view — every row boundary it spans is a real, labeled tick, and
+`clipFreeFloatingEntries` (below) keeps a `'free'` card's own rendered span
+from ever implying an unlabeled one — so restating the time inside the card
+would be redundant, especially felt on a phone-width column where every line
+of card text is scarce. Scoped to this view specifically; the room/level
+grids' own roomless cards still show it.
 
 **A previously-latent bug surfaced immediately, on real data: two floating
 sessions can genuinely overlap in time.** MotivateToSeattle's Friday has an
@@ -1522,13 +1532,11 @@ RENDERED `rowSpan` is clipped to end at the earliest OTHER entry's `rowStart`
 within its own range — any kind of other entry (ordinary, `'busy'`, or even
 another `'free'` one) counts, since any of them means "something IS scheduled
 now," the thing a free claim is specifically about the absence of. Only the
-placement's geometry is clipped; the underlying `session` (and therefore the
-card's own displayed time-range text, which reads `session.startTime`/
-`endTime` directly, never the clipped geometry) still says the session's real
-"5:30 PM – 8:00 PM" span. On the real data, clipping Registration to end
-exactly when "GCA Callers" starts means it no longer overlaps either later
-session at all, so lane-splitting doesn't even trigger anymore — each of the
-three renders full-width for its own actual portion of the evening.
+placement's geometry is clipped, never the underlying `session` object. On
+the real data, clipping Registration to end exactly when "GCA Callers" starts
+means it no longer overlaps either later session at all, so lane-splitting
+doesn't even trigger anymore — each of the three renders full-width for its
+own actual portion of the evening.
 Deliberately doesn't try to "resume" a free entry's span after a later gap
 (e.g. if something were scheduled 6:30–7:00 PM but nothing after that until
 8:00 PM) — punting on that compound case as "never needed by real data,"

@@ -237,9 +237,8 @@ function buildRawEntries(
 // "free" one) begins somewhere inside it, that claim stops being accurate for
 // the remainder: something else IS scheduled from that point on. Clips a free
 // entry's RENDERED rowSpan to end at the earliest other entry's rowStart within
-// its own range — its underlying session (and therefore its card's displayed
-// time-range text, which reads straight from `session`, never from this
-// geometry) is untouched, so it still says the session's real, full time range.
+// its own range — only this geometry changes, never the underlying `session`
+// object itself.
 //
 // Mutates `entries` in place, but computes every clip target from each entry's
 // ORIGINAL (pre-clip) rowStart/rowSpan first, all at once — order-independent,
@@ -418,10 +417,9 @@ function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number)
  * A "free" floating entry's RENDERED span is also clipped to end at the earliest
  * other entry's start within its own range (see clipFreeFloatingEntries) — its
  * "no headline caller has anything scheduled" claim stops being accurate the
- * moment anything else starts, even though its own underlying session (and its
- * card's displayed time-range text) keeps running the full length. An all-evening
- * "Registration" session overlapping a real caller session partway through is the
- * motivating real example.
+ * moment anything else starts, even though its own underlying session keeps
+ * running the full length. An all-evening "Registration" session overlapping a
+ * real caller session partway through is the motivating real example.
  */
 export function computeDanceScheduleCallerLayout(
   dateSessions: DanceSession[],

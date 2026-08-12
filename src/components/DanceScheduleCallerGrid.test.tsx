@@ -374,7 +374,7 @@ describe('DanceScheduleCallerGrid', () => {
       expect(screen.getByText('Lunch Break (on your own)')).toBeInTheDocument()
     })
 
-    it('shows the session time range instead of a GCA line on a floating card, even when showGca is true', () => {
+    it('never shows a GCA line or a time-range line on a floating card, even when showGca is true', () => {
       render(
         <DanceScheduleCallerGrid
           layout={makeLayout({
@@ -392,7 +392,9 @@ describe('DanceScheduleCallerGrid', () => {
           onShowAllLevels={() => {}}
         />,
       )
-      expect(screen.getByText('7:00 PM – 8:00 PM')).toBeInTheDocument()
+      // No time-range line — the card's own row height already lines up with the
+      // sticky time labels to its left, so restating it would be redundant.
+      expect(screen.queryByText('7:00 PM – 8:00 PM')).not.toBeInTheDocument()
       expect(screen.queryByText(/^GCA:/)).not.toBeInTheDocument()
     })
   })
