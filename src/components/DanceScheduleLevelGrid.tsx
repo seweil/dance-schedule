@@ -62,7 +62,13 @@ function SessionCard({
     style.marginLeft = `${widthPercent * lane}%`
   }
 
-  const room = formatSessionRoom(session)
+  // Never shown for a roomless card — formatSessionRoom's own "—" placeholder
+  // (meant for a raw/debug table cell that always needs SOME content, e.g.
+  // RawDanceScheduleTable.tsx) reads as meaningless clutter here, especially now
+  // that the time range next to it is ALSO omitted for the same reason (see
+  // showTimeRange below) — nothing useful is left for that placeholder to
+  // accompany.
+  const room = isRoomless ? '' : formatSessionRoom(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
 

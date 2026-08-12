@@ -1655,19 +1655,18 @@ it commonly overlaps real, room-specific dancing happening at the same
 time — the MotivateToSeattle example cited above (a 5:30–8:00 PM freeform
 "Registration" session overlapping a 6:30–7:00 PM "GCA Callers" session and a
 7:00–8:00 PM "Trail-In Dance" one) is real production data, not a
-hypothetical. On the caller-columns view that overlap is resolved by
-`clipFreeFloatingEntries` (above) — but that mechanism is caller-columns-
-specific (it clips a `'free'` floating entry's rendered span against
-whatever else is scheduled for *headline callers*, a concept that doesn't
-exist on the room/level views). The room/level grids have no equivalent: a
-roomless card there still renders its full, unclipped span, so on a day like
-that one Registration's own row span no longer corresponds to a clean,
-dedicated stretch of the axis the way an isolated meal break's does — a
-reader scanning the left margin can land on a row that's "inside
-Registration" but whose nearby labels actually belong to the dancing
-happening alongside it. The explicit time-range text resolves that specific
-ambiguity; every other roomless card (a meal break, an announcement) has no
-such overlap, so the axis alone is enough for it.
+hypothetical. On the room/level grids a roomless card renders its full,
+unclipped span, so on a day like that one Registration's own row span no
+longer corresponds to a clean, dedicated stretch of the axis the way an
+isolated meal break's does — a reader scanning the left margin can land on a
+row that's "inside Registration" but whose nearby labels actually belong to
+the dancing happening alongside it. The explicit time-range text resolves
+that specific ambiguity; every other roomless card (a meal break, an
+announcement) has no such overlap, so the axis alone is enough for it.
+(This reasoning originally assumed the caller-columns view didn't need the
+same exception, since `clipFreeFloatingEntries` resolves ITS OWN overlap —
+turned out to be wrong in practice; see "Caller-columns view keeps
+Registration's time range too" below.)
 
 **Implementation:** `isRegistrationSession` (`recognizedSessionKeywords.ts`)
 checks a freeform session's `description` against a new
@@ -1678,6 +1677,42 @@ consolidated there rather than duplicated per grid, per that file's own
 `DanceScheduleGrid.tsx` and `DanceScheduleLevelGrid.tsx` gate their existing
 time-range line on `isRoomless && isRegistrationSession(session)` instead of
 `isRoomless` alone; nothing else about either card changed.
+
+### Caller-columns view keeps Registration's time range too, and the level view's own roomless-room placeholder is dropped
+
+**Caller-columns view:** per direct product feedback, the reasoning above for
+why the caller-columns view didn't need its own Registration exception (its
+overlap is already resolved by `clipFreeFloatingEntries`, which clips a
+`'free'` floating entry's rendered span to end at the earliest other entry's
+start) turned out to be incomplete in practice — a floating card's time range
+still isn't reliably obvious from the left margin THERE either. Unlike the
+room/level views' continuous axis (every gap stays visible, just capped at
+one row), this view's own `compressToOccupiedRows` (above) drops any row
+with nothing scheduled for ANY visible caller at all, so its time axis is
+compacted rather than a steady, predictable clock — a real difference from
+the room/level views that the original "clipping already fixes it" reasoning
+didn't account for. `DanceScheduleCallerGrid.tsx`'s `SessionCard` now shows
+`formatSessionTimeRange(session)` on a floating card exactly when
+`isRegistrationSession(session)` is true, the identical check and identical
+recognized-value source (`recognizedSessionKeywords.ts`) the room/level views
+already use — every other floating card (an ordinary break, a "GCA Callers"
+placeholder) still omits it, unchanged.
+
+**Level-columns view:** `DanceScheduleLevelGrid.tsx`'s roomless card used to
+always render a second line via `formatSessionRoom(session)` — which returns
+a literal `'—'` placeholder for a roomless session (meant for a raw/debug
+table cell that always needs SOME content, e.g. `RawDanceScheduleTable.tsx`,
+where showing a placeholder for a missing value is the standard convention).
+On a real rendered card that placeholder read as meaningless clutter, more
+so now that the time range next to it is also omitted for the very same
+"nothing useful left to say" reason on most roomless cards (see above) — a
+bare em dash with nothing beside it. Fixed by never computing `room` at all
+for a roomless card (`const room = isRoomless ? '' : formatSessionRoom(session)`)
+rather than trying to special-case the placeholder value itself, so the
+existing `{room && <p>...}` conditional simply never renders anything for
+it. The room/columns view (`DanceScheduleGrid.tsx`) never had this problem —
+it has no room line of its own at all, roomless or not, since the room IS
+the column being scanned.
 
 ## Open questions
 

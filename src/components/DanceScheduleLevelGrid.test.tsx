@@ -211,6 +211,9 @@ describe('DanceScheduleLevelGrid', () => {
     )
     expect(screen.getByText('Lunch Break')).toBeInTheDocument()
     expect(screen.queryByText('12:00 PM – 1:30 PM')).not.toBeInTheDocument()
+    // formatSessionRoom's own "—" placeholder (meant for a raw/debug table cell)
+    // shouldn't leak into this card — nothing useful is left for it to accompany.
+    expect(screen.queryByText('—')).not.toBeInTheDocument()
   })
 
   it('keeps the time range for a roomless Registration session, since it can overlap real dancing', () => {
@@ -229,6 +232,7 @@ describe('DanceScheduleLevelGrid', () => {
     )
     expect(screen.getByText('Registration')).toBeInTheDocument()
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
+    expect(screen.queryByText('—')).not.toBeInTheDocument()
   })
 
   it('renders header content and body content in separate grids', () => {

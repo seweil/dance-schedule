@@ -6,8 +6,13 @@ import {
 } from '../lib/computeDanceScheduleCallerLayout'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent, detailsWithRoomContent } from '../lib/danceScheduleCardContent'
-import { formatSessionGca, formatSessionLevels } from '../lib/formatDanceSession'
+import {
+  formatSessionGca,
+  formatSessionLevels,
+  formatSessionTimeRange,
+} from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
+import { isRegistrationSession } from '../lib/recognizedSessionKeywords'
 import { StickyScrollGrid } from './StickyScrollGrid'
 // Reused as-is — every dance-schedule grid shares the exact same visual language
 // (card, levels/details/gca lines, sticky headers, mobile scroll behavior); only
@@ -69,21 +74,25 @@ function SessionCard({
     // before. A "free" card bolds the CALLER instead (or shows the freeform
     // description directly) — it does NOT mean "everyone," so the room alone
     // wouldn't explain why headline callers have nothing scheduled here (e.g. "GCA
-    // Callers" running their own session while headliners rest). No time-range
-    // line, per direct product decision specific to this view — a floating
-    // card's own row height already corresponds exactly to the sticky time
-    // labels to its left (every row boundary it spans is a real, labeled tick;
-    // clipFreeFloatingEntries also keeps a "free" card's own rendered span from
-    // ever implying an unlabeled boundary), so restating the time in the card
-    // itself would be redundant. This is caller-view-specific, not applied to
-    // the room/level views' own roomless cards (DanceScheduleGrid.tsx /
-    // DanceScheduleLevelGrid.tsx), which still show it.
+    // Callers" running their own session while headliners rest). Most floating
+    // cards omit their time range too — a floating card's own row height already
+    // corresponds exactly to the sticky time labels to its left (every row
+    // boundary it spans is a real, labeled tick; clipFreeFloatingEntries also
+    // keeps a "free" card's own rendered span from ever implying an unlabeled
+    // boundary), so restating the time would be redundant — but Registration is
+    // the one exception that keeps it, same reasoning and same
+    // isRegistrationSession check as the room/level views' own roomless cards
+    // (DanceScheduleGrid.tsx / DanceScheduleLevelGrid.tsx): it commonly overlaps
+    // real per-caller sessions rather than sitting in its own clean stretch of
+    // the axis.
     const details = isBusy ? detailsWithRoomContent(session) : detailsContent(session)
+    const showTimeRange = isRegistrationSession(session)
     return (
       <div className={cardClassName} style={style}>
         <div className={styles.roomlessCardContent}>
           {levels && <p className={styles.levels}>{levels}</p>}
           <p className={styles.details}>{details}</p>
+          {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
         </div>
       </div>
     )
@@ -111,9 +120,8 @@ function SessionCard({
 // A FLOATING placement (floatKind !== null — see computeDanceScheduleCallerLayout.ts)
 // gets the same roomless-card treatment the room/level grids give a session that
 // doesn't fit their own axis: it spans every visible column, undyed by level
-// color, no GCA line (no time-range line either, unlike the room/level grids'
-// own roomless cards — see SessionCard's own comment for why not needed here).
-// The two floating kinds are styled AND worded
+// color, no GCA line, and (except for Registration) no time-range line either —
+// see SessionCard's own comment for why. The two floating kinds are styled AND worded
 // differently, since they mean opposite things: 'busy' (an all-headliners/
 // all-callers session — everyone occupied together) keeps the room-first text,
 // same reasoning as an ordinary card's caller-is-implied-by-column; 'free' (a

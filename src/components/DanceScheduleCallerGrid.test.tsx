@@ -397,5 +397,28 @@ describe('DanceScheduleCallerGrid', () => {
       expect(screen.queryByText('7:00 PM – 8:00 PM')).not.toBeInTheDocument()
       expect(screen.queryByText(/^GCA:/)).not.toBeInTheDocument()
     })
+
+    it('keeps the time range for a floating Registration session, since it can overlap real caller sessions', () => {
+      const registrationSession: DanceSession = { ...LUNCH_BREAK_SESSION, description: 'Registration' }
+      render(
+        <DanceScheduleCallerGrid
+          layout={makeLayout({
+            visibleCallers: ['Michael Kellogg'],
+            placements: [
+              placement({
+                session: registrationSession,
+                columnStart: 0,
+                columnSpan: 1,
+                floatKind: 'free',
+              }),
+            ],
+          })}
+          showGca
+          onShowAllLevels={() => {}}
+        />,
+      )
+      expect(screen.getByText('Registration')).toBeInTheDocument()
+      expect(screen.getByText('12:00 PM – 1:00 PM')).toBeInTheDocument()
+    })
   })
 })
