@@ -7,6 +7,7 @@ import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { DanceScheduleLevelGrid } from './DanceScheduleLevelGrid'
 import { PageHeader } from './PageHeader'
+import { RotateDeviceBanner } from './RotateDeviceBanner'
 
 // Computed once at module load — the virtual module's data is static, so there's no
 // need to re-sort on every filter-driven re-render. A second call to
@@ -48,6 +49,7 @@ export function DanceScheduleLevelsPage() {
   return (
     <>
       <PageHeader title="Dance Schedule" />
+      <RotateDeviceBanner />
       <DanceScheduleFilters
         dates={dates}
         selectedDate={selectedDate}
