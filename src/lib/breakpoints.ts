@@ -15,3 +15,15 @@ export const PHONE_MAX_WIDTH_PX = 640
 // doesn't have to do that arithmetic themselves to recognize it as the
 // other side of the same breakpoint.
 export const TABLET_MIN_WIDTH_PX = 641
+
+// Phone-width AND portrait, not just PHONE_MAX_WIDTH_PX alone — a landscape
+// phone is already past PHONE_MAX_WIDTH_PX in practice (see
+// docs/design/dance-schedule-mobile-scroll.md's own note that "an iPhone in
+// landscape is past a naive 640px width check"), but being explicit about
+// orientation here (rather than relying on that width-only coincidence) keeps
+// this query correct even on a device where it doesn't hold. Extracted here,
+// not left local to RotateDeviceBanner.tsx, once useResetRotateBannerOnLandscape.ts
+// (App.tsx-global) became a second consumer needing the exact same query —
+// same "reconsider once a second/third consumer needs it" reasoning this
+// file's own PHONE_MAX_WIDTH_PX was originally extracted for.
+export const PORTRAIT_PHONE_QUERY = `(orientation: portrait) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`

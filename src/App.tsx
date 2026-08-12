@@ -16,6 +16,7 @@ import { TextSizeProvider } from './components/TextSizeProvider'
 import { useAppLaunchCount } from './hooks/useAppLaunchCount'
 import { useLastPagePersistence } from './hooks/useLastPagePersistence'
 import { useNudgeScrollOnOrientationChange } from './hooks/useNudgeScrollOnOrientationChange'
+import { useResetRotateBannerOnLandscape } from './hooks/useResetRotateBannerOnLandscape'
 import { normalizeRoutes } from './lib/buildNavTree'
 
 // A content page's markdown `# Title` compiles to a plain `<h1>` — this override
@@ -90,6 +91,7 @@ export function App() {
   // every navigation; App() does not).
   useAppLaunchCount()
   useNudgeScrollOnOrientationChange()
+  useResetRotateBannerOnLandscape()
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>

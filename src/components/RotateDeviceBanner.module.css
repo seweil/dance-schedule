@@ -1,15 +1,60 @@
 .banner {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--space-sm);
   margin: 0 0 var(--space-md);
   padding: var(--space-sm) var(--space-md);
   background: var(--color-accent);
   color: #fff;
+}
+
+/* Icon + message, centered within whatever width the close button (flex-shrink:
+   0, pinned to the far end) leaves behind — not the banner as a whole, so adding
+   the close button doesn't visually re-center this pair off toward the left. */
+.content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: var(--space-sm);
   text-align: center;
+}
+
+/* em, not a fixed px/rem size — ties the icon to .message's own line-height right
+   below, so "roughly two lines tall" holds at every text-size preference
+   (useTextSizePreference.ts scales the root font-size, which both inherit from).
+   Sized via CSS, not the <svg>'s own width/height attributes, so this class can
+   set it — an element's CSS width/height always wins over its presentation
+   attributes of the same name. */
+.icon {
+  flex-shrink: 0;
+  width: 2.8em;
+  height: 2.8em;
 }
 
 .message {
   margin: 0;
+  line-height: 1.4;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  padding: 4px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: rgb(255 255 255 / 15%);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
