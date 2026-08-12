@@ -1,19 +1,17 @@
 # Motivate to Seattle
 
-## [Dance Schedule](/dance-schedule)
+Welcome to Seattle. This website has the detailed dance schedule and can be installed like an app on your phone.
 
-See what's dancing right now, organized by dance program.
+### Here's the [full dance schedule](/dance-schedule)
 
-## Add to your home screen
-
-Keeps the schedule available even when the hotel Wi-Fi is spotty — see
-[Help](/help) for setup steps.
+Add to your home screen for quick access, even when you don't have WiFi or cell service. See see
+[Help](/help) for instructions.
 
 ---
 
-### Other schedules
+### Other views
 
-- [Room Schedule](/room-schedule) — detailed dance schedule, by room
+- [Room Schedule](/room-schedule) — detailed dance schedule, organized by room
 - [Caller Schedule](/caller-schedule) — don't miss your favorite callers
 
 ---

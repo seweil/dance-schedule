@@ -4,8 +4,7 @@
 
 Dance Schedule works right in your browser — no app store needed. Adding it
 to your home screen lets it open like any other app, and keeps the schedule
-available even when you don't have a signal or Wi-Fi — handy for checking
-between tips if the hotel's Wi-Fi is spotty.
+available even when you don't have a signal or Wi-Fi.
 
 ### On iPhone or iPad
 
@@ -38,7 +37,7 @@ time you open it.
 
 ## Troubleshooting
 
-Dance Schedule remembers your selected date, level filters, GCA setting,
+Dance Schedule remembers your selected date, level filters, 
 and text size so they're there the next time you open it. If something
 looks stuck or out of date, [clear saved settings](/clear-storage) to reset
 everything back to its defaults.
