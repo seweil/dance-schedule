@@ -1,21 +1,24 @@
 # Motivate to Seattle
 
-The 2026 West Coast A & C Weekend — October 9–11, 2026, at the [Hilton
-Seattle Airport & Conference Center](https://www.hilton.com/en/hotels/seaahhh-hilton-seattle-airport-and-conference-center/) 
-in Seattle, Washington, hosted by
-Puddletown Squares.
+## [Dancing by Level](/dancing-by-level)
 
-A weekend of Advanced and Challenge square dancing, starting Friday evening
-with GCA caller slots and a trail-in dance, and running through Sunday
-afternoon.
+See what's dancing right now, organized by skill level.
 
-- [**Event Schedule**](/event-schedule) — Overall schedule
-- [**Dancing by Level**](/dancing-by-level) — Dance sessions, organized by
-  skill level instead.
-- [**Room Schedule**](/room-schedule) — Detailed dance schedule
-- [**Caller Schedule**](/caller-schedule) - Don't miss your favorite callers
+## Add to your home screen
 
-See [Installation](/installation) to add this schedule to your
-phone's home screen — handy for checking between tips if the hotel's Wi-Fi
-is spotty.
+Keeps the schedule available even when the hotel Wi-Fi is spotty — see
+[Installation](/installation) for setup steps.
 
+---
+
+### Other schedules
+
+- [Event Schedule](/event-schedule) — meals, socials, and everything else
+  on the calendar
+- [Room Schedule](/room-schedule) — detailed dance schedule, by room
+- [Caller Schedule](/caller-schedule) — don't miss your favorite callers
+
+---
+
+A weekend of Advanced and Challenge square dancing, October 9–11, 2026,
+hosted by Puddletown Squares.
