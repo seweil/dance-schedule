@@ -1,4 +1,4 @@
-import type { StructuredSession } from '../types/danceSchedule'
+import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 // The single home for every exact-literal value the app treats specially in
 // already-*parsed* session data — as opposed to raw spreadsheet cell SYNTAX
@@ -64,4 +64,24 @@ export const CALLER_FREE_TIME_NAMES = new Set(['GCA Callers'])
 // Same shape and rationale as isAllHeadlinersSession — see that function's comment.
 export function isCallerFreeTimeSession(session: StructuredSession): boolean {
   return session.callers.length > 0 && session.callers.every((caller) => CALLER_FREE_TIME_NAMES.has(caller))
+}
+
+// The one freeform description that keeps its time-range line on the room/level
+// views' own roomless cards (DanceScheduleGrid.tsx / DanceScheduleLevelGrid.tsx) —
+// every other roomless card there omits it, matching the caller-columns view's own
+// floating cards (see docs/design/dance-schedule.md's "No time-range line" decision):
+// a roomless card's own row height already lines up with the sticky time-axis labels
+// to its left, so restating the time is redundant. Registration is the exception
+// because it commonly overlaps real, room-specific dancing happening at the same
+// time (see that same doc's MotivateToSeattle example — a 5:30–8:00 PM Registration
+// session overlapping both a 6:30–7:00 PM "GCA Callers" session and a 7:00–8:00 PM
+// "Trail-In Dance" one), so its own row span doesn't correspond to a clean, dedicated
+// stretch of the axis the way an isolated meal break's does — the explicit time-range
+// text resolves that ambiguity. Match is exact and case-sensitive, same convention as
+// every other recognized value in this file — add a name here if a future event's
+// spreadsheet spells this differently.
+export const REGISTRATION_DESCRIPTIONS = new Set(['Registration'])
+
+export function isRegistrationSession(session: DanceSession): boolean {
+  return session.kind === 'freeform' && REGISTRATION_DESCRIPTIONS.has(session.description)
 }

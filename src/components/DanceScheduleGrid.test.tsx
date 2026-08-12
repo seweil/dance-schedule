@@ -138,7 +138,7 @@ describe('DanceScheduleGrid', () => {
     expect(screen.getByText('Ted Lizotte')).toBeInTheDocument()
   })
 
-  it('renders a roomless session with its time range and no GCA line', () => {
+  it('renders a roomless session without a time range (obvious from the time axis) and no GCA line', () => {
     render(
       <DanceScheduleGrid
         layout={makeLayout({
@@ -152,6 +152,24 @@ describe('DanceScheduleGrid', () => {
       />,
     )
     expect(screen.getByText('Lunch Break')).toBeInTheDocument()
+    expect(screen.queryByText('12:00 PM – 1:30 PM')).not.toBeInTheDocument()
+  })
+
+  it('keeps the time range for a roomless Registration session, since it can overlap real dancing', () => {
+    const registrationSession: DanceSession = { ...ROOMLESS_SESSION, description: 'Registration' }
+    render(
+      <DanceScheduleGrid
+        layout={makeLayout({
+          visibleRooms: [],
+          placements: [
+            { session: registrationSession, rowStart: 1, rowSpan: 6, columnStart: 0, columnSpan: 1 },
+          ],
+        })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
+    expect(screen.getByText('Registration')).toBeInTheDocument()
     expect(screen.getByText('12:00 PM – 1:30 PM')).toBeInTheDocument()
   })
 

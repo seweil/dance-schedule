@@ -14,6 +14,7 @@ import {
 } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import type { LevelSlot } from '../lib/levelOrder'
+import { isRegistrationSession } from '../lib/recognizedSessionKeywords'
 import { StickyScrollGrid } from './StickyScrollGrid'
 // Reused as-is — the two grids share the exact same visual language (card, levels/
 // details/gca lines, sticky headers, mobile scroll behavior); only what determines
@@ -84,13 +85,16 @@ function SessionCard({
   // boundary, not a seam between two events.
   const laneDividerClass = lane > 0 ? ` ${styles.laneDivider}` : ''
   const cardClassName = isRoomless ? `${styles.roomlessCard}${laneDividerClass}` : `${styles.card}${laneDividerClass}`
+  // Most roomless cards omit their time range — see isRegistrationSession's own
+  // comment for why Registration is the one exception that keeps it.
+  const showTimeRange = isRoomless && isRegistrationSession(session)
 
   return (
     <div className={cardClassName} style={style}>
       <div className={isRoomless ? styles.roomlessCardContent : undefined}>
         <p className={styles.details}>{detailsContent(session, levelPrefix)}</p>
         {room && <p className={styles.details}>{room}</p>}
-        {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
+        {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>

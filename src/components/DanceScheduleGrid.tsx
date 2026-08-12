@@ -12,6 +12,7 @@ import {
   formatSessionTimeRange,
 } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
+import { isRegistrationSession } from '../lib/recognizedSessionKeywords'
 import { StickyScrollGrid } from './StickyScrollGrid'
 import styles from './DanceScheduleGrid.module.css'
 
@@ -43,13 +44,16 @@ function SessionCard({
   const levels = formatSessionLevels(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
+  // Most roomless cards omit their time range — see isRegistrationSession's own
+  // comment for why Registration is the one exception that keeps it.
+  const showTimeRange = isRoomless && isRegistrationSession(session)
 
   return (
     <div className={isRoomless ? styles.roomlessCard : styles.card} style={style}>
       <div className={isRoomless ? styles.roomlessCardContent : undefined}>
         {levels && <p className={styles.levels}>{levels}</p>}
         <p className={styles.details}>{detailsContent(session)}</p>
-        {isRoomless && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
+        {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>

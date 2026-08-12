@@ -1491,8 +1491,10 @@ THIS view — every row boundary it spans is a real, labeled tick, and
 `clipFreeFloatingEntries` (below) keeps a `'free'` card's own rendered span
 from ever implying an unlabeled one — so restating the time inside the card
 would be redundant, especially felt on a phone-width column where every line
-of card text is scarce. Scoped to this view specifically; the room/level
-grids' own roomless cards still show it.
+of card text is scarce. Scoped to this view specifically at the time — the
+room/level grids' own roomless cards used to still show it, until "Room/level
+views' own roomless cards drop the time-range line too, except Registration"
+below caught them up to the same rule.
 
 **A previously-latent bug surfaced immediately, on real data: two floating
 sessions can genuinely overlap in time.** MotivateToSeattle's Friday has an
@@ -1633,6 +1635,49 @@ this codebase's own convention of testing hooks directly, e.g.
 dedicated test file, relying on its three consumers' existing coverage,
 matching the precedent already set by `assignLanes.ts` (extracted, shared,
 but only tested through its own consumers).
+
+### Room/level views' own roomless cards drop the time-range line too, except Registration
+
+**Why:** per direct product feedback, the room/level grids' own roomless
+cards (`DanceScheduleGrid.tsx` / `DanceScheduleLevelGrid.tsx`) previously
+always rendered `formatSessionTimeRange(session)` as a second line — the
+"Scoped to this view specifically" carve-out the caller-columns view's own
+"No time-range line" decision (above) originally called out. That carve-out
+turned out to be an oversight, not a real difference between the views: a
+roomless card's own row height already lines up with the sticky time-axis
+labels to its left on the room/level grids too, for the exact same reason it
+does on the caller-columns grid — so restating the time was just as
+redundant there, especially on a phone-width column where every line of card
+text is scarce.
+
+**Registration is the one known exception**, kept showing its time range:
+it commonly overlaps real, room-specific dancing happening at the same
+time — the MotivateToSeattle example cited above (a 5:30–8:00 PM freeform
+"Registration" session overlapping a 6:30–7:00 PM "GCA Callers" session and a
+7:00–8:00 PM "Trail-In Dance" one) is real production data, not a
+hypothetical. On the caller-columns view that overlap is resolved by
+`clipFreeFloatingEntries` (above) — but that mechanism is caller-columns-
+specific (it clips a `'free'` floating entry's rendered span against
+whatever else is scheduled for *headline callers*, a concept that doesn't
+exist on the room/level views). The room/level grids have no equivalent: a
+roomless card there still renders its full, unclipped span, so on a day like
+that one Registration's own row span no longer corresponds to a clean,
+dedicated stretch of the axis the way an isolated meal break's does — a
+reader scanning the left margin can land on a row that's "inside
+Registration" but whose nearby labels actually belong to the dancing
+happening alongside it. The explicit time-range text resolves that specific
+ambiguity; every other roomless card (a meal break, an announcement) has no
+such overlap, so the axis alone is enough for it.
+
+**Implementation:** `isRegistrationSession` (`recognizedSessionKeywords.ts`)
+checks a freeform session's `description` against a new
+`REGISTRATION_DESCRIPTIONS` set (currently just `'Registration'`, exact and
+case-sensitive, same convention as this file's other recognized values) —
+consolidated there rather than duplicated per grid, per that file's own
+"add a name here if a future event needs one" precedent. Both
+`DanceScheduleGrid.tsx` and `DanceScheduleLevelGrid.tsx` gate their existing
+time-range line on `isRoomless && isRegistrationSession(session)` instead of
+`isRoomless` alone; nothing else about either card changed.
 
 ## Open questions
 

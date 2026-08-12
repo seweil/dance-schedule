@@ -313,7 +313,14 @@ usually already kept in practice.
   On the Caller Schedule page, a session like this (any freeform cell — see
   "Anything that isn't a structured..." below, whether roomless or not) renders
   as a full-width gray banner spanning every visible caller column, meaning
-  "no headline caller has anything scheduled right now."
+  "no headline caller has anything scheduled right now." On the Room Schedule
+  and Dance Schedule pages, a roomless session's card doesn't repeat its start/
+  end time — it's already obvious from the row it lands in on the time column
+  to the left. The one exception is a freeform session described as exactly
+  `Registration` (case-sensitive): its card keeps showing the time range,
+  since a Registration session commonly overlaps real, room-specific dancing
+  happening at the same time, so the row it lands in doesn't clearly belong to
+  it alone the way an isolated break's does.
 - **A session credited to everyone headlining the event, not one or more
   specific callers** (e.g. a combined closing dance): write the caller as
   exactly `All Headliners` or `All Callers` — these two exact, case-sensitive
