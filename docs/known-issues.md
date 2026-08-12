@@ -3,9 +3,22 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
-## Claude Code's own sandbox can't execute Playwright (or read outside the project directory)
+## Claude Code's own sandbox can't execute Playwright (or read outside the project directory) — no longer reproduces as of 2026-08-12
 
-**Found:** 2026-07-30, repeatedly, while trying to run `pnpm test:e2e` during
+**Update, 2026-08-12:** this no longer reproduces. A Claude Code session ran
+`pnpm test:e2e` directly multiple times in one sitting (52 specs, real
+Chromium launches) with no failure at the browser-launch step at all — the
+Mach-port error below never appeared. The same session also read files
+outside the project directory without issue, contradicting that part of the
+original finding too. Whatever combination of sandbox configuration/Claude
+Code version produced this is evidently no longer current. Leaving the
+original write-up below for reference in case some future sandbox
+configuration reintroduces it — but its "cannot run `pnpm test:e2e` itself,
+ever" claim is no longer true; a session hitting this section should just
+try `pnpm test:e2e` directly first, rather than assuming the workarounds
+below are required.
+
+**Originally found:** 2026-07-30, repeatedly, while trying to run `pnpm test:e2e` during
 a Claude Code session in this repo.
 
 Every attempt to launch Chromium from inside a Claude Code Bash tool call in
