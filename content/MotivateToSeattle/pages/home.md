@@ -4,7 +4,7 @@ Welcome to Seattle. This website has the detailed dance schedule and can be inst
 
 ### Here's the [full dance schedule](/dance-schedule)
 
-Add to your home screen for quick access, even when you don't have WiFi or cell service. See see
+Add to your home screen for quick access, even when you don't have WiFi or cell service. See
 [Help](/help) for instructions.
 
 ---

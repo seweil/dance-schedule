@@ -8,7 +8,7 @@ available even when you don't have a signal or Wi-Fi.
 
 ### On iPhone or iPad
 
-1. Open this site ([sqdance.app](sqdance.app)) in **Safari**. Other browsers on iOS, like Chrome or
+1. Open this site ([sqdance.app](https://sqdance.app)) in **Safari**. Other browsers on iOS, like Chrome or
    Firefox, can't add it to your home screen — it has to be Safari.
 2. Tap the **••• (more)** button to the right of the address bar.
 3. Tap **Share** in the menu that opens.

@@ -85,14 +85,19 @@ test('a session spanning multiple rooms renders as one block, not two', async ({
   await expect(spanningCards).toHaveCount(1)
 })
 
-test('a roomless session renders as a full-width banner with its time range', async ({ page }) => {
+test('a roomless session renders as a full-width banner without repeating its time range', async ({
+  page,
+}) => {
   await page.goto('/automated-testing/room-schedule')
   // Index 1 (not a hardcoded label) — Friday is always the 2nd of the 3 known dates,
   // regardless of the exact year parseEventDate's year-inference resolves to.
   await page.getByLabel('Date').selectOption({ index: 1 })
 
   await expect(page.getByText('Lunch Break')).toBeVisible()
-  await expect(page.getByText('12:00 PM – 1:30 PM')).toBeVisible()
+  // No time-range line — it's already obvious from the row's own sticky time-axis
+  // label (see docs/design/dance-schedule.md's "Room/level views' own roomless
+  // cards drop the time-range line too, except Registration" decision).
+  await expect(page.getByText('12:00 PM – 1:30 PM')).not.toBeVisible()
 })
 
 test('narrowing the level slider hides out-of-range sessions and their now-empty room column', async ({
