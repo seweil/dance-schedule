@@ -107,6 +107,19 @@
   background: #f5f5f5;
 }
 
+/* Dance Schedule is the app's single most important page (direct product
+   decision) — a bit of extra visual weight here so it stands out from its
+   sibling tabs even when it ISN'T also the current page (that's the separate
+   aria-current rule below; the two stack harmlessly when it's both). Set via
+   buildNavTree.ts's own `emphasized` flag (Nav.tsx), not hardcoded here, so
+   this rule doesn't need to know which page that actually is. Deliberately
+   short of aria-current's full `bold` + accent color — this is "notable,"
+   that's "you are here," and the two should stay visually distinct. */
+.link[data-emphasized='true'] {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
 /* The current page's tab — set automatically by NavLink, not computed by hand (see
    Nav.tsx). Bordered + white-backgrounded with a white bottom edge that "erases"
    the nav's own baseline right underneath it, the classic look of a selected tab

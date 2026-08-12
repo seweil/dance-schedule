@@ -32,6 +32,19 @@ describe('Nav', () => {
     expect(screen.getByRole('link', { name: /faq/i })).toHaveAttribute('aria-current', 'page')
   })
 
+  it('marks only the Dance Schedule link as emphasized', () => {
+    renderNav('/installation')
+    expect(screen.getByRole('link', { name: /^dance schedule$/i })).toHaveAttribute(
+      'data-emphasized',
+      'true',
+    )
+    expect(screen.getByRole('link', { name: /home/i })).toHaveAttribute('data-emphasized', 'false')
+    expect(screen.getByRole('link', { name: /room schedule/i })).toHaveAttribute(
+      'data-emphasized',
+      'false',
+    )
+  })
+
   // Always a dropdown menu item, in every orientation — no more always-visible
   // row (see Nav.tsx's own comment for why: it read as "buttons sitting on top
   // of every content page" rather than a menu item, inconsistent with the one

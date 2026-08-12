@@ -74,6 +74,19 @@ describe('PageMenu', () => {
     expect(screen.getByRole('link', { name: /features/i })).not.toHaveAttribute('aria-current')
   })
 
+  it('marks only the Dance Schedule link as emphasized', () => {
+    renderPageMenu()
+    expect(screen.getByRole('link', { name: /^dance schedule$/i })).toHaveAttribute(
+      'data-emphasized',
+      'true',
+    )
+    expect(screen.getByRole('link', { name: /home/i })).toHaveAttribute('data-emphasized', 'false')
+    expect(screen.getByRole('link', { name: /room schedule/i })).toHaveAttribute(
+      'data-emphasized',
+      'false',
+    )
+  })
+
   it('closes the menu when a text-size option is selected, same as clicking a page link would', async () => {
     const user = userEvent.setup()
     renderPageMenu()

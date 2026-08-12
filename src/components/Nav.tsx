@@ -145,7 +145,12 @@ export function Nav() {
               {/* end (only for Home): every other route's path starts with "/" too, so
                   without it NavLink's default prefix-matching would mark Home
                   permanently "current" no matter which page is actually active. */}
-              <NavLink to={item.href} end={item.href === '/'} className={styles.link}>
+              <NavLink
+                to={item.href}
+                end={item.href === '/'}
+                className={styles.link}
+                data-emphasized={item.emphasized}
+              >
                 {item.label}
               </NavLink>
             </li>

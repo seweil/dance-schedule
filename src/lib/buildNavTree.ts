@@ -3,7 +3,22 @@ import type { RouteObject } from 'react-router-dom'
 export interface NavItem {
   label: string
   href: string
+  // True for exactly one item — the Dance Schedule page (src/pages/12 dance-
+  // schedule.tsx, DanceScheduleLevelsPage) — per direct product decision: it's
+  // the app's single most important page, so both menus (Nav.tsx's desktop tab
+  // bar, PageMenu.tsx's mobile dropdown) give its link a bit more visual
+  // weight than an ordinary item, independent of whether it's also the
+  // CURRENT page (a separate, NavLink-driven aria-current state each menu's
+  // own CSS already handles). Computed here, once, rather than each menu
+  // hardcoding its own href check, so the two can't drift.
+  emphasized: boolean
 }
+
+// The one nav item that gets the "most important page" treatment above — a
+// plain href match, not a route/label lookup, so it stays correct regardless
+// of that page's own order-prefix digit (see ORDER_PREFIX below) or exact
+// title-cased label wording.
+const EMPHASIZED_HREF = '/dance-schedule'
 
 // Content filenames may start with "<digits> " (a number then a single space) to
 // control menu sort order — e.g. "2 installation.md" sorts before "10 about.md"
@@ -70,14 +85,17 @@ export function buildNavTree(routes: RouteObject[]): NavItem[] {
       const isRoot = segment === '/'
       const { order, slug } = isRoot ? { order: null, slug: segment } : parseSegment(segment)
 
+      const href = isRoot ? '/' : `/${slug}`
+
       return {
         // Home always leads the menu, ahead of any order prefix on other pages.
         sortKey: isRoot ? -1 : (order ?? Number.POSITIVE_INFINITY),
         index,
         label: isRoot ? 'Home' : titleCase(slug),
-        href: isRoot ? '/' : `/${slug}`,
+        href,
+        emphasized: href === EMPHASIZED_HREF,
       }
     })
     .sort((a, b) => a.sortKey - b.sortKey || a.index - b.index)
-    .map(({ label, href }) => ({ label, href }))
+    .map(({ label, href, emphasized }) => ({ label, href, emphasized }))
 }

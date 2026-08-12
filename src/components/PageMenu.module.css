@@ -130,6 +130,18 @@
   color: var(--color-accent);
 }
 
+/* Dance Schedule is the app's single most important page (direct product
+   decision) — see Nav.module.css's identical rule (the desktop tab-bar
+   counterpart to this mobile dropdown) for the full rationale; both read the
+   same buildNavTree.ts `emphasized` flag so they can't drift. Deliberately
+   short of aria-current's full `bold` + accent color just below — this is
+   "notable," that's "you are here," and the two should stay visually
+   distinct (they stack harmlessly when a page is both). */
+.link[data-emphasized='true'] {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
 /* Bold + accent color is the only "current page" treatment here (unlike Nav.tsx's
    tab-shaped desktop version) — a plain vertical link list has no tab shape to
    apply a selected-background/border to in the first place. */
