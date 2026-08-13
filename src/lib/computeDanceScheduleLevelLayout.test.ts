@@ -138,6 +138,26 @@ describe('computeDanceScheduleLevelLayout', () => {
     expect(layout.placements[0]).toMatchObject({ columnStart: 5, columnSpan: 2 })
   })
 
+  it('falls back to one placement per slot for a non-contiguous multi-level session', () => {
+    // SLOTS is SSD(0), MS(1), Plus(2), A1(3), A2(4), C1(5)... — SSD/C1 skips
+    // everything in between, mirroring computeDanceScheduleLayout.test.ts's
+    // "falls back to one placement per room for a non-contiguous multi-room
+    // session" (the room-columns algorithm's own analogous fallback).
+    const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Kafka', {
+      levels: ['SSD', 'C1'],
+    })
+    const layout = computeDanceScheduleLevelLayout([session], SLOTS, 0, SLOTS.length - 1)
+
+    const placements = layout.placements.filter((p) => p.session === session)
+    expect(placements).toHaveLength(2)
+    expect(placements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ columnStart: 0, columnSpan: 1 }),
+        expect.objectContaining({ columnStart: 5, columnSpan: 1 }),
+      ]),
+    )
+  })
+
   it('collapses an A1/A2 session onto the merged slot when combineA1A2 is on', () => {
     const session = makeSession(
       '2026-07-02T13:00:00.000Z',

@@ -15,6 +15,8 @@ describe('parseTimeRange', () => {
     ['periods in AM/PM', '6:00 p.m. - 7:30 p.m.'],
     ['24-hour', '18:00 - 19:30'],
     ['"to" separator', '6:00pm to 7:30pm'],
+    ['en dash separator', '6:00pm – 7:30pm'],
+    ['em dash separator', '6:00pm — 7:30pm'],
     ['bare "p" with no trailing "m"', '6:00p-7:30p'],
   ])('parses %s ("%s") as 18:00-19:30', (_label, input) => {
     expectRange(parseTimeRange(input, DATE), '18:00', '19:30')
