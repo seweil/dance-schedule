@@ -130,6 +130,25 @@
   color: var(--color-accent);
 }
 
+/* Reported live: these links were uncomfortably small tap targets. +25% on
+   both the text itself and the gap between entries (more separation between
+   adjacent links reduces mis-taps too, not just each link's own size) —
+   Normal-only, gated on data-text-size being absent entirely (`:not(...)`,
+   not a `='normal'` match — see useTextSizePreference.ts's own convention
+   that "Normal" is the ABSENCE of the attribute, never the literal string).
+   At Large/Extra Large the ambient font here is already bigger (every
+   font-size in this app is rem/em — see index.css), so this deliberately
+   stays unscoped there rather than compounding on top of that existing
+   scale-up. The text-size picker itself (.textSizeItem below) is
+   deliberately NOT covered by this — reported live as already fine as is. */
+:global(html:not([data-text-size])) .link {
+  font-size: 1.25em;
+}
+
+:global(html:not([data-text-size])) .list {
+  gap: calc(var(--space-sm) * 1.25);
+}
+
 /* Dance Schedule is the app's single most important page (direct product
    decision) — see Nav.module.css's identical rule (the desktop tab-bar
    counterpart to this mobile dropdown) for the full rationale; both read the
@@ -140,6 +159,22 @@
 .link[data-emphasized='true'] {
   font-size: 1.05em;
   font-weight: 600;
+}
+
+/* Without this, the Normal-only tap-target bump above (`:global(html:not(...))
+   .link`, font-size 1.25em) would win over the plain `.link[data-emphasized=
+   'true']` rule just above on specificity (both are two selector components,
+   but this file's Normal-only rule also selects the `html` element, making it
+   MORE specific, not less — confirmed by working through the cascade, not
+   assumed) and silently erase Dance Schedule's own extra emphasis at Normal
+   size specifically, even though every other text-size level keeps it fine.
+   Restates emphasis' own 1.05em multiplied onto the Normal-only bump's own
+   1.25em (calc, not a rounded literal, so the relationship to both source
+   numbers stays traceable) so Dance Schedule still reads as more emphasized
+   than its siblings at Normal too, instead of collapsing to the same size as
+   every other link. */
+:global(html:not([data-text-size])) .link[data-emphasized='true'] {
+  font-size: calc(1.25em * 1.05);
 }
 
 /* Bold + accent color is the only "current page" treatment here (unlike Nav.tsx's
