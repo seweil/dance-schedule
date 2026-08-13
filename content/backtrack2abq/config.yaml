@@ -9,5 +9,9 @@ features:
   combineC3BC4: true
 
 manifest:
-  name: Back Track 2 ABQ (44th IAGSDC Convention)
+  # "Name - Summary" — see MotivateToSeattle/config.yaml's identical comment
+  # for the full rationale, including why the date range shown alongside
+  # this on the /events page is computed from dance-schedule.xlsx instead of
+  # hand-typed here.
+  name: Back Track 2 ABQ - 44th IAGSDC Convention
   shortName: BT2ABQ

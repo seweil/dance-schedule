@@ -22,7 +22,11 @@ manifest:
   # distinct from it either on the /events landing page. Named explicitly
   # here now, parallel to content/test/config.yaml's own override, so the
   # two fixture sets read as two different things, not near-duplicates.
-  name: Dance Schedule (Automated Tests)
+  # Hyphen, not parens, between name and summary — see
+  # MotivateToSeattle/config.yaml's identical comment on a real event's own
+  # manifest.name for the full "Name - Summary (Date range)" rationale; no
+  # date range here since a fixture set has no real event date to show.
+  name: Dance Schedule - Automated Tests
   shortName: Auto Tests
 
 # Sorted last (and flagged as a fixture, not a real event) on the /events

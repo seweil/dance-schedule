@@ -117,9 +117,15 @@ features:
   combineC3BC4: true
 
 manifest:
-  # What shows up as the installed app's name/home-screen label. Defaults to
-  # "Dance Schedule" for both if you omit this section entirely.
-  name: Dance Schedule (Spring 2027)
+  # What shows up as the installed app's name/home-screen label, and (name
+  # only) as this event's own row on the /events landing page. Defaults to
+  # "Dance Schedule" for both if you omit this section entirely. "Name -
+  # Summary" (a hyphen, not parens) is this app's own convention — parens
+  # are reserved for the date range shown alongside it on /events, which
+  # you don't type here at all: it's computed automatically from this
+  # event's own dance-schedule.xlsx (see Step 3), so it can never go stale
+  # the way a hand-typed date would if your schedule changes later.
+  name: Dance Schedule - Spring 2027
   shortName: Spring 2027
 ```
 
@@ -382,7 +388,7 @@ other published event's copy of the same debug page.
 
 `content/<your-event-name>/icon.png` — a single square image, **at least
 1024×1024 pixels**, becomes your event's installed home-screen icon
-(replacing "Dance Schedule (Edge Cases)"-style generic icons). If you skip this,
+(replacing "Dance Schedule - Edge Cases"-style generic icons). If you skip this,
 a simple placeholder (a solid color square with your event name's first
 letter) is generated automatically — everything still works, it's just not
 custom-branded.

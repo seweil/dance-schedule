@@ -46,6 +46,11 @@ export function EventsListPage() {
                 ("/<set>/") is guaranteed to resolve without extra hosting
                 config (docs/design/hosting.md). */}
             <a href={`/${set.name}/`}>{set.displayName}</a>
+            {/* set.dateRange is always null for a testFixture set (computed
+                that way in vite-plugin-content-sets.ts) — this one rendering
+                rule, not a separate check here, is what "omits dates for
+                test events." */}
+            {set.dateRange && <span className={styles.dateRange}> ({set.dateRange})</span>}
           </li>
         ))}
       </ul>

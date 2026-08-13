@@ -1,6 +1,9 @@
+import path from 'node:path'
 import type { Plugin } from 'vite'
 import { isTestFixtureContentSet, listContentSets, loadContentManifestStrings } from './content-config'
+import { formatDanceScheduleDateRange } from './src/lib/formatDanceScheduleDateRange'
 import type { ContentSetInfo, ContentSetsData } from './src/types/contentSets'
+import { loadDanceScheduleData } from './vite-plugin-dance-schedule'
 
 export const CONTENT_SETS_VIRTUAL_MODULE_ID = 'virtual:content-sets'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + CONTENT_SETS_VIRTUAL_MODULE_ID
@@ -15,10 +18,21 @@ export interface ContentSetsPluginOptions {
 
 // Resolves virtual:content-sets to every content/<name>/ directory that exists at
 // build time, plus which one is the default and which one this particular build is
-// — lets client code (the debug page's cross-set links) enumerate published sets
-// without hardcoding them. Unlike contentConfigPlugin, there's no per-set file to
-// dev-watch here: the *set of directories under content/* changing during a live
-// `pnpm dev` session is an edge case not worth the extra configureServer plumbing.
+// — lets client code (the debug page's cross-set links, EventsListPage.tsx) enumerate
+// published sets without hardcoding them. Unlike contentConfigPlugin, there's no
+// per-set file to dev-watch here: the *set of directories under content/* changing
+// during a live `pnpm dev` session is an edge case not worth the extra
+// configureServer plumbing — this includes each real set's own dance-schedule.xlsx
+// (read here for `dateRange`, below), left unwatched the same way.
+//
+// Real cross-set coupling this introduces, accepted deliberately: since this module
+// is resolved in EVERY build regardless of which CONTENT_SET is active, a broken
+// (unparseable) dance-schedule.xlsx in ANY real set now fails EVERY set's build, not
+// just its own — a wider blast radius than before `dateRange` existed, when only
+// config.yaml (cheap, always-valid-shape) was read for other sets. Accepted because
+// dance-schedule.xlsx is required for every real set already (see CLAUDE.md), so a
+// set whose own file doesn't parse can't successfully ship on its own either — this
+// just surfaces that failure at a different (any) build instead of only its own.
 //
 // Also registers a `vite preview` middleware handling two gaps confirmed
 // empirically, both stemming from `vite preview`'s SPA fallback being a single
@@ -50,20 +64,43 @@ export function contentSetsPlugin(options: ContentSetsPluginOptions): Plugin {
         return RESOLVED_VIRTUAL_MODULE_ID
       }
     },
-    load(id) {
+    async load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
         // Each set's own manifest name + test-fixture flag are cheap config.yaml
         // reads (no pages/data loaded) — safe to do for every OTHER set here too,
         // not just the active one, unlike the rest of this build's content
         // pipeline (see this file's own top comment).
-        const sets: ContentSetInfo[] = listContentSets(root).map((name) => {
-          const contentDir = `content/${name}`
-          return {
-            name,
-            displayName: loadContentManifestStrings(root, contentDir).name,
-            testFixture: isTestFixtureContentSet(root, contentDir),
-          }
-        })
+        //
+        // dateRange is the one exception: it DOES read+parse every OTHER real
+        // set's own dance-schedule.xlsx (via loadDanceScheduleData, the same
+        // parse-and-validate pipeline danceSchedulePlugin's own virtual:dance-
+        // schedule uses — just without that plugin's OWN further steps, e.g.
+        // writing dance-schedule-dump.md, which are specific to the actively
+        // built set, not every other one too). Deliberately NOT a hand-typed
+        // config.yaml string (see content/MotivateToSeattle/config.yaml's own
+        // comment) — computing it from the real schedule data means it can
+        // never drift from what that event's dance-schedule.xlsx actually
+        // says. Skipped entirely for a testFixture set: its dates are
+        // arbitrary/unmaintained fixture data, not a real event's, so
+        // EventsListPage.tsx never has anything to show there anyway.
+        const sets: ContentSetInfo[] = await Promise.all(
+          listContentSets(root).map(async (name) => {
+            const contentDir = `content/${name}`
+            const testFixture = isTestFixtureContentSet(root, contentDir)
+            let dateRange: string | null = null
+            if (!testFixture) {
+              const danceScheduleFile = path.resolve(root, contentDir, 'data/dance-schedule.xlsx')
+              const sessions = await loadDanceScheduleData(danceScheduleFile)
+              dateRange = formatDanceScheduleDateRange(sessions.map((session) => new Date(session.date)))
+            }
+            return {
+              name,
+              displayName: loadContentManifestStrings(root, contentDir).name,
+              testFixture,
+              dateRange,
+            }
+          }),
+        )
         const data: ContentSetsData = {
           sets,
           defaultSet: options.defaultSet,

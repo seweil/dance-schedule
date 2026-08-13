@@ -26,4 +26,13 @@ export interface ContentSetInfo {
   // isTestFixtureContentSet) — true only for "automated-testing"/"test" today,
   // but read from config rather than hardcoding those names.
   testFixture: boolean
+  // This set's own event date range (e.g. "October 9 – 11, 2026"), computed
+  // at build time straight from its dance-schedule.xlsx — see
+  // vite-plugin-content-sets.ts and formatDanceScheduleDateRange.ts. Not
+  // hand-typed anywhere, so it can't drift from the real schedule data.
+  // Always null for a testFixture set (see EventsListPage.tsx's own
+  // "omit dates for test fixtures" decision) — a fixture's dates are
+  // arbitrary/unmaintained, not a real event's, so showing one would be
+  // actively misleading rather than just unnecessary.
+  dateRange: string | null
 }

@@ -27,6 +27,13 @@
   color: var(--color-accent);
 }
 
+/* Muted/smaller than the link it follows — an aside, not a second thing to
+   read with equal weight — same treatment as .testSectionLabel below. */
+.dateRange {
+  color: #888;
+  font-size: 0.85rem;
+}
+
 /* Separates the fixture sets from real events below .list — plain <hr>, same
    line weight as .list li's own row dividers, so it reads as "one more
    divider" rather than a heavier section break. */

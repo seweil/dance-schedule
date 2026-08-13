@@ -10,5 +10,12 @@ features:
   combineC3BC4: true
 
 manifest:
-  name: Motivate to Seattle (2026 West Coast A & C Weekend)
+  # "Name - Summary" — per direct product decision on the /events landing
+  # page (EventsListPage.tsx): a hyphen between name and summary, not the
+  # summary itself in parens. The date range shown alongside it there is
+  # NOT hand-typed here — it's computed at build time straight from this
+  # set's own dance-schedule.xlsx (see vite-plugin-content-sets.ts's
+  # computeDanceScheduleDateRange), so it can't drift from the real
+  # schedule data the way a hand-maintained string could.
+  name: Motivate to Seattle - 2026 West Coast A & C Weekend
   shortName: MTS 2026

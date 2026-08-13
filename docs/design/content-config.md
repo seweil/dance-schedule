@@ -161,9 +161,9 @@ relying on the bare default left `automated-testing` reading as a plain,
 unbranded "Dance Schedule" — not identifiable as a fixture at all next to
 real events, and (once `test`'s own override existed) not clearly distinct
 from that other fixture set either. `content/automated-testing/config.yaml`
-now has its own explicit override too: `Dance Schedule (Automated Tests)` /
+now has its own explicit override too: `Dance Schedule - Automated Tests` /
 `Auto Tests`. `content/test/config.yaml`'s own name changed at the same
-time, from `Dance Schedule (Test)` to `Dance Schedule (Edge Cases)` (short
+time, from `Dance Schedule (Test)` to `Dance Schedule - Edge Cases` (short
 name `DS Test` → `Edge Cases`) — "Test" alone no longer distinguished it
 from the newly-named `automated-testing` set; "Edge Cases" names what this
 set actually is (the deliberately edge-case-flavored fixture exercised by
@@ -172,6 +172,65 @@ not just a shorter synonym for the same word. See
 `EventsListPage.tsx`/`EventsListPage.module.css` for the landing page's own
 half of this: a divider plus smaller print now separates both fixture sets
 from real events there too, on top of the name fix.
+
+**Revised again, same feedback pass:** every real event's `manifest.name`
+also switched from `Name (Summary)` to `Name - Summary` — a hyphen, not
+parens, between the two — freeing up parens for something more useful next
+to it on the landing page: see "A real event's `/events` row also shows its
+own computed date range" below.
+
+### A real event's `/events` row also shows its own computed date range
+**Why:** per direct product decision, the same feedback pass above also
+wanted a date range next to each real event's name on the `/events` landing
+page (`EventsListPage.tsx`) — e.g. "Motivate to Seattle - 2026 West Coast A
+& C Weekend (October 9 – 11, 2026)". The first draft of this hand-typed the
+range directly into `manifest.name` (config.yaml is, after all, exactly
+where a content author already types the event's own name) — **rejected**
+on reflection: a hand-typed string has no relationship to the actual
+schedule data, so it can silently go stale the moment an event's real dates
+change in its `dance-schedule.xlsx` (a hotel-availability shift, a schedule
+revision) without anyone remembering to also update the unrelated
+`config.yaml` string.
+
+Computed instead, straight from that same `dance-schedule.xlsx` every other
+part of the pipeline already treats as the single source of truth for a
+set's real schedule: `vite-plugin-content-sets.ts`'s `load()` now also calls
+`loadDanceScheduleData` (the same parse to `DanceSessionData[]` that
+`danceSchedulePlugin`'s own `virtual:dance-schedule` uses, exported from
+`vite-plugin-dance-schedule.ts` specifically for reuse outside that plugin)
+for every non-`testFixture` set, and reduces the resulting sessions' own
+`date` fields to a min/max range via a new pure, unit-tested function,
+`formatDanceScheduleDateRange` (`src/lib/formatDanceScheduleDateRange.ts`).
+That function itself is a thin wrapper around
+`Intl.DateTimeFormat.prototype.formatRange` — confirmed live it already
+produces exactly the needed wording for every real case (same month, same
+year different month, different year) without any hand-rolled
+month/year-comparison branching. The result becomes a new `dateRange:
+string | null` field on `ContentSetInfo`
+(`src/types/contentSets.ts`) — `null` for a `testFixture` set (skipped
+entirely, not computed-then-discarded), matching the separate "omit dates
+for test events" decision: a fixture set's dates are arbitrary/unmaintained,
+not a real event's, so showing one would be actively misleading rather than
+just unnecessary. `EventsListPage.tsx` renders `set.dateRange` in parens
+after the name whenever it's non-null — one rendering rule, not a
+`testFixture` branch of its own in the component.
+
+**Accepted, deliberate cross-set coupling:** unlike the cheap config.yaml
+reads `virtual:content-sets` already did for every other set, this now reads
+and fully parses (and validates — `loadDanceScheduleData` throws on any row
+that doesn't parse) every OTHER real set's own `dance-schedule.xlsx` too,
+not just the actively-built set's. Since `virtual:content-sets` is resolved
+in EVERY build regardless of which `CONTENT_SET` is active, a broken
+(unparseable) `dance-schedule.xlsx` in ANY real set now fails EVERY set's
+build, not just its own — a wider blast radius than before this existed.
+Accepted rather than worked around, because `dance-schedule.xlsx` is already
+required for every real set (see `CLAUDE.md`'s Project structure) — a set
+whose own file doesn't parse couldn't successfully ship on its own build
+either, so this only changes WHICH build first surfaces that failure, not
+whether it's caught. Not dev-watched (same as this file's other per-set
+reads) — the tradeoff `vite-plugin-content-sets.ts`'s own top comment
+already accepts for config.yaml reads, now explicitly extended to cover this
+too.
 
 ### Icons are generated per set at build time from a single source image (`content-icons.ts`)
 **Why:** `vite-plugin-pwa` doesn't generate/copy icon files itself (that

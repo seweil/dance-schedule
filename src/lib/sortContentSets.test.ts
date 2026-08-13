@@ -3,7 +3,7 @@ import { sortContentSets } from './sortContentSets'
 import type { ContentSetInfo } from '../types/contentSets'
 
 function set(name: string, displayName: string, testFixture = false): ContentSetInfo {
-  return { name, displayName, testFixture }
+  return { name, displayName, testFixture, dateRange: null }
 }
 
 describe('sortContentSets', () => {

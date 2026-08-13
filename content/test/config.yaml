@@ -20,7 +20,11 @@ manifest:
   # hand via `pnpm dev:test`/`build:test`) needed a name that actually reads as
   # distinct from "automated-testing" (unit/e2e's own fixture set, now named
   # "Automated Tests"), not just a shorter synonym for the same word.
-  name: Dance Schedule (Edge Cases)
+  # Hyphen, not parens, between name and summary — see
+  # MotivateToSeattle/config.yaml's identical comment on a real event's own
+  # manifest.name for the full "Name - Summary (Date range)" rationale; no
+  # date range here since a fixture set has no real event date to show.
+  name: Dance Schedule - Edge Cases
   shortName: Edge Cases
 
 # Sorted last (and flagged as a fixture, not a real event) on the /events
