@@ -8,6 +8,11 @@ import styles from './EventsListPage.module.css'
 // annotation works around a TS inference quirk with `.map(...)` chained
 // straight off a virtual-module import when the callback returns JSX.
 const sortedSets: ContentSetInfo[] = sortContentSets(contentSets.sets)
+// sortContentSets already puts every test-fixture set after every real one —
+// splitting here (rather than re-deriving order) just gives the two groups
+// their own list/heading, matching how they now render.
+const realSets = sortedSets.filter((set) => !set.testFixture)
+const testSets = sortedSets.filter((set) => set.testFixture)
 
 // User-facing "all events" landing page — reachable via the subtle link
 // BuildInfo.tsx adds after the build date, not from Nav (see App.tsx's
@@ -33,7 +38,7 @@ export function EventsListPage() {
         </div>
       )}
       <ul className={styles.list}>
-        {sortedSets.map((set) => (
+        {realSets.map((set) => (
           <li key={set.name}>
             {/* Plain <a>, not react-router's <Link> — see
                 RawDanceScheduleDebugPage.tsx's identical link for why: each
@@ -41,10 +46,29 @@ export function EventsListPage() {
                 ("/<set>/") is guaranteed to resolve without extra hosting
                 config (docs/design/hosting.md). */}
             <a href={`/${set.name}/`}>{set.displayName}</a>
-            {set.testFixture && <span className={styles.testTag}> (test)</span>}
           </li>
         ))}
       </ul>
+      {/* A visible divider + its own (smaller-print) list, not just the old
+          inline "(test)" tag on an otherwise identical row — per direct
+          product feedback, a handful of fixture sets sitting at full size
+          right below the real events read as cluttering the page's own main
+          purpose. Each set's own name (content/<set>/config.yaml's
+          manifest.name — see docs/design/content-config.md) already says
+          what it's for now, so this heading doesn't need to repeat that. */}
+      {testSets.length > 0 && (
+        <>
+          <hr className={styles.divider} />
+          <p className={styles.testSectionLabel}>Test fixtures — not real events</p>
+          <ul className={styles.testList}>
+            {testSets.map((set) => (
+              <li key={set.name}>
+                <a href={`/${set.name}/`}>{set.displayName}</a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </>
   )
 }

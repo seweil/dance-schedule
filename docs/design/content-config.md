@@ -150,10 +150,28 @@ client code; shipping them to the client bundle would be pointless. Missing
 `content/<set>/config.yaml` or missing `manifest:` section → defaults to
 `{ name: 'Dance Schedule', shortName: 'Dance Schedule' }` (today's
 pre-existing values); present but not strings → throws, matching
-`loadContentConfigData`'s existing validation style. `content/automated-testing/config.yaml`
-has no `manifest:` section (relies on the defaults, which already match);
-`content/test/config.yaml` overrides to `Dance Schedule (Test)` / `DS Test`
-so it's visually distinguishable once installed alongside `automated-testing`.
+`loadContentConfigData`'s existing validation style. `content/test/config.yaml`
+overrides to `Dance Schedule (Test)` / `DS Test` so it's visually
+distinguishable once installed alongside `automated-testing`, which
+originally had no `manifest:` section of its own (relied on the defaults,
+which already matched).
+
+**Revised, per direct product feedback on the `/events` landing page:**
+relying on the bare default left `automated-testing` reading as a plain,
+unbranded "Dance Schedule" — not identifiable as a fixture at all next to
+real events, and (once `test`'s own override existed) not clearly distinct
+from that other fixture set either. `content/automated-testing/config.yaml`
+now has its own explicit override too: `Dance Schedule (Automated Tests)` /
+`Auto Tests`. `content/test/config.yaml`'s own name changed at the same
+time, from `Dance Schedule (Test)` to `Dance Schedule (Edge Cases)` (short
+name `DS Test` → `Edge Cases`) — "Test" alone no longer distinguished it
+from the newly-named `automated-testing` set; "Edge Cases" names what this
+set actually is (the deliberately edge-case-flavored fixture exercised by
+hand via `pnpm dev:test`/`build:test` — see `docs/design/content-sets.md`),
+not just a shorter synonym for the same word. See
+`EventsListPage.tsx`/`EventsListPage.module.css` for the landing page's own
+half of this: a divider plus smaller print now separates both fixture sets
+from real events there too, on top of the name fix.
 
 ### Icons are generated per set at build time from a single source image (`content-icons.ts`)
 **Why:** `vite-plugin-pwa` doesn't generate/copy icon files itself (that

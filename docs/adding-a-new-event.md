@@ -382,7 +382,7 @@ other published event's copy of the same debug page.
 
 `content/<your-event-name>/icon.png` — a single square image, **at least
 1024×1024 pixels**, becomes your event's installed home-screen icon
-(replacing "Dance Schedule (Test)"-style generic icons). If you skip this,
+(replacing "Dance Schedule (Edge Cases)"-style generic icons). If you skip this,
 a simple placeholder (a solid color square with your event name's first
 letter) is generated automatically — everything still works, it's just not
 custom-branded.

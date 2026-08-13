@@ -27,10 +27,39 @@
   color: var(--color-accent);
 }
 
-/* Low-emphasis, same treatment as BuildInfo's own muted text — the sort order
-   already groups test fixtures last; this just makes that grouping legible
-   instead of an invisible ordering. */
-.testTag {
+/* Separates the fixture sets from real events below .list — plain <hr>, same
+   line weight as .list li's own row dividers, so it reads as "one more
+   divider" rather than a heavier section break. */
+.divider {
+  margin: var(--space-md) 0 var(--space-sm);
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Low-emphasis, same treatment as BuildInfo's own muted text. */
+.testSectionLabel {
+  margin: 0 0 var(--space-sm);
   color: #888;
   font-size: 0.85rem;
+}
+
+/* A separate list, not .list plus a modifier class — smaller print for the
+   whole row (not just an appended tag) needs to override .list li's own
+   explicit font-size, and duplicating the handful of reset/row-divider
+   properties here directly sidesteps a same-specificity, source-order-
+   dependent override fight over doing that. */
+.testList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.testList li {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.testList a {
+  color: var(--color-accent);
 }

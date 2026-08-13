@@ -1,9 +1,7 @@
 # Per-content-set config, read at build time — see docs/design/content-config.md.
 # `features` is exposed to client-side code via the virtual:content-config module
 # (vite-plugin-content-config.ts). `manifest` (name/shortName) is build-time only,
-# used to construct vite.config.ts's per-set PWA manifest — omitted here since this
-# set's values already match the defaults (see content-config.ts's
-# loadContentManifestStrings); content/test/config.yaml shows an explicit override.
+# used to construct vite.config.ts's per-set PWA manifest.
 
 features:
   # Both true — this set is never deployed to a real event (see the
@@ -14,6 +12,18 @@ features:
   # LevelSlot decision).
   combineA1A2: true
   combineC3BC4: true
+
+manifest:
+  # Used to rely on the built-in default ("Dance Schedule" — see
+  # content-config.ts's DEFAULT_MANIFEST_STRINGS), which read as a plain,
+  # generic app name rather than something that identifies THIS set as a
+  # fixture — indistinguishable from the app's own unbranded default, and
+  # (once content/test/config.yaml's own override existed) not clearly
+  # distinct from it either on the /events landing page. Named explicitly
+  # here now, parallel to content/test/config.yaml's own override, so the
+  # two fixture sets read as two different things, not near-duplicates.
+  name: Dance Schedule (Automated Tests)
+  shortName: Auto Tests
 
 # Sorted last (and flagged as a fixture, not a real event) on the /events
 # landing page — see EventsListPage.tsx/sortContentSets.ts and
