@@ -3,62 +3,74 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
-## Claude Code's own sandbox can't execute Playwright (or read outside the project directory) — no longer reproduces as of 2026-08-12
+## Claude Code's own sandbox can't launch Chromium — fixed, but only for the exact allowlisted command forms
 
-**Update, 2026-08-12:** this no longer reproduces. A Claude Code session ran
-`pnpm test:e2e` directly multiple times in one sitting (52 specs, real
-Chromium launches) with no failure at the browser-launch step at all — the
-Mach-port error below never appeared. The same session also read files
-outside the project directory without issue, contradicting that part of the
-original finding too. Whatever combination of sandbox configuration/Claude
-Code version produced this is evidently no longer current. Leaving the
-original write-up below for reference in case some future sandbox
-configuration reintroduces it — but its "cannot run `pnpm test:e2e` itself,
-ever" claim is no longer true; a session hitting this section should just
-try `pnpm test:e2e` directly first, rather than assuming the workarounds
-below are required.
+**Resolved 2026-08-01** (commit `084f6b1`, `.claude/settings.json`) — but
+resurfaces if Playwright is invoked any way other than the two exact forms
+below, so read the "Only works for these exact invocations" section even if
+this looks fixed.
 
-**Originally found:** 2026-07-30, repeatedly, while trying to run `pnpm test:e2e` during
-a Claude Code session in this repo.
-
-Every attempt to launch Chromium from inside a Claude Code Bash tool call in
-this environment fails identically, at the browser-launch step, before any
-test even starts:
+**Originally found:** 2026-07-30. Every attempt to launch Chromium from
+inside a Claude Code Bash tool call failed identically, at the
+browser-launch step, before any test even started:
 
 ```
 FATAL:base/apple/mach_port_rendezvous_mac.cc:159] Check failed: kr == KERN_SUCCESS.
 bootstrap_check_in org.chromium.Chromium.MachPortRendezvousServer...: Permission denied (1100)
 ```
 
-This is a macOS Mach-port/bootstrap-namespace restriction from the coding
-agent's own OS-level sandbox (not a Playwright flag, not a project config
-issue — `--no-sandbox` is already passed and doesn't help, since this check
-happens before Chromium's own internal sandboxing even engages). Confirmed
-separately that the same sandbox also blocks reading anything outside the
-project directory (e.g. a plain `ls /Applications/...` is rejected), which
-rules out pointing Playwright at a system-installed browser (`channel:
-'chrome'`) as a workaround too — it would need to launch a binary living
-outside the sandboxed directory tree.
+Root cause: a macOS Mach-port/bootstrap-namespace restriction from the
+coding agent's own Seatbelt sandbox — not a Playwright flag, not a generic
+project-config issue (`--no-sandbox` is already passed to Chromium and
+doesn't help, since this check happens before Chromium's own internal
+sandboxing even engages).
 
-**Impact:** a Claude Code session working in this repo cannot run
-`pnpm test:e2e` itself, ever, regardless of what changed. This is **not**
-evidence of an actual e2e failure — every attempt fails at the identical
-launch step, before a single spec runs, whether the working tree is clean or
-mid-edit.
+**The fix:** `.claude/settings.json`'s `sandbox.excludedCommands` routes
+specific command strings around the sandbox entirely, rather than trying to
+loosen it in general. `allowMachLookup` (present since this project's
+scaffold commit) was tried first and is **not sufficient on its own** — it
+only covers Mach-service *lookups*, not the *registration/check-in* step
+Chromium's Mach port rendezvous actually needs — see that commit's message
+for the full reasoning:
 
-**Not a repo bug — no code-side fix direction.** This is inherent to the
-sandbox the coding agent runs inside, not something `playwright.config.ts` or
-any other project file can route around. Workaround, in order of preference,
-for a future Claude session that needs e2e-level confidence in a change:
+```json
+"sandbox": {
+  "excludedCommands": ["pnpm test:e2e *", "npx playwright *"],
+  "network": {
+    "allowMachLookup": ["com.apple.coresimulator.*", "org.chromium.Chromium.MachPortRendezvousServer.*"]
+  }
+}
+```
+
+**Only works for these exact invocations.** `excludedCommands` matches the
+literal Bash command string, not "whatever eventually runs Playwright" — so
+`pnpm test:e2e ...` and `npx playwright ...` (any arguments) both work, but
+`pnpm exec playwright test ...`, a bare `playwright test ...`, or any other
+equivalent phrasing do **not** match either pattern and get sandboxed like
+normal, hitting the exact same Mach-port failure above. **Confirmed
+2026-08-13:** `pnpm exec playwright test e2e/app.spec.ts` failed with this
+error on all 14 tests; switching to the identical spec via `pnpm test:e2e
+e2e/app.spec.ts` (and then the full `pnpm test:e2e`, 52 specs) passed
+cleanly in the same session with no config change — confirming the fix
+still works today and the earlier failure was an invocation mistake, not a
+regression. (This also explains an apparent "no longer reproduces as of
+2026-08-12" entry from an earlier version of this doc — that session likely
+just happened to invoke it correctly.)
+
+**Takeaway for a future session:** always run e2e tests via `pnpm test:e2e`
+(optionally with a spec path/args after it) — never `pnpm exec playwright`
+or a bare `playwright` invocation. If `pnpm test:e2e ...` itself somehow
+still fails with the Mach-port error, that would be a genuine regression
+worth investigating (start with whether `.claude/settings.json`'s
+`sandbox.excludedCommands` still contains the `"pnpm test:e2e *"` entry);
+until then, don't assume it's unfixable. Fallbacks, if still needed:
 
 1. Check the GitHub Actions run for the relevant branch/PR
    (`.github/workflows/ci.yml`'s `e2e` job runs on a normal `ubuntu-latest`
    runner, with no nested sandbox, so Chromium launches there without issue)
    — see `docs/testing.md` for exactly where to find its results.
 2. Use the `claude-in-chrome` MCP browser-automation tool against a real
-   `pnpm build && pnpm preview` for live/manual verification — this is the
-   practical substitute used throughout past sessions, and covers most of
-   what a Playwright spec would assert, just by hand instead of scripted.
+   `pnpm build && pnpm preview` for live/manual verification.
 3. Ask the user to run `pnpm test:e2e` locally (outside Claude Code's
    sandbox) and report back the result.
 
