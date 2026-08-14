@@ -160,4 +160,7 @@ step-by-step guide covering the page/spreadsheet/config files involved.
 ## Deployment
 
 Hosted on AWS Amplify Hosting, auto-deploying on push to `main` — see
-`docs/design/hosting.md` for the setup and rationale.
+`docs/design/hosting.md` for the setup and rationale. For what's actually
+running/collected in AWS right now and where to find it in the console
+(Amplify build status, access logs, CloudWatch RUM, the monitoring
+CloudFormation stack), see `docs/ops.md`.
