@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { readStorageJson, writeStorageJson } from '../lib/appStorage'
+import { trackEvent } from '../lib/rum'
 
 export type TextSize = 'normal' | 'large' | 'x-large'
 
@@ -42,6 +43,11 @@ export function useTextSizePreference(): UseTextSizePreferenceResult {
       document.documentElement.dataset.textSize = textSize
     }
     writeStorageJson(STORAGE_KEY, textSize)
+    // Deliberately fires on mount too, not just on an explicit change — the
+    // useful signal is "what text size are visitors actually using" (most
+    // people who set it never touch it again), not "how often was the
+    // control clicked."
+    trackEvent('text_size_preference', { textSize })
   }, [textSize])
 
   return { textSize, setTextSize }

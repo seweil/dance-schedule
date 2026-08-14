@@ -1,21 +1,41 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const AwsRumMock = vi.fn()
+const recordEventMock = vi.fn()
+// A real `function`, not an arrow/`.mockImplementation`, so `new AwsRumMock(...)`
+// behaves like an actual constructor call.
+const AwsRumMock = vi.fn(function (this: { recordEvent: typeof recordEventMock }) {
+  this.recordEvent = recordEventMock
+})
 vi.mock('aws-rum-web', () => ({ AwsRum: AwsRumMock }))
 
-const { initRum } = await import('./rum')
+// initRum stores its AwsRum instance in module-level state, so each test
+// re-imports a fresh module instance rather than relying on test order to
+// keep that state predictable.
+let initRum: typeof import('./rum').initRum
+let trackEvent: typeof import('./rum').trackEvent
+
+beforeEach(async () => {
+  vi.resetModules()
+  ;({ initRum, trackEvent } = await import('./rum'))
+})
 
 afterEach(() => {
-  AwsRumMock.mockReset()
+  AwsRumMock.mockClear()
+  recordEventMock.mockClear()
   vi.unstubAllEnvs()
 })
 
+function stubProdEnv() {
+  vi.stubEnv('PROD', true)
+  vi.stubEnv('VITE_RUM_APP_MONITOR_ID', 'app-id')
+  vi.stubEnv('VITE_RUM_IDENTITY_POOL_ID', 'pool-id')
+  vi.stubEnv('VITE_RUM_REGION', 'us-east-2')
+}
+
 describe('initRum', () => {
   it('does nothing outside a production build', () => {
+    stubProdEnv()
     vi.stubEnv('PROD', false)
-    vi.stubEnv('VITE_RUM_APP_MONITOR_ID', 'app-id')
-    vi.stubEnv('VITE_RUM_IDENTITY_POOL_ID', 'pool-id')
-    vi.stubEnv('VITE_RUM_REGION', 'us-east-2')
 
     expect(() => initRum()).not.toThrow()
     expect(AwsRumMock).not.toHaveBeenCalled()
@@ -29,10 +49,7 @@ describe('initRum', () => {
   })
 
   it('initializes AwsRum in production once every env var is set', () => {
-    vi.stubEnv('PROD', true)
-    vi.stubEnv('VITE_RUM_APP_MONITOR_ID', 'app-id')
-    vi.stubEnv('VITE_RUM_IDENTITY_POOL_ID', 'pool-id')
-    vi.stubEnv('VITE_RUM_REGION', 'us-east-2')
+    stubProdEnv()
 
     initRum()
 
@@ -48,14 +65,46 @@ describe('initRum', () => {
   })
 
   it('never throws even if constructing AwsRum fails', () => {
-    AwsRumMock.mockImplementation(() => {
+    AwsRumMock.mockImplementationOnce(() => {
       throw new Error('boom')
     })
-    vi.stubEnv('PROD', true)
-    vi.stubEnv('VITE_RUM_APP_MONITOR_ID', 'app-id')
-    vi.stubEnv('VITE_RUM_IDENTITY_POOL_ID', 'pool-id')
-    vi.stubEnv('VITE_RUM_REGION', 'us-east-2')
+    stubProdEnv()
 
     expect(() => initRum()).not.toThrow()
+  })
+})
+
+describe('trackEvent', () => {
+  it('does nothing before initRum has been called', () => {
+    expect(() => trackEvent('level_filter_change', { min: 0 })).not.toThrow()
+    expect(recordEventMock).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when initRum ran outside production', () => {
+    vi.stubEnv('PROD', false)
+    initRum()
+
+    trackEvent('level_filter_change', { min: 0 })
+
+    expect(recordEventMock).not.toHaveBeenCalled()
+  })
+
+  it('records the event once RUM is initialized', () => {
+    stubProdEnv()
+    initRum()
+
+    trackEvent('level_filter_change', { min: 0, max: 7 })
+
+    expect(recordEventMock).toHaveBeenCalledWith('level_filter_change', { min: 0, max: 7 })
+  })
+
+  it('never throws even if recordEvent fails', () => {
+    stubProdEnv()
+    initRum()
+    recordEventMock.mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+
+    expect(() => trackEvent('level_filter_change', { min: 0 })).not.toThrow()
   })
 })

@@ -17,6 +17,8 @@ community dance-event site's visitor data.
       see Decisions
 - [x] Infra-as-code tool for the pieces that do need provisioning — see
       Decisions
+- [x] Tracking in-app feature usage (not just device/performance) — see
+      Decisions
 - [ ] Whether to eventually pipe access logs into S3 + Athena for real
       analysis, vs. ad hoc console downloads
 
@@ -77,6 +79,24 @@ than throwing) whenever `VITE_RUM_APP_MONITOR_ID`/`VITE_RUM_IDENTITY_POOL_ID`/
 predates the stack being deployed — and wraps the `AwsRum` construction in
 `try/catch` since a telemetry SDK failing to initialize should never be
 allowed to break the app it's observing.
+
+### CloudWatch RUM custom events for feature-level usage (date/level-filter/text-size)
+**Why:** RUM's built-in telemetry answers "what devices/browsers hit the
+site" but nothing about which of the app's own features people actually
+use. `infra/monitoring.yaml`'s `CustomEvents.Status: ENABLED` plus
+`src/lib/rum.ts`'s `trackEvent` helper (a thin, equally-defensive wrapper
+around `awsRum.recordEvent`) let specific hooks fire named events: which
+dates people view (`useDanceScheduleFilters`'s `setSelectedDate`), how the
+level filter gets narrowed (`setLevelRange`, labeled with the slot names
+rather than raw indices so events stay readable independent of a set's
+`combineA1A2`/`combineC3BC4` flags), and which text-size preference is
+active (`useTextSizePreference`, fired on every mount as well as on
+change — the useful signal there is the current distribution of the
+setting, not just click counts, since most people who set it once never
+touch it again). Deliberately narrow: only the three things asked for, not
+a generic "track every click" wrapper — add more call sites the same way
+if a specific question comes up later, rather than instrumenting
+speculatively.
 
 ## Open questions
 

@@ -6,6 +6,8 @@ import { AwsRum, type AwsRumConfig } from 'aws-rum-web'
 // themselves live in infra/monitoring.yaml, not this repo's runtime code.
 // No-ops (rather than throwing) whenever the env vars are absent, so local
 // dev and any build predating the stack's deployment are unaffected.
+let awsRum: AwsRum | undefined
+
 export function initRum(): void {
   if (!import.meta.env.PROD) return
 
@@ -24,8 +26,22 @@ export function initRum(): void {
   }
 
   try {
-    new AwsRum(applicationId, __BUILD_NUMBER__, region, config)
+    awsRum = new AwsRum(applicationId, __BUILD_NUMBER__, region, config)
   } catch {
     // RUM must never break the app it's observing.
+  }
+}
+
+// App-specific usage events (date/level-filter/text-size selections — see
+// docs/design/monitoring.md) — requires infra/monitoring.yaml's CustomEvents
+// to be enabled server-side, or CloudWatch RUM silently drops them. No-ops
+// the same way initRum does: outside production, or before init has run/
+// succeeded (missing env vars, construction failure).
+export function trackEvent(type: string, data: Record<string, unknown>): void {
+  if (!awsRum) return
+  try {
+    awsRum.recordEvent(type, data)
+  } catch {
+    // Telemetry must never break the app it's observing.
   }
 }

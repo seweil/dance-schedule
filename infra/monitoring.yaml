@@ -2,7 +2,8 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   CloudWatch RUM (Real User Monitoring) for the Dance Schedule PWA — client-side
   telemetry (device type, browser, OS, geography, page performance, JS/HTTP
-  errors) sent straight from the browser. Deployed independently of Amplify
+  errors) plus app-specific custom events (date/level-filter/text-size usage,
+  see src/lib/rum.ts) sent straight from the browser. Deployed independently of Amplify
   Hosting itself (which has no CloudFormation-manageable settings for its
   built-in access logs — see infra/README.md). See docs/design/monitoring.md
   for the rationale.
@@ -84,6 +85,8 @@ Resources:
       DomainList: !Ref Domains
       Platform: Web
       CwLogEnabled: !If [EnableCwLogs, true, false]
+      CustomEvents:
+        Status: ENABLED
       AppMonitorConfiguration:
         AllowCookies: true
         EnableXRay: false

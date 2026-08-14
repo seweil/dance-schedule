@@ -8,6 +8,7 @@ import {
 } from '../lib/danceScheduleFiltersStorage'
 import { filterDanceSessions } from '../lib/filterDanceSessions'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
+import { trackEvent } from '../lib/rum'
 import {
   clampLevelIndex,
   getLevelSlots,
@@ -76,7 +77,15 @@ export function useDanceScheduleFilters(
   // clamped against the CURRENT dates/slots before being trusted.
   const [initialStoredFilters] = useState(() => loadStoredDanceScheduleFilters())
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => resolveStoredDate(initialStoredFilters, dates))
+  const [selectedDate, setSelectedDateState] = useState<Date>(() => resolveStoredDate(initialStoredFilters, dates))
+
+  // Wraps the raw setter (rather than tracking in an effect keyed on
+  // selectedDate) so this only fires on a genuine user pick, not on mount
+  // or on the auto-reclamp logic below.
+  const setSelectedDate = (date: Date) => {
+    trackEvent('dance_schedule_date_selected', { date: date.toISOString().slice(0, 10) })
+    setSelectedDateState(date)
+  }
 
   // The full, unfiltered set of sessions for the selected date — layout needs this
   // (not just the visible subset) to keep room order/time bounds stable as the level
@@ -109,6 +118,10 @@ export function useDanceScheduleFilters(
   const [showGca, setShowGca] = useState(() => resolveStoredShowGca(initialStoredFilters))
 
   const setLevelRange = (min: number, max: number) => {
+    trackEvent('dance_schedule_level_filter_changed', {
+      min: slots[min]?.label,
+      max: slots[max]?.label,
+    })
     setMinLevelIndex(min)
     setMaxLevelIndex(max)
   }
