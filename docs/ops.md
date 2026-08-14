@@ -33,6 +33,36 @@ Provisioned by `infra/monitoring.yaml`; see `docs/design/monitoring.md` for
 why RUM was chosen over access-log parsing or a third-party analytics
 vendor.
 
+### Verifying it's actually sending data (browser DevTools, no AWS login needed)
+
+The fastest sanity check doesn't require console access at all:
+
+1. Open the site, then DevTools → **Network** tab, filter by `rum`.
+2. Reload. RUM batches events and flushes on a timer or on page-hide, not
+   instantly — give it a few seconds, or switch tabs and back, before
+   concluding nothing's happening.
+3. Look for a **POST** to
+   `dataplane.rum.<region>.amazonaws.com/appmonitors/<app-monitor-id>`.
+   Expect **200**. A **403** means the guest role/identity pool is
+   misconfigured; **no request at all** (not even one to
+   `cognito-identity.<region>.amazonaws.com` — the credentials call, which
+   only fires once per session and may be cached from an earlier visit)
+   means `initRum()` never ran — check the three `VITE_RUM_*` env vars
+   actually made it into that build.
+4. Click the request → **Payload**/**Request** tab → the body is a JSON
+   `RumEvents` array. Each event has a `metadata` object — that's where
+   `deviceType`/`browserName`/`osName`/**`displayMode`** all live (see
+   "Overview / dashboard tab" below) — and, for this app's three custom
+   event types, a `details` field with whatever was passed to `trackEvent`.
+
+**If you just deployed and want to confirm the *newest* code, not a
+cached one**: this is a PWA with a service-worker precache — a fresh
+deploy can sit "waiting" in DevTools → **Application** → **Service
+Workers** until the app's own update-prompt UI fires, so a reload alone
+doesn't guarantee you're testing the latest build. Confirm via **Sources**
+→ find the loaded `index-*.js` → check its content, or just trust the
+update-prompt banner once it appears.
+
 ### Overview / dashboard tab
 
 Built-in telemetry, collected from every page load automatically (no code
