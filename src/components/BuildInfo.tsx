@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { isStandalonePwa } from '../lib/pwaDisplayMode'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import styles from './BuildInfo.module.css'
 
@@ -36,7 +37,8 @@ const buildTimeFormatter = new Intl.DateTimeFormat('en-US', {
 // Everything below is deliberately ONE line/paragraph, not build info and
 // online status as two separate ones (an earlier version) — per direct
 // product decision, this whole footer reads as a single fine-print string:
-// "Build <hash> at <date>, <time TZ> · Online/Offline · Raw data · All events".
+// "Build <hash> at <date>, <time TZ> · Online/Offline · Installed/Browser ·
+// Raw data · All events".
 export function BuildInfo({ extraLinks }: { extraLinks?: ReactNode } = {}) {
   const isOnline = useOnlineStatus()
   const builtAt = new Date(__BUILD_TIME__)
@@ -48,7 +50,12 @@ export function BuildInfo({ extraLinks }: { extraLinks?: ReactNode } = {}) {
           this specific origin is reachable — a reasonable proxy, and the same
           signal the browser's own offline UI relies on, but not a guarantee every
           fetch will succeed. */}
-      {isOnline ? 'Online' : 'Offline'}
+      {isOnline ? 'Online' : 'Offline'} ·{' '}
+      {/* Not reactive (unlike isOnline above) — installed-vs-browser-tab
+          doesn't change during a session, so a plain call is enough; see
+          src/lib/pwaDisplayMode.ts, also used to tag this as a RUM session
+          attribute (src/lib/rum.ts). */}
+      {isStandalonePwa() ? 'Installed' : 'Browser'}
       {extraLinks && <> · {extraLinks}</>} ·{' '}
       {/* react-router Link, not a plain <a> — /events is a route within THIS
           build (unlike EventsListPage.tsx's own cross-set links), so a

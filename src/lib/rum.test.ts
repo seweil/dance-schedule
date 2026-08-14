@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const recordEventMock = vi.fn()
+const addSessionAttributesMock = vi.fn()
 // A real `function`, not an arrow/`.mockImplementation`, so `new AwsRumMock(...)`
 // behaves like an actual constructor call.
-const AwsRumMock = vi.fn(function (this: { recordEvent: typeof recordEventMock }) {
+const AwsRumMock = vi.fn(function (this: {
+  recordEvent: typeof recordEventMock
+  addSessionAttributes: typeof addSessionAttributesMock
+}) {
   this.recordEvent = recordEventMock
+  this.addSessionAttributes = addSessionAttributesMock
 })
 vi.mock('aws-rum-web', () => ({ AwsRum: AwsRumMock }))
 
@@ -22,6 +27,7 @@ beforeEach(async () => {
 afterEach(() => {
   AwsRumMock.mockClear()
   recordEventMock.mockClear()
+  addSessionAttributesMock.mockClear()
   vi.unstubAllEnvs()
 })
 
@@ -71,6 +77,23 @@ describe('initRum', () => {
     stubProdEnv()
 
     expect(() => initRum()).not.toThrow()
+  })
+
+  it('tags the session as "browser" by default (not installed)', () => {
+    stubProdEnv()
+
+    initRum()
+
+    expect(addSessionAttributesMock).toHaveBeenCalledWith({ displayMode: 'browser' })
+  })
+
+  it('tags the session as "standalone" when running installed', () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValueOnce({ matches: true } as MediaQueryList)
+    stubProdEnv()
+
+    initRum()
+
+    expect(addSessionAttributesMock).toHaveBeenCalledWith({ displayMode: 'standalone' })
   })
 })
 

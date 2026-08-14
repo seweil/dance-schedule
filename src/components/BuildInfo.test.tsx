@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { BuildInfo } from './BuildInfo'
@@ -12,7 +12,7 @@ describe('BuildInfo', () => {
     setNavigatorOnLine(true)
   })
 
-  it('renders build info, online status, and "All events" as a single fine-print line', () => {
+  it('renders build info, online status, install status, and "All events" as a single fine-print line', () => {
     render(
       <MemoryRouter>
         <BuildInfo />
@@ -23,7 +23,7 @@ describe('BuildInfo', () => {
     // reads as one fine-print string.
     const paragraphs = screen.getAllByText(/Build/, { selector: 'p' })
     expect(paragraphs).toHaveLength(1)
-    expect(paragraphs[0]).toHaveTextContent(/^Build \S+ at .+ · Online · All events$/)
+    expect(paragraphs[0]).toHaveTextContent(/^Build \S+ at .+ · Online · Browser · All events$/)
   })
 
   it('says "Online" while online', () => {
@@ -46,6 +46,25 @@ describe('BuildInfo', () => {
     expect(screen.getByText(/Build/, { selector: 'p' })).toHaveTextContent('Offline')
   })
 
+  it('says "Browser" when not running installed', () => {
+    render(
+      <MemoryRouter>
+        <BuildInfo />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText(/Build/, { selector: 'p' })).toHaveTextContent('Browser')
+  })
+
+  it('says "Installed" when running standalone', () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValueOnce({ matches: true } as MediaQueryList)
+    render(
+      <MemoryRouter>
+        <BuildInfo />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText(/Build/, { selector: 'p' })).toHaveTextContent('Installed')
+  })
+
   it('folds extraLinks in before "All events", still on the one line', () => {
     render(
       <MemoryRouter>
@@ -53,6 +72,6 @@ describe('BuildInfo', () => {
       </MemoryRouter>,
     )
     const paragraph = screen.getByText(/Build/, { selector: 'p' })
-    expect(paragraph).toHaveTextContent(/Online · Raw data · All events$/)
+    expect(paragraph).toHaveTextContent(/Online · Browser · Raw data · All events$/)
   })
 })

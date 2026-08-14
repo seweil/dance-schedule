@@ -51,6 +51,37 @@ changes needed to get more of this):
 this is real data, not an estimate, given the app's traffic volume stays
 well inside RUM's free tier.
 
+**Installed vs. browser tab** (`displayMode`: `standalone`/`browser`) isn't
+one of RUM's own built-in dimensions, but a custom *session attribute*
+(`src/lib/rum.ts`'s `initRum` calls `awsRum.addSessionAttributes(...)` once
+per session — see `docs/design/monitoring.md`'s decision for why a session
+attribute rather than a custom event). AWS attaches session attributes to
+every event's own `metadata`, the same place `deviceType`/`browserName`
+live, so it's filterable the same two ways as those: the console's search
+bar (`displayMode=standalone`) or a Logs Insights `metadata.displayMode`
+query. Also shown as plain fine print on the home page itself (next to the
+Online/Offline text) — no AWS console needed for a quick check.
+
+### Known gap: offline sessions undercount
+
+RUM data silently misses some offline/flaky-connection activity — this is a
+real, if minor, undercount to keep in mind when reading session/event
+counts, not a bug to chase. Verified directly in `aws-rum-web`'s dispatch
+code (`@aws-rum/web-core`'s `Dispatch.js`/`EventCache.js`): events queue
+client-side and get sent on a timer or on page-hide, but the batch is
+pulled out of the local queue *before* the send is attempted — a failed
+send (offline, or a dropped connection mid-retry) is logged and swallowed
+(consistent with `src/lib/rum.ts`'s "must never throw" design), and those
+events are gone, not requeued for the next time the device is back online.
+`initRum()` also doesn't check `navigator.onLine` before initializing, so a
+page opened entirely offline — a real, expected case for this PWA — still
+queues events locally as normal; they only make it out if a dispatch
+attempt happens to land while the device has connectivity. Net effect: a
+visitor who uses the app entirely or mostly offline appears in RUM data
+less than they actually used the app, with no error surfaced anywhere. Not
+worth engineering around at this app's scale — just don't read "RUM session
+count" as a literal, complete count of app usage.
+
 ### Events tab — custom, app-specific events
 
 Search by event type. Three exist today (added in `useDanceScheduleFilters.ts`
@@ -114,6 +145,16 @@ fields metadata.deviceType, metadata.browserName, metadata.osName
 | stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName
 ```
 
+**Installed vs. browser tab** — a custom session attribute, not a built-in
+dimension, but it lives in `metadata` too (see above), so the same query
+shape works:
+
+```
+fields metadata.displayMode
+| filter event_type = "com.amazon.rum.page_view_event"
+| stats count(*) by metadata.displayMode
+```
+
 **Pages viewed** — also on the Overview tab, but for a plain ranked list:
 
 ```
@@ -160,6 +201,7 @@ Console: **CloudFormation → Stacks → `dance-schedule-monitoring`** (us-east-
 | Symptom | Check |
 | --- | --- |
 | No RUM data at all | Amplify env vars (set correctly? build run *after* they were set?) → CloudFormation stack exists and deployed cleanly → browser network tab for a `dataplane.rum.<region>.amazonaws.com` call, watch for a 403 (guest role/identity pool misconfigured) or nothing at all (env vars missing from the build) |
+| RUM session/event counts look lower than expected | Check it's not just the known offline undercount above before assuming something's broken |
 | Custom events missing but built-in telemetry (device/browser) works | `CustomEvents.Status` on the app monitor — must be `ENABLED` in `monitoring.yaml`, requires a stack redeploy if just added |
 | Need counts/group-by, not just individual events | RUM's own Events tab can't do this — use CloudWatch Logs Insights against the log group `RetainTelemetryBeyond30Days` creates, see this doc's "Retention and aggregate reporting" section above |
 | A route 404s after adding a content set | Amplify's Rewrites and redirects — needs a new rule pair, console-only, see the Amplify Hosting table above |

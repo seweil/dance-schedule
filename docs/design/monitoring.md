@@ -101,9 +101,8 @@ current distribution of the setting, not just interaction counts, since
 most visitors never touch either one after the page loads with whatever
 was stored (or the default). Deliberately narrow: only the three things
 asked for, not a generic "track every click" wrapper — add more call sites
-the same way
-if a specific question comes up later, rather than instrumenting
-speculatively.
+the same way if a specific question comes up later, rather than
+instrumenting speculatively.
 
 ### `RetainTelemetryBeyond30Days` (CwLogEnabled) on by default, for aggregate reporting
 **Why:** The RUM console's Events tab only supports browsing individual
@@ -121,6 +120,26 @@ aggregate reporting became an actual, not speculative, need.
 Default, since `cloudformation deploy` keeps an already-deployed stack's
 previous parameter value for anything not passed explicitly — editing the
 Default alone wouldn't have changed it on the stack that already existed.
+
+### Installed-vs-browser as a RUM session attribute, not a custom event
+**Why:** Whether someone's using the installed PWA or a plain browser tab is
+a property of the whole session, the same shape as RUM's own built-in
+device/browser/OS dimensions — not a discrete interaction like a date pick.
+`src/lib/pwaDisplayMode.ts`'s `isStandalonePwa()` (the standard
+`display-mode: standalone` media query, OR'd with iOS Safari's older
+`navigator.standalone` fallback) feeds `awsRum.addSessionAttributes({
+displayMode: ... })` once at `initRum()` time, rather than a `trackEvent`
+call. AWS attaches session attributes to every event's own `metadata`
+field alongside `deviceType`/`browserName`/etc — not a separate namespace
+— so it's filterable the same way in both the RUM console's search bar
+(`displayMode=standalone`) and Logs Insights (`metadata.displayMode`), and
+requires no `CustomEvents`-style infra flag. `isStandalonePwa()` is a plain
+function, not a hook — display mode doesn't change mid-session, and
+`initRum()` runs before React mounts, so it can't consume a hook anyway.
+The same function is called directly (unmemoized — cheap, and stable for
+the page's lifetime) from `BuildInfo.tsx`'s fine print, next to the
+existing Online/Offline segment, so installed-vs-browser is also visible
+on the page itself without opening the AWS console at all.
 
 ## Open questions
 

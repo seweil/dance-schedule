@@ -1,4 +1,5 @@
 import { AwsRum, type AwsRumConfig } from 'aws-rum-web'
+import { isStandalonePwa } from './pwaDisplayMode'
 
 // CloudWatch RUM client telemetry — device/browser/OS, page performance, JS
 // and HTTP errors, sent straight from the browser. Config comes from the
@@ -27,6 +28,11 @@ export function initRum(): void {
 
   try {
     awsRum = new AwsRum(applicationId, __BUILD_NUMBER__, region, config)
+    // A session-wide attribute (attached to every event in the session, not
+    // a one-off trackEvent) — installed-vs-browser-tab is a property of the
+    // whole session, not a discrete interaction, matching how RUM's own
+    // built-in device/browser/OS dimensions work.
+    awsRum.addSessionAttributes({ displayMode: isStandalonePwa() ? 'standalone' : 'browser' })
   } catch {
     // RUM must never break the app it's observing.
   }
