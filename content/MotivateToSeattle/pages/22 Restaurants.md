@@ -1,10 +1,8 @@
-# Restaurant Guide — Hilton Seattle Airport & Conference Center
-**Event dates:** October 9–11
-**Hotel:** [Hilton Seattle Airport & Conference Center](https://www.hilton.com/en/hotels/seaahhh-hilton-seattle-airport-and-conference-center/), 17620 International Blvd, Seattle, WA 98188
+# Restaurant Guide — Near Hilton Seattle Airport & Conference Center
 
-Restaurants are grouped by distance from the hotel and by price/formality. Ratings and review counts are from Google (pulled Aug 2026). Larger review counts (1,000+) are a more reliable signal than a high rating on a small sample.
+Restaurants are grouped by distance from the hotel and by price/formality. Ratings and review counts are from Google (pulled Aug 2026) and summarized by AI.
 
-> **Note:** Salty's at the SEA, Brewtop Social, PF Chang's, Ballard Brew Hall, and Africa Lounge all showed up in search as top-rated nearby options but are located *inside* SEA airport terminals — inaccessible without a boarding pass. Excluded. The hotel's own restaurant (Spencer's for Steaks and Chops) is also excluded here since it's inside the Hilton — attendees will find it without a guide.
+> **Note:** Google also lists many nearby restaurants that are inside security at the airport.
 
 ---
 
