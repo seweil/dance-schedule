@@ -41,11 +41,13 @@ and redeploys on every push with no GitHub Actions workflow needed — that's
 the whole point of choosing Amplify over the S3+CloudFront path, which
 would've required hand-writing that CI step.
 
-### Platform-provided domain (`https://<branch>.<app-id>.amplifyapp.com`) for now
-**Why:** Fastest path to something live for testing; Amplify domains are
+### Platform-provided domain first, then `sqdance.app` added later
+**Why:** The platform-provided domain (`https://<branch>.<app-id>.amplifyapp.com`)
+was the fastest path to something live for testing; Amplify domains are
 HTTPS by default (required for service worker registration). A custom domain
-can be added later purely in the console (Domain management → add domain →
-free ACM cert) with zero repo changes.
+was added later purely in the console (Domain management → add domain →
+free ACM cert), zero repo changes — the app is now live at `sqdance.app`,
+with the `amplifyapp.com` URL still working alongside it.
 
 ### SPA fallback via an Amplify "Rewrites and redirects" rule, not a repo file
 **Why:** `src/App.tsx` uses `react-router-dom`'s `BrowserRouter`, so a direct
