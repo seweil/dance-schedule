@@ -60,13 +60,16 @@ decision for the full rationale):
 | Event type | Fires when | Payload |
 | --- | --- | --- |
 | `dance_schedule_date_selected` | User picks a date on any dance-schedule-family page | `{ date: "YYYY-MM-DD" }` |
-| `dance_schedule_level_filter_changed` | User moves the level-range slider | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
-| `text_size_preference` | On every page load (not just on change) | `{ textSize: "normal" \| "large" \| "x-large" }` |
+| `dance_schedule_level_filter_changed` | On every page load, and on every subsequent change (slider drag, or an automatic re-scope when switching to a date with a narrower present range) | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
+| `text_size_preference` | On every page load, and on every subsequent change | `{ textSize: "normal" \| "large" \| "x-large" }` |
 
-`text_size_preference` firing on every load (not just when someone changes
-it) is deliberate — it's what makes the event data reflect the *current
-distribution* of the setting across visitors, not just click counts. See
-`src/lib/rum.ts`'s `trackEvent` and its two call sites for the actual
+`dance_schedule_level_filter_changed` and `text_size_preference` both fire
+on every page load, not just when someone changes the setting — deliberate,
+since it's what makes the event data reflect the *current distribution* of
+each setting across visitors, not just interaction counts.
+`dance_schedule_date_selected` stays interaction-only (a "current date"
+snapshot isn't a meaningful distribution the way a persisted preference
+is). See `src/lib/rum.ts`'s `trackEvent` and its call sites for the actual
 wiring; add a new call site there the same way if another question comes
 up, rather than instrumenting speculatively.
 

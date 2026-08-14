@@ -86,15 +86,20 @@ site" but nothing about which of the app's own features people actually
 use. `infra/monitoring.yaml`'s `CustomEvents.Status: ENABLED` plus
 `src/lib/rum.ts`'s `trackEvent` helper (a thin, equally-defensive wrapper
 around `awsRum.recordEvent`) let specific hooks fire named events: which
-dates people view (`useDanceScheduleFilters`'s `setSelectedDate`), how the
-level filter gets narrowed (`setLevelRange`, labeled with the slot names
-rather than raw indices so events stay readable independent of a set's
-`combineA1A2`/`combineC3BC4` flags), and which text-size preference is
-active (`useTextSizePreference`, fired on every mount as well as on
-change — the useful signal there is the current distribution of the
-setting, not just click counts, since most people who set it once never
-touch it again). Deliberately narrow: only the three things asked for, not
-a generic "track every click" wrapper — add more call sites the same way
+dates people view (`useDanceScheduleFilters`'s `setSelectedDate`,
+interaction-only — a "current date" snapshot isn't a meaningful
+distribution the way a persisted preference is), the level filter's
+current range (labeled with the slot names rather than raw indices so
+events stay readable independent of a set's `combineA1A2`/`combineC3BC4`
+flags), and which text-size preference is active. The level-range and
+text-size events both fire on every mount as well as on every subsequent
+change (`useDanceScheduleFilters`'s own effect for the former,
+`useTextSizePreference` for the latter) — the useful signal there is the
+current distribution of the setting, not just interaction counts, since
+most visitors never touch either one after the page loads with whatever
+was stored (or the default). Deliberately narrow: only the three things
+asked for, not a generic "track every click" wrapper — add more call sites
+the same way
 if a specific question comes up later, rather than instrumenting
 speculatively.
 
