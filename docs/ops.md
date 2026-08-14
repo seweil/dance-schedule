@@ -84,11 +84,61 @@ Events tab — no count/group-by queries. `RetainTelemetryBeyond30Days`
 (`infra/monitoring.yaml`) is **on** by default specifically for this: it
 mirrors every event, including custom ones, into a CloudWatch Logs group
 RUM manages itself, which CloudWatch Logs Insights can run real aggregate
-queries against (and which isn't subject to the 30-day cutoff). See
-`infra/README.md`'s "Aggregate reporting" section for how to find the log
-group and worked example queries for each of the three custom event types.
-Costs real (if small) CloudWatch Logs ingestion/storage — flip it back off
-and redeploy (`./infra/deploy.sh`) if that stops being worth it.
+queries against (and which isn't subject to the 30-day cutoff). Costs real
+(if small) CloudWatch Logs ingestion/storage — flip it back off and
+redeploy (`./infra/deploy.sh`) if that stops being worth it.
+
+Find the log group (its name isn't a fixed, predictable string):
+
+```bash
+aws rum get-app-monitor --name dance-schedule --region us-east-2 \
+  --query 'AppMonitor.DataStorage.CwLog.CwLogGroup'
+```
+
+Then in the CloudWatch console → **Logs → Logs Insights**, pick that log
+group. Every event has `event_type` (a plain string like
+`dance_schedule_level_range` for this app's custom events; a
+`com.amazon.rum.*`-namespaced string for RUM's built-in ones) plus
+`metadata.*` (browser/OS/device/page, present on every event) and
+`event_details.*` (the event-type-specific payload — for custom events,
+whatever object you passed to `trackEvent`).
+
+**Devices, browsers, OS** — already graphed natively in the Overview tab
+above with no query needed; the equivalent Logs Insights query (useful if
+you want to cross-tabulate with something the dashboard doesn't offer, or
+already have Logs Insights open):
+
+```
+fields metadata.deviceType, metadata.browserName, metadata.osName
+| filter event_type = "com.amazon.rum.page_view_event"
+| stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName
+```
+
+**Pages viewed** — also on the Overview tab, but for a plain ranked list:
+
+```
+fields metadata.pageId
+| filter event_type = "com.amazon.rum.page_view_event"
+| stats count(*) as views by metadata.pageId
+| sort views desc
+```
+
+**Font size** — no dashboard equivalent (it's a custom event); this is the
+only way to see the distribution:
+
+```
+fields event_details.textSize
+| filter event_type = "text_size_preference"
+| stats count(*) by event_details.textSize
+```
+
+**Level filter range** — same, custom-event-only:
+
+```
+fields event_details.min, event_details.max
+| filter event_type = "dance_schedule_level_range"
+| stats count(*) by event_details.min, event_details.max
+```
 
 ## CloudFormation
 
@@ -111,6 +161,6 @@ Console: **CloudFormation → Stacks → `dance-schedule-monitoring`** (us-east-
 | --- | --- |
 | No RUM data at all | Amplify env vars (set correctly? build run *after* they were set?) → CloudFormation stack exists and deployed cleanly → browser network tab for a `dataplane.rum.<region>.amazonaws.com` call, watch for a 403 (guest role/identity pool misconfigured) or nothing at all (env vars missing from the build) |
 | Custom events missing but built-in telemetry (device/browser) works | `CustomEvents.Status` on the app monitor — must be `ENABLED` in `monitoring.yaml`, requires a stack redeploy if just added |
-| Need counts/group-by, not just individual events | RUM's own Events tab can't do this — use CloudWatch Logs Insights against the log group `RetainTelemetryBeyond30Days` creates, see `infra/README.md`'s "Aggregate reporting" section |
+| Need counts/group-by, not just individual events | RUM's own Events tab can't do this — use CloudWatch Logs Insights against the log group `RetainTelemetryBeyond30Days` creates, see this doc's "Retention and aggregate reporting" section above |
 | A route 404s after adding a content set | Amplify's Rewrites and redirects — needs a new rule pair, console-only, see the Amplify Hosting table above |
 | Site looks stale after a deploy | This is a PWA with a service worker precache — a new build can sit "waiting" until the app's own update-prompt UI (or a manual `skipWaiting`) activates it; don't assume a redeploy is broken just because a browser tab still shows old content |
