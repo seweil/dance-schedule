@@ -104,6 +104,77 @@ describe('DanceScheduleFilters', () => {
     }
   })
 
+  it('shows a ghost marker on the track only while hovering its tick, and only that one', () => {
+    renderFilters()
+    // BASE_SLOTS is uncombined (one slot per LEVEL_ORDER entry), so ghost marker
+    // order matches LEVEL_ORDER order — same index the tick loop above renders in.
+    const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
+    expect(ghosts).toHaveLength(LEVEL_ORDER.length)
+    for (const ghost of ghosts) {
+      expect(ghost).toHaveAttribute('data-active', 'false')
+    }
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'C1' }))
+    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'true')
+    // Every other marker stays inactive — hovering one tick doesn't light up others.
+    expect(ghosts[LEVEL_ORDER.indexOf('SSD')]).toHaveAttribute('data-active', 'false')
+
+    fireEvent.mouseLeave(screen.getByRole('button', { name: 'C1' }))
+    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'false')
+  })
+
+  it('shows the nearest ghost marker while hovering the track itself, not just a tick label', () => {
+    renderFilters()
+    const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
+    const track = document.querySelector('[class*="sliderTrack"]') as HTMLElement
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      width: 196,
+      top: 0,
+      height: 4,
+      right: 196,
+      bottom: 4,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    } as DOMRect)
+
+    // usableWidth = 196 - 2*8 = 180; index 5 ("C1") sits at fraction 5/9 of
+    // the full 10-slot range -> relativeX = 8 + (5/9)*180 = 108.
+    fireEvent.mouseMove(track, { clientX: 108 })
+    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'true')
+
+    fireEvent.mouseLeave(track)
+    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'false')
+  })
+
+  it("shapes the ghost marker to match whichever thumb moveNearestThumb says would actually move", () => {
+    renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
+    const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
+
+    // Interior, equidistant from both (0 and 2) — moveNearestThumb's own
+    // documented tie-break goes to min.
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'MS' }))
+    expect(ghosts[LEVEL_ORDER.indexOf('MS')]).toHaveAttribute('data-thumb', 'min')
+    fireEvent.mouseLeave(screen.getByRole('button', { name: 'MS' }))
+
+    // Outside the current range (5 >= max of 2) — moves max, not min.
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'C1' }))
+    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-thumb', 'max')
+  })
+
+  it('shows no ghost marker for the tick already at the current min/max — clicking it is a no-op', () => {
+    renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
+    const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'SSD' }))
+    expect(ghosts[LEVEL_ORDER.indexOf('SSD')]).toHaveAttribute('data-active', 'false')
+    fireEvent.mouseLeave(screen.getByRole('button', { name: 'SSD' }))
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Plus' }))
+    expect(ghosts[LEVEL_ORDER.indexOf('Plus')]).toHaveAttribute('data-active', 'false')
+  })
+
   it('clicking a tick above the current range extends the max thumb to it', () => {
     const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
     fireEvent.click(screen.getByRole('button', { name: 'C1' }))

@@ -255,6 +255,11 @@
   height: 4px;
   border-radius: 2px;
   background: var(--color-border);
+  /* Matches .tick's own cursor: pointer below — the track is just as
+     clickable as a tick label (Radix's own default: clicking anywhere on
+     it jumps the nearest thumb there), so it should read that way too, not
+     just the labels above it. */
+  cursor: pointer;
 }
 
 /* Explicit height (not 100%, unlike before) and vertically centered — deliberately
@@ -270,6 +275,11 @@
   border-radius: 4px;
   background: var(--color-accent);
   transform: translateY(-50%);
+  /* Explicit, not left to inherit from .sliderTrack — confirmed live that
+     inheritance alone didn't actually show the pointer cursor while
+     hovering this element specifically (it's what's on top, and what the
+     cursor is actually determined from, everywhere the range is visible). */
+  cursor: pointer;
 }
 
 /* Triangles, not circles — width/height: 0 plus a colored border on one side is
@@ -323,6 +333,56 @@
 .sliderThumb:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Preview marker shown on the track under whichever tick is currently
+   hovered (DanceScheduleFilters.tsx tracks this in `hoveredTickIndex`,
+   toggles `data-active` here, and picks `data-thumb` by actually calling
+   moveNearestThumb — the same function a real click there would use — not
+   a guess) — a faded version of the real thumb triangle that would land
+   there, same size (11px/18px borders, matching .sliderThumb/
+   .sliderThumbMin/.sliderThumbMax exactly — a preview should show the true
+   size of what you'd get, not a scaled-down hint of it) and the same
+   border-trick shape. pointer-events: none so it's purely decorative and
+   never steals the click/hover the real track/tick/thumb elements need.
+   Positioned in the same coordinate space as the real thumbs (a child of
+   .sliderTrack, using the identical left-fraction calc .tick uses) so it
+   lines up exactly with where a real thumb would land, not just
+   approximately. */
+.ghostThumb {
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.1s ease-out;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+}
+
+.ghostThumb[data-active='true'] {
+  opacity: 0.4;
+}
+
+.ghostThumb[data-thumb='min'] {
+  border-left: 18px solid var(--color-accent);
+}
+
+.ghostThumb[data-thumb='max'] {
+  border-right: 18px solid var(--color-accent);
+}
+
+/* (hover: hover) — a real mouse/trackpad, not a touchscreen (which reports
+   hover: none even though it technically supports the CSS :hover pseudo-
+   class via tap-and-hold) — so this only ever shows on desktop, where
+   dragging left/right is actually how the thumb moves; a touch device drags
+   with a finger, not a cursor, so there's no cursor affordance to show. */
+@media (hover: hover) {
+  .sliderThumb:hover {
+    cursor: ew-resize;
+  }
 }
 
 /* position: relative, not a flex row with justify-content: space-between — labels

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import * as Slider from '@radix-ui/react-slider'
 import type { LevelSlot } from '../lib/levelOrder'
 import { moveNearestThumb } from '../lib/moveNearestThumb'
@@ -99,6 +99,10 @@ export function DanceScheduleFilters({
 }: DanceScheduleFiltersProps) {
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
+  // Drives the ghost preview marker on the track (.ghostThumb) — which slot's
+  // tick, if any, the pointer is currently over. null, not -1: every real slot
+  // index (including 0) must stay a valid "this one's hovered" value.
+  const [hoveredTickIndex, setHoveredTickIndex] = useState<number | null>(null)
   // Weekday + day + month, no year — the year is never ambiguous within a single
   // convention's schedule, and dropping it keeps each <option> (and the closed
   // select's own display) short enough to help the vertical-footprint goal below.
@@ -200,6 +204,8 @@ export function DanceScheduleFilters({
                   const { min, max } = moveNearestThumb(index, minLevelIndex, maxLevelIndex)
                   onLevelRangeChange(min, max)
                 }}
+                onMouseEnter={() => setHoveredTickIndex(index)}
+                onMouseLeave={() => setHoveredTickIndex((current) => (current === index ? null : current))}
               >
                 {shortenA1A2Tick ? tickText(slot.label) : slot.label}
                 {/* Decorative only — the button's accessible name is still just the
@@ -221,8 +227,55 @@ export function DanceScheduleFilters({
             }
           }}
         >
-          <Slider.Track className={styles.sliderTrack}>
+          <Slider.Track
+            className={styles.sliderTrack}
+            // Continuous "near a setting" preview along the whole bar (both the
+            // thin unselected track and the highlighted range), not just when
+            // hovering a tick label above it — mirrors the ticks'/ghosts' own
+            // "8px to calc(100% - 16px)" inset math in reverse, snapping the
+            // raw cursor position to whichever slot index is closest.
+            onMouseMove={(event) => {
+              if (presentLevelIndexSpan <= 0) {
+                setHoveredTickIndex(minPresentLevelIndex)
+                return
+              }
+              const rect = event.currentTarget.getBoundingClientRect()
+              const inset = 8
+              const usableWidth = rect.width - inset * 2
+              const rawFraction = usableWidth > 0 ? (event.clientX - rect.left - inset) / usableWidth : 0
+              const fraction = Math.min(1, Math.max(0, rawFraction))
+              setHoveredTickIndex(Math.round(minPresentLevelIndex + fraction * presentLevelIndexSpan))
+            }}
+            onMouseLeave={() => setHoveredTickIndex(null)}
+          >
             <Slider.Range className={styles.sliderRange} />
+            {/* Same left-fraction calc as the ticks above, so a ghost marker lines
+                up exactly with the tick it previews. Shape (min- vs max-pointing
+                triangle, matching .sliderThumbMin/.sliderThumbMax) comes from
+                actually calling moveNearestThumb — the real function a click
+                there would use — rather than guessing; see .ghostThumb's own
+                comment for the "hovering the tick already at min/max" case this
+                also has to account for. */}
+            {visibleSlots.map(({ slot, index }) => {
+              const fraction =
+                presentLevelIndexSpan > 0 ? (index - minPresentLevelIndex) / presentLevelIndexSpan : 0.5
+              const preview = moveNearestThumb(index, minLevelIndex, maxLevelIndex)
+              const movesMin = preview.min !== minLevelIndex
+              const movesMax = preview.max !== maxLevelIndex
+              return (
+                <span
+                  key={slot.label}
+                  className={styles.ghostThumb}
+                  aria-hidden="true"
+                  // Neither true means this tick IS the current min or max already
+                  // — clicking it is a no-op, so there's nothing to preview (the
+                  // real thumb is already sitting right there).
+                  data-active={hoveredTickIndex === index && (movesMin || movesMax)}
+                  data-thumb={movesMin ? 'min' : 'max'}
+                  style={{ left: `calc(8px + (100% - 16px) * ${fraction})` }}
+                />
+              )
+            })}
           </Slider.Track>
           {/* Triangles pointing at each other (not identical circles) so the pair
               itself reads as "the ends of a range," not just two independent
