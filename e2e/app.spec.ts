@@ -5,6 +5,21 @@ test('renders the home page generated from content/home.md', async ({ page }) =>
   await expect(page.getByRole('heading', { name: /welcome to montreal mix/i })).toBeVisible()
 })
 
+test('web app manifest does not lock orientation', async ({ page }) => {
+  // Regression test: an installed PWA (unlike a regular browser tab, which
+  // ignores this) obeys the manifest's own `orientation` field — an earlier
+  // `orientation: 'portrait-primary'` silently prevented the installed app
+  // from rotating at all, directly undermining RotateDeviceBanner.tsx's own
+  // "rotate to landscape" prompt. Reported live on a real installed Android
+  // PWA — Chrome itself (a plain browser tab, not installed) never surfaced
+  // it, so this must be checked against the manifest's actual content, not
+  // just in-browser rendering.
+  await page.goto('/automated-testing/')
+  const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href')
+  const manifest = await page.evaluate(async (href) => (await fetch(href!)).json(), manifestHref)
+  expect(['any', undefined]).toContain(manifest.orientation)
+})
+
 test('nav links to a page generated from a content file', async ({ page }) => {
   await page.goto('/automated-testing/')
   // Scoped to the nav — the home page's own body text also links to

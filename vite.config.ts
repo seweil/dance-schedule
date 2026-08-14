@@ -199,7 +199,13 @@ export default defineConfig(async () => {
           start_url: '.',
           scope: '.',
           display: 'standalone',
-          orientation: 'portrait-primary',
+          // No orientation lock — reported live: the installed PWA didn't rotate
+          // with the device at all (a manifest orientation lock only applies once
+          // installed standalone, not in a regular browser tab, which is why it
+          // looked fine there). This app explicitly supports and encourages
+          // landscape (RotateDeviceBanner.tsx, plus the extensive orientation-aware
+          // CSS cataloged in docs/design/responsive-breakpoints.md) — locking to
+          // portrait-primary was an unreviewed default, not a real decision.
           background_color: '#ffffff',
           theme_color: '#0f172a',
           icons: [
