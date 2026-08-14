@@ -18,6 +18,18 @@ const BASE_SLOTS = getLevelSlots(false, false)
 const COMBINED_SLOTS = getLevelSlots(true, false)
 const C3B_COMBINED_SLOTS = getLevelSlots(false, true)
 
+// The default jsdom matchMedia stub (test-setup.ts) always reports "no
+// match" — including for (hover: hover) — so the ghost-preview tests, which
+// need it to report a real mouse/trackpad, opt in explicitly rather than
+// relying on that default the way most other tests here do.
+function stubHoverCapable() {
+  vi.spyOn(window, 'matchMedia').mockReturnValue({
+    matches: true,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as MediaQueryList)
+}
+
 function renderFilters(overrides: Partial<ComponentProps<typeof DanceScheduleFilters>> = {}) {
   const onDateChange = vi.fn()
   const onLevelRangeChange = vi.fn()
@@ -104,7 +116,20 @@ describe('DanceScheduleFilters', () => {
     }
   })
 
+  it('does not activate the ghost preview on a device without real hover (e.g. touch)', () => {
+    // Default jsdom matchMedia stub — no stubHoverCapable() here, deliberately,
+    // since this is exactly what a touch device's (hover: hover) reports.
+    renderFilters()
+    const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'C1' }))
+    for (const ghost of ghosts) {
+      expect(ghost).toHaveAttribute('data-active', 'false')
+    }
+  })
+
   it('shows a ghost marker on the track only while hovering its tick, and only that one', () => {
+    stubHoverCapable()
     renderFilters()
     // BASE_SLOTS is uncombined (one slot per LEVEL_ORDER entry), so ghost marker
     // order matches LEVEL_ORDER order — same index the tick loop above renders in.
@@ -124,6 +149,7 @@ describe('DanceScheduleFilters', () => {
   })
 
   it('shows the nearest ghost marker while hovering the track itself, not just a tick label', () => {
+    stubHoverCapable()
     renderFilters()
     const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
     const track = document.querySelector('[class*="sliderTrack"]') as HTMLElement
@@ -149,6 +175,7 @@ describe('DanceScheduleFilters', () => {
   })
 
   it("shapes the ghost marker to match whichever thumb moveNearestThumb says would actually move", () => {
+    stubHoverCapable()
     renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
     const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
 
@@ -164,6 +191,7 @@ describe('DanceScheduleFilters', () => {
   })
 
   it('shows no ghost marker for the tick already at the current min/max — clicking it is a no-op', () => {
+    stubHoverCapable()
     renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
     const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
 

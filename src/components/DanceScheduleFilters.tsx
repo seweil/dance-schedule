@@ -99,10 +99,25 @@ export function DanceScheduleFilters({
 }: DanceScheduleFiltersProps) {
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
+  const supportsHover = useMediaQuery('(hover: hover)')
   // Drives the ghost preview marker on the track (.ghostThumb) — which slot's
   // tick, if any, the pointer is currently over. null, not -1: every real slot
   // index (including 0) must stay a valid "this one's hovered" value.
   const [hoveredTickIndex, setHoveredTickIndex] = useState<number | null>(null)
+  // Some mobile browsers fire a synthetic mouseenter/mousemove after a tap on
+  // an element that LOOKS clickable (cursor: pointer, added below, is exactly
+  // the kind of change that triggers this) — but never a matching mouseleave,
+  // since there's no real pointer to "leave" with. Without this guard, a tap
+  // near the slider could leave a ghost stuck active, overlapping the real
+  // thumb (reported live: looked like a rounded/doubled edge on the thumb in
+  // a photo). The whole preview only makes sense for hover-capable devices
+  // anyway — same reasoning as the ew-resize cursor rule below — so it's
+  // simplest to just never let it activate at all on ones that aren't.
+  function setHoveredTickIndexIfSupported(index: number | null) {
+    if (supportsHover) {
+      setHoveredTickIndex(index)
+    }
+  }
   // Weekday + day + month, no year — the year is never ambiguous within a single
   // convention's schedule, and dropping it keeps each <option> (and the closed
   // select's own display) short enough to help the vertical-footprint goal below.
@@ -204,7 +219,7 @@ export function DanceScheduleFilters({
                   const { min, max } = moveNearestThumb(index, minLevelIndex, maxLevelIndex)
                   onLevelRangeChange(min, max)
                 }}
-                onMouseEnter={() => setHoveredTickIndex(index)}
+                onMouseEnter={() => setHoveredTickIndexIfSupported(index)}
                 onMouseLeave={() => setHoveredTickIndex((current) => (current === index ? null : current))}
               >
                 {shortenA1A2Tick ? tickText(slot.label) : slot.label}
@@ -236,7 +251,7 @@ export function DanceScheduleFilters({
             // raw cursor position to whichever slot index is closest.
             onMouseMove={(event) => {
               if (presentLevelIndexSpan <= 0) {
-                setHoveredTickIndex(minPresentLevelIndex)
+                setHoveredTickIndexIfSupported(minPresentLevelIndex)
                 return
               }
               const rect = event.currentTarget.getBoundingClientRect()
@@ -244,7 +259,7 @@ export function DanceScheduleFilters({
               const usableWidth = rect.width - inset * 2
               const rawFraction = usableWidth > 0 ? (event.clientX - rect.left - inset) / usableWidth : 0
               const fraction = Math.min(1, Math.max(0, rawFraction))
-              setHoveredTickIndex(Math.round(minPresentLevelIndex + fraction * presentLevelIndexSpan))
+              setHoveredTickIndexIfSupported(Math.round(minPresentLevelIndex + fraction * presentLevelIndexSpan))
             }}
             onMouseLeave={() => setHoveredTickIndex(null)}
           >

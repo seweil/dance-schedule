@@ -267,12 +267,24 @@
    range visibly bulges out from the thin unselected ends either side of it. The
    goal (per explicit request) is for the selected span to read unmistakably as
    "a range," not just a differently-colored segment the same thickness as the
-   rest of the line. */
+   rest of the line.
+
+   No border-radius, even though this bar reads visually like a pill —
+   reported live (predates the ghost-preview work) as a rounded bump peeking
+   out past the min/max thumb triangles. A rounded corner only ever renders
+   clean here if it's fully covered by the thumb sitting on top of it, but
+   each thumb is a TAPERED wedge (see .sliderThumb below) whose actual point
+   — zero coverage — lands exactly at this bar's own edge; the flat back
+   edge with real coverage sits 18px further out. A rounded corner curving
+   inward right at that under-covered point is far more visually obvious
+   than a flat one would be at the same spot, especially under any subpixel
+   rounding — this used to be fine when the thumbs were circles (a circle's
+   coverage doesn't taper to a point the way a wedge's does), per
+   .sliderThumb's own comment on that earlier shape. */
 .sliderRange {
   position: absolute;
   top: 50%;
   height: 8px;
-  border-radius: 4px;
   background: var(--color-accent);
   transform: translateY(-50%);
   /* Explicit, not left to inherit from .sliderTrack — confirmed live that
