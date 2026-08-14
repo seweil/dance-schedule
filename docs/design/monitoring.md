@@ -19,6 +19,8 @@ community dance-event site's visitor data.
       Decisions
 - [x] Tracking in-app feature usage (not just device/performance) — see
       Decisions
+- [x] Aggregate/group-by reporting over custom events, not just browsing one
+      event at a time in the console — see Decisions
 - [ ] Whether to eventually pipe access logs into S3 + Athena for real
       analysis, vs. ad hoc console downloads
 
@@ -103,12 +105,26 @@ the same way
 if a specific question comes up later, rather than instrumenting
 speculatively.
 
+### `RetainTelemetryBeyond30Days` (CwLogEnabled) on by default, for aggregate reporting
+**Why:** The RUM console's Events tab only supports browsing individual
+events — no count/group-by over custom event fields (e.g. "how many
+sessions had each text size" or "most common level range"). Turning on
+`CwLogEnabled` mirrors every RUM event, including custom ones, into a
+CloudWatch Logs group RUM manages itself, queryable with real aggregate
+queries via CloudWatch Logs Insights — see `infra/README.md`'s worked
+examples for each of the three custom event types. Costs real (if small —
+pennies/month at this app's traffic) CloudWatch Logs ingestion/storage,
+which is why this was originally left off by default; flipped once
+aggregate reporting became an actual, not speculative, need.
+`infra/deploy.sh` passes `RetainTelemetryBeyond30Days=true` as an explicit
+`--parameter-overrides` flag rather than relying on the template's own
+Default, since `cloudformation deploy` keeps an already-deployed stack's
+previous parameter value for anything not passed explicitly — editing the
+Default alone wouldn't have changed it on the stack that already existed.
+
 ## Open questions
 
 - Should access logs eventually be piped into S3 + Athena automatically
   (e.g. a small scheduled Lambda), or is manual console download sufficient
   indefinitely given the traffic volume? See `infra/README.md`'s Athena
   note.
-- `RetainTelemetryBeyond30Days` (in `infra/monitoring.yaml`) defaults to
-  off — revisit if year-over-year comparison of a recurring event's traffic
-  becomes valuable enough to justify the CloudWatch Logs cost.

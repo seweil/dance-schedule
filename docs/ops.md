@@ -60,10 +60,10 @@ decision for the full rationale):
 | Event type | Fires when | Payload |
 | --- | --- | --- |
 | `dance_schedule_date_selected` | User picks a date on any dance-schedule-family page | `{ date: "YYYY-MM-DD" }` |
-| `dance_schedule_level_filter_changed` | On every page load, and on every subsequent change (slider drag, or an automatic re-scope when switching to a date with a narrower present range) | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
+| `dance_schedule_level_range` | On every page load, and on every subsequent change (slider drag, or an automatic re-scope when switching to a date with a narrower present range) | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
 | `text_size_preference` | On every page load, and on every subsequent change | `{ textSize: "normal" \| "large" \| "x-large" }` |
 
-`dance_schedule_level_filter_changed` and `text_size_preference` both fire
+`dance_schedule_level_range` and `text_size_preference` both fire
 on every page load, not just when someone changes the setting — deliberate,
 since it's what makes the event data reflect the *current distribution* of
 each setting across visitors, not just interaction counts.
@@ -77,13 +77,18 @@ Adding a new custom event type requires no infra change — `CustomEvents` is
 already `ENABLED` on the app monitor; just add another `trackEvent(...)`
 call site and redeploy the app.
 
-### Retention
+### Retention and aggregate reporting
 
-RUM data (including custom events) is kept **30 days** by default, then
-dropped — `RetainTelemetryBeyond30Days` in `infra/monitoring.yaml` is off by
-default to avoid CloudWatch Logs charges. Flip it and redeploy
-(`./infra/deploy.sh`) if longer retention becomes worth the cost (e.g.
-year-over-year comparison for a recurring event).
+RUM itself keeps data 30 days, browsable only one event at a time in the
+Events tab — no count/group-by queries. `RetainTelemetryBeyond30Days`
+(`infra/monitoring.yaml`) is **on** by default specifically for this: it
+mirrors every event, including custom ones, into a CloudWatch Logs group
+RUM manages itself, which CloudWatch Logs Insights can run real aggregate
+queries against (and which isn't subject to the 30-day cutoff). See
+`infra/README.md`'s "Aggregate reporting" section for how to find the log
+group and worked example queries for each of the three custom event types.
+Costs real (if small) CloudWatch Logs ingestion/storage — flip it back off
+and redeploy (`./infra/deploy.sh`) if that stops being worth it.
 
 ## CloudFormation
 
@@ -106,5 +111,6 @@ Console: **CloudFormation → Stacks → `dance-schedule-monitoring`** (us-east-
 | --- | --- |
 | No RUM data at all | Amplify env vars (set correctly? build run *after* they were set?) → CloudFormation stack exists and deployed cleanly → browser network tab for a `dataplane.rum.<region>.amazonaws.com` call, watch for a 403 (guest role/identity pool misconfigured) or nothing at all (env vars missing from the build) |
 | Custom events missing but built-in telemetry (device/browser) works | `CustomEvents.Status` on the app monitor — must be `ENABLED` in `monitoring.yaml`, requires a stack redeploy if just added |
+| Need counts/group-by, not just individual events | RUM's own Events tab can't do this — use CloudWatch Logs Insights against the log group `RetainTelemetryBeyond30Days` creates, see `infra/README.md`'s "Aggregate reporting" section |
 | A route 404s after adding a content set | Amplify's Rewrites and redirects — needs a new rule pair, console-only, see the Amplify Hosting table above |
 | Site looks stale after a deploy | This is a PWA with a service worker precache — a new build can sit "waiting" until the app's own update-prompt UI (or a manual `skipWaiting`) activates it; don't assume a redeploy is broken just because a browser tab still shows old content |

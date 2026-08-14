@@ -158,7 +158,7 @@ export function useDanceScheduleFilters(
   // people are actually browsing with (including a stored-from-last-visit or
   // auto-reclamped range), not just interaction counts.
   useEffect(() => {
-    trackEvent('dance_schedule_level_filter_changed', {
+    trackEvent('dance_schedule_level_range', {
       min: slots[minLevelIndex]?.label,
       max: slots[maxLevelIndex]?.label,
     })

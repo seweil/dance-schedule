@@ -29,12 +29,15 @@ Parameters:
       events/month and a small community-event site won't come close.
   RetainTelemetryBeyond30Days:
     Type: String
-    Default: 'false'
+    Default: 'true'
     AllowedValues: ['true', 'false']
     Description: >
-      RUM keeps data for 30 days by default at no extra charge. Setting this
-      to true also copies every event to CloudWatch Logs (billed separately,
-      ingestion + storage) so you can query/retain it longer.
+      RUM keeps data for 30 days by default at no extra charge, with no way
+      to run aggregate/group-by queries over it — only browsing one event at
+      a time in the console. Setting this to true also copies every event to
+      CloudWatch Logs (billed separately, ingestion + storage — pennies/month
+      at this app's traffic), unlocking both longer retention and real
+      aggregate reporting via CloudWatch Logs Insights — see infra/README.md.
 
 Conditions:
   EnableCwLogs: !Equals [!Ref RetainTelemetryBeyond30Days, 'true']

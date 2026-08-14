@@ -52,7 +52,8 @@ aws cloudformation deploy \
   --template-file infra/monitoring.yaml \
   --stack-name dance-schedule-monitoring \
   --capabilities CAPABILITY_NAMED_IAM \
-  --region us-east-2
+  --region us-east-2 \
+  --parameter-overrides RetainTelemetryBeyond30Days=true
 
 aws cloudformation describe-stacks \
   --stack-name dance-schedule-monitoring \
@@ -96,3 +97,40 @@ rate) and re-running `./infra/deploy.sh` updates the stack in place.
 If you add or change a custom domain in the Amplify console, update
 `Domains` in `infra/monitoring.yaml` to match and redeploy — RUM silently
 drops events from origins not in that list.
+
+## Aggregate reporting: CloudWatch Logs Insights
+
+The RUM console's Events tab only lets you browse individual events, not run
+group-by/count queries. `RetainTelemetryBeyond30Days` (`CwLogEnabled` on the
+app monitor, on by default — see `infra/monitoring.yaml`) mirrors every RUM
+event, including custom ones, into a CloudWatch Logs group RUM manages
+itself. Find its exact name (it isn't a fixed, predictable string):
+
+```bash
+aws rum get-app-monitor --name dance-schedule --region us-east-2 \
+  --query 'AppMonitor.DataStorage.CwLog.CwLogGroup'
+```
+
+Then in the CloudWatch console → **Logs → Logs Insights**, pick that log
+group and run a query. Custom event fields live under `event_details.*`; the
+event's own type string is `event_type` (built-in RUM events use a
+`com.amazon.rum.*`-namespaced type; this app's three custom ones don't).
+Examples for each of `src/lib/rum.ts`'s call sites:
+
+```
+fields event_details.min, event_details.max
+| filter event_type = "dance_schedule_level_range"
+| stats count(*) by event_details.min, event_details.max
+```
+
+```
+fields event_details.textSize
+| filter event_type = "text_size_preference"
+| stats count(*) by event_details.textSize
+```
+
+```
+fields event_details.date
+| filter event_type = "dance_schedule_date_selected"
+| stats count(*) by event_details.date
+```
