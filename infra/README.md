@@ -118,19 +118,22 @@ event's own type string is `event_type` (built-in RUM events use a
 Examples for each of `src/lib/rum.ts`'s call sites:
 
 ```
-fields event_details.min, event_details.max
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.min, event_details.max
 | filter event_type = "dance_schedule_level_range"
 | stats count(*) by event_details.min, event_details.max
 ```
 
 ```
-fields event_details.textSize
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.textSize
 | filter event_type = "text_size_preference"
 | stats count(*) by event_details.textSize
 ```
 
 ```
-fields event_details.date
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.date
 | filter event_type = "dance_schedule_date_selected"
 | stats count(*) by event_details.date
 ```

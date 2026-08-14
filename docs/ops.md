@@ -92,6 +92,48 @@ bar (`displayMode=standalone`) or a Logs Insights `metadata.displayMode`
 query. Also shown as plain fine print on the home page itself (next to the
 Online/Offline text) — no AWS console needed for a quick check.
 
+### Page loads vs. sessions vs. users/devices
+
+Worth being explicit about, since every aggregate query on this page (and
+in `infra/README.md`) counts one of three meaningfully different things
+unless it says otherwise:
+
+| Level | What it counts | Field | Notes |
+| --- | --- | --- | --- |
+| **Page loads** | Every navigation, including this SPA's client-side route changes — not just full browser reloads | raw event count (`count(*)`, typically filtered to `event_type = "com.amazon.rum.page_view_event"`) | What every query on this page counts by default, unless it explicitly deduplicates below |
+| **Sessions** | One per visit — everything a visitor does in one sitting shares an ID | `user_details.sessionId` — `count_distinct(user_details.sessionId)` | Mainly useful as a deduplication step (see below), less often the number you actually want to report |
+| **Users/devices** | An anonymous UUID persisted via cookie (`allowCookies: true`, on for this app), surviving across separate visits on the *same* browser | `user_details.userId` — `count_distinct(user_details.userId)` | Really "distinct browser instances," not people — someone with a phone and a laptop is 2. Absent if cookies are ever disabled. |
+
+For this app, **page loads and unique devices** are the two numbers worth
+tracking for usage — sessions mostly matter as the deduplication key for
+the custom-event queries below (e.g. not over-counting someone who dragged
+the level slider three times in one sitting as three separate "uses").
+
+All three at once:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields user_details.userId as userId, user_details.sessionId as sessionId
+| filter event_type = "com.amazon.rum.page_view_event"
+| stats count(*) as pageLoads, count_distinct(sessionId) as sessions, count_distinct(userId) as devices
+```
+
+Every one of this page's custom-event queries (level range, text size,
+date selected) counts raw event fires by default — page-load-equivalent,
+not sessions. To count unique sessions instead, bring
+`user_details.sessionId as sessionId` into the `fields` step and swap
+`count(*)`/`count(*) by ...` for `count_distinct(sessionId)`/
+`count_distinct(sessionId) by ...`. The minimum-level histogram, deduplicated
+by session:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.min as minLevel, user_details.sessionId as sessionId
+| filter event_type = "dance_schedule_level_range"
+| stats count_distinct(sessionId) as uniqueSessions by minLevel
+| sort uniqueSessions desc
+```
+
 ### Known gap: offline sessions undercount
 
 RUM data silently misses some offline/flaky-connection activity — this is a
@@ -170,7 +212,8 @@ you want to cross-tabulate with something the dashboard doesn't offer, or
 already have Logs Insights open):
 
 ```
-fields metadata.deviceType, metadata.browserName, metadata.osName
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields metadata.deviceType, metadata.browserName, metadata.osName
 | filter event_type = "com.amazon.rum.page_view_event"
 | stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName
 ```
@@ -180,7 +223,8 @@ dimension, but it lives in `metadata` too (see above), so the same query
 shape works:
 
 ```
-fields metadata.displayMode
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields metadata.displayMode
 | filter event_type = "com.amazon.rum.page_view_event"
 | stats count(*) by metadata.displayMode
 ```
@@ -188,7 +232,8 @@ fields metadata.displayMode
 **Pages viewed** — also on the Overview tab, but for a plain ranked list:
 
 ```
-fields metadata.pageId
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields metadata.pageId
 | filter event_type = "com.amazon.rum.page_view_event"
 | stats count(*) as views by metadata.pageId
 | sort views desc
@@ -198,7 +243,8 @@ fields metadata.pageId
 only way to see the distribution:
 
 ```
-fields event_details.textSize
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.textSize
 | filter event_type = "text_size_preference"
 | stats count(*) by event_details.textSize
 ```
@@ -206,9 +252,65 @@ fields event_details.textSize
 **Level filter range** — same, custom-event-only:
 
 ```
-fields event_details.min, event_details.max
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.min, event_details.max
 | filter event_type = "dance_schedule_level_range"
 | stats count(*) by event_details.min, event_details.max
+```
+
+**Minimum-level histogram, bins in difficulty order** (not alphabetical —
+`sort` has no notion of the slider's own custom order, so each label is
+mapped to its slot position by hand before sorting on that). Logs Insights
+QL has no C-style ternary operator — `case(cond1, val1, cond2, val2, ...,
+default)` is the actual tool for this, up to 10 branches. `fields` only
+ever *adds* fields — re-listing `minLevel`/`sessions` here (rather than
+just the new `difficultyRank` expression) fails with "Ephemeral field is
+already defined"; they stay in the output automatically:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.min as minLevel
+| filter event_type = "dance_schedule_level_range"
+| stats count(*) as sessions by minLevel
+| fields case(minLevel = "SSD", 1,
+              minLevel = "MS", 2,
+              minLevel = "Plus", 3,
+              minLevel = "A2", 4,
+              minLevel = "C1", 5,
+              minLevel = "C2", 6,
+              minLevel = "C3A", 7,
+              minLevel = "C3B", 8,
+              9) as difficultyRank
+| sort difficultyRank asc
+```
+
+The 8 labels/order above are `getLevelSlots(true, true)`'s output
+(`src/lib/levelOrder.ts`), **after** `labelSlotsByPresence` relabels a
+merged slot down to just one level name if only one of its two members
+actually has any sessions event-wide (same file) — this event's registration
+starts at A2 with no A1 sessions, and has C3B but no C4 sessions (confirmed
+against `content/MotivateToSeattle/data/dance-schedule.xlsx`'s own "Hours by
+Level" sheet: A2, C1, C2, C3A, C3B — no A1, no C4), so the merged slots read
+as plain `"A2"` and `"C3B"`, not `"A1/A2"`/`"C3B+"`. **This mapping is tied
+to the live event's actual data, not just its `combineA1A2`/`combineC3BC4`
+flags** (`content/MotivateToSeattle/config.yaml`, both `true`) — a future
+event with both members of a merge actually present would show the
+combined label instead, and the `case()` branches need to match whichever
+labels that event's data actually produces. Same technique works for the
+**max** column, or for a joint `minLevel, maxLevel` breakdown — add a
+second `case()` and a second `sort` key.
+
+**Every min/max range combination, most common first**, each bar labeled
+`<min>-<max>` — unlike the histogram above, this one sorts on the count
+itself, so no `case()` mapping is needed:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields event_details.min as minLevel, event_details.max as maxLevel
+| filter event_type = "dance_schedule_level_range"
+| fields concat(minLevel, "-", maxLevel) as range
+| stats count(*) as sessions by range
+| sort sessions desc
 ```
 
 ## CloudFormation
