@@ -118,6 +118,8 @@ rewrite rule above.
 - At what point (traffic volume, need for custom caching/analytics/edge
   logic) would it be worth revisiting the S3+CloudFront+Actions path for
   more control?
+- Analytics (device/browser mix, usage patterns) — addressed in
+  `docs/design/monitoring.md`, not still open.
 - The per-content-set Amplify rewrite rules above are manual and easy to
   forget when adding a new content set — is a checklist/reminder
   (README, PR template, or a build-time warning if a set has no matching
