@@ -6,9 +6,8 @@ import styles from './ScheduleList.module.css'
 // Event date/time values are wall-clock values as entered in the spreadsheet, encoded
 // as UTC-anchored Date objects (see buildSchedule.ts) — not real instants in time. They
 // must always display exactly as entered, so formatting is pinned to UTC rather than
-// the viewer's local timezone (the shared formatDisplayDate util isn't used here for
-// that reason — it formats in the viewer's local time, which is correct for a generic
-// "current date" display but wrong for an event date that shouldn't shift by timezone).
+// the viewer's local timezone — a plain (local-timezone) Intl.DateTimeFormat would shift
+// the displayed date/time for any viewer outside UTC.
 const dateFormatter = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' })
 const timeFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
 

@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import * as Slider from '@radix-ui/react-slider'
 import type { LevelSlot } from '../lib/levelOrder'
 import { moveNearestThumb } from '../lib/moveNearestThumb'
+import { getUserLocales } from '../lib/userLocale'
 import { useTextSize } from '../hooks/useTextSize'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import styles from './DanceScheduleFilters.module.css'
@@ -38,16 +40,6 @@ const MAX_TICK_GAP_PX = 72
 // the capped width below, not outside it, so they need to be budgeted for
 // too, not just the gaps between ticks themselves.
 const LEVEL_FIELD_FIXED_INSET_PX = 32
-
-// Weekday + day + month, no year — the year is never ambiguous within a single
-// convention's schedule, and dropping it keeps each <option> (and the closed
-// select's own display) short enough to help the vertical-footprint goal below.
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-  timeZone: 'UTC',
-})
 
 // Shortens just this slider's own combined-A1/A2 tick label to "A" — per
 // direct product decision, "A1/A2" was consistently the widest label of the
@@ -107,6 +99,16 @@ export function DanceScheduleFilters({
 }: DanceScheduleFiltersProps) {
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
+  // Weekday + day + month, no year — the year is never ambiguous within a single
+  // convention's schedule, and dropping it keeps each <option> (and the closed
+  // select's own display) short enough to help the vertical-footprint goal below.
+  // useMemo (not a module-level const, unlike this file's fixed layout constants)
+  // so it reflects the viewer's own locale (getUserLocales) rather than a fixed one
+  // — unlike the UTC pin, which must never vary by viewer.
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(getUserLocales(), { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }),
+    [],
+  )
   const shortenA1A2Tick = textSize === 'x-large' && isNarrowPortrait
   // Ticks only render for slots within [minPresentLevelIndex, maxPresentLevelIndex] —
   // the visible tick count (not slots.length) is what the field's width should budget

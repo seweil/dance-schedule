@@ -1,6 +1,5 @@
 import type { DanceSession } from '../types/danceSchedule'
-
-const hourFormatter = new Intl.DateTimeFormat('en-US', { timeStyle: 'short', timeZone: 'UTC' })
+import { getUserLocales } from './userLocale'
 
 export interface TimeMark {
   rowStart: number
@@ -67,6 +66,12 @@ export function computeDanceScheduleTimeAxis(
 
   const rowSpanFor = (start: Date, end: Date): number =>
     Math.max(1, rowStartFor(end) - rowStartFor(start))
+
+  // Built per call (this function's own caller already memoizes on visibleSessions,
+  // so it's not reconstructed on every render) rather than as a module-level const,
+  // so it reflects the viewer's own locale (getUserLocales) rather than a fixed one
+  // — unlike this file's UTC pin, which must never vary by viewer.
+  const hourFormatter = new Intl.DateTimeFormat(getUserLocales(), { timeStyle: 'short', timeZone: 'UTC' })
 
   const timeMarks: TimeMark[] = tickTimes.map((t, index) => ({
     rowStart: index + 1,

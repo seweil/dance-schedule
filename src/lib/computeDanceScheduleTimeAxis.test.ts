@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { computeDanceScheduleTimeAxis, isContiguous } from './computeDanceScheduleTimeAxis'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true })
+})
 
 function located(...rooms: string[]): SessionLocation {
   return { kind: 'located', rooms }
@@ -70,6 +74,15 @@ describe('computeDanceScheduleTimeAxis', () => {
       { rowStart: 2, label: '2:45 PM' },
     ])
     expect(axis?.totalRows).toBe(1)
+  })
+
+  it("formats time-mark labels in the viewer's own locale, still pinned to UTC", () => {
+    Object.defineProperty(navigator, 'languages', { value: ['fr-FR'], configurable: true })
+    const session = makeSession('2026-07-02T12:15:00.000Z', '2026-07-02T14:45:00.000Z')
+
+    const axis = computeDanceScheduleTimeAxis([session])
+
+    expect(axis?.timeMarks.map((mark) => mark.label)).toEqual(['12:15', '14:45'])
   })
 
   it('gives an isolated session rowSpan 1, regardless of its real duration', () => {

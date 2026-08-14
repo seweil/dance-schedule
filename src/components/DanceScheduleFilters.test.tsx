@@ -1,9 +1,13 @@
 import type { ComponentProps } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { TextSizeProvider } from './TextSizeProvider'
 import { LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
+
+afterEach(() => {
+  Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true })
+})
 
 vi.mock('./DanceScheduleFilters.module.css', () => ({
   default: new Proxy({}, { get: (_target, prop) => prop }) as Record<string, string>,
@@ -53,6 +57,14 @@ describe('DanceScheduleFilters', () => {
     expect(select.value).toBe(DATES[0]!.toISOString())
     expect(screen.getByRole('option', { name: 'Thu, Jul 2' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Fri, Jul 3' })).toBeInTheDocument()
+  })
+
+  it("formats date options in the viewer's own locale, still pinned to UTC", () => {
+    Object.defineProperty(navigator, 'languages', { value: ['fr-FR'], configurable: true })
+
+    renderFilters()
+
+    expect(screen.getByRole('option', { name: 'jeu. 2 juil.' })).toBeInTheDocument()
   })
 
   it('gives the date select an accessible name of "Date" even though the label is visually hidden', () => {
