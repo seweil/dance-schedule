@@ -1,23 +1,39 @@
-/* position: absolute; top: 100%; right: 0 — sits directly below its target and
-   flush with its right edge, the same anchor PageMenu.module.css's own .list
-   dropdown uses; the upward-pointing .pointer below then reads as pointing at
-   whatever sits just above-right of this box. z-index above PageMenu's own
-   dropdown (20) so a hint can't be hidden behind the real menu if both were
-   ever open at once (not expected in practice — PageMenu.tsx dismisses the
-   hint the moment its toggle is clicked — but this is what "above" should
-   mean if that ever changed). No animated transform (see Nav.module.css's/
-   PageMenu.module.css's own .textSizeDropdown/.list comments for the real,
-   confirmed-on-hardware WebKit bug that pattern caused) and no opacity/
-   visibility transition at all — this renders and unmounts outright based on
-   useFirstLaunchHint.ts's own shouldShow, rather than toggling a CSS state on
-   an always-mounted element the way those dropdowns do, so there's no
-   open/close animation to get wrong in the first place. */
+/* Dimming the rest of the screen while a hint is showing is NOT done here —
+   an earlier version rendered a separate full-viewport `.backdrop` div
+   alongside `.balloon` below, but a plain dim layer unavoidably painted OVER
+   the real controls a hint is trying to emphasize too (PageMenu.module.css's
+   own toggle icon, DanceScheduleFilters.module.css's ticks/track/thumbs),
+   not just the rest of the page — reported live as hiding exactly what the
+   hint should be drawing attention to. Each hint's own real target now
+   carries its OWN `box-shadow: 0 0 0 9999px ...` instead (see
+   PageMenu.module.css's `.toggle[data-hint-visible='true']` and
+   DanceScheduleFilters.module.css's `.hintRing`) — a shadow only ever paints
+   OUTSIDE its casting element's own box, so the target's own interior is
+   structurally exempt from the dim, not just visually layered above it. */
+
+/* Shared box styling only — no anchor/position properties here (top/right/left/
+   margin/transform all moved into the two [data-placement] variants below).
+   Splitting it this way (rather than one placement being "the base" and the
+   other overriding a few properties on top) avoids one variant fighting
+   properties the other set — confirmed live this got fiddly once 'end' itself
+   needed a full anchor rewrite (see that variant's own comment) while 'center'
+   needed to stay exactly as it already was.
+   z-index: 22, ONE above PageMenu.module.css's own .toggle[data-hint-visible]
+   and DanceScheduleFilters.module.css's own .hintRing (both 21, the same
+   level their box-shadow-based dimming paints at — see HintBalloon.module.css's
+   own top-of-file comment) — not tied with them. Confirmed live: when BOTH
+   onboarding hints show at once (a fresh device's very first page load),
+   same-z-index ties resolve by DOCUMENT order, and DanceScheduleFilters.tsx
+   always renders LATER in the page than PageMenu.tsx's own header — so
+   .hintRing's shadow was winning the tie and visibly dimming the
+   KEBAB-MENU balloon (this class, shared by both placements), even though
+   THAT balloon has nothing to do with the slider hint. A strictly higher
+   z-index beats a tie outright, regardless of document order, so this
+   fixes it without needing to reason about — or rely on — which hint
+   happens to render first. */
 .balloon {
   position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 21;
-  margin-top: var(--space-sm);
+  z-index: 22;
   /* Explicit width, not max-width — confirmed live this box's shrink-to-fit
      calculation resolves against its containing block (.nav, position:
      relative), whose own width is just wide enough for the toggle button
@@ -40,31 +56,238 @@
   box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
 }
 
-/* Upward-pointing triangle — same CSS-triangle technique as the level-slider's
-   thumbs (DanceScheduleFilters.module.css): a 0x0 box with only two opposite
-   borders colored, the other two transparent. right: 16px (not the visually
-   "obvious" 12px, which measured 4px too far right live — PageMenu.tsx's own
-   toggle button is 44px wide and right-aligned within `.nav`, so its
-   horizontal center doesn't land exactly 12px in from `.balloon`'s own right
-   edge) centers this exactly under PageMenu.tsx's toggle button — confirmed
-   live via the two elements' actual getBoundingClientRect() centers, not
-   eyeballed. */
-.pointer {
-  position: absolute;
-  top: -6px;
-  right: 16px;
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 6px solid var(--color-accent);
+/* 'end' placement (PageMenu.tsx's kebab toggle, this variant's only caller) —
+   BESIDE the toggle, in the same row at the very top of the page, not below
+   it. Revised, live, from an earlier "below and flush-right" version (still
+   how 'center' below behaves): per direct product decision, that version
+   read as floating roughly mid-page rather than clearly attached to the
+   toggle specifically, especially with the level-slider hint also often
+   visible lower on the page at the same time. `right: 100%` places this
+   balloon's own right edge flush with `.nav`'s LEFT edge (`.nav`'s own width
+   is just wide enough for the toggle button, per the width comment above),
+   i.e. immediately to ITS left, with `margin-right` opening a gap instead of
+   `margin-top`. `top: 50%; transform: translateY(-50%)` vertically centers
+   this against `.nav`'s own height (again, just the toggle's height) so it
+   lines up with the icon's own vertical center rather than starting from its
+   top or bottom edge. Net effect: this hint now sits in the very top row of
+   the page, immediately next to the icon it's about — as close as it can
+   physically get to it — clearly apart from the level-slider hint, which
+   stays much further down the page. Shares the row with the page's own
+   `<h1>` title (`PageHeader.module.css`'s `justify-content: space-between`
+   row) and can overlap it on a long title ("Dance Schedule," confirmed
+   live) — per direct product decision, an acceptable trade-off, not
+   something this needs to avoid at the cost of a narrower/more-cramped
+   balloon.
+   translateY(calc(-50% + 10px)), not the exactly-centered -50% — per direct
+   product decision, nudges this down from dead-center on the icon by a
+   fixed 10px (not a percentage — .pointer[data-placement='end']'s own
+   rotation angle below is computed trigonometrically against this EXACT
+   10px rise, so it has to be a known, fixed value, not a proportion of this
+   balloon's own — variable, text-dependent — height). Two reasons for the
+   nudge at once: it reads as more clearly attached below the icon's own
+   vertical midpoint rather than perfectly bisecting it, AND it's what gives
+   .pointer[data-placement='end'] below somewhere to angle FROM — a dead-
+   centered balloon and a dead-centered icon sit on the same horizontal
+   line, which only ever produces a flat, un-angled arrow between them.
+   margin-right: 2rem (32px) is the real horizontal gap this balloon leaves
+   before the toggle icon begins — .pointer[data-placement='end']'s own
+   width below is computed FROM this exact value, not just a bigger number
+   picked to leave "enough" room. */
+.balloon[data-placement='end'] {
+  top: 50%;
+  right: 100%;
+  margin-right: 2rem;
+  transform: translateY(calc(-50% + 10px));
 }
 
-/* Centered, not left-aligned (the default) — the pointer/arrow sits near the
-   balloon's own right edge (pointing at the toggle icon it's anchored under),
-   so left-aligned text left the message reading as far from the icon it's
-   actually about; centering keeps it visually close to the arrow regardless
-   of exactly how the text happens to wrap. */
+/* 'center' placement (DanceScheduleFilters.tsx's level slider) — below its
+   target. Horizontal anchor is NOT relative to `.levelField`'s own edge
+   (an earlier version used `left: 1rem`, i.e. 16px right of `.levelField`'s
+   left edge) — reported live as still not a genuinely small margin from the
+   real BROWSER WINDOW edge, because `.levelField` isn't reliably close to
+   the viewport edge itself: `.filters` (DanceScheduleFilters.module.css)
+   centers `.levelField` with `justify-content: center`, and `.levelField`'s
+   own width is content-dependent (`maxLevelFieldWidthPx`, this component —
+   varies by how many level slots are present on the selected date), so its
+   LEFT EDGE drifts depending on both viewport width and the selected date's
+   own content — anchoring 16px off of a moving edge doesn't reliably land
+   close to the window's own edge.
+   `left: 50%; transform: translateX(calc(-50vw + 16px))` fixes this by
+   anchoring to `.levelField`'s own CENTER instead of its edge, then
+   converting that into a true viewport-relative position: `left: 50%`
+   (percentage, resolved against `.levelField`'s width, this balloon's
+   containing block) places this balloon's own left edge at .levelField's
+   horizontal center; `translateX`'s `vw` unit is an ABSOLUTE unit (a
+   fraction of the real viewport width, unrelated to any ancestor), so
+   `-50vw` shifts that point left by exactly half the viewport width,
+   landing at (.levelField's center) − (viewport width ÷ 2). Because
+   `.filters` spans nearly the full viewport width and is itself
+   horizontally centered on the page, `.levelField`'s center (wherever
+   `justify-content: center` puts it) sits very close to the viewport's own
+   center regardless of `.levelField`'s width — so this difference is
+   consistently close to 0, and the final `+ 16px` becomes this balloon's
+   real, near-constant margin from the TRUE window edge. Verified live
+   (getBoundingClientRect): balloon.left landed at 16px from `window.
+   innerWidth`'s own 0 origin, unaffected by `.levelField`'s own (still
+   variable) position — unlike the `left: 1rem` version, this is no longer
+   coupled to `.levelField`'s edge at all, only (loosely, safely) to its
+   center. Does NOT reintroduce the earlier `translateX(-50%)` overflow bug
+   (see git history) — that version centered on `.levelField`'s width
+   itself, so a narrow `.levelField` pushed half this (much wider) balloon
+   off-screen; this version's position no longer depends on `.levelField`'s
+   width at all, only a fixed 16px offset from the real viewport edge, which
+   is safe at any `.levelField` width.
+   width: 16rem, up from the shared 12rem default (see .balloon above) —
+   per direct product decision, this hint's own message ("Tap or drag to
+   filter dance levels," 35 characters) needs roughly 240px to fit on ONE
+   line (measured live: ~207.5px of natural text width + 32px of this
+   balloon's own left/right padding); 16rem (256px) covers that with a
+   margin of safety across text-size preferences and font-rendering
+   differences, rather than cutting it exactly at the measured minimum.
+   margin-top: 2rem — .hintRing (this placement's only caller today)
+   extends 8px below its target, and the arrow itself (see .pointer below)
+   needs real room of its own between the ring and the balloon, floating
+   with a gap on both ends rather than touching either (confirmed live —
+   see docs/design/onboarding-hints.md). */
+.balloon[data-placement='center'] {
+  top: 100%;
+  left: 50%;
+  width: 16rem;
+  margin-top: 2rem;
+  transform: translateX(calc(-50vw + 16px));
+}
+
+/* Shared styling for the arrow glyph itself (HintBalloon.tsx's inline <svg>,
+   drawn once, pointing right, at a fixed 100:40 aspect ratio — see that
+   file's own comment). color, not fill/stroke directly — the SVG path uses
+   stroke="currentColor" and fill="currentColor", so this is what actually
+   sets it to var(--color-accent) rather than inheriting .balloon's own
+   white text color (which, not coincidentally, is also .balloon's own
+   BACKGROUND color — see each variant's own comment for why that identical
+   color is what makes the "sunk behind the bubble" tail invisible). No
+   width/height/position here — every [data-placement] variant below needs
+   its OWN full set (both dimensions AND the rotation angle come from the
+   same trigonometry, so splitting them across a shared rule and per-variant
+   overrides would separate numbers that only make sense read together). */
+.pointer {
+  position: absolute;
+  color: var(--color-accent);
+}
+
+/* 'end' placement. Real numbers this is computed from: this balloon's own
+   margin-right (2rem/32px, the horizontal gap to the toggle icon) and its
+   own translateY(+10px) nudge-down (the vertical gap between this
+   balloon's own middle and the icon's) — together, a target 10px UP, 32px
+   RIGHT of this balloon's own right-edge midpoint. `OVERLAP` = 10px sunk
+   BEHIND the balloon (added to the reach, subtracted from the starting
+   position) so the tail is hidden under it rather than stopping exactly at
+   the edge with a visible cap — the fix for a rounded/butt cap either way
+   "barely touching" rather than reading as embedded. Reach = √(32² + 10²)
+   ≈ 33.5px; width = reach + OVERLAP = 43.5px. height = width ÷ 2.5 (this
+   glyph's own fixed 100:40 aspect ratio) = 17.4px — computed FROM width,
+   not an independently-chosen number, so rotating never stretches/skews the
+   glyph, only turns it (a whole-px-rounded 44×18, an earlier version of
+   this rule, was already close enough to unnoticeable, but exact decimals
+   cost nothing and rule the question out entirely).
+   angle = -atan2(10, 32) ≈ -17.35deg (CSS rotate: negative tilts a
+   rightward-pointing glyph upward). left: calc(100% - 10px) and
+   transform-origin: left center place THIS glyph's own local tail point
+   (its left-center — see the shared viewBox comment) 10px behind the
+   balloon's right edge; top: calc(50% - 8.7px) (half of height) centers
+   that same point on the balloon's own vertical middle. Rotating around
+   that fixed point is what lets the tip land on the icon without moving
+   the tail off the balloon at all. Verified live (getBoundingClientRect on
+   both the rendered arrow and the real toggle button), not just eyeballed
+   — the tip lands within a couple px of the toggle's own left edge, at
+   roughly its vertical center. */
+.pointer[data-placement='end'] {
+  left: calc(100% - 10px);
+  top: calc(50% - 8.7px);
+  width: 43.5px;
+  height: 17.4px;
+  transform-origin: left center;
+  transform: rotate(-17.35deg);
+}
+
+/* 'center' placement — same technique as 'end' (a fixed-aspect glyph,
+   rotated — never stretched — around a pivot placed exactly where it needs
+   to be), but this version ALSO shifts that pivot backward along the
+   glyph's own direction by OVERLAP — the same thing 'end's own `left:
+   calc(100% - 10px)` already did (see that rule's comment) — which an
+   earlier version of THIS rule skipped: it anchored the tail at a purely
+   nominal point (`left: calc(25% - 20px)`, `top: -16px` — the "- 20"/"-16"
+   there only centered the glyph's own box on that nominal point, without
+   actually moving it anywhere) and then just made the glyph OVERLAP px
+   longer (`width: reach + OVERLAP`) expecting the extra length to bury
+   itself behind the balloon. It doesn't: with the tail pinned exactly at
+   the nominal point and only the far end (the tip) free to move, 100% of
+   that extra OVERLAP length showed up at the TIP instead — reported live
+   as "both ends... not to spec" (confirmed live via getScreenCTM-based
+   measurement of the rendered glyph's own tail/tip screen coordinates,
+   cross-checked against .hintRing's real position: the tip was landing
+   ≈20px — exactly OVERLAP — beyond where the underlying trig actually
+   aimed it, deep inside `.hintRing` rather than a few px past its edge;
+   the tail sat exactly ON the balloon's top edge with nothing tucked
+   behind it, a real flat `strokeLinecap="butt"` end with no balloon
+   background/text over any part of it — visible as a small square).
+   The fix moves BOTH ends the intended amount: pivot = nominal anchor −
+   OVERLAP·(unit vector toward the target), so the tail genuinely sinks
+   OVERLAP px into the balloon (behind its background and, per the deeper
+   20px chosen here vs 'end's 10px, its centered text too — see .message's
+   own comment) while the tip lands exactly `reach` px from the ORIGINAL
+   nominal anchor, unaffected by OVERLAP — the same invariant 'end' already
+   holds. The nominal anchor itself is still 25% across this balloon (the
+   same "don't hug either edge" reasoning as before) — only the PIVOT
+   (this rule's `left`/`top`) is now offset from it; `calc(25% - 17.6px)`
+   is exactly that nominal 25% minus the pivot shift's own x-component
+   (verified: 20 × cos(28.37°) ≈ 17.6), not an independent number.
+   Real numbers, measured live (getBoundingClientRect on the actual
+   rendered balloon and .hintRing, re-measured a second time after
+   `.balloon[data-placement='center']`'s own horizontal anchor changed from
+   `left: 1rem` to the viewport-relative `calc(-50vw + 16px)` — see that
+   rule's own comment — which moves this balloon, and therefore every
+   number below, left by roughly the width of the level field it used to
+   hug). Nominal anchor (25% across, this balloon's own top edge) to a
+   target point a few px INSIDE `.hintRing`'s own bottom edge (never just
+   short of it — see the "never fall short" tolerance rule) —
+   `dx ≈ 50px` RIGHTWARD, `dy ≈ 27px` UPWARD (24px — margin-top minus
+   `.hintRing`'s own 8px outward inset, the real vertical gap every
+   version of this rule has used — plus 3px deliberately past the edge).
+   Reach = √(50² + 27²) ≈ 56.8px; OVERLAP = 20px (sunk behind this
+   balloon's own centered, single-line text block, not just its
+   background — deeper than 'end's own 10px, since 'end's tail only needs
+   to clear a plain background, not text) → glyph length = reach + OVERLAP
+   ≈ 76.8px; height = length ÷ 2.5 (this glyph's fixed 100:40 aspect
+   ratio) ≈ 30.7px.
+   angle = -atan2(27, 50) ≈ -28.4deg — a bit steeper than the previous
+   (wrongly-derived) -23.6deg, still shallow and still pointing up-and-
+   right, matching the reading direction of the text above it.
+   transform-origin: left center rotates around the pivot, same as every
+   other placement. top: -5.9px is NOT a simple half-height centering
+   value like the old rule's -16px — it's solved from the pivot's real
+   target y-offset (9.5px BELOW this balloon's own top edge, i.e. sunk
+   into it) minus half this glyph's own height, so the pivot (not the
+   glyph's box) lands at that exact point. Verified live: tip landed
+   within a couple px of the intended (130.5, 181) target, tail landed
+   ≈9.5px inside the balloon's own top edge — comfortably behind both its
+   background and its centered text line. */
+.pointer[data-placement='center'] {
+  left: calc(25% - 17.6px);
+  top: -5.9px;
+  width: 76.8px;
+  height: 30.7px;
+  transform-origin: left center;
+  transform: rotate(-28.4deg);
+}
+
+/* Centered, for both placements — with 'center's own tip no longer anchored
+   at this balloon's literal left edge (now ~70% across — see .pointer
+   [data-placement='center'] above), and its message now fitting on a
+   single line (`.balloon[data-placement='center']`'s own width comment),
+   there's no longer a "read toward the tip" reason to left-align this
+   placement's text specifically — centering (this app's original,
+   shared-by-both-placements default) reads cleanly for a single
+   short line regardless of exactly where the arrow attaches. */
 .message {
   margin: 0;
   font-size: 0.875rem;

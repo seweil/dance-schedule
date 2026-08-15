@@ -67,7 +67,9 @@ export function PageMenu() {
           />
         </svg>
       </button>
-      {showHint && <HintBalloon message="Tap here for menu" onDismiss={dismissHint} />}
+      {showHint && (
+        <HintBalloon message="Tap here for menu" onDismiss={dismissHint} targetRef={toggleRef} />
+      )}
       <ul id={listId} className={styles.list} data-open={isOpen}>
         {items.map((item) => (
           <li key={item.href}>

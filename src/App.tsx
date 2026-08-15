@@ -8,6 +8,7 @@ import { EventsListPage } from './components/EventsListPage'
 import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
 import { PageHeader } from './components/PageHeader'
+import { ResetHintsLink } from './components/ResetHintsLink'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { ZoomableImage } from './components/ZoomableImage'
@@ -74,10 +75,16 @@ function Pages() {
 // to directly) lives here, not on the schedule page itself, so it adds no extra
 // vertical space to that page's own layout — it folds into this already-existing
 // fine-print line instead, before "All events" (see BuildInfo.tsx's `extraLinks`).
+// ResetHintsLink goes after "All events" instead (`extraLinksAfter`) — both are
+// Home-only for the same reason: a pointless/confusing addition on the debug
+// page, which also renders this same BuildInfo component.
 function HomeBuildInfo() {
   const location = useLocation()
   return location.pathname === '/' ? (
-    <BuildInfo extraLinks={<Link to="/debug/dance-schedule">Raw data</Link>} />
+    <BuildInfo
+      extraLinks={<Link to="/debug/dance-schedule">Raw data</Link>}
+      extraLinksAfter={<ResetHintsLink />}
+    />
   ) : null
 }
 

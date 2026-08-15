@@ -306,6 +306,54 @@ describe('DanceScheduleFilters', () => {
     expect(screen.queryByRole('checkbox', { name: /gca callers/i })).not.toBeInTheDocument()
   })
 
+  describe('level-slider onboarding hint', () => {
+    function getLevelField() {
+      return document.querySelector('[class*="levelField"]') as HTMLElement
+    }
+
+    function getHintRing() {
+      return document.querySelector('[class*="hintRing"]')
+    }
+
+    it('shows the hint balloon and ring by default (a fresh, undismissed device)', () => {
+      renderFilters()
+      expect(screen.getByText('Tap or drag to filter dance levels')).toBeInTheDocument()
+      expect(getLevelField()).toHaveAttribute('data-hint-visible', 'true')
+      expect(getHintRing()).toBeInTheDocument()
+    })
+
+    it('does not show the hint balloon or ring once already dismissed on a previous launch', () => {
+      localStorage.setItem('dance-schedule:hint-dismissed:level-slider', JSON.stringify(true))
+      renderFilters()
+      expect(screen.queryByText('Tap or drag to filter dance levels')).not.toBeInTheDocument()
+      expect(getLevelField()).toHaveAttribute('data-hint-visible', 'false')
+      expect(getHintRing()).not.toBeInTheDocument()
+    })
+
+    it('dismisses the hint when a tick is clicked', () => {
+      renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
+      fireEvent.click(screen.getByRole('button', { name: 'C1' }))
+
+      expect(screen.queryByText('Tap or drag to filter dance levels')).not.toBeInTheDocument()
+      expect(getLevelField()).toHaveAttribute('data-hint-visible', 'false')
+      expect(getHintRing()).not.toBeInTheDocument()
+      expect(localStorage.getItem('dance-schedule:hint-dismissed:level-slider')).toBe(
+        JSON.stringify(true),
+      )
+    })
+
+    it('dismisses the hint when a thumb is dragged (moved with the keyboard)', () => {
+      renderFilters({ minLevelIndex: 2, maxLevelIndex: 7 })
+      const [minThumb] = screen.getAllByRole('slider')
+      minThumb!.focus()
+      fireEvent.keyDown(minThumb!, { key: 'ArrowRight' })
+
+      expect(screen.queryByText('Tap or drag to filter dance levels')).not.toBeInTheDocument()
+      expect(getLevelField()).toHaveAttribute('data-hint-visible', 'false')
+      expect(getHintRing()).not.toBeInTheDocument()
+    })
+  })
+
   describe('with a present-level range narrower than the full slots', () => {
     it('renders ticks only for slots within [minPresentLevelIndex, maxPresentLevelIndex]', () => {
       renderFilters({ minPresentLevelIndex: 2, maxPresentLevelIndex: 5 })

@@ -64,4 +64,29 @@ describe('useFirstLaunchHint', () => {
     render(<TestHarness id="some-other-hint" />)
     expect(screen.getByTestId('should-show')).toHaveTextContent('true')
   })
+
+  it('propagates a dismissal to a SECOND, independent component instance watching the same id', async () => {
+    // The read-only-consumer case (RotateDeviceBanner.tsx watching a hint it
+    // doesn't own) — this instance never clicks its own Dismiss button, only
+    // observes the other one's.
+    const user = userEvent.setup()
+    render(
+      <div>
+        <TestHarness id="level-slider" />
+        <div data-testid="second-instance">
+          <TestHarness id="level-slider" />
+        </div>
+      </div>,
+    )
+    const [firstDismissButton] = screen.getAllByRole('button', { name: 'Dismiss' })
+    const secondShouldShow = screen
+      .getByTestId('second-instance')
+      .querySelector('[data-testid="should-show"]')!
+
+    expect(secondShouldShow).toHaveTextContent('true')
+
+    await user.click(firstDismissButton!)
+
+    expect(secondShouldShow).toHaveTextContent('false')
+  })
 })

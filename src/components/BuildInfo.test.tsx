@@ -74,4 +74,14 @@ describe('BuildInfo', () => {
     const paragraph = screen.getByText(/Build/, { selector: 'p' })
     expect(paragraph).toHaveTextContent(/Online · Browser · Raw data · All events$/)
   })
+
+  it('folds extraLinksAfter in after "All events", still on the one line', () => {
+    render(
+      <MemoryRouter>
+        <BuildInfo extraLinksAfter={<a href="/reset">Reset</a>} />
+      </MemoryRouter>,
+    )
+    const paragraph = screen.getByText(/Build/, { selector: 'p' })
+    expect(paragraph).toHaveTextContent(/All events · Reset$/)
+  })
 })

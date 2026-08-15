@@ -32,14 +32,20 @@ const buildTimeFormatter = new Intl.DateTimeFormat('en-US', {
 // line, before "All events", instead of adding its own separate line elsewhere —
 // App.tsx's Home-only rendering uses this for a "Raw data" link (see its own
 // comment) rather than hardcoding that link here, since it'd be a pointless
-// self-link on the debug page, which also renders this component.
+// self-link on the debug page, which also renders this component. `extraLinksAfter`
+// is the same idea for content that belongs AFTER "All events" instead — App.tsx's
+// Home-only rendering uses it for ResetHintsLink.tsx, a testing convenience that
+// wouldn't make sense on the debug page either.
 //
 // Everything below is deliberately ONE line/paragraph, not build info and
 // online status as two separate ones (an earlier version) — per direct
 // product decision, this whole footer reads as a single fine-print string:
 // "Build <hash> at <date>, <time TZ> · Online/Offline · Installed/Browser ·
 // Raw data · All events".
-export function BuildInfo({ extraLinks }: { extraLinks?: ReactNode } = {}) {
+export function BuildInfo({
+  extraLinks,
+  extraLinksAfter,
+}: { extraLinks?: ReactNode; extraLinksAfter?: ReactNode } = {}) {
   const isOnline = useOnlineStatus()
   const builtAt = new Date(__BUILD_TIME__)
   return (
@@ -61,6 +67,7 @@ export function BuildInfo({ extraLinks }: { extraLinks?: ReactNode } = {}) {
           build (unlike EventsListPage.tsx's own cross-set links), so a
           basename-relative client-side link is correct here. */}
       <Link to="/events">All events</Link>
+      {extraLinksAfter && <> · {extraLinksAfter}</>}
     </p>
   )
 }

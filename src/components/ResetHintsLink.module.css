@@ -1,0 +1,15 @@
+/* Reads as plain text in BuildInfo.tsx's fine-print line, matching that
+   file's own .buildInfo a rule — resets all button chrome (border/background/
+   padding/font) and inherits the surrounding line's own muted color/size,
+   underlined so it still reads as tappable despite being a <button>, not an
+   <a> (needed for its onClick, not a navigation). */
+.resetLink {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

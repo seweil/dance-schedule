@@ -139,6 +139,41 @@
   gap: 0;
 }
 
+/* Elevates the real controls — .ticks and .sliderRoot specifically, NOT
+   .levelField itself — above the OTHER onboarding hint's own shadow
+   (PageMenu.module.css's .toggle[data-hint-visible], the kebab-menu one),
+   which can be showing at the same screen visit as this one (a genuinely
+   fresh device's first view of this page). .hintRing's own comment above
+   covers why THAT ring never needs protecting from its OWN shadow.
+   Targeting .levelField ITSELF was the first attempt here, and it made
+   things WORSE, not better — confirmed live with a deliberately garish
+   test (a solid, fully opaque red in place of the real shadow, to make the
+   failure unmissable): giving .levelField its own z-index turns it into a
+   stacking context that CONTAINS .hintRing, meaning .hintRing's own shadow
+   gets carried along as part of that ONE elevated unit when compared
+   against the rest of the page — including against PageMenu.tsx's own
+   .toggle, ALSO elevated to the same z-index (22) — recreating the exact
+   same same-z-index-tie bug one level up (DanceScheduleFilters.tsx always
+   renders later in the document, so the tie resolved in .levelField's —
+   and therefore .hintRing's shadow's — favor, blotting the toggle out
+   completely instead of just tinting it).
+   Elevating .ticks/.sliderRoot directly, as SEPARATE, INDEPENDENT stacking
+   contexts (not nested inside an elevated .levelField), avoids dragging
+   .hintRing's shadow up with them — .hintRing stays at its own,
+   unelevated 21, comparing normally against the rest of the page the way
+   its own comment describes. background: #fff on each is still needed for
+   the same reason PageMenu.module.css's own .toggle needed it: .tick has
+   `background: none`, .sliderRoot has no background of its own either —
+   both transparent, and a transparent element sitting at a nominally
+   higher z-index does not block a lower shadow from showing through
+   (z-index only controls paint ORDER, not opacity — painting nothing on
+   top of something doesn't erase it). */
+.levelField[data-hint-visible='true'] .ticks,
+.levelField[data-hint-visible='true'] .sliderRoot {
+  z-index: 22;
+  background: #fff;
+}
+
 .label {
   font-size: 0.875rem;
   color: var(--color-text);
@@ -247,6 +282,71 @@
   height: 1.5rem;
   touch-action: none;
   user-select: none;
+}
+
+/* Pill/"hot dog" onboarding-hint ring around the WHOLE level field — tick labels
+   and track+thumbs together (DanceScheduleFilters.tsx renders this as a
+   decorative absolutely-positioned overlay, only while
+   useFirstLaunchHint('level-slider') says to — see
+   docs/design/onboarding-hints.md). Deliberately includes the tick labels:
+   they're real <button>s (DanceScheduleFilters.tsx), and being bigger targets
+   than the thumbs, are actually the EASIER of the two interactions the hint's
+   own copy names ("tap ... to filter") — a ring that stopped at the track
+   would visually undersell that they work too.
+   A dedicated overlay `<span>` with an explicit `inset`, not PageMenu.module.css's
+   own outline + outline-offset technique (used for the kebab-menu ring, and for
+   the level-slider ring's own first version) — `outline-offset` is a single
+   value applied to all four sides equally, but this ring needs MORE room on
+   the sides than top/bottom: wider per direct product decision, while top/
+   bottom stay closer so the ring doesn't crowd .dateGcaRow above or whatever
+   content follows below. `inset: -8px -16px` (vertical horizontal shorthand)
+   expresses that asymmetry directly. Still needs no fixed pixel width despite
+   .levelField's own width varying (present-level count, viewport, and text
+   size all affect maxLevelFieldWidthPx above) — `inset` values are relative
+   offsets from .levelField's own edges (it's the nearest `position: relative`
+   ancestor), so they resolve correctly whatever that width actually is.
+   border-radius: 999px rounds fully at each end into a stadium/pill shape.
+   pointer-events: none — purely decorative, must never steal a tap meant for
+   the ticks/thumbs beneath it. Rendered/unmounted outright alongside
+   showLevelHint (not toggled by a CSS class on an always-mounted element) —
+   same reasoning as HintBalloon.tsx's own comment on avoiding an open/close
+   animation to get wrong. z-index: 21 (not 22, unlike HintBalloon.module.css's
+   own .balloon or PageMenu.module.css's own .toggle[data-hint-visible] — see
+   each of their own comments for why THEY needed a bump this didn't) — high
+   enough to read as bright/on-top of ordinary page content. Left at 21
+   because a same-z-index tie against another hint only actually matters in
+   ONE direction in this app: DanceScheduleFilters.tsx always renders LATER
+   in the document than PageMenu.tsx's own header, and same-z-index ties
+   resolve in the LATER element's favor — so this ring already wins any tie
+   against the kebab-menu hint's own z-index-21 elements without needing a
+   bump; it's THOSE earlier elements that needed to move to 22 to stop
+   losing the tie to this one.
+   box-shadow: 0 0 0 9999px — the screen-dimming effect itself (see
+   HintBalloon.module.css's own top-of-file comment for the full story: an
+   earlier version rendered a separate full-viewport dim div, which — being
+   just another layer — unavoidably painted OVER the real ticks/track/thumbs
+   this hint is trying to emphasize too, not just the rest of the page;
+   reported live as actively hiding the controls it should be pointing at).
+   A box-shadow only ever paints OUTSIDE its own casting element's box —
+   never inside it — so THIS ring's own shadow structurally can never touch
+   the real ticks/thumbs living inside it, no z-index elevation needed for
+   that specific case: this ring's own box already extends 8px/16px past
+   .levelField's edges (the `inset` above), so the real controls sit
+   entirely WITHIN this ring's box already, automatically outside its own
+   shadow's reach.
+   That's NOT the whole story once the OTHER hint (PageMenu.tsx's
+   kebab-menu one) can also be showing at the same time, though — see
+   .levelField[data-hint-visible='true'] below, a few lines down, for why
+   THAT needed real z-index + background elevation after all, on
+   .levelField itself, not just this ring. */
+.hintRing {
+  position: absolute;
+  inset: -8px -16px;
+  z-index: 21;
+  border: 2px dashed var(--color-accent);
+  border-radius: 999px;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 50%);
+  pointer-events: none;
 }
 
 .sliderTrack {

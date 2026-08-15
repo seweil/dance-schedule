@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import * as Slider from '@radix-ui/react-slider'
 import type { LevelSlot } from '../lib/levelOrder'
 import { moveNearestThumb } from '../lib/moveNearestThumb'
 import { getUserLocales } from '../lib/userLocale'
 import { useTextSize } from '../hooks/useTextSize'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
+import { HintBalloon } from './HintBalloon'
 import styles from './DanceScheduleFilters.module.css'
 
 // The specific combination that actually needs the "A1/A2" → "A" shortening
@@ -100,6 +102,19 @@ export function DanceScheduleFilters({
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
   const supportsHover = useMediaQuery('(hover: hover)')
+  // Shared across all three dance-schedule pages (DanceSchedulePage,
+  // DanceScheduleLevelsPage/Room Schedule, DanceScheduleCallersPage/Caller
+  // Schedule) since they all render this one component — a single
+  // useFirstLaunchHint('level-slider') id/dismissed-flag means seeing and
+  // dismissing the hint on any one of them retires it on the others too,
+  // rather than each page nagging separately. See docs/design/onboarding-hints.md.
+  const { shouldShow: showLevelHint, dismiss: dismissLevelHint } = useFirstLaunchHint('level-slider')
+  // Passed to HintBalloon as targetRef — see that component's own comment:
+  // a tap anywhere ON the field (ticks, track, thumbs) already dismisses
+  // via the onClick/onValueChange handlers below and should still perform
+  // its own action; a tap anywhere ELSE should dismiss WITHOUT also
+  // triggering whatever it landed on.
+  const levelFieldRef = useRef<HTMLDivElement>(null)
   // Drives the ghost preview marker on the track (.ghostThumb) — which slot's
   // tick, if any, the pointer is currently over. null, not -1: every real slot
   // index (including 0) must stay a valid "this one's hovered" value.
@@ -176,7 +191,13 @@ export function DanceScheduleFilters({
       </div>
 
       <div
+        ref={levelFieldRef}
         className={`${styles.field} ${styles.levelField}`}
+        // State marker for tests/consistency with PageMenu.tsx's own toggle
+        // (which carries the same attribute) — the ring itself (.hintRing,
+        // rendered below) is conditionally mounted on showLevelHint directly,
+        // not driven by this attribute via CSS.
+        data-hint-visible={showLevelHint}
         // `width`, not just `maxWidth` — with .levelField's own flex-grow: 1
         // (DanceScheduleFilters.module.css) still in play, it would greedily
         // fill 100% of whatever space was left on its line up to this cap,
@@ -218,6 +239,11 @@ export function DanceScheduleFilters({
                 onClick={() => {
                   const { min, max } = moveNearestThumb(index, minLevelIndex, maxLevelIndex)
                   onLevelRangeChange(min, max)
+                  // A tap on a tick is one of the two interactions the hint's own
+                  // copy ("Tap or drag to filter dance levels") describes — same
+                  // as PageMenu.tsx's handleToggleClick, using the real control
+                  // already means the hint did its job.
+                  dismissLevelHint()
                 }}
                 onMouseEnter={() => setHoveredTickIndexIfSupported(index)}
                 onMouseLeave={() => setHoveredTickIndex((current) => (current === index ? null : current))}
@@ -239,6 +265,10 @@ export function DanceScheduleFilters({
           onValueChange={([min, max]) => {
             if (min !== undefined && max !== undefined) {
               onLevelRangeChange(min, max)
+              // Dragging a thumb is the other interaction the hint's own copy
+              // describes ("...or drag..."), same reasoning as the tick
+              // onClick above.
+              dismissLevelHint()
             }
           }}
         >
@@ -298,6 +328,22 @@ export function DanceScheduleFilters({
           <Slider.Thumb className={`${styles.sliderThumb} ${styles.sliderThumbMin}`} aria-label="Minimum level" />
           <Slider.Thumb className={`${styles.sliderThumb} ${styles.sliderThumbMax}`} aria-label="Maximum level" />
         </Slider.Root>
+        {/* Encloses the tick labels above too, not just the track/thumbs — see
+            DanceScheduleFilters.module.css's own .hintRing comment for why. */}
+        {showLevelHint && <span className={styles.hintRing} aria-hidden="true" />}
+        {/* Child of .levelField (already position: relative — see its own
+            comment above), same anchoring relationship PageMenu.tsx's balloon
+            has to its own position: relative .nav. placement="center" — see
+            HintBalloon.tsx's own comment on why this caller needs that,
+            unlike PageMenu's default "flush right" one. */}
+        {showLevelHint && (
+          <HintBalloon
+            message="Tap or drag to filter dance levels"
+            placement="center"
+            onDismiss={dismissLevelHint}
+            targetRef={levelFieldRef}
+          />
+        )}
       </div>
     </div>
   )

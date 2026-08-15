@@ -61,10 +61,38 @@
    this app's general avoidance of animated dropdown/toggle states after the
    repeated real-device WebKit bugs documented elsewhere in this codebase
    (see Nav.module.css's/.list's own comments above). */
+/* position: relative + z-index: 22 puts this button ABOVE any competing
+   shadow (both hints' own box-shadow-based dimming — see below — paint at
+   21), rather than tying with DanceScheduleFilters.module.css's own
+   .hintRing: same-z-index ties resolve in the LATER document element's
+   favor, and .hintRing (further down the page) always renders after this
+   header, so at a tie it would win and visibly dim this button when both
+   hints show at once (confirmed live).
+   background: #fff is EQUALLY load-bearing, not cosmetic — z-index alone
+   turned out not to be enough: this button's own background was `none`
+   (transparent), and a transparent element painted ABOVE a lower shadow
+   does not block it — transparent paint is a no-op, so the shadow still
+   shows through to the eye, regardless of stacking order. Confirmed live:
+   z-index: 22 alone still left the icon looking tinted grey under the
+   level-slider hint's shadow. An opaque background at this now-elevated
+   level is what actually stops that shadow from being visible here at all.
+   box-shadow: 0 0 0 9999px below is this hint's OWN "dim the rest of the
+   screen" effect (see HintBalloon.module.css's own top-of-file comment for
+   why a separate full-viewport overlay div was dropped in favor of this):
+   painting only OUTSIDE this button's own box, by construction, so THIS
+   button's own interior was already safe from ITS OWN shadow before either
+   fix above — those two are specifically about surviving the OTHER hint's
+   shadow. Follows border-radius (below) the same way outline does, so the
+   dim's own edge reads as a matching circle, not a square peeking out
+   around the round ring. */
 .toggle[data-hint-visible='true'] {
+  position: relative;
+  z-index: 22;
+  background: #fff;
   outline: 2px dashed var(--color-accent);
   outline-offset: 1px;
   border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 50%);
 }
 
 .list {
