@@ -98,6 +98,73 @@ If you add or change a custom domain in the Amplify console, update
 `Domains` in `infra/monitoring.yaml` to match and redeploy — RUM silently
 drops events from origins not in that list.
 
+## Dashboard
+
+`monitoring.yaml`'s `RumDashboard` resource (an `AWS::CloudWatch::Dashboard`)
+pins several of the queries above, plus a couple of event-specific ones
+that don't get their own standalone saved query (min/max level histograms,
+tied to whichever slots the CURRENT event's data actually populates — see
+`docs/ops.md`'s own note on why those aren't saved as reusable
+`QueryDefinition`s either), as always-visible widgets — no need to open
+Logs Insights and pick a query each time. Deploys with the rest of the
+stack (`./infra/deploy.sh`); find it at **CloudWatch → Dashboards →
+`dance-schedule-dashboard`** (or whatever `AppMonitorName` is set to, plus
+`-dashboard`).
+
+That name is deliberately NOT whatever a dashboard you built by hand in
+the console was already called — CloudFormation can't adopt an existing,
+unmanaged resource just by matching its name; deploying a
+`AWS::CloudWatch::Dashboard` whose name collides with one that already
+exists outside CloudFormation fails outright, it doesn't take it over. If
+you had a hand-built dashboard before this existed, confirm the new,
+CloudFormation-managed one looks right, then delete the old one yourself
+(**CloudWatch → Dashboards** → select it → **Delete**) so you're not
+maintaining two.
+
+### The widget JSON lives in its own file: `infra/dashboard.json`
+
+Plain CloudFormation has no way to `include` an external file directly in
+a template, so `monitoring.yaml` doesn't embed the widget JSON inline —
+`RumDashboard`'s `DashboardBody` is instead a literal placeholder line
+(`__DASHBOARD_JSON_PLACEHOLDER__`), and `./infra/deploy.sh` splices
+`dashboard.json`'s own content in as plain text (re-indented to match)
+before deploying, from a temp file it generates on the fly — never
+`monitoring.yaml` directly. (A `String` Parameter was tried first — it's
+the more "native" CloudFormation mechanism — but fails outright:
+Parameter values are hard-capped at 4096 bytes, and this dashboard's own
+JSON is already over 6000. See `docs/design/monitoring.md` for the full
+story.) Net effect is the same either way: the actual widget definitions
+live in one plain, self-contained JSON file — readable and diffable on
+its own, in a normal JSON editor/viewer, not buried inside a YAML block
+scalar — while `monitoring.yaml` just marks where it goes.
+
+**To make a manual widget edit (recommended for anything visual — dragging
+a widget to reposition/resize it is far easier than hand-editing
+coordinates) and fold it back into source control:**
+
+1. Edit the dashboard directly in the CloudWatch console.
+2. `./infra/download-dashboard.sh` — pulls the live definition back out and
+   overwrites `infra/dashboard.json` with it (pretty-printed via `jq`, so
+   the diff stays readable rather than replacing the whole file as one
+   line).
+3. `git diff infra/dashboard.json` to review, then commit.
+
+**To make a text edit instead** (e.g. changing a query, matching an update
+in `docs/ops.md`): edit `infra/dashboard.json` directly, then
+`./infra/deploy.sh` to push it.
+
+Either direction, the two scripts are exact inverses of each other:
+`deploy.sh` pushes the file's contents up to AWS; `download-dashboard.sh`
+pulls AWS's current state back down to the file. Whichever one you run
+last wins — if you edit in the console AND locally without running the
+matching sync script in between, the next deploy/download will silently
+overwrite one side with the other.
+
+The console's own copy-from-widget-editor has a known quirk of injecting
+stray blank lines into multi-line queries — pulling the JSON via the CLI
+(as above) avoids that entirely, same as `docs/ops.md`'s own note on
+copying saved queries.
+
 ## Aggregate reporting: CloudWatch Logs Insights
 
 The RUM console's Events tab only lets you browse individual events, not run
@@ -111,8 +178,21 @@ aws rum get-app-monitor --name dance-schedule --region us-east-2 \
   --query 'AppMonitor.DataStorage.CwLog.CwLogGroup'
 ```
 
-Then in the CloudWatch console → **Logs → Logs Insights**, pick that log
-group and run a query. Custom event fields live under `event_details.*`; the
+Then in the CloudWatch console → **Logs → Logs Insights** → **Queries**
+tab, the queries below (device/browser/OS mix, installed-vs-browser,
+platform mix, pages viewed, and each of `src/lib/rum.ts`'s custom events)
+are already there, saved as `AWS::Logs::QueryDefinition` resources in
+`monitoring.yaml` — no copy-pasting from this file, and no need to pick a
+log group first, since each one's own `SOURCE dataSource(...)` clause
+queries RUM's managed data directly. See `docs/ops.md`'s "Retention and
+aggregate reporting" section for the full, most-current list with the
+reasoning behind each one — `monitoring.yaml`'s copies are meant to
+mirror that doc exactly, kept in sync by hand. (Excluded: the "minimum-
+level histogram" query — it needs hand-editing per event's own actual
+schedule data, so a permanently-saved copy would just go stale; see that
+doc's own note.)
+
+Custom event fields live under `event_details.*`; the
 event's own type string is `event_type` (built-in RUM events use a
 `com.amazon.rum.*`-namespaced type; this app's three custom ones don't).
 Examples for each of `src/lib/rum.ts`'s call sites:

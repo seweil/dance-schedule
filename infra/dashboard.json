@@ -1,0 +1,94 @@
+{
+  "widgets": [
+    {
+      "type": "log", "x": 0, "y": 0, "width": 8, "height": 5,
+      "properties": {
+        "title": "Browser/OS",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.deviceType, metadata.browserName, metadata.osName\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName"
+      }
+    },
+    {
+      "type": "log", "x": 8, "y": 0, "width": 7, "height": 5,
+      "properties": {
+        "title": "Installed?",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.displayMode\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) by metadata.displayMode"
+      }
+    },
+    {
+      "type": "log", "x": 15, "y": 0, "width": 5, "height": 3,
+      "properties": {
+        "title": "Traffic",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields user_details.userId as userId, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) as pageLoads, count_distinct(sessionId) as sessions, count_distinct(userId) as devices"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 5, "width": 10, "height": 5,
+      "properties": {
+        "title": "Font",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.textSize\n| filter event_type = \"text_size_preference\"\n| stats count(*) by event_details.textSize"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 10, "width": 9, "height": 5,
+      "properties": {
+        "title": "MinLevel",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel\n| filter event_type = \"dance_schedule_level_range\"\n| stats count(*) as sessions by minLevel\n| fields case(minLevel = \"SSD\", 1,\n              minLevel = \"MS\", 2,\n              minLevel = \"Plus\", 3,\n              minLevel = \"A2\", 4,\n              minLevel = \"C1\", 5,\n              minLevel = \"C2\", 6,\n              minLevel = \"C3A\", 7,\n              minLevel = \"C3B\", 8,\n              9) as difficultyRank\n| sort difficultyRank asc"
+      }
+    },
+    {
+      "type": "log", "x": 9, "y": 10, "width": 9, "height": 5,
+      "properties": {
+        "title": "MaxLevel",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.max as maxLevel\n| filter event_type = \"dance_schedule_level_range\"\n| stats count(*) as sessions by maxLevel\n| fields case(maxLevel = \"SSD\", 1,\n              maxLevel = \"MS\", 2,\n              maxLevel = \"Plus\", 3,\n              maxLevel = \"A2\", 4,\n              maxLevel = \"C1\", 5,\n              maxLevel = \"C2\", 6,\n              maxLevel = \"C3A\", 7,\n              maxLevel = \"C3B\", 8,\n              9) as difficultyRank\n| sort difficultyRank asc"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 15, "width": 24, "height": 6,
+      "properties": {
+        "title": "Level Range",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel, event_details.max as maxLevel\n| filter event_type = \"dance_schedule_level_range\"\n| fields concat(minLevel, \"-\", maxLevel) as range\n| stats count(*) as sessions by range\n| sort sessions desc"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 21, "width": 12, "height": 6,
+      "properties": {
+        "title": "Platform Mix",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.osName, metadata.displayMode, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| fields case(\n    metadata.osName like /iOS/ and metadata.displayMode = \"standalone\", \"Mobile PWA (iOS)\",\n    metadata.osName like /Android/ and metadata.displayMode = \"standalone\", \"Mobile PWA (Android)\",\n    metadata.osName like /iOS/, \"Mobile browser (iOS)\",\n    metadata.osName like /Android/, \"Mobile browser (Android)\",\n    metadata.osName like /Mac/, \"Desktop (Mac)\",\n    metadata.osName like /Windows/, \"Desktop (PC)\",\n    \"Other\"\n  ) as platform\n| stats count_distinct(sessionId) as sessions by platform\n| sort sessions desc"
+      }
+    },
+    {
+      "type": "log", "x": 12, "y": 21, "width": 12, "height": 6,
+      "properties": {
+        "title": "Raw OS Permutations (diagnostic)",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.osName, strlen(metadata.osName) as osNameLen, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count_distinct(sessionId) as sessions by metadata.osName, osNameLen, metadata.displayMode, metadata.deviceType\n| sort sessions desc"
+      }
+    }
+  ]
+}

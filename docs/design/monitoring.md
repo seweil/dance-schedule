@@ -21,6 +21,10 @@ community dance-event site's visitor data.
       Decisions
 - [x] Aggregate/group-by reporting over custom events, not just browsing one
       event at a time in the console — see Decisions
+- [x] Getting the aggregate-reporting queries themselves into source
+      control, not just copy-pasted from docs — see Decisions
+- [x] Getting the hand-built CloudWatch Dashboard into source control too —
+      see Decisions
 - [ ] Whether to eventually pipe access logs into S3 + Athena for real
       analysis, vs. ad hoc console downloads
 
@@ -140,6 +144,251 @@ The same function is called directly (unmemoized — cheap, and stable for
 the page's lifetime) from `BuildInfo.tsx`'s fine print, next to the
 existing Online/Offline segment, so installed-vs-browser is also visible
 on the page itself without opening the AWS console at all.
+
+### The Logs Insights queries themselves, as `AWS::Logs::QueryDefinition` resources
+**Why:** `docs/ops.md`'s "Retention and aggregate reporting" section had
+accumulated several worked Logs Insights queries (devices/browsers/OS,
+installed-vs-browser, platform mix, pages viewed, and one per custom
+event) that only ever lived as copy-paste-able code blocks in a markdown
+file — asked, directly, to get them into source control instead, so
+they're available as SAVED queries in the CloudWatch console (Logs
+Insights' own **Queries** tab) rather than requiring a trip back to this
+repo's docs every time. `infra/monitoring.yaml` gained one
+`AWS::Logs::QueryDefinition` resource per query, deployed as part of the
+same `dance-schedule-monitoring` stack (`./infra/deploy.sh`) — no new
+stack, no new script, consistent with this file's own "plain
+CloudFormation, one small stack" decision above.
+
+No `LogGroupNames` property on any of them: each query's own `SOURCE
+dataSource(['amazon_cloudwatch.rum_app_monitor'])` clause queries RUM's
+managed data directly, the same syntax `docs/ops.md`'s own examples
+already used — this sidesteps the CwLog group's own name entirely, which
+CloudFormation has no way to reference anyway (it isn't exposed as a
+`Fn::GetAtt` on `AWS::RUM::AppMonitor`, and per `docs/ops.md`'s own note,
+isn't even a fixed, predictable string — the only way to learn it is `aws
+rum get-app-monitor` after the fact). A saved query with this `SOURCE`
+clause works regardless of which log group happens to be selected in the
+console when you open it from the Queries tab.
+
+**Deliberately excludes `docs/ops.md`'s own "minimum-level histogram"
+query.** That query's own `case()` branches map each level label to a
+difficulty rank that depends on which slots the CURRENT event's actual
+schedule data populates (confirmed there: not fully determined by the
+`combineA1A2`/`combineC3BC4` flags alone) — a version baked into
+CloudFormation would silently go stale the next time this app points at a
+different event, rather than getting hand-edited at the moment it's
+actually used, which is what the doc's own copy already expects. The six
+queries that WERE saved are all stable across events/deployments — nothing
+about them depends on a specific event's own data.
+
+`monitoring.yaml`'s copies are kept in sync with `docs/ops.md`'s own query
+text by hand, not generated from one shared source — there's no tooling in
+this repo that reads CloudFormation YAML into markdown or vice versa, and
+seven queries is small enough that duplication is cheaper than building
+one. `docs/ops.md` stays the place explaining WHY each query is shaped the
+way it is; `monitoring.yaml` just needs the query text itself to deploy
+them.
+
+**A real bug in the platform-mix query, caught while cross-checking against
+a genuinely working query (see the Dashboard decision below): the session-id
+field was wrongly written as `metadata.sessionId`.** It isn't — per
+`docs/ops.md`'s own "Page loads vs. sessions vs. users/devices" table
+(already documented, just not cross-referenced when the platform-mix query
+was first written), session/user identity lives under `user_details`, not
+`metadata`. Every OTHER field that query needed (`deviceType`, `osName`,
+`displayMode`) genuinely does live under `metadata`, which is what made the
+wrong guess plausible enough not to question at the time. Fixed in both
+`docs/ops.md` and `infra/monitoring.yaml`'s `PlatformMixQuery` to
+`user_details.sessionId`.
+
+### The hand-built CloudWatch Dashboard, exported into `monitoring.yaml` too
+**Why:** A dashboard pinning several of the queries above (plus a couple of
+event-specific ones — the min/max level histograms, see the exclusion note
+above; a dashboard's own widgets aren't asked to stay valid across events
+the way a permanently-saved query is, so keeping them here despite that
+caveat is a smaller compromise) had been built by hand directly in the
+CloudWatch console — asked, directly, to get that into source control too,
+the same reasoning as the saved queries above: redeployable/diffable,
+not living in only one AWS account. `infra/monitoring.yaml` gained a
+`RumDashboard` (`AWS::CloudWatch::Dashboard`) resource, its `DashboardBody`
+the exported widget JSON (`aws cloudwatch get-dashboard`), cleaned up
+(stray blank lines/trailing whitespace — see the console-copy-quirk note
+in `docs/ops.md`) and pretty-printed for readability, but otherwise
+unchanged in substance — same widgets, same positions, same queries.
+(This round embedded the JSON directly in `monitoring.yaml`, `region`
+inside each widget's `properties` switched from a hardcoded `"us-east-2"`
+to `${AWS::Region}` via `Fn::Sub` — superseded by the standalone-file
+version below, which moved `region` back to a literal for a different
+reason; see that entry.)
+
+**New `DashboardName`, not the original hand-built dashboard's own name.**
+CloudFormation can't adopt an existing, unmanaged resource just by having a
+new resource declare the same name — deploying an `AWS::CloudWatch::
+Dashboard` whose name collides with one that already exists outside
+CloudFormation fails outright rather than taking it over. `!Sub
+'${AppMonitorName}-dashboard'` avoids that collision by construction. The
+old, hand-built dashboard isn't deleted automatically — a human needs to
+compare the new one and delete the old one themselves once satisfied (see
+`infra/README.md`), the same "verify, then remove the old one" pattern
+used whenever a resource is being migrated into IaC after the fact,
+consistent with this project's general caution around destructive/manual
+cleanup steps.
+
+**This exercise is also what caught the `metadata.sessionId` /
+`user_details.sessionId` bug above** — the dashboard's own "Traffic"
+widget, built and actually exercised live in the console (unlike the
+platform-mix query, which had never been run against real data before
+this), used `user_details.sessionId` correctly, exposing the platform-mix
+query's own wrong guess by direct comparison.
+
+**A "Platform Mix" widget, using the now-fixed `PlatformMixQuery` text,
+was added to the dashboard in a follow-up** (below "Level Range," same
+`bar` view) — the original export (above) predates that query even
+existing; once it did, pinning it alongside the other bucketed-count
+widgets (MinLevel/MaxLevel/Level Range) was a small, obvious addition
+rather than leaving it only reachable via the Queries tab.
+
+**A second real bug in the same query, caught only once it was deployed
+and run against real traffic: `metadata.deviceType` is NOT a reliable
+mobile/desktop signal.** The `sessionId` fix above still left every
+`case()` branch gated on `deviceType = "mobile"`/`"desktop"` — deployed,
+and the actual dashboard widget showed only "Desktop (Mac)" and "Other,"
+no mobile buckets at all, despite this being a mobile-first app. Cross-
+checked against the "Devices, browsers, OS" widget's own live data: a
+real session had `deviceType: "desktop"`, `osName: "iOS"`,
+`browserName: "Mobile Safari"` — RUM's UA parser had classified an iOS
+device as desktop. This tracks with a documented iPadOS behavior, not a
+RUM-specific bug: iPadOS has sent a desktop-style User-Agent by default
+since iPadOS 13 (so iPad gets full desktop websites), indistinguishable
+from real macOS Safari by UA string alone unless a parser also checks for
+touch capability — evidently this one doesn't. Fixed by dropping
+`deviceType` from the query entirely and keying the mobile/desktop split
+off `osName` alone (`"iOS"`/`"Android"` vs. `"Mac OS"`/`"Windows"`), which
+stayed correct for the same misclassified session. Accepted consequence:
+an iPad in its default browsing mode now buckets under "Mobile (iOS)"
+indistinguishably from an iPhone — nothing in this data reliably
+separates them, and the six buckets originally asked for didn't call for
+that split anyway.
+
+This is the second time in this same query that a live check against
+actually-deployed data caught a wrong assumption that looked entirely
+reasonable on paper (`metadata.sessionId` before, `deviceType = "mobile"`
+here) — worth remembering as a standing caution for any FUTURE
+`case()`-style bucketing added here: verify field values against a real,
+already-running widget/query before trusting what a field's own NAME
+seems to promise.
+
+**A third round, after generating real iPhone traffic specifically to test
+the fix above (both a plain Safari-tab visit and the installed PWA):
+still landed entirely in "Other."** The **Devices, browsers, OS** widget
+showed `osName: "iOS"` for that session — a value that looks identical to
+the query's own `"iOS"` string literal, yet the exact-match `case()`
+branches still didn't catch it. Never fully root-caused (a value read off
+the console and retyped into chat can't rule out invisible whitespace or a
+different character than it appears to be — see `docs/ops.md`'s own note
+on the console's copy-quirk elsewhere in this same investigation), but
+rather than chase it further, EVERY `osName` branch — not just Mac/Windows,
+which already used this — was switched from exact `=` to a `like /.../`
+substring match. This sidesteps the question of what, exactly, was
+different about the string, at effectively no cost: no other real
+`osName` value contains "iOS" or "Android" as a substring, so there's no
+new false-positive risk from loosening the match.
+
+Three real bugs now, in the same ~10-line query, each one only found by
+generating or observing REAL traffic rather than reasoning from the
+field's own name or a plausible-looking assumption — worth treating as
+the standing pattern for this specific query (and this whole
+custom-event/RUM-metadata area generally) rather than three unrelated
+one-offs: values that look identical when read off a browser-based
+console UI are not guaranteed to be byte-identical, and exact-match
+comparisons in Logs Insights queries against console-observed strings
+should default to `like` unless there's a specific reason exact equality
+is needed.
+
+**A fourth diagnostic widget, "Raw OS Permutations," added after the
+`like` fix above still didn't fully explain itself — not a bucketed query
+at all, just every actual `(osName, displayMode, deviceType)` combination
+present in the data, with `strlen(osName)` as its own column
+specifically to catch invisible characters (trailing whitespace, a
+non-breaking space) that a value read off the console and retyped into
+chat can't reveal on its own.** Given the standing pattern just above —
+three wrong guesses in a row despite each one looking reasonable — the
+right move stopped being "guess a fourth condition" and became "stop
+guessing, look at the raw ground truth directly." `RawOsPermutationsQuery`
+(a `QueryDefinition`, saved and reusable like the others) backs it.
+
+**The dashboard's own JSON moved out of `monitoring.yaml` entirely, into
+its own file (`infra/dashboard.json`) — asked directly, once manual
+console edits (dragging a widget to reposition/resize it, far easier than
+hand-editing coordinates) became a real, recurring part of the workflow,
+not a one-time export.** Plain CloudFormation has no `include`-external-
+file directive, so getting the file's content INTO the deployed template
+needs some mechanism — two were tried; only the second actually works.
+
+**First attempt: a `String` Parameter (`DashboardBody`), with
+`./infra/deploy.sh` reading `dashboard.json` and passing it via
+`--parameter-overrides`. Deploys successfully, but fails at the very next
+real deploy with a length error — CloudFormation Parameter VALUES are
+hard-capped at 4096 bytes, and this dashboard's own JSON is already over
+6000.** This wasn't caught by validating the YAML/JSON locally (both parse
+fine — the limit is a CloudFormation SERVICE constraint on parameter
+values, not a syntax rule any local tool checks) or by the earlier,
+smaller version of the dashboard (5-6 widgets, likely still under the
+cap) — only surfaced once actually deployed with the widget count this
+round had grown to. Confirmed directly, not just assumed: a throwaway
+script printing `argv` back DID show the JSON arriving intact as one
+~6KB shell argument (ruling out a shell-quoting problem specifically),
+but CloudFormation's own API still rejected it outright once it reached
+AWS.
+
+**Fixed by dropping the Parameter entirely and doing plain TEXT
+substitution instead — `monitoring.yaml` keeps a literal placeholder
+line (`__DASHBOARD_JSON_PLACEHOLDER__`) inside `RumDashboard`'s
+`DashboardBody` block scalar, and `./infra/deploy.sh` replaces that one
+line with `dashboard.json`'s own content (each line re-indented to
+match) before deploying — from a temp file, never `monitoring.yaml`
+directly.** This works because the 4096-byte cap is specific to
+Parameter VALUES — a property embedded directly in a resource has no
+such per-value limit (confirmed by the ORIGINAL, pre-Parameter version of
+this same dashboard, which deployed fine as an inline block scalar days
+earlier). A block scalar (`|-`), not a double-quoted string, is what
+makes line-by-line splicing safe here: it needs no quote/backslash
+escaping of the JSON's own content, only consistent indentation, so a
+short Python script (invoked from `deploy.sh` via a heredoc, not a
+separate file — small and single-purpose enough not to warrant its own
+script) can do the substitution correctly with nothing fancier than
+string operations.
+
+**A new, symmetric `./infra/download-dashboard.sh` script — the reverse
+of `deploy.sh` — pulls the LIVE dashboard back out of AWS and overwrites
+`dashboard.json` with it,** so a manual console edit can be folded back
+into source control just as easily as a local edit can be pushed out:
+`aws cloudwatch get-dashboard --query DashboardBody`, piped through `jq
+'.'` to re-pretty-print AWS's own compact single-line response (without
+that, every download would replace the whole file as one line and make
+`git diff` useless for actually seeing what changed) — followed, per the
+script's own printed reminder, by `git diff` to review and a normal
+commit. The two scripts are exact inverses; whichever one is run more
+recently wins, and editing both sides (console AND file) without syncing
+in between means the next deploy/download silently overwrites one with
+the other — an accepted risk at this project's scale (one person,
+infrequent dashboard changes) rather than something worth building
+conflict detection for.
+
+**`region` inside each widget moved back to a literal `"us-east-2"`,
+reverting the previous round's `${AWS::Region}` substitution — not a
+mistake being undone, but a genuine change in what became possible.**
+`Fn::Sub`'s pseudo-parameter substitution only runs on strings
+CloudFormation itself evaluates as part of the template. `dashboard.json`
+is plain JSON, read and spliced in as inert text by `deploy.sh`'s own
+Python step — CloudFormation never evaluates ITS content as template
+syntax at all (only the placeholder LINE it replaces is ever part of the
+template CloudFormation sees), so a `${AWS::Region}` token inside the
+JSON would just be sent to AWS as a literal, uninterpreted string, not
+substituted. Since `deploy.sh` already hardcodes `REGION=us-east-2` for
+the stack itself, this is a real constraint costing nothing in
+practice — the app is single-region by design already — rather than a
+portability regression worth working around.
 
 ## Open questions
 

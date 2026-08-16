@@ -101,6 +101,165 @@ Resources:
           - performance
           - http
 
+  # Saved CloudWatch Logs Insights queries (docs/ops.md's own "Retention and
+  # aggregate reporting" section — this mirrors that doc's query text
+  # exactly, so the two stay in sync by hand; there's no automated check for
+  # that, given how small and rarely-changed this set is). Each one uses the
+  # `SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])` syntax, which
+  # queries RUM's own managed data directly rather than a specific CloudWatch
+  # Logs group — so, unlike the CwLogGroup name itself (see ops.md: "its name
+  # isn't a fixed, predictable string," only discoverable via `aws rum
+  # get-app-monitor` after the fact), these queries need no LogGroupNames
+  # property and work regardless of which log group happens to be selected
+  # in the console's own source picker when you open them from the Queries
+  # tab. Requires CwLogEnabled (RetainTelemetryBeyond30Days above) to
+  # actually return results — the queries themselves deploy either way, they
+  # just won't have anything to query against if that's off.
+  #
+  # Deliberately excludes ops.md's own "Minimum-level histogram" query — its
+  # own comment there explains why: the level-label-to-difficulty-rank
+  # mapping inside it is tied to which slots THIS event's actual schedule
+  # data happens to populate (combineA1A2/combineC3BC4 alone don't fully
+  # determine it), so a saved copy here would silently go stale the next
+  # time this app points at a different event's data, rather than getting
+  # updated by hand at the same time the query is actually being used, the
+  # way the doc's own version does.
+  DevicesBrowsersOsQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Devices, browsers, OS'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields metadata.deviceType, metadata.browserName, metadata.osName
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName
+
+  InstalledVsBrowserQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Installed vs browser tab'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields metadata.displayMode
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | stats count(*) by metadata.displayMode
+
+  PlatformMixQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Platform mix (mobile PWA-browser, desktop Mac-PC)'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields metadata.osName, metadata.displayMode, user_details.sessionId as sessionId
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | fields case(
+            metadata.osName like /iOS/ and metadata.displayMode = "standalone", "Mobile PWA (iOS)",
+            metadata.osName like /Android/ and metadata.displayMode = "standalone", "Mobile PWA (Android)",
+            metadata.osName like /iOS/, "Mobile browser (iOS)",
+            metadata.osName like /Android/, "Mobile browser (Android)",
+            metadata.osName like /Mac/, "Desktop (Mac)",
+            metadata.osName like /Windows/, "Desktop (PC)",
+            "Other"
+          ) as platform
+        | stats count_distinct(sessionId) as sessions by platform
+        | sort sessions desc
+
+  # A raw ground-truth query, not a bucketed one — added after THREE
+  # separate case()-matching guesses in PlatformMixQuery above each failed
+  # against real traffic in a way that looked, by eye, like it shouldn't
+  # have (metadata.sessionId's wrong namespace; deviceType's iPad-as-
+  # desktop misclassification; an osName = "iOS" exact match that still
+  # didn't catch a real iPhone session showing what LOOKED like the exact
+  # same "iOS" string). Rather than guess a fourth time, this lists every
+  # ACTUAL (osName, displayMode, deviceType) combination present in the
+  # data, with its own session count, sorted descending — plus
+  # strlen(osName), specifically to catch invisible characters (trailing
+  # whitespace, a non-breaking space, etc.) a value read off the console
+  # and retyped into chat can't reveal, but a length that's NOT what it
+  # visually looks like immediately would.
+  RawOsPermutationsQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Raw OS-displayMode-deviceType permutations'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields metadata.osName, strlen(metadata.osName) as osNameLen, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | stats count_distinct(sessionId) as sessions by metadata.osName, osNameLen, metadata.displayMode, metadata.deviceType
+        | sort sessions desc
+
+  PagesViewedQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Pages viewed'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields metadata.pageId
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | stats count(*) as views by metadata.pageId
+        | sort views desc
+
+  FontSizeQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Font size'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields event_details.textSize
+        | filter event_type = "text_size_preference"
+        | stats count(*) by event_details.textSize
+
+  LevelFilterRangeQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Level filter range'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields event_details.min, event_details.max
+        | filter event_type = "dance_schedule_level_range"
+        | stats count(*) by event_details.min, event_details.max
+
+  # A CloudWatch Dashboard, pinning several of the queries above (plus a
+  # couple of event-specific ones that don't get their own standalone
+  # QueryDefinition — see that resource block's own comment on why) as
+  # always-visible widgets, rather than needing Logs Insights opened and a
+  # saved query picked each time. Originally built by hand in the console;
+  # exported (`aws cloudwatch get-dashboard`) and moved into
+  # infra/dashboard.json (its own standalone file, not inline here, so it's
+  # readable/diffable in a normal JSON viewer — see
+  # docs/design/monitoring.md for the fuller rationale) so it's
+  # redeployable/diffable instead of only living in one AWS account.
+  # DashboardName is a NEW name, not whatever the original manually-created
+  # dashboard was called — CloudFormation can't adopt an existing,
+  # unmanaged resource just by matching its name (deploying a
+  # AWS::CloudWatch::Dashboard whose name collides with one that already
+  # exists outside CloudFormation fails outright, it doesn't take it over).
+  # After confirming this one deploys and matches, delete the old
+  # manually-created dashboard by hand — see infra/README.md.
+  #
+  # DashboardBody below is a LITERAL PLACEHOLDER LINE
+  # (__DASHBOARD_JSON_PLACEHOLDER__), not the real content — an earlier
+  # version tried passing infra/dashboard.json's content through as a
+  # CloudFormation Parameter instead (String type, referenced here via
+  # `!Ref`), which deploys BUT fails: CloudFormation Parameter values are
+  # hard-capped at 4096 bytes, and this dashboard's own JSON is already
+  # over 6000. A property embedded directly in a resource (not passed
+  # through a Parameter) has no such per-value cap — confirmed live, this
+  # exact content deployed fine as an inline block scalar before it was
+  # ever parameterized — so ./infra/deploy.sh instead does its own tiny
+  # text substitution: it reads THIS file, replaces this one placeholder
+  # line with infra/dashboard.json's own content (re-indented to match,
+  # line for line, inside this `|-` block scalar — which needs no quote/
+  # backslash escaping the way a double-quoted YAML string would, only
+  # consistent indentation), and deploys the RESULT, not this file
+  # directly. See deploy.sh's own comment for the substitution itself.
+  RumDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${AppMonitorName}-dashboard'
+      DashboardBody: |-
+        __DASHBOARD_JSON_PLACEHOLDER__
+
 Outputs:
   AppMonitorId:
     Description: Pass to the web client as VITE_RUM_APP_MONITOR_ID

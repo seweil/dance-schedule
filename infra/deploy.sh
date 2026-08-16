@@ -8,12 +8,61 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 STACK_NAME=dance-schedule-monitoring
 REGION=us-east-2
 
+# monitoring.yaml itself is NOT deployed directly — it contains a literal
+# placeholder line (__DASHBOARD_JSON_PLACEHOLDER__, inside RumDashboard's
+# own DashboardBody block scalar; see that resource's own comment) instead
+# of the actual dashboard widget JSON. infra/dashboard.json is its own
+# file specifically so it's readable/diffable on its own (see
+# infra/download-dashboard.sh for the reverse direction) — but it can't be
+# wired in via a CloudFormation Parameter (tried first: fails outright,
+# CloudFormation Parameter values are hard-capped at 4096 bytes and this
+# JSON is already over 6000). So this substitutes it in as plain text
+# instead: read monitoring.yaml, replace the placeholder line with
+# dashboard.json's own content — each line re-indented to match the
+# placeholder's own indentation, so it lands correctly inside the YAML
+# block scalar — and deploy the RESULT from a temp file, never
+# monitoring.yaml directly. A block scalar (`|-`), not a quoted string, is
+# what makes this substitution safe to do with plain line-by-line text
+# splicing: it needs no quote/backslash escaping of the JSON's own content,
+# only consistent indentation.
+# "${TMPDIR:-/tmp}/...XXXXXX", not a bare `mktemp` — macOS's mktemp doesn't
+# actually respect $TMPDIR for its own default directory (it resolves the
+# system-managed per-user temp dir directly instead), which matters for
+# anyone running this from a sandboxed/restricted shell (e.g. an AI coding
+# agent) that only grants write access to $TMPDIR itself, not wherever
+# mktemp would otherwise pick. Explicit and portable either way — on an
+# unrestricted shell this still resolves to the same place mktemp's own
+# default normally would.
+TMP_TEMPLATE="$(mktemp "${TMPDIR:-/tmp}/dance-schedule-monitoring.XXXXXX")"
+trap 'rm -f "$TMP_TEMPLATE"' EXIT
+
+python3 - "$TMP_TEMPLATE" <<'PYEOF'
+import sys
+
+out_path = sys.argv[1]
+with open('monitoring.yaml') as f:
+    template_lines = f.read().splitlines()
+with open('dashboard.json') as f:
+    dashboard_lines = f.read().rstrip('\n').splitlines()
+
+result = []
+for line in template_lines:
+    if line.strip() == '__DASHBOARD_JSON_PLACEHOLDER__':
+        indent = line[: len(line) - len(line.lstrip())]
+        result.extend(indent + dline for dline in dashboard_lines)
+    else:
+        result.append(line)
+
+with open(out_path, 'w') as f:
+    f.write('\n'.join(result) + '\n')
+PYEOF
+
 # RetainTelemetryBeyond30Days is passed explicitly, not left to the template's
 # own Default — `cloudformation deploy` keeps an existing stack's previous
 # value for any parameter you don't pass, so editing the Default alone
 # wouldn't actually change it on an already-deployed stack.
 aws cloudformation deploy \
-  --template-file monitoring.yaml \
+  --template-file "$TMP_TEMPLATE" \
   --stack-name "$STACK_NAME" \
   --capabilities CAPABILITY_NAMED_IAM \
   --region "$REGION" \

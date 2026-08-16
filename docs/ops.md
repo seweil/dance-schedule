@@ -206,6 +206,24 @@ group. Every event has `event_type` (a plain string like
 `event_details.*` (the event-type-specific payload — for custom events,
 whatever object you passed to `trackEvent`).
 
+The queries below (all but the minimum-level histogram — see its own
+note) are also saved in `infra/monitoring.yaml` as `AWS::Logs::
+QueryDefinition` resources, and pinned on the dashboard
+(`infra/README.md`'s own Dashboard section) — no copy-pasting from here
+needed day to day; this section exists to explain WHY each one is shaped
+the way it is, and as the thing `monitoring.yaml`'s own copies get kept in
+sync with by hand. If you DO ever need to copy query text out of the
+console itself (editing a saved query, or a dashboard widget, directly in
+the AWS UI) rather than from here or the CLI, watch out: the console's own
+copy-from-editor has a real, repeatedly-confirmed quirk of injecting stray
+blank lines and trailing whitespace into multi-line queries, which then
+breaks re-pasting that text elsewhere (e.g. back into this file, or into
+`monitoring.yaml`). Prefer pulling the text via the CLI instead —
+`aws logs describe-query-definitions` for saved queries,
+`aws cloudwatch get-dashboard --query 'DashboardBody'` for a dashboard's
+widgets (see `infra/README.md`) — both return the raw string with no
+rendering artifacts.
+
 **Devices, browsers, OS** — already graphed natively in the Overview tab
 above with no query needed; the equivalent Logs Insights query (useful if
 you want to cross-tabulate with something the dashboard doesn't offer, or
@@ -228,6 +246,86 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | filter event_type = "com.amazon.rum.page_view_event"
 | stats count(*) by metadata.displayMode
 ```
+
+**Platform mix — mobile PWA, mobile browser, or desktop (Mac/PC), by
+session, not raw page-view count** — combines two dimensions (`osName`,
+and the `displayMode` session attribute above) into one bucketed
+breakdown. `count_distinct(user_details.sessionId)`, not `count(*)`: every
+other query in this section counts `page_view_event` rows directly, which
+is fine when the dimension being grouped (device, browser, page) doesn't
+change within a session — but a "how many visits looked like X" question
+should count each SESSION once, not once per page viewed during it, or a
+multi-page visit inflates its own bucket relative to a single-page one.
+`user_details.sessionId`, not `metadata.sessionId` — see "Page loads vs.
+sessions vs. users/devices" above; session/user identity lives under
+`user_details`, not `metadata` (an earlier version of this query got that
+wrong, since every OTHER field it needed genuinely does live under
+`metadata`, easy to assume the session id would too):
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields metadata.osName, metadata.displayMode, user_details.sessionId as sessionId
+| filter event_type = "com.amazon.rum.page_view_event"
+| fields case(
+    metadata.osName like /iOS/ and metadata.displayMode = "standalone", "Mobile PWA (iOS)",
+    metadata.osName like /Android/ and metadata.displayMode = "standalone", "Mobile PWA (Android)",
+    metadata.osName like /iOS/, "Mobile browser (iOS)",
+    metadata.osName like /Android/, "Mobile browser (Android)",
+    metadata.osName like /Mac/, "Desktop (Mac)",
+    metadata.osName like /Windows/, "Desktop (PC)",
+    "Other"
+  ) as platform
+| stats count_distinct(sessionId) as sessions by platform
+| sort sessions desc
+```
+
+**Deliberately does NOT filter on `metadata.deviceType` at all, even
+though "mobile PWA/browser" sounds like exactly what that field is for.**
+An earlier version required `deviceType = "mobile"` on every mobile
+branch — confirmed live it silently misclassifies real traffic: RUM's own
+`deviceType` reported `"desktop"` for a session whose `osName` was
+correctly `"iOS"` and `browserName` was `"Mobile Safari"` (visible directly
+in the **Devices, browsers, OS** widget/query above — that's what exposed
+this). This is a known UA-parsing quirk, not a fluke: iPadOS has sent a
+desktop-style User-Agent string by default since iPadOS 13 (Apple's own
+"Request Desktop Website" default, so iPad gets full desktop sites) —
+indistinguishable from actual macOS Safari by UA string alone unless a
+parser also checks touch-capability signals, which apparently this one
+doesn't. `osName`, by contrast, stayed correct for that same session — so
+this query keys off `osName` alone (`"iOS"`/`"Android"` → mobile,
+`"Mac OS"`/`"Windows"` → desktop) rather than trusting `deviceType`.
+Net effect: an iPad in its default browsing mode buckets under "Mobile
+(iOS)" here, same as an iPhone — there's no reliable per-event signal in
+this data to split them further, and the six buckets originally asked for
+didn't call for that split anyway.
+
+Each `case()` branch is checked in order, so a session is only bucketed
+into "Mobile browser (...)" once the PWA branch for that same OS has
+already failed to match — not a separate `and displayMode != "standalone"`
+condition on every browser branch. `"Other"` (the required final,
+condition-less branch) catches anything that doesn't cleanly resolve to
+one of the six buckets asked for here — non-Mac/Windows desktop (Linux,
+ChromeOS), a genuinely unknown/blank `osName`, or a desktop PWA install
+(this breakdown doesn't split desktop by install mode, only mobile,
+matching what was actually asked for) — rather than silently mis-bucketing
+them or making `case()` fail with no matching branch.
+
+**Every OS branch uses `like /.../`, not `=`, including `iOS`/`Android` —
+not just the two originally hedged this way (Mac/Windows).** An earlier
+version used exact `=` for `"iOS"`/`"Android"`, reasoning they were
+already clean, exact single-token values, unlike `"Mac OS"`. Confirmed
+live this was wrong: a real iPhone (both a plain Safari-tab visit and the
+installed PWA) showed `osName: "iOS"` in the **Devices, browsers, OS**
+widget — a value that LOOKS identical to the query's own `"iOS"` literal —
+and still landed in "Other" instead of either mobile bucket. Never fully
+root-caused (a manually-pasted value can't rule out invisible whitespace
+or another character the console's own copy quirk introduces — see this
+section's own note on that), but switching to `like /iOS/` sidesteps the
+question entirely: a substring match still matches cleanly even with
+trailing whitespace or minor formatting differences the exact-match
+version couldn't tolerate, at effectively zero cost (no other real
+`osName` value contains "iOS" or "Android" as a substring, so there's no
+new false-positive risk).
 
 **Pages viewed** — also on the Overview tab, but for a plain ranked list:
 
