@@ -84,17 +84,21 @@ describe('HintBalloon', () => {
     expect(outsideOnClick).not.toHaveBeenCalled()
   })
 
-  // Regression test for a real-device-only bug: an earlier version cleaned
-  // up the swallow listener via `setTimeout(fn, 0)`, which fires well
-  // before a REAL tap's own 'click' arrives (a physical finger's own
-  // touchstart-to-touchend dwell time, plus some mobile browsers' own tap
-  // delay, both add real elapsed time that userEvent.click()'s effectively
-  // back-to-back events never exercise) — reported live as the menu still
-  // opening on a real device despite this working in every desktop/
-  // automated test. Uses fireEvent + fake timers directly (not
-  // userEvent.click(), which doesn't allow inserting a delay between its
-  // own pointerdown and click) to simulate that real-world gap.
-  it('still swallows the click if it arrives with a real-world delay after pointerdown', () => {
+  // Regression test for a real-device-only bug: TWO earlier versions of
+  // the swallow mechanism both raced against a clock (first a
+  // `setTimeout(fn, 0)` cleanup, then a wider fixed timeout +
+  // `pointercancel` fast-path) — both failed live, on an actual device,
+  // where a real tap's own 'click' doesn't follow 'pointerdown' on any
+  // timeline a fixed window can safely assume (real finger dwell time,
+  // mobile tap-delay, and `pointercancel` firing on ordinary finger
+  // jitter all vary in ways no synthetic/automated click ever exercises).
+  // The actual fix (see HintBalloon.tsx's own comment) drops the clock
+  // entirely — swallow state is a flag, consumed whenever the click
+  // actually shows up, however long that takes. Uses `fireEvent` directly
+  // (not `userEvent.click()`, which fires its own events back-to-back with
+  // no way to insert a delay) plus a long fake-timer advance to prove
+  // there's no hidden deadline left to race against.
+  it('still swallows the click no matter how long it takes to arrive after pointerdown', () => {
     vi.useFakeTimers()
     try {
       const onDismiss = vi.fn()
@@ -112,7 +116,10 @@ describe('HintBalloon', () => {
       fireEvent.pointerDown(outside)
       expect(onDismiss).toHaveBeenCalledTimes(1)
 
-      vi.advanceTimersByTime(200)
+      // Comfortably longer than any fixed window a previous version of
+      // this mechanism ever used — the point is that NO duration should
+      // matter anymore.
+      vi.advanceTimersByTime(10_000)
       fireEvent.click(outside)
 
       expect(outsideOnClick).not.toHaveBeenCalled()
@@ -121,29 +128,44 @@ describe('HintBalloon', () => {
     }
   })
 
-  it('stops swallowing once the cleanup window fully elapses with no click at all (e.g. the pointerdown became a scroll, not a tap)', () => {
-    vi.useFakeTimers()
-    try {
-      const onDismiss = vi.fn()
-      const outsideOnClick = vi.fn()
-      render(
+  // The flip side of dropping the clock: an ABANDONED gesture (pointerdown
+  // with no click ever following — e.g. it turned into a scroll) must not
+  // leave a stale "swallow" decision sitting around to incorrectly eat
+  // some LATER, unrelated tap's own click. Guarded against here not by a
+  // timeout, but by every new qualifying pointerdown overwriting the
+  // shared flag fresh — so a real target's own legitimate tap still goes
+  // through even after an earlier, abandoned outside tap.
+  it('a later pointerdown supersedes a stale pending swallow left by an earlier, abandoned gesture', () => {
+    const onDismiss = vi.fn()
+    const outsideOnClick = vi.fn()
+    const targetOnClick = vi.fn()
+    function Wrapper() {
+      const targetRef = useRef<HTMLButtonElement>(null)
+      return (
         <div>
-          <HintBalloon message="Tap here for the menu" onDismiss={onDismiss} targetRef={unattachedTargetRef()} />
           <button type="button" onClick={outsideOnClick}>
             Outside
           </button>
-        </div>,
+          <button type="button" ref={targetRef} onClick={targetOnClick}>
+            Real target
+          </button>
+          <HintBalloon message="Tap here for the menu" onDismiss={onDismiss} targetRef={targetRef} />
+        </div>
       )
-      const outside = screen.getByRole('button', { name: 'Outside' })
-
-      fireEvent.pointerDown(outside)
-      vi.advanceTimersByTime(600)
-      fireEvent.click(outside)
-
-      expect(outsideOnClick).toHaveBeenCalledTimes(1)
-    } finally {
-      vi.useRealTimers()
     }
+    render(<Wrapper />)
+
+    // Abandoned gesture: pointerdown on an "outside" element, but no click
+    // ever follows it (simulating a tap that turned into a scroll).
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Outside' }))
+
+    // A later, real tap on the REAL target — its own pointerdown should
+    // overwrite the stale pending-swallow state above, not inherit it.
+    const target = screen.getByRole('button', { name: 'Real target' })
+    fireEvent.pointerDown(target)
+    fireEvent.click(target)
+
+    expect(targetOnClick).toHaveBeenCalledTimes(1)
   })
 
   it('dismisses without swallowing the click when tapping the real target', async () => {

@@ -101,6 +101,11 @@ questions.
       (above) — a click-swallow cleanup timer racing ahead of a real,
       non-instant tap, invisible to every automated/synthetic test — see
       "The click-swallow cleanup timer was racing ahead of a real tap"
+      (superseded)
+- [x] Still broken on the very next real-device test even after widening
+      that timer — every fixed-duration window was fundamentally the
+      wrong approach; replaced with a timing-independent, shared flag — see
+      "Dropping the clock entirely: a shared, module-level swallow flag"
 
 ## Arrow design rules (persistent reference)
 **Why this section exists:** these rules have been given, live, more than
@@ -1229,7 +1234,16 @@ relationship almost exactly) generalize correctly to every width at or
 above the breakpoint, with no further per-width tuning needed.
 
 ### The click-swallow cleanup timer was racing ahead of a real tap
-**Why:** Direct product feedback: on an actual first run (confirmed running
+**Superseded — see "Dropping the clock entirely: a shared, module-level
+swallow flag" below.** This round's own fix (a wider 500ms timeout plus a
+`pointercancel` fast-path) was STILL a real-device regression: reported
+broken again on the very next real-device test, on the exact commit this
+shipped in. Kept below for the historical diagnosis (still accurate — the
+0ms timeout genuinely was racing ahead of a real tap), but the actual fix
+that stuck replaced this timer-based approach entirely rather than just
+widening it again.
+
+**Why (historical):** Direct product feedback: on an actual first run (confirmed running
 the exact commit the previous fix shipped in), tapping the kebab toggle
 while its hint was showing STILL opened the menu — the same bug "The kebab
 toggle loses its targetRef exemption too" (above) was supposed to have
@@ -1290,6 +1304,76 @@ caught the original bug, since it fails against the old `setTimeout(fn,
 the full cleanup window has elapsed with no click at all, a later,
 unrelated click on the same element is no longer swallowed, so the fix
 doesn't trade the original bug for a permanently-stuck listener.
+
+### Dropping the clock entirely: a shared, module-level swallow flag
+**Why:** The previous fix's own 500ms-timeout-plus-`pointercancel` version
+still failed live, on the very next real-device test of the exact commit
+it shipped in — the kebab toggle still opened on the first tap. Rather
+than widen the timeout again (a third guess at a "safe enough" number,
+with no way to verify it against a real device from this environment),
+this round questions the whole premise: ANY fixed-duration window is
+racing against a real tap's own timing, which this session has now twice
+confirmed isn't bounded tightly enough to trust. Worse, the `pointercancel`
+fast-path added to the previous version was itself a plausible NEW source
+of the same failure — real fingers jitter (move a few px during contact)
+far more than a mouse or a synthetic click ever does, and `pointercancel`
+can fire for that ordinary jitter even on a gesture the browser still
+goes on to treat as a completed tap, tearing the swallow listener down
+before its own genuine `click` arrives.
+
+**The fix removes the clock (and `pointercancel`) entirely, replacing
+"wait up to N ms for the click" with "whichever click shows up next,
+however long that takes, gets judged by the most recent pointerdown's own
+decision."** Implemented as two module-level (not per-component-instance)
+bindings in `HintBalloon.tsx`: `pendingClickSwallow`, a plain boolean, and
+a single, ONCE-EVER-installed capture-phase `click` listener on
+`document` (`ensureClickSwallowListenerInstalled`) that checks and resets
+it on every click, regardless of when that click happens to fire.
+`handlePointerDown` simply sets `pendingClickSwallow` fresh on every
+qualifying pointerdown — `true` for "swallow the next click," `false` for
+"don't" (a tap on the balloon itself, or on `targetRef` when one was
+given) — with NO listener add/remove happening per-gesture at all, so
+there's nothing left to race against a deadline.
+
+**Module-level, not component state, for two reasons.** First, the same
+reason the previous version's listener already had to live outside any
+one component's effect: `onDismiss()` can unmount the calling
+`HintBalloon` synchronously, before the browser dispatches the 'click'
+that follows this same 'pointerdown' — anything torn down by THAT
+component's own unmount can't reliably still be there when the click
+shows up. Second, genuinely new to this version: the kebab-menu and
+level-slider hints can both be mounted simultaneously (a fresh device's
+very first launch), and a single physical tap has to be judged by
+whichever hint's pointerdown handler ran MOST RECENTLY for that tap —
+sharing one flag (rather than each `HintBalloon` instance keeping its own)
+is what makes "the latest decision always wins" hold across both
+instances, not just within one.
+
+**A stale flag from an abandoned gesture (pointerdown with no click ever
+following — e.g. it became a scroll) is not a leak, by construction, NOT
+by a timeout.** Since every qualifying pointerdown — from EITHER hint,
+whenever one is mounted — always overwrites `pendingClickSwallow` fresh, a
+stale `true` left over from an incomplete gesture is superseded the
+moment any later, real pointerdown happens; nothing needs to expire it on
+a clock. The only theoretical residual case (a stale `true`, followed by
+neither another pointerdown NOR the awaited click, followed eventually by
+some unrelated click with no preceding pointerdown at all — e.g. a
+keyboard Enter/Space activation) is judged an acceptably rare edge case,
+not worth a backstop timeout that would just reintroduce the exact class
+of bug this rewrite exists to eliminate.
+
+**Test coverage rewritten to match: no more fake-timer window tests,
+since there's no window left to test.** The two timing tests from the
+previous round were replaced: one now advances fake timers by 10 SECONDS
+before firing the click (fails on a `setTimeout`-limited version by
+construction, since 10s vastly exceeds any fixed window previously tried,
+but passes here since nothing is timed) to prove there's no hidden
+deadline at all; the other fires a `pointerdown` on an unrelated "outside"
+element with no follow-up click (an abandoned gesture), then a real
+`pointerdown`+`click` on the actual `targetRef` element, asserting the
+target's own `onClick` still fires — proving a stale pending-swallow flag
+gets correctly superseded rather than incorrectly eating the next real
+tap's click.
 
 ## Open questions
 

@@ -1,6 +1,35 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import styles from './HintBalloon.module.css'
 
+// Module-level, not component-state — shared by whichever HintBalloon
+// instance(s) happen to be mounted at once (the kebab-menu and level-slider
+// hints can both be showing simultaneously on a genuinely fresh device, see
+// docs/design/onboarding-hints.md), since a single physical tap always has
+// to be judged by the MOST RECENT relevant pointerdown's own decision,
+// regardless of which instance made it. See the mechanism's own comment
+// inside HintBalloon below for why this needs to live outside any one
+// component's state/lifecycle at all.
+let pendingClickSwallow = false
+let clickSwallowListenerInstalled = false
+
+function ensureClickSwallowListenerInstalled() {
+  if (clickSwallowListenerInstalled) {
+    return
+  }
+  clickSwallowListenerInstalled = true
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (pendingClickSwallow) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      pendingClickSwallow = false
+    },
+    { capture: true },
+  )
+}
+
 export interface HintBalloonProps {
   message: string
   onDismiss: () => void
@@ -81,69 +110,61 @@ export function HintBalloon({ message, onDismiss, placement = 'end', targetRef }
   // canceling 'pointerdown' does NOT reliably suppress the browser's
   // follow-up 'click' for the same tap, despite the Pointer Events spec's
   // "compatibility mouse events" language suggesting it should — real
-  // browsers (and jsdom) still go on to dispatch it. And a plain 'click'
-  // listener added the normal way (inside this same effect, cleaned up on
-  // unmount) doesn't work either: onDismiss() below can unmount this
-  // component synchronously, before the browser gets to dispatch the
-  // 'click' that follows this same 'pointerdown' — by then, this
-  // component's own effect cleanup has already removed its listeners.
-  // Instead, a capture-phase 'click' listener is added directly to
-  // `document` right here, independent of this component's own lifecycle
-  // (nothing tears it down on unmount) — capture phase means it runs
-  // before the event ever reaches the tapped element or any of its
-  // ancestors, so stopPropagation() there prevents that element's own
-  // click handler (e.g. a link's navigation, or a plain <button>'s
-  // onClick) from running at all, not just its default action.
+  // browsers (and jsdom) still go on to dispatch it.
   //
-  // A REAL touch tap's own 'click' does not follow 'pointerdown'
-  // instantly — reported live, on an actual device, still opening the
-  // menu on that first tap despite this mechanism appearing to work in
-  // every desktop/automated test: a real finger's own touchstart-to-
-  // touchend dwell time, and some mobile browsers' historical tap-delay
-  // (double-tap-zoom detection, still present in some configurations),
-  // both add real elapsed time between 'pointerdown' and 'click' that a
-  // synthetic/automated click (dispatched essentially back-to-back) never
-  // exhibits. An earlier version of this cleanup used `setTimeout(fn, 0)`
-  // — fires on the very next tick, before a REAL tap's own 'click' has
-  // had any chance to arrive yet, so it always removed the swallow
-  // listener too early on a physical device, letting that later 'click'
-  // through to open the menu after all. `CLICK_WAIT_MS` (500) is a
-  // generous upper bound on that real-world delay instead — long enough
-  // to still be there for a real, if unhurried, tap; short enough that an
-  // unrelated later click landing inside that window (this pointerdown
-  // turned out to be the start of a scroll/drag, not a tap) is a rare,
-  // minor annoyance rather than a routine one. `pointercancel` — fired
-  // when the browser itself decides a gesture is a scroll/pan, not a
-  // tap — cleans up immediately in that more common case, so the full
-  // 500ms window is really only ever consumed when this WAS a genuine tap
-  // headed toward a real 'click'.
+  // TWO earlier versions of the actual fix both failed on a REAL device,
+  // for two DIFFERENT timing reasons — both traps of trying to reason
+  // about WHEN a real tap's own 'click' will arrive, rather than sidestep
+  // that question entirely:
+  //   1. A plain 'click' listener added the normal way (inside this same
+  //      effect, cleaned up on unmount) doesn't work: onDismiss() below
+  //      can unmount this component synchronously, before the browser
+  //      gets to dispatch the 'click' that follows this same
+  //      'pointerdown' — by then, this component's own effect cleanup has
+  //      already removed its listeners.
+  //   2. A version that instead added a FRESH, one-off capture-phase
+  //      'click' listener directly to `document` (independent of this
+  //      component's own lifecycle) still failed, because of how long it
+  //      waited before giving up: cleaning it up via `setTimeout(fn, 0)`
+  //      fires almost instantly — well before a REAL finger's own
+  //      touchstart-to-touchend dwell time (plus some mobile browsers'
+  //      still-present tap-delay) produces its 'click' — so the listener
+  //      was already gone by the time that later 'click' arrived. Widening
+  //      the wait to a generous fixed timeout (plus a `pointercancel`
+  //      fast-path for the common non-tap case) was STILL a real-device
+  //      regression waiting to happen: it assumed the click either arrives
+  //      well inside that window or never at all, but a real tap's own
+  //      timing simply isn't bounded tightly enough to trust any fixed
+  //      number, on top of `pointercancel` itself being able to fire for
+  //      an ordinary tap that has any hint of finger jitter (extremely
+  //      common on a touchscreen, essentially never reproducible with a
+  //      synthetic/automated click), tearing the listener down before its
+  //      own genuine 'click' still went on to arrive.
+  //
+  // The actual fix drops the clock entirely. `pendingClickSwallow`
+  // (module-level, see its own comment above) is simply set on THIS
+  // pointerdown and consumed by an ALWAYS-installed 'click' listener
+  // (installed once, ever, the first time any HintBalloon mounts —
+  // `ensureClickSwallowListenerInstalled`) whenever that click actually
+  // shows up — 10ms later or 400ms later, it doesn't matter, since nothing
+  // here is racing against a deadline. The only way this flag can go
+  // stale is if a LATER pointerdown (a genuinely new gesture) happens
+  // before the expected click ever arrives (e.g. this one turned out to
+  // be the start of a scroll, which browsers don't follow with a 'click'
+  // at all) — handled by every qualifying pointerdown always overwriting
+  // the flag fresh, so a new gesture's own decision naturally supersedes
+  // whatever an abandoned previous one left behind.
   useEffect(() => {
-    const CLICK_WAIT_MS = 500
+    ensureClickSwallowListenerInstalled()
 
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       if (balloonRef.current?.contains(target)) {
+        pendingClickSwallow = false
         return
       }
       onDismiss()
-      if (targetRef?.current?.contains(target)) {
-        return
-      }
-
-      function swallowClick(clickEvent: MouseEvent) {
-        clickEvent.preventDefault()
-        clickEvent.stopPropagation()
-        cleanup()
-      }
-      function cleanup() {
-        document.removeEventListener('click', swallowClick, { capture: true })
-        document.removeEventListener('pointercancel', cleanup)
-        clearTimeout(timeoutId)
-      }
-
-      document.addEventListener('click', swallowClick, { capture: true })
-      document.addEventListener('pointercancel', cleanup, { once: true })
-      const timeoutId = setTimeout(cleanup, CLICK_WAIT_MS)
+      pendingClickSwallow = !targetRef?.current?.contains(target)
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
