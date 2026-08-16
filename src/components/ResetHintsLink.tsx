@@ -5,9 +5,11 @@ import styles from './ResetHintsLink.module.css'
 // localStorage — added specifically to make hands-on testing/tuning of those
 // hints fast, since they only show during a device's first few launches
 // (useFirstLaunchHint.ts) and, once dismissed, never reappear on their own.
-// Hardcodes the same two hint ids RotateDeviceBanner.tsx already hardcodes
-// (see its own comment) rather than a registry — there are exactly two hints
-// in the app today. A real page reload (not a client-side navigation) is
+// Hardcodes the same two hint ids used elsewhere in the app
+// (`useFirstLaunchHint('kebab-menu')` in PageMenu.tsx, `useFirstLaunchHint(
+// 'level-slider')` in DanceScheduleFilters.tsx) rather than a registry —
+// there are exactly two hints in the app today. A real page reload (not a
+// client-side navigation) is
 // required, not just a courtesy — useAppLaunchCount.ts's own increment only
 // runs once, in a lazy useState initializer at mount, so a route change alone
 // wouldn't pick up the just-cleared count the way a fresh mount does.

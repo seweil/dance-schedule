@@ -309,13 +309,14 @@
 }
 
 /* Centered, for both placements — with 'center's own tip no longer anchored
-   at this balloon's literal left edge (now ~70% across — see .pointer
-   [data-placement='center'] above), and its message now fitting on a
-   single line (`.balloon[data-placement='center']`'s own width comment),
-   there's no longer a "read toward the tip" reason to left-align this
-   placement's text specifically — centering (this app's original,
-   shared-by-both-placements default) reads cleanly for a single
-   short line regardless of exactly where the arrow attaches. */
+   at this balloon's literal left edge (now 25% across, near the left end of
+   the "don't hug either edge" band — see .pointer[data-placement='center']
+   above), and its message now fitting on a single line
+   (`.balloon[data-placement='center']`'s own width comment), there's no
+   longer a "read toward the tip" reason to left-align this placement's
+   text specifically — centering (this app's original, shared-by-both-
+   placements default) reads cleanly for a single short line regardless of
+   exactly where the arrow attaches. */
 .message {
   margin: 0;
   font-size: 0.875rem;
