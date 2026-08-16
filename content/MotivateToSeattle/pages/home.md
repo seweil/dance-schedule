@@ -13,6 +13,7 @@ Add to your home screen for quick access, even when you don't have WiFi or cell 
 
 - [Room Schedule](/room-schedule) — detailed dance schedule, organized by room
 - [Caller Schedule](/caller-schedule) — don't miss your favorite callers
+- [Restaurants](/restaurants) — many options - walking distance or a short drive
 
 ---
 
