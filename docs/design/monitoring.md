@@ -27,10 +27,10 @@ community dance-event site's visitor data.
       see Decisions
 - [ ] Whether to eventually pipe access logs into S3 + Athena for real
       analysis, vs. ad hoc console downloads
-- [ ] A real revamp of the dashboard itself (grown widget-by-widget so
+- [x] A real revamp of the dashboard itself (grown widget-by-widget so
       far, not designed as a whole) — traffic trends over time, a
       dedicated "pages viewed" widget, and clear activity-vs-sessions
-      sectioning — see Open questions
+      sectioning — see Decisions
 
 ## Decisions
 
@@ -137,17 +137,82 @@ device/browser/OS dimensions — not a discrete interaction like a date pick.
 `display-mode: standalone` media query, OR'd with iOS Safari's older
 `navigator.standalone` fallback) feeds `awsRum.addSessionAttributes({
 displayMode: ... })` once at `initRum()` time, rather than a `trackEvent`
-call. AWS attaches session attributes to every event's own `metadata`
-field alongside `deviceType`/`browserName`/etc — not a separate namespace
-— so it's filterable the same way in both the RUM console's search bar
-(`displayMode=standalone`) and Logs Insights (`metadata.displayMode`), and
-requires no `CustomEvents`-style infra flag. `isStandalonePwa()` is a plain
-function, not a hook — display mode doesn't change mid-session, and
-`initRum()` runs before React mounts, so it can't consume a hook anyway.
-The same function is called directly (unmemoized — cheap, and stable for
-the page's lifetime) from `BuildInfo.tsx`'s fine print, next to the
-existing Online/Offline segment, so installed-vs-browser is also visible
-on the page itself without opening the AWS console at all.
+call. Filterable the same way as `deviceType`/`browserName`/etc in both
+the RUM console's search bar (`displayMode=standalone`) and Logs Insights
+(`metadata.displayMode`), and requires no `CustomEvents`-style infra flag.
+`isStandalonePwa()` is a plain function, not a hook — display mode doesn't
+change mid-session, and `initRum()` runs before React mounts, so it can't
+consume a hook anyway. The same function is called directly (unmemoized —
+cheap, and stable for the page's lifetime) from `BuildInfo.tsx`'s fine
+print, next to the existing Online/Offline segment, so installed-vs-browser
+is also visible on the page itself without opening the AWS console at all.
+
+**Correction, from actually reading `aws-rum-web`'s installed source
+(`node_modules/aws-rum-web@3.2.0`) during a later data-quality audit**:
+session attributes are NOT attached to every event's own `metadata` field
+at record time. As of SDK 3.0+, they're sent once per dispatch batch as a
+separate payload-level `SessionMetadata` field
+(`EventCache.js`: "Consumers merge `{ ...request.SessionMetadata,
+...event.metadata }`"), read fresh at actual dispatch time
+(`Dispatch.js`'s `getCommonMetadata()`) — not baked into each event when
+it's recorded. Doesn't change anything about how this is queried (Logs
+Insights still sees a merged `metadata.displayMode` per event, whatever
+merges the SessionMetadata in before it lands in CloudWatch Logs), but the
+original claim above was simply wrong about the mechanism.
+
+### `addSessionAttributes()` moved into the initial config, after a live data-quality audit found ~15% of sessions missing `displayMode`
+**Why:** A CloudWatch console screenshot of the "Installed?" widget showed
+7 of 47 sessions with a blank `metadata.displayMode` — not negligible.
+First hypothesis (before actually reading the SDK source): a race where
+`new AwsRum(...)`'s automatic initial page view — recorded synchronously
+inside the constructor, since `pluginManager.enable()` runs before the
+constructor returns — beat the following line's separate
+`awsRum.addSessionAttributes(...)` call. Reading the actual installed
+`aws-rum-web@3.2.0` source (see the correction above) ruled this out as
+the mechanism: `SessionMetadata` is computed fresh at dispatch time, long
+after both constructor lines have run, so this specific ordering shouldn't
+matter. Cross-referencing the "Raw OS Permutations" diagnostic widget
+against "Installed?" found every `osName` with blank-`displayMode`
+sessions also had valid-`displayMode` sessions for that same OS in
+roughly the same proportion — consistent with **most or all of the
+blanks being sessions that predate `displayMode` tracking shipping**
+(`de6f943`, 2026-08-14 — 2 days before this audit) rather than an ongoing
+live bug, though this was inferred from the distribution pattern, not
+confirmed via a direct timestamp query (`docs/ops.md` has a query that
+would confirm it definitively, not yet run).
+
+Regardless of which explanation accounts for the historical data,
+`src/lib/rum.ts` now sets `displayMode` via `sessionAttributes` in the
+`AwsRumConfig` object passed to the constructor, instead of a separate
+`awsRum.addSessionAttributes(...)` call afterward — `SessionManager.js`
+applies `config.sessionAttributes` in its own constructor, so this is
+AWS's own documented pattern, not a workaround. Removes the two-call
+dependency entirely: previously, if `addSessionAttributes()` ever threw
+for any reason (it's wrapped in the same try/catch as construction), that
+whole session would silently have no `displayMode` at all, with no retry.
+Going forward, every new session's `displayMode` is set atomically as
+part of construction.
+
+### `DevicesBrowsersOsQuery` normalizes two confirmed raw-data naming inconsistencies
+**Why:** The same audit above surfaced two more issues, unrelated to
+`displayMode`, from real session data in the Browser/OS and Raw OS
+Permutations widgets: `metadata.osName` reports the same OS as both
+`"Mac OS"` and `"macOS"` (confirmed genuinely different strings via the
+diagnostic `strlen()` column — 6 vs 5 characters, not just visually
+similar), and `metadata.browserName` reports the same browser as both
+`"Chrome"` and `"Google Chrome"` (the bare form paired with `osName:
+"iOS"` — plausibly Chrome-on-iOS's distinct `CriOS` UA token). Neither is
+a bug in the query — both are genuinely different raw values the client
+sends — but left as-is they silently split one OS/browser into two rows.
+`DevicesBrowsersOsQuery` (`infra/monitoring.yaml`) and the dashboard's
+Browser/OS widget (`infra/dashboard.json`) now normalize both via
+`case()` before grouping, toward whichever form is more current/common
+(`"macOS"`, Apple's present-day branding; `"Google Chrome"`, the more
+frequent form seen). Deliberately **not** applied to
+`RawOsPermutationsQuery` — that widget exists specifically to show raw,
+unnormalized values, which is what exposed this in the first place; also
+not applied to `PlatformMixQuery`, whose `osName like /Mac/` substring
+matching already tolerates both forms without needing a fix.
 
 ### The Logs Insights queries themselves, as `AWS::Logs::QueryDefinition` resources
 **Why:** `docs/ops.md`'s "Retention and aggregate reporting" section had
@@ -394,38 +459,83 @@ the stack itself, this is a real constraint costing nothing in
 practice — the app is single-region by design already — rather than a
 portability regression worth working around.
 
+### Dashboard reorganized into three sections, plus a real time-series widget
+**Why:** Asked directly to revamp `infra/dashboard.json`, which had grown
+widget-by-widget (each one added to answer a specific question in the
+moment — Browser/OS, Installed?, Traffic, Font, MinLevel/MaxLevel/Level
+Range, Platform Mix, Raw OS Permutations) rather than being designed as a
+whole. Three markdown `text` widgets (`## Traffic`, `## Sessions &
+Devices`, `## Session Demographics`) now group every existing widget by
+the activity-vs-session distinction `docs/ops.md`'s "Page loads vs.
+sessions vs. users/devices" table already treated as worth documenting at
+length, but that the dashboard itself never surfaced visually — every
+widget under Sessions & Devices / Session Demographics now counts distinct
+sessions (`count_distinct(user_details.sessionId)`), while only Traffic's
+own widgets (totals, Pages Viewed, both Request Rate widgets) count raw
+page-load events — see the follow-up entry below for why this went further
+than the original three-section split alone. A new **Pages Viewed** table
+(`PagesViewedQuery`'s existing query text, unchanged — just newly pinned
+as a widget) joins Traffic, since it existed as a saved query but was
+never on the dashboard itself.
+
+**The new `Request Rate` widget uses a Logs Insights `bin(1d)` query
+rendered with `"view": "timeSeries"` on a `"type": "log"` widget, not the
+native `AWS/RUM` CloudWatch metric namespace.** CloudWatch supports this
+directly — a log widget's `view` property accepts `timeSeries`
+specifically to render a `bin()`-grouped Logs Insights result as a line
+graph (confirmed against AWS's own Dashboard Body Structure reference).
+Chosen over the `AWS/RUM` metric namespace (which RUM also publishes
+built-in metrics like `PageViewCount` to) to avoid a second AWS service
+surface this project doesn't otherwise touch: that namespace's exact
+dimension name (e.g. `application_name`) isn't visible anywhere in this
+repo, and confirming it would need a live, authenticated `aws cloudwatch
+list-metrics` call — every query in this project is already Logs Insights,
+so staying there means one query mechanism, no new IAM permissions, and no
+dimension-name guessing risk. The query is also saved standalone as
+`RequestRateQuery` in `infra/monitoring.yaml`, matching every other
+non-event-specific query already saved that way.
+
+### Follow-up refinement, before this ever shipped: session-dedup everywhere except Traffic, a pinned-3h widget, header height, and a sort
+**Why:** Reviewed before deploying and asked for four fixes to the layout
+above. **Header `height` dropped from `2` to `1`** — `2` was a guess
+(flagged as unverified in the original plan) that turned out to be excess
+whitespace once actually looked at.
+
+**A second time-series widget, "Request Rate (Last 3h)"**, added next to
+the daily one — bucketed finer (`bin(15m)`) and pinned via widget-level
+`"start": "-PT3H", "end": "P0D"` so it always shows the last 3 hours
+regardless of whatever the dashboard's own time-range picker happens to be
+set to (unlike every other widget here, which inherits that picker). The
+daily widget was renamed "Request Rate (Daily)" to disambiguate. Also
+saved standalone as `RequestRateRecentQuery` (`infra/monitoring.yaml`) —
+though a saved `QueryDefinition` has no equivalent of the widget-level
+pinning, so running it standalone means picking your own time range.
+
+**Browser/OS sorted by `sessions desc`** — previously unsorted (Logs
+Insights' own arbitrary `stats` grouping order), now explicit.
+
+**Every widget outside the Traffic section switched from `count(*)` to
+`count_distinct(user_details.sessionId)`** — Browser/OS, Installed?,
+MinLevel, MaxLevel, Font, and Level Range all previously counted raw
+events, inconsistent with Platform Mix and Raw OS Permutations (which
+already deduplicated by session, from the three-bugs history above). This
+matters more than it looks: `text_size_preference` and
+`dance_schedule_level_range` both fire on every page load AND every
+subsequent change (`docs/ops.md`'s own event-type table), so `count(*)`
+on either was counting a single session's own repeated filter/preference
+changes as if they were separate people, not just inflating multi-page
+sessions the way a page-view-keyed query would. `infra/monitoring.yaml`'s
+`DevicesBrowsersOsQuery`, `InstalledVsBrowserQuery`, `FontSizeQuery`, and
+`LevelFilterRangeQuery` were updated to match (`LevelFilterRangeQuery` has
+no exact corresponding dashboard widget, but was updated too for
+consistency with everything else in the file). Traffic's own widgets
+(totals, Pages Viewed, both Request Rate widgets) are the deliberate
+exception — they exist specifically to measure raw page-load volume, not
+session counts.
+
 ## Open questions
 
 - Should access logs eventually be piped into S3 + Athena automatically
   (e.g. a small scheduled Lambda), or is manual console download sufficient
   indefinitely given the traffic volume? See `infra/README.md`'s Athena
   note.
-- **Revamp the dashboard (`infra/dashboard.json`).** Grown widget-by-widget
-  so far (each one added to answer a specific question in the moment —
-  Browser/OS, Installed?, Traffic, Font, MinLevel/MaxLevel/Level Range,
-  Platform Mix, Raw OS Permutations), not designed as a whole. Asked,
-  directly, for a real pass rather than another one-off addition:
-  - **Overall traffic trends** — nothing on the dashboard today is a
-    time-series at all; every widget is a point-in-time snapshot/breakdown
-    over whatever the query's own implicit time range happens to be. A
-    trend view (e.g. daily/weekly page views or sessions over time) would
-    need a genuinely different widget type (`view: "timeSeries"`/a metric-
-    based widget, not `"table"`/`"bar"` over a single Logs Insights `stats`
-    result) — likely its own design questions, not just another query.
-  - **Which pages are viewed** — "Pages viewed" already exists
-    (`docs/ops.md`), but isn't currently pinned as its own dashboard
-    widget the way Browser/OS or Platform Mix are; worth deciding whether
-    it should be, and whether it wants a trend view too (most-viewed
-    pages THIS WEEK vs. all-time might be different, useful questions).
-  - **Separate sections for "activity" vs "sessions"** — the dashboard
-    currently mixes raw event/page-load counts (Browser/OS, Font,
-    MinLevel/MaxLevel/Level Range — all `count(*)` over
-    `page_view_event`/custom events) and session-deduplicated counts
-    (Traffic, Platform Mix — `count_distinct(user_details.sessionId)`)
-    without any visual grouping distinguishing the two, despite
-    `docs/ops.md`'s own "Page loads vs. sessions vs. users/devices" table
-    already treating that distinction as important enough to document at
-    length. A revamp should probably group widgets under real section
-    headers (CloudWatch dashboards support plain-text/markdown widgets
-    for this) rather than leaving the reader to infer which metric each
-    widget is actually counting from its own query text.

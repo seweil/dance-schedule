@@ -24,15 +24,20 @@ export function initRum(): void {
     telemetries: ['errors', 'performance', 'http'],
     allowCookies: true,
     enableXRay: false,
+    // A session-wide attribute (attached to every event in the session, not
+    // a one-off trackEvent) — installed-vs-browser-tab is a property of the
+    // whole session, not a discrete interaction, matching how RUM's own
+    // built-in device/browser/OS dimensions work. Set via config here, not
+    // a separate awsRum.addSessionAttributes() call after construction —
+    // AWS's own documented pattern (SessionManager applies config.
+    // sessionAttributes in its own constructor), and one less place for a
+    // partial-failure to leave a session with no displayMode at all if the
+    // two calls were ever split and the second one threw.
+    sessionAttributes: { displayMode: isStandalonePwa() ? 'standalone' : 'browser' },
   }
 
   try {
     awsRum = new AwsRum(applicationId, __BUILD_NUMBER__, region, config)
-    // A session-wide attribute (attached to every event in the session, not
-    // a one-off trackEvent) — installed-vs-browser-tab is a property of the
-    // whole session, not a discrete interaction, matching how RUM's own
-    // built-in device/browser/OS dimensions work.
-    awsRum.addSessionAttributes({ displayMode: isStandalonePwa() ? 'standalone' : 'browser' })
   } catch {
     // RUM must never break the app it's observing.
   }

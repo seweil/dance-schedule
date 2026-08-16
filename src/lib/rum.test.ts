@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const recordEventMock = vi.fn()
-const addSessionAttributesMock = vi.fn()
 // A real `function`, not an arrow/`.mockImplementation`, so `new AwsRumMock(...)`
 // behaves like an actual constructor call.
 const AwsRumMock = vi.fn(function (this: {
   recordEvent: typeof recordEventMock
-  addSessionAttributes: typeof addSessionAttributesMock
 }) {
   this.recordEvent = recordEventMock
-  this.addSessionAttributes = addSessionAttributesMock
 })
 vi.mock('aws-rum-web', () => ({ AwsRum: AwsRumMock }))
 
@@ -27,7 +24,6 @@ beforeEach(async () => {
 afterEach(() => {
   AwsRumMock.mockClear()
   recordEventMock.mockClear()
-  addSessionAttributesMock.mockClear()
   vi.unstubAllEnvs()
 })
 
@@ -84,7 +80,12 @@ describe('initRum', () => {
 
     initRum()
 
-    expect(addSessionAttributesMock).toHaveBeenCalledWith({ displayMode: 'browser' })
+    expect(AwsRumMock).toHaveBeenCalledWith(
+      'app-id',
+      __BUILD_NUMBER__,
+      'us-east-2',
+      expect.objectContaining({ sessionAttributes: { displayMode: 'browser' } }),
+    )
   })
 
   it('tags the session as "standalone" when running installed', () => {
@@ -93,7 +94,12 @@ describe('initRum', () => {
 
     initRum()
 
-    expect(addSessionAttributesMock).toHaveBeenCalledWith({ displayMode: 'standalone' })
+    expect(AwsRumMock).toHaveBeenCalledWith(
+      'app-id',
+      __BUILD_NUMBER__,
+      'us-east-2',
+      expect.objectContaining({ sessionAttributes: { displayMode: 'standalone' } }),
+    )
   })
 })
 

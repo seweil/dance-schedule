@@ -1,27 +1,35 @@
 {
   "widgets": [
     {
-      "type": "log", "x": 0, "y": 0, "width": 8, "height": 5,
+      "type": "text", "x": 0, "y": 0, "width": 24, "height": 1,
       "properties": {
-        "title": "Browser/OS",
-        "view": "table",
-        "region": "us-east-2",
-        "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.deviceType, metadata.browserName, metadata.osName\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName"
+        "markdown": "## Traffic"
       }
     },
     {
-      "type": "log", "x": 8, "y": 0, "width": 7, "height": 5,
+      "type": "log", "x": 0, "y": 1, "width": 12, "height": 6,
       "properties": {
-        "title": "Installed?",
-        "view": "table",
+        "title": "Request Rate (Daily)",
+        "view": "timeSeries",
         "region": "us-east-2",
         "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.displayMode\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) by metadata.displayMode"
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) as pageViews by bin(1d)"
       }
     },
     {
-      "type": "log", "x": 15, "y": 0, "width": 5, "height": 3,
+      "type": "log", "x": 12, "y": 1, "width": 6, "height": 6,
+      "properties": {
+        "title": "Request Rate (Last 3h)",
+        "view": "timeSeries",
+        "region": "us-east-2",
+        "stacked": false,
+        "start": "-PT3H",
+        "end": "P0D",
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) as pageViews by bin(15m)"
+      }
+    },
+    {
+      "type": "log", "x": 18, "y": 1, "width": 6, "height": 6,
       "properties": {
         "title": "Traffic",
         "view": "table",
@@ -31,47 +39,43 @@
       }
     },
     {
-      "type": "log", "x": 0, "y": 5, "width": 10, "height": 5,
+      "type": "log", "x": 0, "y": 7, "width": 24, "height": 6,
       "properties": {
-        "title": "Font",
-        "view": "bar",
+        "title": "Pages Viewed",
+        "view": "table",
         "region": "us-east-2",
         "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.textSize\n| filter event_type = \"text_size_preference\"\n| stats count(*) by event_details.textSize"
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.pageId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count(*) as views by metadata.pageId\n| sort views desc"
       }
     },
     {
-      "type": "log", "x": 0, "y": 10, "width": 9, "height": 5,
+      "type": "text", "x": 0, "y": 13, "width": 24, "height": 1,
       "properties": {
-        "title": "MinLevel",
-        "view": "bar",
-        "region": "us-east-2",
-        "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel\n| filter event_type = \"dance_schedule_level_range\"\n| stats count(*) as sessions by minLevel\n| fields case(minLevel = \"SSD\", 1,\n              minLevel = \"MS\", 2,\n              minLevel = \"Plus\", 3,\n              minLevel = \"A2\", 4,\n              minLevel = \"C1\", 5,\n              minLevel = \"C2\", 6,\n              minLevel = \"C3A\", 7,\n              minLevel = \"C3B\", 8,\n              9) as difficultyRank\n| sort difficultyRank asc"
+        "markdown": "## Sessions & Devices"
       }
     },
     {
-      "type": "log", "x": 9, "y": 10, "width": 9, "height": 5,
+      "type": "log", "x": 0, "y": 14, "width": 12, "height": 6,
       "properties": {
-        "title": "MaxLevel",
-        "view": "bar",
+        "title": "Browser/OS",
+        "view": "table",
         "region": "us-east-2",
         "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.max as maxLevel\n| filter event_type = \"dance_schedule_level_range\"\n| stats count(*) as sessions by maxLevel\n| fields case(maxLevel = \"SSD\", 1,\n              maxLevel = \"MS\", 2,\n              maxLevel = \"Plus\", 3,\n              maxLevel = \"A2\", 4,\n              maxLevel = \"C1\", 5,\n              maxLevel = \"C2\", 6,\n              maxLevel = \"C3A\", 7,\n              maxLevel = \"C3B\", 8,\n              9) as difficultyRank\n| sort difficultyRank asc"
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.deviceType, metadata.browserName, metadata.osName, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| fields case(metadata.osName = \"Mac OS\", \"macOS\", metadata.osName) as osName,\n         case(metadata.browserName = \"Chrome\", \"Google Chrome\", metadata.browserName) as browserName\n| stats count_distinct(sessionId) as sessions by metadata.deviceType, browserName, osName\n| sort sessions desc"
       }
     },
     {
-      "type": "log", "x": 0, "y": 15, "width": 24, "height": 6,
+      "type": "log", "x": 12, "y": 14, "width": 12, "height": 6,
       "properties": {
-        "title": "Level Range",
-        "view": "bar",
+        "title": "Installed?",
+        "view": "table",
         "region": "us-east-2",
         "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel, event_details.max as maxLevel\n| filter event_type = \"dance_schedule_level_range\"\n| fields concat(minLevel, \"-\", maxLevel) as range\n| stats count(*) as sessions by range\n| sort sessions desc"
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.displayMode, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count_distinct(sessionId) as sessions by metadata.displayMode"
       }
     },
     {
-      "type": "log", "x": 0, "y": 21, "width": 12, "height": 6,
+      "type": "log", "x": 0, "y": 20, "width": 12, "height": 6,
       "properties": {
         "title": "Platform Mix",
         "view": "bar",
@@ -81,13 +85,59 @@
       }
     },
     {
-      "type": "log", "x": 12, "y": 21, "width": 12, "height": 6,
+      "type": "log", "x": 12, "y": 20, "width": 12, "height": 6,
       "properties": {
         "title": "Raw OS Permutations (diagnostic)",
         "view": "table",
         "region": "us-east-2",
         "stacked": false,
         "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.osName, strlen(metadata.osName) as osNameLen, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count_distinct(sessionId) as sessions by metadata.osName, osNameLen, metadata.displayMode, metadata.deviceType\n| sort sessions desc"
+      }
+    },
+    {
+      "type": "text", "x": 0, "y": 26, "width": 24, "height": 1,
+      "properties": {
+        "markdown": "## Session Demographics"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 27, "width": 8, "height": 6,
+      "properties": {
+        "title": "MinLevel",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel, user_details.sessionId as sessionId\n| filter event_type = \"dance_schedule_level_range\"\n| stats count_distinct(sessionId) as sessions by minLevel\n| fields case(minLevel = \"SSD\", 1,\n              minLevel = \"MS\", 2,\n              minLevel = \"Plus\", 3,\n              minLevel = \"A2\", 4,\n              minLevel = \"C1\", 5,\n              minLevel = \"C2\", 6,\n              minLevel = \"C3A\", 7,\n              minLevel = \"C3B\", 8,\n              9) as difficultyRank\n| sort difficultyRank asc"
+      }
+    },
+    {
+      "type": "log", "x": 8, "y": 27, "width": 8, "height": 6,
+      "properties": {
+        "title": "MaxLevel",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.max as maxLevel, user_details.sessionId as sessionId\n| filter event_type = \"dance_schedule_level_range\"\n| stats count_distinct(sessionId) as sessions by maxLevel\n| fields case(maxLevel = \"SSD\", 1,\n              maxLevel = \"MS\", 2,\n              maxLevel = \"Plus\", 3,\n              maxLevel = \"A2\", 4,\n              maxLevel = \"C1\", 5,\n              maxLevel = \"C2\", 6,\n              maxLevel = \"C3A\", 7,\n              maxLevel = \"C3B\", 8,\n              9) as difficultyRank\n| sort difficultyRank asc"
+      }
+    },
+    {
+      "type": "log", "x": 16, "y": 27, "width": 8, "height": 6,
+      "properties": {
+        "title": "Font",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.textSize, user_details.sessionId as sessionId\n| filter event_type = \"text_size_preference\"\n| stats count_distinct(sessionId) as sessions by event_details.textSize"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 33, "width": 24, "height": 6,
+      "properties": {
+        "title": "Level Range",
+        "view": "bar",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel, event_details.max as maxLevel, user_details.sessionId as sessionId\n| filter event_type = \"dance_schedule_level_range\"\n| fields concat(minLevel, \"-\", maxLevel) as range\n| stats count_distinct(sessionId) as sessions by range\n| sort sessions desc"
       }
     }
   ]

@@ -124,15 +124,33 @@ Resources:
   # time this app points at a different event's data, rather than getting
   # updated by hand at the same time the query is actually being used, the
   # way the doc's own version does.
+  # count_distinct(user_details.sessionId), not count(*): a multi-page
+  # session would otherwise inflate whichever device/browser/OS bucket it
+  # falls into relative to a single-page session — same reasoning as
+  # PlatformMixQuery below, applied here too so every non-Traffic query in
+  # this file counts sessions, not raw page-load events.
+  #
+  # Normalizes two confirmed raw-data inconsistencies before grouping:
+  # osName reports the same OS as both "Mac OS" and "macOS" (collapsed to
+  # "macOS", the current Apple branding), and browserName reports the same
+  # browser as both "Chrome" and "Google Chrome" (collapsed to "Google
+  # Chrome", the more common of the two) — likely different UA tokens
+  # across OS/browser versions, not a bug in this query. Deliberately NOT
+  # applied to RawOsPermutationsQuery below, which exists specifically to
+  # show raw, unnormalized values — that's what exposed this in the first
+  # place.
   DevicesBrowsersOsQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:
       Name: !Sub '${AppMonitorName}/Devices, browsers, OS'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields metadata.deviceType, metadata.browserName, metadata.osName
+        | fields metadata.deviceType, metadata.browserName, metadata.osName, user_details.sessionId as sessionId
         | filter event_type = "com.amazon.rum.page_view_event"
-        | stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName
+        | fields case(metadata.osName = "Mac OS", "macOS", metadata.osName) as osName,
+                 case(metadata.browserName = "Chrome", "Google Chrome", metadata.browserName) as browserName
+        | stats count_distinct(sessionId) as sessions by metadata.deviceType, browserName, osName
+        | sort sessions desc
 
   InstalledVsBrowserQuery:
     Type: AWS::Logs::QueryDefinition
@@ -140,9 +158,9 @@ Resources:
       Name: !Sub '${AppMonitorName}/Installed vs browser tab'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields metadata.displayMode
+        | fields metadata.displayMode, user_details.sessionId as sessionId
         | filter event_type = "com.amazon.rum.page_view_event"
-        | stats count(*) by metadata.displayMode
+        | stats count_distinct(sessionId) as sessions by metadata.displayMode
 
   PlatformMixQuery:
     Type: AWS::Logs::QueryDefinition
@@ -199,15 +217,49 @@ Resources:
         | stats count(*) as views by metadata.pageId
         | sort views desc
 
+  # Bucketed by day (bin(1d)) rather than left ungrouped, specifically so
+  # the dashboard's own "Request Rate" widget can render it with
+  # `"view": "timeSeries"` — a Logs Insights time-series line graph, not a
+  # metric-math widget. Deliberately not the separate AWS/RUM CloudWatch
+  # metric namespace (PageViewCount etc.) RUM also publishes to: that
+  # namespace's exact dimension key isn't verifiable without a live,
+  # authenticated `aws cloudwatch list-metrics` call, whereas staying on
+  # Logs Insights keeps every query in this file on one mechanism.
+  RequestRateQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Request rate over time'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields @timestamp
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | stats count(*) as pageViews by bin(1d)
+
+  # Same query as RequestRateQuery above but bucketed finer (15-minute, not
+  # daily) — matches the dashboard's own "Request Rate (Last 3h)" widget,
+  # which pins itself to the last 3 hours via widget-level start/end
+  # regardless of the dashboard's own time-range picker (a QueryDefinition
+  # has no equivalent of that pinning; pick your own time range when
+  # running this one from the Queries tab).
+  RequestRateRecentQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Request rate, fine-grained'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields @timestamp
+        | filter event_type = "com.amazon.rum.page_view_event"
+        | stats count(*) as pageViews by bin(15m)
+
   FontSizeQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:
       Name: !Sub '${AppMonitorName}/Font size'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields event_details.textSize
+        | fields event_details.textSize, user_details.sessionId as sessionId
         | filter event_type = "text_size_preference"
-        | stats count(*) by event_details.textSize
+        | stats count_distinct(sessionId) as sessions by event_details.textSize
 
   LevelFilterRangeQuery:
     Type: AWS::Logs::QueryDefinition
@@ -215,9 +267,9 @@ Resources:
       Name: !Sub '${AppMonitorName}/Level filter range'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields event_details.min, event_details.max
+        | fields event_details.min, event_details.max, user_details.sessionId as sessionId
         | filter event_type = "dance_schedule_level_range"
-        | stats count(*) by event_details.min, event_details.max
+        | stats count_distinct(sessionId) as sessions by event_details.min, event_details.max
 
   # A CloudWatch Dashboard, pinning several of the queries above (plus a
   # couple of event-specific ones that don't get their own standalone

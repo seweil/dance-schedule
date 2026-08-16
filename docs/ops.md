@@ -224,38 +224,98 @@ breaks re-pasting that text elsewhere (e.g. back into this file, or into
 widgets (see `infra/README.md`) — both return the raw string with no
 rendering artifacts.
 
-**Devices, browsers, OS** — already graphed natively in the Overview tab
-above with no query needed; the equivalent Logs Insights query (useful if
-you want to cross-tabulate with something the dashboard doesn't offer, or
-already have Logs Insights open):
+**Request rate over time (page views per day)** — the one genuinely
+time-series query/widget here; every other one below is a point-in-time
+breakdown over whatever range the dashboard's own time picker happens to
+have selected, but this one buckets by day (`bin(1d)`) so it can render as
+a line graph. Uses CloudWatch's native support for visualizing a Logs
+Insights `bin()`-grouped result as a `"view": "timeSeries"` dashboard
+widget, rather than the separate `AWS/RUM` CloudWatch metric namespace RUM
+also publishes to (`PageViewCount` etc.) — keeps every query on this page
+and in `infra/monitoring.yaml` on one mechanism, with no new dimension
+names to get right and no new IAM permissions needed:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields metadata.deviceType, metadata.browserName, metadata.osName
+| fields @timestamp
 | filter event_type = "com.amazon.rum.page_view_event"
-| stats count(*) by metadata.deviceType, metadata.browserName, metadata.osName
+| stats count(*) as pageViews by bin(1d)
+```
+
+The dashboard also pins a second copy of this, "Request Rate (Last 3h)",
+bucketed finer (`bin(15m)`) and pinned via widget-level `start`/`end`
+(`-PT3H`/`P0D`) to always show the last 3 hours regardless of whatever the
+dashboard's own time-range picker is set to — useful as an at-a-glance
+"is anything happening right now" check independent of whoever else is
+looking at the dashboard with a different range selected. Same query
+shape, saved separately as `RequestRateRecentQuery` since a saved query
+has no equivalent of that pinning (you'd pick your own range when running
+it standalone):
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields @timestamp
+| filter event_type = "com.amazon.rum.page_view_event"
+| stats count(*) as pageViews by bin(15m)
+```
+
+**Devices, browsers, OS, by session, not raw page-view count** — already
+graphed natively in the Overview tab above with no query needed; the
+equivalent Logs Insights query (useful if you want to cross-tabulate with
+something the dashboard doesn't offer, or already have Logs Insights
+open). `count_distinct(user_details.sessionId)`, not `count(*)`, same
+reasoning as the platform-mix query below — a multi-page session
+shouldn't inflate its own device/browser/OS bucket relative to a
+single-page one.
+
+**Two raw-value naming inconsistencies get normalized here before
+grouping**, confirmed live from real session data: `osName` reports the
+same OS as both `"Mac OS"` and `"macOS"` (different lengths — 6 vs 5
+characters — confirmed via the diagnostic `strlen()` widget below, not
+just eyeballed), and `browserName` reports the same browser as both
+`"Chrome"` and `"Google Chrome"` (the bare `"Chrome"` form paired with
+`osName: "iOS"` — likely Chrome-on-iOS's `CriOS` UA token parsing
+differently than desktop/Android Chrome's). Neither is a bug in this
+query — genuinely different raw values come from the client's own UA
+string — but left ungrouped they silently split what's really one
+OS/browser into two rows. Normalized toward whichever form is more
+common/current (`"macOS"`, Apple's current branding; `"Google Chrome"`,
+the more frequent of the two forms seen), deliberately **not** applied to
+the Raw OS Permutations query below, which exists specifically to show
+these values un-normalized — that's what exposed the inconsistency in the
+first place:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields metadata.deviceType, metadata.browserName, metadata.osName, user_details.sessionId as sessionId
+| filter event_type = "com.amazon.rum.page_view_event"
+| fields case(metadata.osName = "Mac OS", "macOS", metadata.osName) as osName,
+         case(metadata.browserName = "Chrome", "Google Chrome", metadata.browserName) as browserName
+| stats count_distinct(sessionId) as sessions by metadata.deviceType, browserName, osName
+| sort sessions desc
 ```
 
 **Installed vs. browser tab** — a custom session attribute, not a built-in
 dimension, but it lives in `metadata` too (see above), so the same query
-shape works:
+shape works, session-deduplicated for the same reason:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields metadata.displayMode
+| fields metadata.displayMode, user_details.sessionId as sessionId
 | filter event_type = "com.amazon.rum.page_view_event"
-| stats count(*) by metadata.displayMode
+| stats count_distinct(sessionId) as sessions by metadata.displayMode
 ```
 
 **Platform mix — mobile PWA, mobile browser, or desktop (Mac/PC), by
 session, not raw page-view count** — combines two dimensions (`osName`,
 and the `displayMode` session attribute above) into one bucketed
-breakdown. `count_distinct(user_details.sessionId)`, not `count(*)`: every
-other query in this section counts `page_view_event` rows directly, which
-is fine when the dimension being grouped (device, browser, page) doesn't
-change within a session — but a "how many visits looked like X" question
-should count each SESSION once, not once per page viewed during it, or a
-multi-page visit inflates its own bucket relative to a single-page one.
+breakdown. `count_distinct(user_details.sessionId)`, not `count(*)`, same
+reasoning as every other non-Traffic query on this page (Pages Viewed and
+the two Request Rate queries are the only ones that genuinely count raw
+page loads, not sessions — a page LOAD is exactly what those are meant to
+measure): a "how many visits looked like X" question should count each
+SESSION once, not once per page viewed during it, or a multi-page visit
+inflates its own bucket relative to a single-page one.
 `user_details.sessionId`, not `metadata.sessionId` — see "Page loads vs.
 sessions vs. users/devices" above; session/user identity lives under
 `user_details`, not `metadata` (an earlier version of this query got that
@@ -337,23 +397,27 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | sort views desc
 ```
 
-**Font size** — no dashboard equivalent (it's a custom event); this is the
-only way to see the distribution:
+**Font size** — no dashboard equivalent as a widget query text (it's
+pinned as "Font" on the dashboard itself), by session same as everything
+else on this page except Traffic/Pages Viewed/Request Rate — this event
+fires on every page load AND every subsequent change, so `count(*)` would
+count the same session's own repeated preference changes as if they were
+separate people:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields event_details.textSize
+| fields event_details.textSize, user_details.sessionId as sessionId
 | filter event_type = "text_size_preference"
-| stats count(*) by event_details.textSize
+| stats count_distinct(sessionId) as sessions by event_details.textSize
 ```
 
-**Level filter range** — same, custom-event-only:
+**Level filter range** — same event, same session-dedup reasoning:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields event_details.min, event_details.max
+| fields event_details.min, event_details.max, user_details.sessionId as sessionId
 | filter event_type = "dance_schedule_level_range"
-| stats count(*) by event_details.min, event_details.max
+| stats count_distinct(sessionId) as sessions by event_details.min, event_details.max
 ```
 
 **Minimum-level histogram, bins in difficulty order** (not alphabetical —
@@ -363,13 +427,15 @@ QL has no C-style ternary operator — `case(cond1, val1, cond2, val2, ...,
 default)` is the actual tool for this, up to 10 branches. `fields` only
 ever *adds* fields — re-listing `minLevel`/`sessions` here (rather than
 just the new `difficultyRank` expression) fails with "Ephemeral field is
-already defined"; they stay in the output automatically:
+already defined"; they stay in the output automatically. Session-deduped
+for the same reason as Font size above — `dance_schedule_level_range`
+fires on every change, not just once per session:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields event_details.min as minLevel
+| fields event_details.min as minLevel, user_details.sessionId as sessionId
 | filter event_type = "dance_schedule_level_range"
-| stats count(*) as sessions by minLevel
+| stats count_distinct(sessionId) as sessions by minLevel
 | fields case(minLevel = "SSD", 1,
               minLevel = "MS", 2,
               minLevel = "Plus", 3,
@@ -400,14 +466,15 @@ second `case()` and a second `sort` key.
 
 **Every min/max range combination, most common first**, each bar labeled
 `<min>-<max>` — unlike the histogram above, this one sorts on the count
-itself, so no `case()` mapping is needed:
+itself, so no `case()` mapping is needed. Session-deduped, same reasoning
+as every other query on this page:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields event_details.min as minLevel, event_details.max as maxLevel
+| fields event_details.min as minLevel, event_details.max as maxLevel, user_details.sessionId as sessionId
 | filter event_type = "dance_schedule_level_range"
 | fields concat(minLevel, "-", maxLevel) as range
-| stats count(*) as sessions by range
+| stats count_distinct(sessionId) as sessions by range
 | sort sessions desc
 ```
 
