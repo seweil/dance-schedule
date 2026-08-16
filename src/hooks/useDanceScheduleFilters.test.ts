@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { useDanceScheduleFilters } from './useDanceScheduleFilters'
 import { LEVEL_ORDER, getLevelSlots, labelSlotsByPresence } from '../lib/levelOrder'
+import { loadStoredDanceScheduleFilters } from '../lib/danceScheduleFiltersStorage'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
 function located(...rooms: string[]): SessionLocation {
@@ -171,6 +172,50 @@ describe('useDanceScheduleFilters', () => {
 
       expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
       expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.indexOf('Plus'))
+    })
+
+    // Regression test: the per-day trim above must be a VIEW, not a setting change —
+    // switching to a narrower day and back must restore the originally-set range, not
+    // leave it stuck at whatever the narrower day in between happened to trim it to.
+    it('restores the user-set range after switching to a narrower day and back', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+
+      const a2Index = LEVEL_ORDER.indexOf('A2')
+      const c4Index = LEVEL_ORDER.indexOf('C4')
+      act(() => result.current.setLevelRange(a2Index, c4Index))
+      expect(result.current.minLevelIndex).toBe(a2Index)
+      expect(result.current.maxLevelIndex).toBe(c4Index)
+
+      // day2 only has an SSD session, so the effective range narrows to fit it.
+      const ssdIndex = LEVEL_ORDER.indexOf('SSD')
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+      expect(result.current.minLevelIndex).toBe(ssdIndex)
+      expect(result.current.maxLevelIndex).toBe(ssdIndex)
+
+      // Back on day1 (which has A2..C4), the originally-set range must be restored —
+      // not stuck at day2's SSD-only trim.
+      act(() => result.current.setSelectedDate(new Date('2026-07-02T00:00:00.000Z')))
+      expect(result.current.minLevelIndex).toBe(a2Index)
+      expect(result.current.maxLevelIndex).toBe(c4Index)
+    })
+
+    it('persists the user-set range, not the day-narrowed view, to storage', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+
+      const a2Index = LEVEL_ORDER.indexOf('A2')
+      const c4Index = LEVEL_ORDER.indexOf('C4')
+      act(() => result.current.setLevelRange(a2Index, c4Index))
+
+      // Switching to day2 narrows the effective/shown range to SSD-only...
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+      expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
+
+      // ...but storage must still reflect the original A2..C4 setting, not the
+      // narrowed view, or a fresh launch on day2 would lose the user's real intent.
+      expect(loadStoredDanceScheduleFilters()).toMatchObject({
+        minLevelIndex: a2Index,
+        maxLevelIndex: c4Index,
+      })
     })
   })
 

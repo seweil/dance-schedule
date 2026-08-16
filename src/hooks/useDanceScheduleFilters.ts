@@ -80,8 +80,7 @@ export function useDanceScheduleFilters(
   const [selectedDate, setSelectedDateState] = useState<Date>(() => resolveStoredDate(initialStoredFilters, dates))
 
   // Wraps the raw setter (rather than tracking in an effect keyed on
-  // selectedDate) so this only fires on a genuine user pick, not on mount
-  // or on the auto-reclamp logic below.
+  // selectedDate) so this only fires on a genuine user pick, not on mount.
   const setSelectedDate = (date: Date) => {
     trackEvent('dance_schedule_date_selected', { date: date.toISOString().slice(0, 10) })
     setSelectedDateState(date)
@@ -101,56 +100,66 @@ export function useDanceScheduleFilters(
     [dateSessions, slots],
   )
 
-  // Clamped against the initial date's own present range (not just slots.length) so
-  // the first paint already shows a trimmed slider — no flash of the untrimmed range.
-  const [minLevelIndex, setMinLevelIndex] = useState(() =>
-    clampLevelIndex(resolveStoredLevelRange(initialStoredFilters, slots.length).minLevelIndex, {
-      minIndex: minPresentLevelIndex,
-      maxIndex: maxPresentLevelIndex,
-    }),
+  // The range the user actually SET (persisted, stable) — as opposed to
+  // minLevelIndex/maxLevelIndex below, which is the range currently EFFECTIVE/shown,
+  // derived from this on every render. Deliberately not clamped to the initial date's
+  // present range here (unlike the old single-state version this replaced) — that
+  // clamping belongs entirely to the derived view below, so a day that happens to be
+  // narrower than the user's own setting never overwrites it. resolveStoredLevelRange
+  // still guards against indices invalid for the CURRENT slot count (e.g. combineA1A2
+  // toggled between visits), which is a real correctness clamp, not a per-day one.
+  const [userMinLevelIndex, setUserMinLevelIndex] = useState(
+    () => resolveStoredLevelRange(initialStoredFilters, slots.length).minLevelIndex,
   )
-  const [maxLevelIndex, setMaxLevelIndex] = useState(() =>
-    clampLevelIndex(resolveStoredLevelRange(initialStoredFilters, slots.length).maxLevelIndex, {
-      minIndex: minPresentLevelIndex,
-      maxIndex: maxPresentLevelIndex,
-    }),
+  const [userMaxLevelIndex, setUserMaxLevelIndex] = useState(
+    () => resolveStoredLevelRange(initialStoredFilters, slots.length).maxLevelIndex,
   )
   const [showGca, setShowGca] = useState(() => resolveStoredShowGca(initialStoredFilters))
 
+  // The effective range for the selected date — userMin/MaxLevelIndex trimmed into
+  // that date's own present range. A pure derivation (no state, no effect): switching
+  // to a narrower day changes what's SHOWN without touching what the user SET, so
+  // switching back to a wider day restores the original range instead of staying
+  // stuck at whatever a narrower day in between happened to trim it to. Bug this
+  // fixes: the previous version clamped userMin/MaxLevelIndex's predecessor state
+  // in place on every date switch, so the user's original selection was gone for
+  // good the moment a narrower day trimmed it — even after returning to a day wide
+  // enough for it.
+  const minLevelIndex = useMemo(
+    () => clampLevelIndex(userMinLevelIndex, { minIndex: minPresentLevelIndex, maxIndex: maxPresentLevelIndex }),
+    [userMinLevelIndex, minPresentLevelIndex, maxPresentLevelIndex],
+  )
+  const maxLevelIndex = useMemo(
+    () => clampLevelIndex(userMaxLevelIndex, { minIndex: minPresentLevelIndex, maxIndex: maxPresentLevelIndex }),
+    [userMaxLevelIndex, minPresentLevelIndex, maxPresentLevelIndex],
+  )
+
+  // Always a genuine user action (slider drag/tick, or a page's "Show all levels"
+  // empty-state link) — never called by the per-day trimming above, which is a pure
+  // derivation, not a setter. Since the slider's own draggable bounds are already
+  // limited to [minPresentLevelIndex, maxPresentLevelIndex] for the current day
+  // (DanceScheduleFilters.tsx's Slider.Root min/max), a drag on a narrow day can only
+  // ever record a range that fits within it — consistent with "this is what the user
+  // set," not a limitation to work around.
   const setLevelRange = (min: number, max: number) => {
-    setMinLevelIndex(min)
-    setMaxLevelIndex(max)
+    setUserMinLevelIndex(min)
+    setUserMaxLevelIndex(max)
   }
 
-  // Re-scopes the level range whenever the selected date's own present range changes
-  // (a date switch, primarily) — but NOT when the user just drags the slider within a
-  // day. "Adjusting state when a prop changes" (react.dev), not a useEffect: compares
-  // this render's present range against the previous render's (tracked in state, not
-  // a ref, so it stays correct under concurrent rendering) and, only on a genuine
-  // change, both records the new range and re-clamps minLevelIndex/maxLevelIndex
-  // synchronously within THIS render — React discards this render and re-renders
-  // immediately with the corrected state before anything commits, so there's no
-  // flash of the untrimmed range and no extra effect-driven render pass (which is
-  // also what react-hooks/set-state-in-effect steers away from). Never fires from a
-  // manual setLevelRange call, since the condition only depends on the present-range
-  // bounds, not minLevelIndex/maxLevelIndex themselves.
-  const [prevPresentRange, setPrevPresentRange] = useState({
-    minIndex: minPresentLevelIndex,
-    maxIndex: maxPresentLevelIndex,
-  })
-  if (prevPresentRange.minIndex !== minPresentLevelIndex || prevPresentRange.maxIndex !== maxPresentLevelIndex) {
-    const range = { minIndex: minPresentLevelIndex, maxIndex: maxPresentLevelIndex }
-    setPrevPresentRange(range)
-    setMinLevelIndex((prev) => clampLevelIndex(prev, range))
-    setMaxLevelIndex((prev) => clampLevelIndex(prev, range))
-  }
-
-  // Persists on every change (including the initial mount, harmlessly re-writing the
-  // just-resolved/clamped values) so a returning visit — or a fresh PWA launch —
-  // picks up right where the user left off.
+  // Persists the SETTING (userMin/MaxLevelIndex), not the per-day effective view —
+  // otherwise a narrower day's trimmed range would overwrite the user's original
+  // selection in storage too, the same bug the split above fixes, just one layer
+  // down. Runs on every change (including the initial mount, harmlessly re-writing
+  // the just-resolved values) so a returning visit — or a fresh PWA launch — picks up
+  // right where the user left off.
   useEffect(() => {
-    saveDanceScheduleFilters({ selectedDateISO: selectedDate.toISOString(), minLevelIndex, maxLevelIndex, showGca })
-  }, [selectedDate, minLevelIndex, maxLevelIndex, showGca])
+    saveDanceScheduleFilters({
+      selectedDateISO: selectedDate.toISOString(),
+      minLevelIndex: userMinLevelIndex,
+      maxLevelIndex: userMaxLevelIndex,
+      showGca,
+    })
+  }, [selectedDate, userMinLevelIndex, userMaxLevelIndex, showGca])
 
   // Fires on mount too, not just when the user drags the slider (unlike
   // setSelectedDate's tracking above) — same rationale as

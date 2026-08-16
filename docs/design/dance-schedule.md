@@ -889,15 +889,26 @@ day-to-day churn.
   `slots` they actually use — the slider's `Slider.Root` `min`/`max` (and
   which ticks render at all) become this range instead of the fixed
   `0`/`slots.length - 1`. `useDanceScheduleFilters` computes it from
-  `dateSessions`, exposes it as `minPresentLevelIndex`/
-  `maxPresentLevelIndex`, and clamps `minLevelIndex`/`maxLevelIndex` into it
-  — synchronously on mount (no first-paint flash of the untrimmed range),
-  and via an effect keyed only on the present-range bounds (not the level
-  indices themselves) on every date switch, so it never fights the user's
-  own in-day slider drags. Each page's `onShowAllLevels` empty-state
-  callback resets to this present range, not the old absolute
-  `0`/`slots.length - 1` — required, not cosmetic, since the slider's own
-  Radix bounds no longer extend that far.
+  `dateSessions` and exposes it as `minPresentLevelIndex`/
+  `maxPresentLevelIndex`. Each page's `onShowAllLevels` empty-state callback
+  resets to this present range, not the old absolute `0`/`slots.length - 1`
+  — required, not cosmetic, since the slider's own Radix bounds no longer
+  extend that far.
+- **The range the user set and the range currently shown are two different
+  values, not one.** `userMinLevelIndex`/`userMaxLevelIndex` is the
+  persisted setting — written only by `setLevelRange` (a genuine user
+  action: a slider drag/tick, or `onShowAllLevels`) and saved to storage
+  as-is. `minLevelIndex`/`maxLevelIndex` (what the slider displays and what
+  filtering actually uses) is a `useMemo` derivation — `userMin/MaxLevelIndex`
+  clamped into `minPresentLevelIndex`/`maxPresentLevelIndex` for the
+  currently selected date, recomputed on every date switch. An earlier
+  version collapsed these into one piece of state and clamped it in place on
+  every date switch, which meant a day narrower than the user's own
+  selection permanently overwrote it — switching back to a wider day never
+  recovered the original range, since nothing had retained it. Splitting
+  "setting" from "view" fixes that: trimming for a narrow day is now a pure,
+  non-destructive computation, so returning to a day the original range
+  fits shows that original range again.
 - `hasGcaOnSelectedDate` (`dateSessions.some(s => s.kind === 'structured' &&
   !!s.gca)`) simply gates whether `DanceScheduleFilters` renders the
   checkbox `<label>` at all — no filtering-pipeline change, since a day with
