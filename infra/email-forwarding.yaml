@@ -30,6 +30,17 @@ Parameters:
       redirect forwarding — no code change needed. While the SES account
       is in sandbox mode (the default), this address must be verified;
       deploy-email-forwarding.sh handles that automatically.
+  SubjectPrefix:
+    Type: String
+    Default: 'SQDANCE:'
+    Description: >
+      Prepended to every forwarded message's subject (the Lambda adds a
+      single space after it — see that code's own comment), so it's easy
+      to spot or filter in the destination inbox alongside other mail.
+      Deliberately has no trailing space of its own: a trailing space on a
+      parameter value was observed getting silently dropped somewhere
+      between here and the deployed Lambda, root cause unconfirmed — see
+      docs/design/email-forwarding.md.
 
 Resources:
   EmailBucket:
@@ -95,6 +106,7 @@ Resources:
           BUCKET_NAME: !Ref EmailBucket
           FORWARD_TO: !Ref ForwardToAddress
           SENDER_DOMAIN: !Ref Domain
+          SUBJECT_PREFIX: !Ref SubjectPrefix
       Code:
         ZipFile: |
           const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
@@ -112,6 +124,7 @@ Resources:
             const bucket = process.env.BUCKET_NAME;
             const forwardTo = process.env.FORWARD_TO;
             const domain = process.env.SENDER_DOMAIN;
+            const subjectPrefix = process.env.SUBJECT_PREFIX || '';
             const rec = event.Records[0].ses;
 
             const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: rec.mail.messageId }));
@@ -122,11 +135,26 @@ Resources:
             const from = (rec.mail.commonHeaders.from || ['unknown'])[0];
             const newFrom = `"${from.replace(/"/g, '')}" <no-reply@${domain}>`;
 
+            // Built from SES's already-decoded subject, not spliced onto the
+            // raw header text — the original may be RFC 2047-encoded
+            // (=?UTF-8?B?...?=) for non-ASCII subjects, and mail clients
+            // commonly treat whitespace touching an encoded-word as
+            // foldable, silently dropping a space spliced right next to it.
+            // The space here is a literal, not part of subjectPrefix — a
+            // trailing space on the parameter value itself was observed
+            // getting silently dropped before reaching the Lambda.
+            const originalSubject = rec.mail.commonHeaders.subject || '';
+            const newSubject = `${subjectPrefix} ${originalSubject}`;
+            const encodedSubject = /[^\x00-\x7F]/.test(newSubject)
+              ? `=?UTF-8?B?${Buffer.from(newSubject, 'utf-8').toString('base64')}?=`
+              : newSubject;
+
             raw = raw
               .replace(/^DKIM-Signature:[\s\S]*?\r?\n(?=\S)/m, '')
               .replace(/^Reply-To:.*(\r?\n[ \t].*)*\r?\n/m, '')
               .replace(/^From:.*(\r?\n[ \t].*)*$/m, `From: ${newFrom}\r\nReply-To: ${from}`)
-              .replace(/^To:.*(\r?\n[ \t].*)*$/m, `To: ${forwardTo}`);
+              .replace(/^To:.*(\r?\n[ \t].*)*$/m, `To: ${forwardTo}`)
+              .replace(/^Subject:.*(\r?\n[ \t].*)*$/m, `Subject: ${encodedSubject}`);
 
             await ses.send(new SendRawEmailCommand({
               Destinations: [forwardTo],

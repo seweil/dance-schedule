@@ -94,6 +94,32 @@ the same shape as well-known open-source SES-forwarder implementations
 (small enough to fit CloudFormation's inline `ZipFile` size limit) rather
 than pulled in as a dependency.
 
+### Subject gets a `SQDANCE:` prefix in the Lambda, not via a `mailto:` `?subject=` hint
+**Why:** A `mailto:` prefill is just a suggestion the sender's mail client
+shows — freely editable or deletable before sending, and absent entirely
+for anyone who emails the address directly rather than through the site's
+link. Doing it in the Lambda (same regex-rewrite pass as `To`/`Reply-To`)
+guarantees the prefix on every forwarded message regardless of how it was
+sent, making it reliable to filter/spot in the destination inbox.
+`SubjectPrefix` is a stack parameter (default `'SQDANCE:'`), same pattern
+as `ForwardToAddress`, so it can change without a code edit.
+
+**A trailing space on that parameter's value (`'SQDANCE: '`) was tried
+first and silently lost somewhere between the template and the deployed
+Lambda** — confirmed via `aws cloudformation describe-stacks`, which
+showed CloudFormation's own stored parameter value already missing the
+space, so the trim happens before or during `cloudformation deploy`
+itself, not in the Lambda or anywhere Lambda-specific. Root cause never
+pinned down (suspected: `deploy`'s shorthand `Key=Value` parser, or its
+automatic reuse of previous parameter values for anything not explicitly
+passed — switching to an explicit JSON parameters file, see
+`deploy-email-forwarding.sh`, didn't change the outcome either). Not worth
+chasing further: the parameter now carries no trailing whitespace at all
+(`'SQDANCE:'`), and the separating space between the prefix and the
+original subject is a literal in the Lambda's own template string
+(`` `${subjectPrefix} ${originalSubject}` ``) instead — sidesteps the bug
+entirely rather than fixing its unknown root cause.
+
 ## Open questions
 
 - Should the Help page's contact link actually go live once this is

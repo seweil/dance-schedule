@@ -23,18 +23,38 @@ REGION=us-east-1
 DOMAIN=sqdance.app
 RECIPIENT_LOCAL_PART=help
 FORWARD_TO="${1:-steve.weil@gmail.com}"
+SUBJECT_PREFIX="SQDANCE:"
 
 echo "Deploying $STACK_NAME to $REGION, forwarding ${RECIPIENT_LOCAL_PART}@${DOMAIN} -> $FORWARD_TO"
+
+# Parameters go through a JSON file, not --parameter-overrides' shorthand
+# Key=Value syntax, so every value is passed explicitly on every deploy —
+# `deploy` silently reuses the stack's previous value for any parameter
+# not listed, which is easy to forget adds a new parameter here and not
+# in this script's variable list above.
+PARAMS_FILE="$(mktemp "${TMPDIR:-/tmp}/dance-schedule-email-params.XXXXXX.json")"
+trap 'rm -f "$PARAMS_FILE"' EXIT
+python3 - "$PARAMS_FILE" "$DOMAIN" "$RECIPIENT_LOCAL_PART" "$FORWARD_TO" "$SUBJECT_PREFIX" <<'PYEOF'
+import json
+import sys
+
+out_path, domain, recipient, forward_to, subject_prefix = sys.argv[1:6]
+params = [
+    {"ParameterKey": "Domain", "ParameterValue": domain},
+    {"ParameterKey": "RecipientLocalPart", "ParameterValue": recipient},
+    {"ParameterKey": "ForwardToAddress", "ParameterValue": forward_to},
+    {"ParameterKey": "SubjectPrefix", "ParameterValue": subject_prefix},
+]
+with open(out_path, "w") as f:
+    json.dump(params, f)
+PYEOF
 
 aws cloudformation deploy \
   --template-file email-forwarding.yaml \
   --stack-name "$STACK_NAME" \
   --capabilities CAPABILITY_NAMED_IAM \
   --region "$REGION" \
-  --parameter-overrides \
-    Domain="$DOMAIN" \
-    RecipientLocalPart="$RECIPIENT_LOCAL_PART" \
-    ForwardToAddress="$FORWARD_TO"
+  --parameter-overrides "file://$PARAMS_FILE"
 
 RULE_SET_NAME=$(aws cloudformation describe-stacks \
   --stack-name "$STACK_NAME" --region "$REGION" \
