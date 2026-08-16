@@ -163,7 +163,7 @@ decision for the full rationale):
 | Event type | Fires when | Payload |
 | --- | --- | --- |
 | `dance_schedule_date_selected` | User picks a date on any dance-schedule-family page | `{ date: "YYYY-MM-DD" }` |
-| `dance_schedule_level_range` | On every page load, and on every subsequent change (slider drag, or an automatic re-scope when switching to a date with a narrower present range) | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
+| `dance_schedule_level_range` | On every page load, and on every subsequent change the user actually makes (slider drag, tick click, or "Show all levels") — NOT when switching to a date whose present range happens to trim the view; see `useDanceScheduleFilters.ts`'s userMin/MaxLevelIndex vs. minLevelIndex/maxLevelIndex split | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
 | `text_size_preference` | On every page load, and on every subsequent change | `{ textSize: "normal" \| "large" \| "x-large" }` |
 
 `dance_schedule_level_range` and `text_size_preference` both fire

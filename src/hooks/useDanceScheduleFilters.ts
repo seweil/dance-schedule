@@ -161,17 +161,20 @@ export function useDanceScheduleFilters(
     })
   }, [selectedDate, userMinLevelIndex, userMaxLevelIndex, showGca])
 
-  // Fires on mount too, not just when the user drags the slider (unlike
-  // setSelectedDate's tracking above) — same rationale as
-  // useTextSizePreference's trackEvent: the useful signal is the level range
-  // people are actually browsing with (including a stored-from-last-visit or
-  // auto-reclamped range), not just interaction counts.
+  // Tracks userMin/MaxLevelIndex (the persisted setting), not minLevelIndex/
+  // maxLevelIndex (the per-day derived view) — otherwise every date switch that
+  // happens to trim/restore the view would fire as if it were a new level-range
+  // pick, drowning out the signal this is actually for: what range people are
+  // deliberately choosing to browse with. Fires on mount too, not just when the
+  // user drags the slider (unlike setSelectedDate's tracking above) — same
+  // rationale as useTextSizePreference's trackEvent: a stored-from-last-visit
+  // setting is just as useful a signal as an in-session change.
   useEffect(() => {
     trackEvent('dance_schedule_level_range', {
-      min: slots[minLevelIndex]?.label,
-      max: slots[maxLevelIndex]?.label,
+      min: slots[userMinLevelIndex]?.label,
+      max: slots[userMaxLevelIndex]?.label,
     })
-  }, [minLevelIndex, maxLevelIndex, slots])
+  }, [userMinLevelIndex, userMaxLevelIndex, slots])
 
   const hasGcaOnSelectedDate = useMemo(
     () => dateSessions.some((session) => session.kind === 'structured' && !!session.gca),
