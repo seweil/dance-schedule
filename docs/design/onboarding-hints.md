@@ -96,6 +96,11 @@ questions.
       widths, once `.levelField`'s own width cap put real distance between
       it and the viewport-edge-anchored balloon — see "A tablet-and-up
       override: the arrow only reached on phone"
+- [x] The kebab toggle still opened on that first tap on a REAL device,
+      even after "The kebab toggle loses its targetRef exemption too"
+      (above) — a click-swallow cleanup timer racing ahead of a real,
+      non-instant tap, invisible to every automated/synthetic test — see
+      "The click-swallow cleanup timer was racing ahead of a real tap"
 
 ## Arrow design rules (persistent reference)
 **Why this section exists:** these rules have been given, live, more than
@@ -1222,6 +1227,69 @@ construction, so the same dx/dy/reach/angle numbers (originally derived
 against a phone-width measurement that happened to match this same
 relationship almost exactly) generalize correctly to every width at or
 above the breakpoint, with no further per-width tuning needed.
+
+### The click-swallow cleanup timer was racing ahead of a real tap
+**Why:** Direct product feedback: on an actual first run (confirmed running
+the exact commit the previous fix shipped in), tapping the kebab toggle
+while its hint was showing STILL opened the menu — the same bug "The kebab
+toggle loses its targetRef exemption too" (above) was supposed to have
+fixed. Every attempt to reproduce it in this session's own environment
+(desktop Chrome, both manual and automated clicks) showed the CORRECT
+behavior, which is what made this one genuinely hard to track down —
+the bug only manifests on a real touch device, not in any of this app's
+own testing tools.
+
+**Root cause: the swallow-listener cleanup used `setTimeout(fn, 0)`, which
+assumes 'click' follows 'pointerdown' near-instantly.** That's true for
+every synthetic/automated click (Testing Library's `userEvent.click()`,
+this app's own browser-automation testing, and — critically — jsdom, so
+even this component's own unit tests couldn't have caught it) — but not
+for a REAL physical tap: a finger's own touchstart-to-touchend dwell time,
+plus some mobile browsers' own historical tap-delay (still present in some
+configurations, kept around for double-tap-zoom detection), both add real
+elapsed time between 'pointerdown' and the eventual 'click' that a
+synthetic click dispatched back-to-back never exhibits. `setTimeout(fn,
+0)` fires on the very next tick — before a real tap's own 'click' has any
+chance to arrive — so the swallow listener was already gone by the time
+that later 'click' showed up, letting it through to the toggle's own
+`onClick` and opening the menu after all. This is exactly the class of bug
+the "test in a real browser, not just jsdom" testing guidance
+(`docs/testing.md`) exists for, but even THAT wasn't enough here — the
+gap only shows up with a real, non-instant human tap, which no automated
+tool (including this session's own browser-automation testing) actually
+produces.
+
+**Fixed by replacing the instant timeout with a generous, real-world-safe
+window, plus an event-driven fast path for the common non-tap case.**
+`CLICK_WAIT_MS` (500) is a deliberately generous upper bound on how long a
+real device's own 'pointerdown'-to-'click' gap can plausibly run —
+long enough that a real, if unhurried, tap's 'click' is essentially always
+still within it; short enough that the cost of the one remaining edge
+case (this `pointerdown` turns out to be the start of a scroll/drag, and
+some UNRELATED click lands elsewhere within that same window) is a rare,
+minor annoyance rather than a routine failure. A `pointercancel` listener
+— fired by the browser itself the moment it decides a gesture is a
+scroll/pan, not a tap — cleans up immediately in that more common
+non-tap case, so the full 500ms window is really only ever consumed when
+this WAS heading toward a genuine tap. All three cleanup paths (the click
+itself firing, `pointercancel`, and the timeout) now share one `cleanup()`
+function that removes every listener/timer it might have left behind,
+rather than each path only tidying up after itself — avoids a
+stale-listener leak if, say, `pointercancel` fires after the timeout
+already ran (`clearTimeout`/`removeEventListener` are both safe to call
+more than once).
+
+**Test coverage added specifically for the timing, not just the outcome**
+— `HintBalloon.test.tsx` gained two tests using `fireEvent` + Vitest's
+fake timers (not `userEvent.click()`, which fires its own events
+back-to-back with no way to insert a delay between them): one confirms
+the click is STILL swallowed after a simulated real-world delay (200ms)
+between `pointerdown` and `click` — this is the test that would have
+caught the original bug, since it fails against the old `setTimeout(fn,
+0)` version — and a second confirms the OPPOSITE also still holds: once
+the full cleanup window has elapsed with no click at all, a later,
+unrelated click on the same element is no longer swallowed, so the fix
+doesn't trade the original bug for a permanently-stuck listener.
 
 ## Open questions
 

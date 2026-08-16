@@ -1,6 +1,6 @@
 import { createRef, useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HintBalloon } from './HintBalloon'
 
@@ -82,6 +82,68 @@ describe('HintBalloon', () => {
 
     expect(onDismiss).toHaveBeenCalledTimes(1)
     expect(outsideOnClick).not.toHaveBeenCalled()
+  })
+
+  // Regression test for a real-device-only bug: an earlier version cleaned
+  // up the swallow listener via `setTimeout(fn, 0)`, which fires well
+  // before a REAL tap's own 'click' arrives (a physical finger's own
+  // touchstart-to-touchend dwell time, plus some mobile browsers' own tap
+  // delay, both add real elapsed time that userEvent.click()'s effectively
+  // back-to-back events never exercise) — reported live as the menu still
+  // opening on a real device despite this working in every desktop/
+  // automated test. Uses fireEvent + fake timers directly (not
+  // userEvent.click(), which doesn't allow inserting a delay between its
+  // own pointerdown and click) to simulate that real-world gap.
+  it('still swallows the click if it arrives with a real-world delay after pointerdown', () => {
+    vi.useFakeTimers()
+    try {
+      const onDismiss = vi.fn()
+      const outsideOnClick = vi.fn()
+      render(
+        <div>
+          <HintBalloon message="Tap here for the menu" onDismiss={onDismiss} targetRef={unattachedTargetRef()} />
+          <button type="button" onClick={outsideOnClick}>
+            Outside
+          </button>
+        </div>,
+      )
+      const outside = screen.getByRole('button', { name: 'Outside' })
+
+      fireEvent.pointerDown(outside)
+      expect(onDismiss).toHaveBeenCalledTimes(1)
+
+      vi.advanceTimersByTime(200)
+      fireEvent.click(outside)
+
+      expect(outsideOnClick).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops swallowing once the cleanup window fully elapses with no click at all (e.g. the pointerdown became a scroll, not a tap)', () => {
+    vi.useFakeTimers()
+    try {
+      const onDismiss = vi.fn()
+      const outsideOnClick = vi.fn()
+      render(
+        <div>
+          <HintBalloon message="Tap here for the menu" onDismiss={onDismiss} targetRef={unattachedTargetRef()} />
+          <button type="button" onClick={outsideOnClick}>
+            Outside
+          </button>
+        </div>,
+      )
+      const outside = screen.getByRole('button', { name: 'Outside' })
+
+      fireEvent.pointerDown(outside)
+      vi.advanceTimersByTime(600)
+      fireEvent.click(outside)
+
+      expect(outsideOnClick).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('dismisses without swallowing the click when tapping the real target', async () => {
