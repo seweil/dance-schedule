@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from 'react'
+import { Suspense, type AnchorHTMLAttributes, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
@@ -27,7 +27,31 @@ function MdxH1({ children }: { children?: ReactNode }) {
   return <PageHeader title={children} />
 }
 
-const mdxComponents = { img: ZoomableImage, h1: MdxH1 }
+// Content authors write markdown links as absolute paths (e.g. "/event-schedule")
+// meant to stay within the current content set. Left as a plain <a>, that's a real
+// browser navigation to the site root, which only "works" by accident for the
+// default content set (mirrored unprefixed at "/", see docs/design/content-sets.md)
+// — every other set gets bounced out of its "/<set>/" prefix into the default set.
+// Routing same-origin absolute paths through react-router's Link (basename-relative,
+// same distinction BuildInfo.tsx already draws for "/events") keeps them in the
+// current build. Anything else — external URLs, mailto:, protocol-relative "//..." —
+// is left as a real <a>.
+function MdxA({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement>) {
+  if (href?.startsWith('/') && !href.startsWith('//')) {
+    return (
+      <Link to={href} {...rest}>
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  )
+}
+
+const mdxComponents = { img: ZoomableImage, h1: MdxH1, a: MdxA }
 
 // Registered routes must match the clean hrefs buildNavTree computes for the nav
 // (order prefixes like "2 " are stripped from the URL, not just the label).
