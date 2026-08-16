@@ -306,13 +306,14 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | stats count_distinct(sessionId) as sessions by metadata.displayMode
 ```
 
-**Platform mix — mobile PWA, mobile browser, or desktop (Mac/PC), by
-session, not raw page-view count** — combines two dimensions (`osName`,
-and the `displayMode` session attribute above) into one bucketed
-breakdown. `count_distinct(user_details.sessionId)`, not `count(*)`, same
-reasoning as every other non-Traffic query on this page (Pages Viewed and
-the two Request Rate queries are the only ones that genuinely count raw
-page loads, not sessions — a page LOAD is exactly what those are meant to
+**Platform mix — tablet, phone PWA, phone browser, or desktop (Mac/PC), by
+session, not raw page-view count** — combines three dimensions (`osName`,
+the `displayMode` session attribute above, and the `isTablet` session
+attribute below) into one bucketed breakdown.
+`count_distinct(user_details.sessionId)`, not `count(*)`, same reasoning
+as every other non-Traffic query on this page (Pages Viewed and the two
+Request Rate queries are the only ones that genuinely count raw page
+loads, not sessions — a page LOAD is exactly what those are meant to
 measure): a "how many visits looked like X" question should count each
 SESSION once, not once per page viewed during it, or a multi-page visit
 inflates its own bucket relative to a single-page one.
@@ -324,13 +325,15 @@ wrong, since every OTHER field it needed genuinely does live under
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields metadata.osName, metadata.displayMode, user_details.sessionId as sessionId
+| fields metadata.osName, metadata.displayMode, metadata.isTablet, user_details.sessionId as sessionId
 | filter event_type = "com.amazon.rum.page_view_event"
 | fields case(
-    metadata.osName like /iOS/ and metadata.displayMode = "standalone", "Mobile PWA (iOS)",
-    metadata.osName like /Android/ and metadata.displayMode = "standalone", "Mobile PWA (Android)",
-    metadata.osName like /iOS/, "Mobile browser (iOS)",
-    metadata.osName like /Android/, "Mobile browser (Android)",
+    metadata.isTablet = true and metadata.osName like /iOS/, "Tablet (iOS)",
+    metadata.isTablet = true and metadata.osName like /Android/, "Tablet (Android)",
+    metadata.osName like /iOS/ and metadata.displayMode = "standalone", "Phone PWA (iOS)",
+    metadata.osName like /Android/ and metadata.displayMode = "standalone", "Phone PWA (Android)",
+    metadata.osName like /iOS/, "Phone browser (iOS)",
+    metadata.osName like /Android/, "Phone browser (Android)",
     metadata.osName like /Mac/, "Desktop (Mac)",
     metadata.osName like /Windows/, "Desktop (PC)",
     "Other"
@@ -339,8 +342,18 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | sort sessions desc
 ```
 
+**Tablet branches are checked first, before the phone (PWA/browser)
+branches** — `case()` takes the first matching condition, so a tablet
+would otherwise fall into a "Phone ..." bucket, matching by `osName`
+alone the same as a phone would. `metadata.isTablet` isn't anything RUM
+derives itself — it's a client-computed session attribute
+(`src/lib/deviceFormFactor.ts`, set in `src/lib/rum.ts`'s
+`sessionAttributes` the same way `displayMode` is), because neither
+`osName` nor `deviceType` can tell a tablet from a phone or desktop, as
+the next two paragraphs explain.
+
 **Deliberately does NOT filter on `metadata.deviceType` at all, even
-though "mobile PWA/browser" sounds like exactly what that field is for.**
+though "phone PWA/browser" sounds like exactly what that field is for.**
 An earlier version required `deviceType = "mobile"` on every mobile
 branch — confirmed live it silently misclassifies real traffic: RUM's own
 `deviceType` reported `"desktop"` for a session whose `osName` was
@@ -352,23 +365,27 @@ desktop-style User-Agent string by default since iPadOS 13 (Apple's own
 indistinguishable from actual macOS Safari by UA string alone unless a
 parser also checks touch-capability signals, which apparently this one
 doesn't. `osName`, by contrast, stayed correct for that same session — so
-this query keys off `osName` alone (`"iOS"`/`"Android"` → mobile,
-`"Mac OS"`/`"Windows"` → desktop) rather than trusting `deviceType`.
-Net effect: an iPad in its default browsing mode buckets under "Mobile
-(iOS)" here, same as an iPhone — there's no reliable per-event signal in
-this data to split them further, and the six buckets originally asked for
-didn't call for that split anyway.
+this query keys off `osName` alone (`"iOS"`/`"Android"` → phone/tablet,
+`"Mac OS"`/`"Windows"` → desktop) rather than trusting `deviceType`. **The
+same iPadOS-desktop-UA quirk is exactly why `deviceType` also can't
+distinguish a tablet** — an iPad in its default browsing mode reports
+`deviceType: "desktop"`, same as a real Mac; `isTablet`'s own detection
+(`src/lib/deviceFormFactor.ts`) works around this the same way this query
+already works around it for phone-vs-desktop: by checking signals other
+than the UA-derived fields RUM itself reports (`navigator.platform` +
+`navigator.maxTouchPoints`, not `osName`/`deviceType`).
 
 Each `case()` branch is checked in order, so a session is only bucketed
-into "Mobile browser (...)" once the PWA branch for that same OS has
-already failed to match — not a separate `and displayMode != "standalone"`
-condition on every browser branch. `"Other"` (the required final,
-condition-less branch) catches anything that doesn't cleanly resolve to
-one of the six buckets asked for here — non-Mac/Windows desktop (Linux,
-ChromeOS), a genuinely unknown/blank `osName`, or a desktop PWA install
-(this breakdown doesn't split desktop by install mode, only mobile,
-matching what was actually asked for) — rather than silently mis-bucketing
-them or making `case()` fail with no matching branch.
+into "Phone browser (...)" once the Tablet and Phone PWA branches for
+that same OS have already failed to match — not a separate `and
+displayMode != "standalone"`/`and isTablet != true` condition repeated on
+every later branch. `"Other"` (the required final, condition-less branch)
+catches anything that doesn't cleanly resolve to one of the buckets asked
+for here — non-Mac/Windows desktop (Linux, ChromeOS), a genuinely
+unknown/blank `osName`, or a desktop PWA install (this breakdown doesn't
+split desktop by install mode, only phone/tablet, matching what was
+actually asked for) — rather than silently mis-bucketing them or making
+`case()` fail with no matching branch.
 
 **Every OS branch uses `like /.../`, not `=`, including `iOS`/`Android` —
 not just the two originally hedged this way (Mac/Windows).** An earlier

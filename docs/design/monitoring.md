@@ -214,6 +214,46 @@ unnormalized values, which is what exposed this in the first place; also
 not applied to `PlatformMixQuery`, whose `osName like /Mac/` substring
 matching already tolerates both forms without needing a fix.
 
+### Tablet detection: `isTablet`, a third client-computed session attribute, not the `AWS/RUM`-style automatic route
+**Why:** Asked directly, as a follow-up to Platform Mix, whether tablets
+could be distinguished from phones. Researched the options first:
+`Sec-CH-UA-Form-Factors` (`navigator.userAgentData.getHighEntropyValues
+(['formFactor'])`) is the modern, "correct" browser API for this — Chrome
+added an explicit `"Tablet"` value in v124, callable from JS with no
+server `Accept-CH` opt-in needed — but it's Chromium-only, and confirmed
+as of 2026 that Safari (WebKit) has no `navigator.userAgentData` at all.
+Since this app's Help page requires Safari for iOS installs, that API
+would cover none of the app's actual iPad traffic, which is exactly the
+ambiguous case (see the `deviceType`-misclassifies-iPad note two entries
+above). It's also async (`Promise`-based), which doesn't fit `initRum()`'s
+synchronous, set-once-at-construction `sessionAttributes` pattern
+established by the `displayMode` fix above.
+
+Chosen instead: two synchronous UA-string heuristics, well-established
+community techniques (not invented here), combined in
+`src/lib/deviceFormFactor.ts`'s `isTabletDevice()`:
+- `navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1` —
+  the standard iPad-reporting-as-Mac workaround (real Macs report
+  `maxTouchPoints: 0`, iPads report `10`), covering the exact
+  `deviceType`-misclassification case already known here.
+- `/Android/.test(userAgent) && !/Mobile/.test(userAgent)` — Android
+  phones include a `"Mobile"` token in their UA, tablets omit it; a
+  long-standing convention confirmed to have survived Chrome's 2026
+  UA-string reduction (which genericized most other UA details but left
+  this token distinction intact).
+- Plus a plain `/iPad/` check, for older iPadOS or an iPad manually
+  switched to "Request Mobile Website" — free to also catch.
+
+Sent as `isTablet: boolean` in `AwsRumConfig.sessionAttributes` alongside
+`displayMode`, not a separate call — same reasoning as the `displayMode`
+fix above. `PlatformMixQuery`'s `case()` now checks `isTablet` first
+(before the phone PWA/browser branches, since a tablet would otherwise
+match a phone branch by `osName` alone), splitting out `"Tablet (iOS)"`/
+`"Tablet (Android)"` and renaming the existing `"Mobile ..."` buckets to
+`"Phone ..."` for clarity now that tablet is its own category — a
+deliberate label change, not just an addition, since "Mobile" would
+otherwise be ambiguous about whether it still includes tablets.
+
 ### The Logs Insights queries themselves, as `AWS::Logs::QueryDefinition` resources
 **Why:** `docs/ops.md`'s "Retention and aggregate reporting" section had
 accumulated several worked Logs Insights queries (devices/browsers/OS,

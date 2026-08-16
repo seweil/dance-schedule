@@ -1,5 +1,6 @@
 import { AwsRum, type AwsRumConfig } from 'aws-rum-web'
 import { isStandalonePwa } from './pwaDisplayMode'
+import { isTabletDevice } from './deviceFormFactor'
 
 // CloudWatch RUM client telemetry — device/browser/OS, page performance, JS
 // and HTTP errors, sent straight from the browser. Config comes from the
@@ -33,7 +34,14 @@ export function initRum(): void {
     // sessionAttributes in its own constructor), and one less place for a
     // partial-failure to leave a session with no displayMode at all if the
     // two calls were ever split and the second one threw.
-    sessionAttributes: { displayMode: isStandalonePwa() ? 'standalone' : 'browser' },
+    // isTablet: RUM's own deviceType/osName can't tell a tablet from a
+    // phone or desktop (an iPad in its default browsing mode is
+    // indistinguishable from a Mac by UA string alone) — see
+    // src/lib/deviceFormFactor.ts and docs/design/monitoring.md.
+    sessionAttributes: {
+      displayMode: isStandalonePwa() ? 'standalone' : 'browser',
+      isTablet: isTabletDevice(),
+    },
   }
 
   try {

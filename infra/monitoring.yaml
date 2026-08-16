@@ -162,19 +162,29 @@ Resources:
         | filter event_type = "com.amazon.rum.page_view_event"
         | stats count_distinct(sessionId) as sessions by metadata.displayMode
 
+  # Tablet branches must come BEFORE the phone (PWA/browser) branches —
+  # case() takes the first matching condition, and an iPad/Android tablet
+  # would otherwise fall into a "Phone ..." bucket first. metadata.isTablet
+  # is a client-computed session attribute (src/lib/deviceFormFactor.ts),
+  # not anything RUM derives itself — see that file's own comment for why:
+  # RUM's osName/deviceType can't tell a tablet from a phone or desktop
+  # (an iPad in its default browsing mode reports osName "iOS" the same as
+  # an iPhone, and deviceType "desktop" the same as a real Mac).
   PlatformMixQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:
-      Name: !Sub '${AppMonitorName}/Platform mix (mobile PWA-browser, desktop Mac-PC)'
+      Name: !Sub '${AppMonitorName}/Platform mix (tablet, phone PWA-browser, desktop Mac-PC)'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields metadata.osName, metadata.displayMode, user_details.sessionId as sessionId
+        | fields metadata.osName, metadata.displayMode, metadata.isTablet, user_details.sessionId as sessionId
         | filter event_type = "com.amazon.rum.page_view_event"
         | fields case(
-            metadata.osName like /iOS/ and metadata.displayMode = "standalone", "Mobile PWA (iOS)",
-            metadata.osName like /Android/ and metadata.displayMode = "standalone", "Mobile PWA (Android)",
-            metadata.osName like /iOS/, "Mobile browser (iOS)",
-            metadata.osName like /Android/, "Mobile browser (Android)",
+            metadata.isTablet = true and metadata.osName like /iOS/, "Tablet (iOS)",
+            metadata.isTablet = true and metadata.osName like /Android/, "Tablet (Android)",
+            metadata.osName like /iOS/ and metadata.displayMode = "standalone", "Phone PWA (iOS)",
+            metadata.osName like /Android/ and metadata.displayMode = "standalone", "Phone PWA (Android)",
+            metadata.osName like /iOS/, "Phone browser (iOS)",
+            metadata.osName like /Android/, "Phone browser (Android)",
             metadata.osName like /Mac/, "Desktop (Mac)",
             metadata.osName like /Windows/, "Desktop (PC)",
             "Other"

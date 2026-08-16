@@ -84,7 +84,9 @@ describe('initRum', () => {
       'app-id',
       __BUILD_NUMBER__,
       'us-east-2',
-      expect.objectContaining({ sessionAttributes: { displayMode: 'browser' } }),
+      expect.objectContaining({
+        sessionAttributes: expect.objectContaining({ displayMode: 'browser' }),
+      }),
     )
   })
 
@@ -98,7 +100,24 @@ describe('initRum', () => {
       'app-id',
       __BUILD_NUMBER__,
       'us-east-2',
-      expect.objectContaining({ sessionAttributes: { displayMode: 'standalone' } }),
+      expect.objectContaining({
+        sessionAttributes: expect.objectContaining({ displayMode: 'standalone' }),
+      }),
+    )
+  })
+
+  it('tags the session with isTablet from isTabletDevice()', () => {
+    stubProdEnv()
+
+    initRum()
+
+    expect(AwsRumMock).toHaveBeenCalledWith(
+      'app-id',
+      __BUILD_NUMBER__,
+      'us-east-2',
+      expect.objectContaining({
+        sessionAttributes: expect.objectContaining({ isTablet: expect.any(Boolean) }),
+      }),
     )
   })
 })
