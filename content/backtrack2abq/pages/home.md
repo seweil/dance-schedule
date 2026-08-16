@@ -16,7 +16,7 @@ charitable organization — donations are tax deductible.
   dance program instead.
 - [**Callers**](/callers) — who's calling and cueing this convention.
 
-New here? See [Installation](/installation) to add this schedule to your
+New here? See [Help](/help) to add this schedule to your
 phone's home screen — handy for checking between tips if the hotel's Wi-Fi
 is spotty.
 
