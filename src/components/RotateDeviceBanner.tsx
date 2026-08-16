@@ -1,6 +1,5 @@
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useRotateBannerDismissed } from '../hooks/useRotateBannerDismissed'
-import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
 import { PORTRAIT_PHONE_QUERY } from '../lib/breakpoints'
 import styles from './RotateDeviceBanner.module.css'
 
@@ -16,22 +15,8 @@ import styles from './RotateDeviceBanner.module.css'
 export function RotateDeviceBanner() {
   const isPortraitPhone = useMediaQuery(PORTRAIT_PHONE_QUERY)
   const { dismissed, dismiss } = useRotateBannerDismissed(isPortraitPhone)
-  // Suppressed while either onboarding hint is showing — confirmed live that
-  // on a genuinely fresh device, this banner and PageMenu.tsx's kebab-menu
-  // hint balloon (both near the top of these pages) can render at the same
-  // time and visually collide. Reads the SAME two ids PageMenu.tsx and
-  // DanceScheduleFilters.tsx themselves own/dismiss — this only works
-  // because useFirstLaunchHint's `dismissed` is a useSyncExternalStore
-  // subscription (see that file's own comment), not a private useState; a
-  // plain useState here would capture whatever was true at THIS component's
-  // own mount and never learn that the other component later dismissed it.
-  // Hardcodes both ids rather than a registry — there are exactly two hints
-  // in the app today (docs/design/onboarding-hints.md); revisit if a third
-  // one also needs to suppress this banner.
-  const { shouldShow: showKebabHint } = useFirstLaunchHint('kebab-menu')
-  const { shouldShow: showLevelHint } = useFirstLaunchHint('level-slider')
 
-  if (!isPortraitPhone || dismissed || showKebabHint || showLevelHint) {
+  if (!isPortraitPhone || dismissed) {
     return null
   }
 

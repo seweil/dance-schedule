@@ -18,16 +18,23 @@ export interface HintBalloonProps {
   // full generic positioning API, since these two shapes are still the only
   // ones any caller has needed so far.
   placement?: 'end' | 'center'
-  // The real control this hint points at — PageMenu.tsx's toggle button, or
-  // DanceScheduleFilters.tsx's whole `.levelField`. A tap ON this element
-  // already has its own onClick/onValueChange wired to call this SAME
-  // onDismiss (see each caller's own comment) — using the real control IS
-  // the hint doing its job, so that tap should dismiss AND still go on to
-  // perform its own action normally. A tap anywhere ELSE, while the hint is
-  // showing, still dismisses too (see handlePointerDown below) but must NOT
-  // also trigger whatever it happened to land on — see that handler's own
-  // comment for why.
-  targetRef: RefObject<HTMLElement | null>
+  // Optional: the real control this hint points at, EXEMPT from the "first
+  // tap swallows its own click" behavior below — a tap on this element
+  // dismisses AND still goes on to perform its own action normally (its own
+  // onClick/onValueChange already calls this SAME onDismiss — see each
+  // caller's own comment). DanceScheduleFilters.tsx passes its `.levelField`
+  // here: tapping a tick or dragging a thumb IS the hint doing its job, so
+  // that same tap should also move the slider, not require a second tap.
+  // PageMenu.tsx deliberately does NOT pass one: reported live that tapping
+  // the kebab toggle while its hint was showing dismissed the hint AND
+  // opened the menu in that one tap — per direct product decision, the
+  // toggle should behave like every OTHER tap while the hint is up (dismiss
+  // only, requiring a second, deliberate tap to actually open the menu),
+  // not be a special case. Omitting `targetRef` entirely (rather than a
+  // prop that's still required but sometimes points at nothing) is what
+  // makes that the natural, no-exceptions default — see handlePointerDown
+  // below.
+  targetRef?: RefObject<HTMLElement | null>
 }
 
 // A small, dismissible callout with an arrow pointing at whatever it's meant
@@ -51,21 +58,23 @@ export function HintBalloon({ message, onDismiss, placement = 'end', targetRef }
   // reused from that hook: this isn't a reopenable toggle menu (no
   // isOpen/Escape-to-refocus behavior needed — once dismissed, a hint never
   // reappears), so useDismissableMenu's own shape doesn't fit. A tap on
-  // the real target (targetRef) also counts as "outside" here and
-  // dismisses it too, same as e.g. PageMenu.tsx's own handleToggleClick
-  // already does explicitly — both paths call the same idempotent dismiss,
-  // so there's no conflict from triggering it twice for that one tap. No
-  // separate dismiss button on the balloon itself — reported live that one
-  // was redundant UI, since a tap anywhere else already covers it.
+  // the real target (targetRef, if given) also counts as "outside" here and
+  // dismisses it too, same as e.g. DanceScheduleFilters.tsx's own tick
+  // onClick already does explicitly — both paths call the same idempotent
+  // dismiss, so there's no conflict from triggering it twice for that one
+  // tap. No separate dismiss button on the balloon itself — reported live
+  // that one was redundant UI, since a tap anywhere else already covers it.
   //
-  // A tap that ISN'T on the balloon OR the real target ALSO gets its own
-  // follow-up click swallowed — reported live: on a fresh device, the very
-  // first tap anywhere (e.g. a "See all events" link on the home page,
-  // while the kebab-menu hint is showing) shouldn't ALSO navigate away or
-  // activate whatever it landed on, just dismiss the hint and leave the
-  // user where they were, free to actually read the page before their next
-  // tap does something real. Taps ON the real target are deliberately
-  // exempt — see targetRef's own comment above.
+  // A tap that ISN'T on the balloon OR the real target (if any) ALSO gets
+  // its own follow-up click swallowed — reported live: on a fresh device,
+  // the very first tap anywhere (e.g. a "See all events" link on the home
+  // page, while the kebab-menu hint is showing) shouldn't ALSO navigate
+  // away or activate whatever it landed on, just dismiss the hint and leave
+  // the user where they were, free to actually do something on purpose
+  // next. Taps ON the real target are exempt ONLY when a `targetRef` was
+  // given — see that prop's own comment above for why PageMenu.tsx
+  // deliberately doesn't give one, so ITS toggle gets swallowed like
+  // everything else too.
   //
   // Can't just call event.preventDefault() on THIS pointerdown event and
   // stop there: confirmed live (and in this component's own tests) that
@@ -97,7 +106,7 @@ export function HintBalloon({ message, onDismiss, placement = 'end', targetRef }
         return
       }
       onDismiss()
-      if (targetRef.current?.contains(target)) {
+      if (targetRef?.current?.contains(target)) {
         return
       }
       function swallowClick(clickEvent: MouseEvent) {

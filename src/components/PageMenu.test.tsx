@@ -22,6 +22,17 @@ function getToggle() {
   return screen.getByRole('button', { name: /menu/i })
 }
 
+// The toggle deliberately gets no exemption from HintBalloon's "first tap
+// swallows its own click" behavior (see HintBalloon.tsx's own targetRef
+// comment and this file's own "does NOT open the menu..." test below) — so
+// on a fresh test device (default localStorage), a test exercising the
+// toggle's own open/close behavior, rather than the hint itself, needs the
+// hint pre-dismissed first or its own first click would just dismiss the
+// hint instead of opening the menu.
+function dismissKebabHint() {
+  localStorage.setItem('dance-schedule:hint-dismissed:kebab-menu', JSON.stringify(true))
+}
+
 function renderPageMenu(initialPath = '/installation') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
@@ -41,6 +52,7 @@ describe('PageMenu', () => {
   })
 
   it('opens and closes the menu when the toggle is clicked', async () => {
+    dismissKebabHint()
     const user = userEvent.setup()
     renderPageMenu()
     const toggle = getToggle()
@@ -53,6 +65,7 @@ describe('PageMenu', () => {
   })
 
   it('closes the menu when Escape is pressed', async () => {
+    dismissKebabHint()
     const user = userEvent.setup()
     renderPageMenu()
     const toggle = getToggle()
@@ -88,6 +101,7 @@ describe('PageMenu', () => {
   })
 
   it('closes the menu when a text-size option is selected, same as clicking a page link would', async () => {
+    dismissKebabHint()
     const user = userEvent.setup()
     renderPageMenu()
     const toggle = getToggle()
@@ -119,6 +133,26 @@ describe('PageMenu', () => {
     )
   })
 
+  it('does NOT open the menu on that same first click — only a second, deliberate click does', async () => {
+    // Per direct product decision, the toggle gets no exemption from
+    // HintBalloon's "first tap swallows its own click" behavior (see
+    // HintBalloon.tsx's own targetRef comment) — tapping it while the hint
+    // is showing should read the same as tapping anywhere else.
+    const user = userEvent.setup()
+    renderPageMenu()
+    const toggle = getToggle()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(toggle)
+
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('does not show the hint balloon once already dismissed on a previous launch', () => {
     localStorage.setItem('dance-schedule:hint-dismissed:kebab-menu', JSON.stringify(true))
     renderPageMenu()
@@ -145,6 +179,7 @@ describe('PageMenu', () => {
   })
 
   it('closes the menu when clicking outside the nav', async () => {
+    dismissKebabHint()
     const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/installation']}>

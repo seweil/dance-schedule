@@ -42,7 +42,15 @@ export function PageMenu() {
     toggle()
     // Tapping the real toggle means the hint did its job — no reason to keep
     // showing it on THIS device's remaining onboarding launches once the
-    // person has already found the menu once.
+    // person has already found the menu once. Usually a no-op by the time
+    // this actually runs: while the hint is showing, HintBalloon's own
+    // pointerdown listener already dismisses it (and swallows THIS click —
+    // see its own targetRef comment for why the toggle deliberately gets no
+    // exemption) before handleToggleClick ever fires, so toggle() itself
+    // only executes on a SECOND, deliberate tap once the hint is already
+    // gone. Kept here anyway for the keyboard-activation path (Enter/Space
+    // on a focused toggle fires 'click' directly, with no preceding
+    // 'pointerdown' to have dismissed it already).
     dismissHint()
   }
 
@@ -67,9 +75,10 @@ export function PageMenu() {
           />
         </svg>
       </button>
-      {showHint && (
-        <HintBalloon message="Tap here for menu" onDismiss={dismissHint} targetRef={toggleRef} />
-      )}
+      {/* No targetRef — see HintBalloon.tsx's own comment on that prop for
+          why the toggle deliberately does NOT get the "tap the real target
+          still performs its action" exemption. */}
+      {showHint && <HintBalloon message="Tap here for menu" onDismiss={dismissHint} />}
       <ul id={listId} className={styles.list} data-open={isOpen}>
         {items.map((item) => (
           <li key={item.href}>

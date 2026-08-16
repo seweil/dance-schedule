@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import { readStorageJson, writeStorageJson } from '../lib/appStorage'
 
 const DISMISSED_KEY_PREFIX = 'dance-schedule:hint-dismissed:'
@@ -15,41 +15,6 @@ function resolveCurrentLaunchCount(): number {
 
 function resolveDismissed(id: string): boolean {
   return readStorageJson<boolean>(DISMISSED_KEY_PREFIX + id) === true
-}
-
-// Per-id subscriber sets backing the useSyncExternalStore below — lets a
-// dismiss() call from ONE component instance notify every OTHER instance
-// watching the same id, including read-only ones that never call dismiss()
-// themselves (RotateDeviceBanner.tsx, which needs to know live whether the
-// kebab-menu or level-slider hint another component owns is currently
-// showing, to suppress itself and avoid overlapping it — see
-// docs/design/onboarding-hints.md). Before this existed, each call site's
-// `dismissed` was a private useState seeded once at mount from storage —
-// fine as long as exactly one component both owned and read a given hint,
-// but a third, read-only reader would keep observing its own stale
-// mount-time snapshot forever, since nothing re-ran that initializer just
-// because a DIFFERENT component's state (and localStorage) changed.
-const listenersById = new Map<string, Set<() => void>>()
-
-function getListeners(id: string): Set<() => void> {
-  let listeners = listenersById.get(id)
-  if (!listeners) {
-    listeners = new Set()
-    listenersById.set(id, listeners)
-  }
-  return listeners
-}
-
-function subscribe(id: string, onStoreChange: () => void): () => void {
-  const listeners = getListeners(id)
-  listeners.add(onStoreChange)
-  return () => listeners.delete(onStoreChange)
-}
-
-function notify(id: string): void {
-  for (const listener of getListeners(id)) {
-    listener()
-  }
 }
 
 export interface UseFirstLaunchHintResult {
@@ -76,25 +41,26 @@ export interface UseFirstLaunchHintResult {
 // and dismissed it. Every future hint calls this same hook with its own id;
 // nothing here is specific to the kebab-menu hint that motivated it.
 //
-// `dismissed` is a useSyncExternalStore subscription (see the module-level
-// listener registry above), not a plain useState, precisely so a second or
-// third component watching the SAME id — not just the one that owns/calls
-// dismiss() — re-renders the instant it changes, from wherever it changed.
-// launchCount stays a plain useState: it's fixed for the whole session by
-// the time any of this runs (App.tsx's own useAppLaunchCount already
-// incremented and persisted it before any child's hooks run), so there's
-// nothing for a second reader to ever observe changing.
+// Each id today has exactly one owning component (PageMenu.tsx for
+// "kebab-menu", DanceScheduleFilters.tsx for "level-slider") that both
+// calls dismiss() and reads shouldShow — so a plain useState, seeded once
+// at mount from storage, is enough; nothing else needs to learn about a
+// dismissal that happens elsewhere while it's still mounted. (An earlier
+// version of this hook briefly went through useSyncExternalStore instead,
+// to support RotateDeviceBanner.tsx reading BOTH ids read-only to suppress
+// itself while either hint was showing — reverted, along with that
+// suppression, once it started causing a visible layout jump; see
+// docs/design/onboarding-hints.md's own "leave the rotate banner up"
+// decision. Revisit this if a future read-only third consumer shows up
+// again.)
 export function useFirstLaunchHint(id: string, maxLaunches = 3): UseFirstLaunchHintResult {
-  const dismissed = useSyncExternalStore(
-    useCallback((onStoreChange) => subscribe(id, onStoreChange), [id]),
-    () => resolveDismissed(id),
-  )
+  const [dismissed, setDismissed] = useState(() => resolveDismissed(id))
   const [launchCount] = useState(() => resolveCurrentLaunchCount())
 
-  const dismiss = useCallback(() => {
+  function dismiss() {
+    setDismissed(true)
     writeStorageJson(DISMISSED_KEY_PREFIX + id, true)
-    notify(id)
-  }, [id])
+  }
 
   return { shouldShow: !dismissed && launchCount <= maxLaunches, dismiss }
 }

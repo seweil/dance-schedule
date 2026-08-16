@@ -157,6 +157,34 @@
   transform: translateX(calc(-50vw + 16px));
 }
 
+/* --tablet-and-up ONLY (src/breakpoints.css): the vw-anchor above is a
+   PHONE-specific fix. It assumes `.levelField`'s own CENTER tracks close to
+   the true viewport's center — true on phone, where `.filters`
+   (DanceScheduleFilters.module.css) spans nearly the full, narrow viewport
+   width. At tablet-and-up widths, `.levelField` is deliberately WIDTH-
+   CAPPED for ergonomic tick spacing (`MAX_TICK_GAP_PX`,
+   DanceScheduleFilters.tsx) and centered within a much WIDER `.filters` —
+   so on a wide screen, the actual ring can sit hundreds of px in from the
+   true viewport edge, while this balloon stayed pinned only 16px from that
+   edge — reported live as the arrow no longer reaching the balloon at all
+   in landscape/tablet/desktop, since .pointer[data-placement='center']
+   below is a fixed-length glyph tuned for the phone-narrow gap. Reverts to
+   anchoring THIS balloon relative to `.levelField`'s own edge instead
+   (`left: 1rem`, no transform) — the pre-vw-anchor approach — which tracks
+   wherever the ring actually renders, regardless of viewport width, so the
+   arrow's fixed length (recomputed below for this breakpoint) stays valid.
+   Not a "small margin to the true window edge" concern at this width in
+   the first place — .levelField's own left offset from the real edge is
+   already generous (a deliberate side effect of the width cap), never
+   cramped, so there's no edge-hugging need to preserve here the way there
+   was on phone. */
+@media (--tablet-and-up) {
+  .balloon[data-placement='center'] {
+    left: 1rem;
+    transform: none;
+  }
+}
+
 /* Shared styling for the arrow glyph itself (HintBalloon.tsx's inline <svg>,
    drawn once, pointing right, at a fixed 100:40 aspect ratio — see that
    file's own comment). color, not fill/stroke directly — the SVG path uses

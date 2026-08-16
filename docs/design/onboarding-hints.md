@@ -81,9 +81,21 @@ questions.
 - [x] The very first tap anywhere, while a hint is showing, should dismiss
       it WITHOUT also triggering whatever it happened to land on (so a new
       user's first tap can't accidentally navigate them off the page they're
-      meant to be reading) — except a tap on the hint's own real target,
-      which should still do both — see "The first outside tap dismisses
-      AND swallows its own click, except on the hint's own real target"
+      meant to be reading) — with an EXEMPTION for a tap on the hint's own
+      real target, which should still do both — see "The first outside tap
+      dismisses AND swallows its own click, except on the hint's own real
+      target"
+- [x] The kebab toggle turned out NOT to want that exemption after all —
+      tapping it while its own hint is showing should also just dismiss,
+      not open the menu in the same tap — see "The kebab toggle loses its
+      targetRef exemption too"
+- [x] Un-suppressing `RotateDeviceBanner` (the earlier suppression caused a
+      worse problem — a visible layout jump — once hints started overlaying
+      the whole page) — see "Leave the rotate banner up"
+- [x] The level-slider arrow stopped reaching the balloon at tablet/desktop
+      widths, once `.levelField`'s own width cap put real distance between
+      it and the viewport-edge-anchored balloon — see "A tablet-and-up
+      override: the arrow only reached on phone"
 
 ## Arrow design rules (persistent reference)
 **Why this section exists:** these rules have been given, live, more than
@@ -437,7 +449,16 @@ first-launch-only cosmetic edge case rather than adding a shared singleton
 just to avoid it.
 
 ### `RotateDeviceBanner` suppression, and `useFirstLaunchHint` going live across components
-**Why:** Confirmed live on a genuinely fresh device: `RotateDeviceBanner`
+**Reverted — see "Leave the rotate banner up" near the end of this file.**
+Once the hint's own dimming started overlaying the whole page (see
+"Screen-dimming" further below), hiding `RotateDeviceBanner` out from under
+that overlay and then reintroducing it once a hint dismissed caused a
+visible layout jump — worse than the original collision this was meant to
+avoid. Kept below for the historical reasoning (in particular, why
+`useFirstLaunchHint` briefly needed `useSyncExternalStore`), but the
+suppression itself, and that hook change, are both gone from the code.
+
+**Why (historical):** Confirmed live on a genuinely fresh device: `RotateDeviceBanner`
 (shown on the three dance-schedule pages below `PageHeader`) and the
 kebab-menu hint balloon (anchored to that same header's toggle) can both be
 visible at once and visually collide. `RotateDeviceBanner.tsx` now also
@@ -1062,6 +1083,145 @@ dismissed the hint and left the page unchanged (no navigation); tapping
 that same link again afterward navigated normally; tapping the real kebab
 toggle itself dismissed the hint AND opened the menu in that one tap, same
 as before this change.
+
+### The kebab toggle loses its targetRef exemption too
+**Why:** Direct product feedback, live, on the very case the previous
+section's own "verified live" note above called out as working as
+designed: tapping the real kebab toggle while its hint was showing still
+opened the menu in that same tap — reported as wrong. Per direct product
+decision, the toggle should behave exactly like every OTHER tap while the
+hint is up: the first tap dismisses only, and only a SECOND, deliberate tap
+actually opens the menu. The level slider's own ticks/thumbs keep their
+exemption unchanged (tapping a tick, or dragging a thumb, still both
+dismisses AND moves the filter in one motion) — only the kebab-menu case
+changed.
+
+**`HintBalloon`'s `targetRef` prop became optional, rather than adding a
+second prop to invert its meaning.** `PageMenu.tsx` simply stops passing it
+(no `toggleRef` argument to `<HintBalloon>` at all); `HintBalloon.tsx`'s
+own `handlePointerDown` already falls through to the swallow branch
+whenever `targetRef?.current?.contains(target)` is falsy, which an
+`undefined` targetRef always is — no new branch or prop needed, just a
+`?.` in one place. `DanceScheduleFilters.tsx` is unaffected, still passing
+`levelFieldRef` exactly as before. `targetRef`'s own doc comment (on the
+prop itself) now explains both the "when given" and "when omitted" cases
+together, since which one a given caller picks is now itself a real design
+decision each new hint has to make, not just plumbing.
+
+**`PageMenu.tsx`'s `handleToggleClick` keeps calling `dismissHint()`
+unconditionally, even though it's usually a no-op by the time it runs.**
+While the hint is showing, `HintBalloon`'s own pointerdown listener already
+dismisses it (and swallows that click) before `handleToggleClick` ever
+fires — so by the time `toggle()` actually executes (a second, later tap),
+the hint is already gone and `dismissHint()` is a harmless repeat call.
+Kept anyway for the keyboard-activation path: pressing Enter/Space on a
+focused toggle fires `click` directly, with no preceding `pointerdown` —
+`HintBalloon`'s own dismiss-and-swallow logic never runs at all for that
+input method, so `handleToggleClick`'s own explicit `dismissHint()` is what
+clears the hint if it's somehow still showing when the toggle is actually
+activated by keyboard.
+
+**Test coverage:** `PageMenu.test.tsx` gained a test clicking the toggle
+twice — asserting `aria-expanded` stays `'false'` after the first click
+(hint dismissed, menu still closed) and becomes `'true'` only after the
+second. Four PRE-EXISTING `PageMenu.test.tsx` tests that exercise the
+toggle's open/close behavior directly (not the hint) broke from this change
+for the right reason, the same way `ClearStorageAction.test.tsx` did in the
+previous section — fixed by pre-dismissing the kebab-menu hint
+(`dismissKebabHint()`, a small new local helper) before rendering in each,
+isolating their own actual behavior from this separate, now-broader
+first-tap-swallow concern.
+
+### Leave the rotate banner up
+**Why:** Direct product feedback, live: now that a showing hint's own
+dimming overlays the WHOLE page (not just the target it's emphasizing —
+see "Screen-dimming" above), `RotateDeviceBanner` disappearing while a hint
+was up and then reappearing once it dismissed produced a visible layout
+jump — worse than the original visual collision the suppression (see
+"`RotateDeviceBanner` suppression..." above) was added to prevent. Per
+direct product decision: leave the banner up unconditionally (subject only
+to its own original portrait-phone-and-not-dismissed check), even while a
+hint is showing and even though the two may visually sit close together.
+
+**Reverted, not reworked** — `RotateDeviceBanner.tsx` no longer imports or
+calls `useFirstLaunchHint` at all; its render condition is back to
+`!isPortraitPhone || dismissed`, exactly what it was before that
+suppression existed. `RotateDeviceBanner.test.tsx`'s own suppression tests
+(and the `dismissBothHints()` helper they needed) were removed along with
+it, restoring its three original tests to their pre-suppression form.
+
+**This also removed the ONLY reason `useFirstLaunchHint.ts` needed
+`useSyncExternalStore` instead of a plain `useState`.** With
+`RotateDeviceBanner` gone as a read-only THIRD consumer of another
+component's hint state, every remaining `id` (`'kebab-menu'`,
+`'level-slider'`) once again has exactly one owning component that both
+calls `dismiss()` and reads `shouldShow` — the case a plain `useState`,
+seeded once at mount from storage, already handles correctly. Reverted the
+whole module-level subscriber-registry mechanism (`listenersById`,
+`subscribe`, `notify`) along with it, rather than leaving it in place
+unused — per this codebase's own "avoid premature abstraction" convention,
+carrying complexity that no longer serves any caller just invites a future
+reader to wonder what depends on it. `useFirstLaunchHint.test.tsx`'s own
+cross-instance-propagation test (written specifically to cover the
+`RotateDeviceBanner` case) was removed for the same reason. Revisit if a
+future read-only third consumer of some hint's state shows up again — the
+`useSyncExternalStore` version is straightforward to restore from git
+history if so.
+
+### A tablet-and-up override: the arrow only reached on phone
+**Why:** Direct product feedback: the level-slider arrow "looks great in
+phone portrait, but arrow doesn't reach bubble in landscape or larger
+window (ipad or desktop)." Confirmed live at 1280px width: the balloon sat
+pinned ~16px from the true viewport's left edge (per "'center' anchors to
+the true viewport edge" above), but `.hintRing`/`.levelField` sat over
+500px in from that same edge — `.levelField` is deliberately WIDTH-CAPPED
+for ergonomic tick spacing (`MAX_TICK_GAP_PX`, `DanceScheduleFilters.tsx`)
+and centered within a much WIDER `.filters` at this width, so the actual
+gap between balloon and ring was far larger than the fixed-length arrow
+(tuned for the phone-narrow case) could ever span. The arrow rendered as a
+short stub near the balloon, nowhere close to the ring.
+
+**Root cause: the earlier "anchor to the true viewport edge" fix (see
+"'center' anchors to the true viewport edge" above) only worked by
+coincidence on phone.** That fix assumed `.levelField`'s own CENTER tracks
+the viewport's own center regardless of its width — true in general, but
+what actually made the arrow keep reaching on phone was a SECOND,
+unstated coincidence: on a narrow phone viewport, `.filters` spans nearly
+the full width, so `.levelField`'s own left edge ALSO happens to sit close
+to the true viewport edge — meaning "anchor the balloon near the true
+edge" and "anchor the balloon near `.levelField`'s own edge" landed at
+nearly the same place. Neither assumption holds on a wide viewport:
+`.levelField`'s width cap means it (and the ring) can sit hundreds of px
+in from the true edge, while the balloon — anchored to the edge, not the
+ring — stays put. The two anchors, coincidentally similar on phone,
+diverge sharply on tablet/desktop.
+
+**Fixed with a breakpoint split on the BALLOON's own horizontal anchor
+only — the arrow (`.pointer[data-placement='center']`) needed no changes
+at all.** `@media (--tablet-and-up)` (`src/breakpoints.css`'s existing
+641px token — the same one `PageMenu`'s own mobile/desktop nav switch
+already uses, not a new breakpoint invented for this) overrides
+`.balloon[data-placement='center']` back to `left: 1rem; transform: none`
+— the pre-vw-anchor, `.levelField`-relative approach — at this width and
+up. This isn't reintroducing the original "not close enough to the true
+edge" bug: that complaint was specific to phone's cramped screen, and at
+tablet-and-up widths `.levelField`'s own left offset from the true edge is
+already generous (a direct side effect of the same width cap that caused
+this bug), so there's no edge-hugging need to preserve there in the first
+place. Verified live (`getScreenCTM`-based tail/tip measurement, same
+technique used throughout this file) at 1280px: with ONLY the balloon's
+anchor changed, the EXISTING, unchanged pointer CSS still landed the tip
+a few px inside `.hintRing`'s own bottom edge and the tail ~9.5px inside
+the balloon's own top edge — numerically almost identical to the
+phone-width measurements. This isn't a coincidence: with both the balloon
+and the ring positioned via FIXED, viewport-independent offsets from the
+SAME parent (`.levelField`) — `left: 1rem` and `.hintRing`'s own `inset:
+-8px -16px` — the geometric relationship between the balloon's own nominal
+tail anchor and the ring's nearest edge is invariant to viewport width by
+construction, so the same dx/dy/reach/angle numbers (originally derived
+against a phone-width measurement that happened to match this same
+relationship almost exactly) generalize correctly to every width at or
+above the breakpoint, with no further per-width tuning needed.
 
 ## Open questions
 
