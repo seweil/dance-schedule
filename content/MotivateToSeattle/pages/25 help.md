@@ -41,3 +41,8 @@ Dance Schedule remembers your selected date, level filters,
 and text size so they're there the next time you open it. If something
 looks stuck or out of date, [clear saved settings](/clear-storage) to reset
 everything back to its defaults.
+
+## Still stuck?
+
+[Email us](mailto:help@sqdance.app) with questions about the app or the
+event.

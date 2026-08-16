@@ -217,3 +217,53 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | filter event_type = "dance_schedule_date_selected"
 | stats count(*) by event_details.date
 ```
+
+## Email forwarding: `help@sqdance.app`
+
+`infra/email-forwarding.yaml` is a separate stack (own region, no shared
+resources — see `docs/design/email-forwarding.md`) that receives mail sent
+to `help@sqdance.app` via SES and forwards it to a real inbox via a small
+Lambda, so that address never has to appear as a plain, spam-crawlable
+`mailto:` link anywhere on the site.
+
+```bash
+./infra/deploy-email-forwarding.sh [forward-to-address]
+```
+
+Defaults to `steve.weil@gmail.com` if no address is given. Pass a
+different address any time to redirect forwarding — it's a stack
+parameter, not hardcoded, so this is just a redeploy, no code change:
+
+```bash
+./infra/deploy-email-forwarding.sh someone-else@example.com
+```
+
+The script deploys the stack (`--stack-name dance-schedule-email-forwarding`,
+`--region us-east-1` — **not** `us-east-2` like the monitoring stack; SES
+inbound receiving isn't available there, see the design doc), activates the
+receipt rule set (CloudFormation can create one but has no property to mark
+it active), and verifies the forward-to address with SES if it isn't
+already (SES sandbox only allows sending to verified addresses, and
+forwarding a copy counts as sending — this triggers a one-time confirmation
+email to click).
+
+After deploying, it prints the DNS records the stack needs (an MX record
+plus 3 DKIM CNAMEs) — deploying the stack itself never writes DNS (see the
+design doc's reasoning). Since `sqdance.app` is confirmed to live in
+Route53, add them with:
+
+```bash
+./infra/add-email-dns-records.sh
+```
+
+This reads the record values straight from the stack's outputs (so
+there's no copy-pasting, and it stays correct across redeploys) and
+`UPSERT`s them into Route53 — except it refuses to touch the MX record if
+one already exists with a different value, rather than silently
+overwriting it. Only needs to be run once, or again if the domain's DNS
+ever moves. Records can take a few minutes (occasionally longer) to
+propagate; check verification status with:
+
+```bash
+aws ses get-identity-verification-attributes --identities sqdance.app --region us-east-1
+```

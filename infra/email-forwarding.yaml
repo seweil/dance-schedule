@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Receives mail sent to help@<Domain> via SES and forwards it to a real
+  inbox via a small Lambda, so the contact address on the Help page never
+  has to be a plain, spam-crawlable mailto: link — see
+  docs/design/email-forwarding.md for the rationale. Deployed independently
+  of infra/monitoring.yaml, and in a different region — see that decision
+  doc for why.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: dance-schedule
+    Description: Used to name/prefix this stack's resources.
+  Domain:
+    Type: String
+    Default: sqdance.app
+    Description: Domain the recipient address lives on.
+  RecipientLocalPart:
+    Type: String
+    Default: help
+    Description: >
+      The part before the @ — combined with Domain to form the address
+      that gets forwarded, e.g. help@sqdance.app.
+  ForwardToAddress:
+    Type: String
+    Default: steve.weil@gmail.com
+    Description: >
+      Where incoming mail actually lands. Change this and redeploy to
+      redirect forwarding — no code change needed. While the SES account
+      is in sandbox mode (the default), this address must be verified;
+      deploy-email-forwarding.sh handles that automatically.
+
+Resources:
+  EmailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireForwardedMail
+            Status: Enabled
+            ExpirationInDays: 14
+
+  EmailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref EmailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${EmailBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                aws:Referer: !Ref AWS::AccountId
+
+  ForwarderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AppName}-email-forwarder-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ForwardMail
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${EmailBucket.Arn}/*'
+              - Effect: Allow
+                Action: ses:SendRawEmail
+                Resource: '*'
+
+  ForwarderFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AppName}-email-forwarder'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt ForwarderRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref EmailBucket
+          FORWARD_TO: !Ref ForwardToAddress
+          SENDER_DOMAIN: !Ref Domain
+      Code:
+        ZipFile: |
+          const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+          const { SESClient, SendRawEmailCommand } = require('@aws-sdk/client-ses');
+
+          const s3 = new S3Client({});
+          const ses = new SESClient({});
+
+          // Lightweight header rewriting, not a spec-complete MIME parser —
+          // fine for a low-volume contact inbox, not meant as a general
+          // mail relay. Strips the original DKIM-Signature (invalid once
+          // headers change; SES re-signs with our own domain's key instead)
+          // and preserves the original sender as Reply-To.
+          exports.handler = async (event) => {
+            const bucket = process.env.BUCKET_NAME;
+            const forwardTo = process.env.FORWARD_TO;
+            const domain = process.env.SENDER_DOMAIN;
+            const rec = event.Records[0].ses;
+
+            const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: rec.mail.messageId }));
+            const chunks = [];
+            for await (const chunk of obj.Body) chunks.push(chunk);
+            let raw = Buffer.concat(chunks).toString('utf-8');
+
+            const from = (rec.mail.commonHeaders.from || ['unknown'])[0];
+            const newFrom = `"${from.replace(/"/g, '')}" <no-reply@${domain}>`;
+
+            raw = raw
+              .replace(/^DKIM-Signature:[\s\S]*?\r?\n(?=\S)/m, '')
+              .replace(/^Reply-To:.*(\r?\n[ \t].*)*\r?\n/m, '')
+              .replace(/^From:.*(\r?\n[ \t].*)*$/m, `From: ${newFrom}\r\nReply-To: ${from}`)
+              .replace(/^To:.*(\r?\n[ \t].*)*$/m, `To: ${forwardTo}`);
+
+            await ses.send(new SendRawEmailCommand({
+              Destinations: [forwardTo],
+              RawMessage: { Data: Buffer.from(raw) },
+            }));
+          };
+
+  ForwarderInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ForwarderFunction
+      Principal: ses.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+  EmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref Domain
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+
+  ReceiptRuleSet:
+    Type: AWS::SES::ReceiptRuleSet
+    Properties:
+      RuleSetName: !Sub '${AppName}-inbound'
+
+  ForwardRule:
+    Type: AWS::SES::ReceiptRule
+    DependsOn:
+      - ForwarderInvokePermission
+      - EmailBucketPolicy
+    Properties:
+      RuleSetName: !Ref ReceiptRuleSet
+      Rule:
+        Name: !Sub '${AppName}-forward-${RecipientLocalPart}'
+        Enabled: true
+        ScanEnabled: true
+        Recipients:
+          - !Sub '${RecipientLocalPart}@${Domain}'
+        Actions:
+          - S3Action:
+              BucketName: !Ref EmailBucket
+          - LambdaAction:
+              FunctionArn: !GetAtt ForwarderFunction.Arn
+              InvocationType: Event
+
+Outputs:
+  BucketName:
+    Value: !Ref EmailBucket
+  FunctionArn:
+    Value: !GetAtt ForwarderFunction.Arn
+  RuleSetName:
+    Value: !Ref ReceiptRuleSet
+  MxRecordName:
+    Description: DNS record name for the MX record (add at your DNS host).
+    Value: !Ref Domain
+  MxRecordValue:
+    Description: DNS record value for the MX record.
+    Value: !Sub '10 inbound-smtp.${AWS::Region}.amazonaws.com'
+  Dkim1RecordName:
+    Value: !GetAtt EmailIdentity.DkimDNSTokenName1
+  Dkim1RecordValue:
+    Value: !GetAtt EmailIdentity.DkimDNSTokenValue1
+  Dkim2RecordName:
+    Value: !GetAtt EmailIdentity.DkimDNSTokenName2
+  Dkim2RecordValue:
+    Value: !GetAtt EmailIdentity.DkimDNSTokenValue2
+  Dkim3RecordName:
+    Value: !GetAtt EmailIdentity.DkimDNSTokenName3
+  Dkim3RecordValue:
+    Value: !GetAtt EmailIdentity.DkimDNSTokenValue3
