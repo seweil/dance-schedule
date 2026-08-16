@@ -27,6 +27,10 @@ community dance-event site's visitor data.
       see Decisions
 - [ ] Whether to eventually pipe access logs into S3 + Athena for real
       analysis, vs. ad hoc console downloads
+- [ ] A real revamp of the dashboard itself (grown widget-by-widget so
+      far, not designed as a whole) — traffic trends over time, a
+      dedicated "pages viewed" widget, and clear activity-vs-sessions
+      sectioning — see Open questions
 
 ## Decisions
 
@@ -396,3 +400,32 @@ portability regression worth working around.
   (e.g. a small scheduled Lambda), or is manual console download sufficient
   indefinitely given the traffic volume? See `infra/README.md`'s Athena
   note.
+- **Revamp the dashboard (`infra/dashboard.json`).** Grown widget-by-widget
+  so far (each one added to answer a specific question in the moment —
+  Browser/OS, Installed?, Traffic, Font, MinLevel/MaxLevel/Level Range,
+  Platform Mix, Raw OS Permutations), not designed as a whole. Asked,
+  directly, for a real pass rather than another one-off addition:
+  - **Overall traffic trends** — nothing on the dashboard today is a
+    time-series at all; every widget is a point-in-time snapshot/breakdown
+    over whatever the query's own implicit time range happens to be. A
+    trend view (e.g. daily/weekly page views or sessions over time) would
+    need a genuinely different widget type (`view: "timeSeries"`/a metric-
+    based widget, not `"table"`/`"bar"` over a single Logs Insights `stats`
+    result) — likely its own design questions, not just another query.
+  - **Which pages are viewed** — "Pages viewed" already exists
+    (`docs/ops.md`), but isn't currently pinned as its own dashboard
+    widget the way Browser/OS or Platform Mix are; worth deciding whether
+    it should be, and whether it wants a trend view too (most-viewed
+    pages THIS WEEK vs. all-time might be different, useful questions).
+  - **Separate sections for "activity" vs "sessions"** — the dashboard
+    currently mixes raw event/page-load counts (Browser/OS, Font,
+    MinLevel/MaxLevel/Level Range — all `count(*)` over
+    `page_view_event`/custom events) and session-deduplicated counts
+    (Traffic, Platform Mix — `count_distinct(user_details.sessionId)`)
+    without any visual grouping distinguishing the two, despite
+    `docs/ops.md`'s own "Page loads vs. sessions vs. users/devices" table
+    already treating that distinction as important enough to document at
+    length. A revamp should probably group widgets under real section
+    headers (CloudWatch dashboards support plain-text/markdown widgets
+    for this) rather than leaving the reader to infer which metric each
+    widget is actually counting from its own query text.
