@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { readStorageJson, writeStorageJson } from '../lib/appStorage'
 
 const DISMISSED_KEY_PREFIX = 'dance-schedule:hint-dismissed:'
@@ -53,14 +53,33 @@ export interface UseFirstLaunchHintResult {
 // docs/design/onboarding-hints.md's own "leave the rotate banner up"
 // decision. Revisit this if a future read-only third consumer shows up
 // again.)
+//
+// `dismiss` is wrapped in `useCallback` — NOT just a plain function — even
+// though nothing here needs it memoized for ITS own sake: `HintBalloon.tsx`
+// passes it straight through as `onDismiss`, a dependency of ITS OWN
+// `useEffect` that registers/tears down document-level pointerdown/click
+// listeners. A plain (non-memoized) `dismiss` gets a brand-new identity on
+// EVERY render of the owning component — and `DanceScheduleFilters.tsx`
+// re-renders often, independent of anything hint-related (its own
+// `hoveredTickIndex` ghost-preview state changes on every tick hover) —
+// so that effect was tearing down and re-registering its listeners far
+// more often than it needed to. Reported live: with the level-slider hint
+// showing, the FIRST tap on a tick sometimes failed to dismiss the hint at
+// all (confirmed reproducible even with the kebab-menu hint NOT also
+// showing, ruling out cross-hint interference) — a SECOND tap always
+// worked. `useCallback(..., [id])` keeps `dismiss`'s own identity stable
+// across re-renders (since `id` never changes for a given call site),
+// which keeps `HintBalloon`'s effect stable too, eliminating that churn
+// entirely rather than trying to reason about exactly which re-render
+// timing made it reproduce.
 export function useFirstLaunchHint(id: string, maxLaunches = 3): UseFirstLaunchHintResult {
   const [dismissed, setDismissed] = useState(() => resolveDismissed(id))
   const [launchCount] = useState(() => resolveCurrentLaunchCount())
 
-  function dismiss() {
+  const dismiss = useCallback(() => {
     setDismissed(true)
     writeStorageJson(DISMISSED_KEY_PREFIX + id, true)
-  }
+  }, [id])
 
   return { shouldShow: !dismissed && launchCount <= maxLaunches, dismiss }
 }

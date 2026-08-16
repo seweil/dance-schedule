@@ -106,6 +106,13 @@ questions.
       that timer — every fixed-duration window was fundamentally the
       wrong approach; replaced with a timing-independent, shared flag — see
       "Dropping the clock entirely: a shared, module-level swallow flag"
+- [x] Confirmed fixed on a real device (kebab toggle); the level-slider
+      hint's own real target (a tick) gets the SAME "first tap just
+      dismisses" behavior now too, plus an unrelated real bug found and
+      fixed along the way (`dismiss` wasn't memoized, so `HintBalloon`'s
+      own listeners churned on every unrelated re-render) — see "The
+      level slider loses its targetRef exemption too, and a real
+      `dismiss`-identity bug found along the way"
 
 ## Arrow design rules (persistent reference)
 **Why this section exists:** these rules have been given, live, more than
@@ -1374,6 +1381,72 @@ element with no follow-up click (an abandoned gesture), then a real
 target's own `onClick` still fires — proving a stale pending-swallow flag
 gets correctly superseded rather than incorrectly eating the next real
 tap's click.
+
+### The level slider loses its targetRef exemption too, and a real `dismiss`-identity bug found along the way
+**Why:** Confirmed on a real device: the flag-based swallow fix above
+fixed the kebab toggle. Per direct product decision, the level-slider
+hint's own real target (a tick, or dragging a thumb) should get the SAME
+treatment — a first tap on a tick should just dismiss the hint, not also
+change the level range, matching "The kebab toggle loses its targetRef
+exemption too" above rather than staying a special case.
+
+**`DanceScheduleFilters.tsx` stops passing `targetRef` to its own
+`HintBalloon`, mirroring `PageMenu.tsx` exactly.** `levelFieldRef` (the
+`useRef` and its `ref={levelFieldRef}` attachment) was removed outright,
+since it had no other purpose. One deliberate asymmetry, inherent to the
+technique rather than a choice made here: dragging a thumb is UNAFFECTED
+either way, since a drag never produces a `click` event at all (only a
+`pointerdown` → `pointermove` → `pointerup` sequence) — only a genuine
+tap/click gesture can be "swallowed" by this mechanism (see
+`HintBalloon.tsx`'s own comment), so `Slider.Root`'s `onValueChange` still
+fires normally on the very first drag, even though a tick's own `onClick`
+now requires a second tap. The hint's own copy ("Tap OR drag...") already
+frames these as two independent interactions, so this asymmetry wasn't
+judged worth extra engineering to paper over.
+
+**A real, independent bug found and fixed while verifying this: `dismiss`
+(from `useFirstLaunchHint.ts`) was never memoized, so `HintBalloon`'s own
+`useEffect` — which depends on it via the `onDismiss` prop — was tearing
+down and re-registering its `pointerdown` listener on EVERY re-render of
+the owning component, not just when something hint-related actually
+changed.** `DanceScheduleFilters.tsx` re-renders often for reasons that
+have nothing to do with the hint (`hoveredTickIndex`, its own ghost-
+preview state, changes on every tick hover) — confirmed live (via
+temporary diagnostic logging, since removed) that this effect was
+re-installing far more often than the kebab-menu case, which has no
+comparably chatty sibling state. Reported live as the level-slider hint
+sometimes failing to dismiss at all on a first tap on a tick — reproduced
+with the kebab-menu hint NOT also showing, ruling out cross-hint
+interference as the cause. Fixed by wrapping `dismiss` in `useCallback(
+..., [id])` (restoring an earlier version's memoization that had been
+dropped, seemingly harmlessly, when this hook reverted from
+`useSyncExternalStore` back to `useState` — see "Leave the rotate banner
+up" above) — this keeps `dismiss`'s own identity stable across re-renders
+unrelated to it, which keeps `HintBalloon`'s effect stable too, removing
+the churn entirely rather than reasoning about exactly which re-render
+timing made it reproduce.
+
+**Test coverage:** `DanceScheduleFilters.test.tsx` gained a test firing a
+real `pointerdown`+`click` pair (not the file's usual bare `fireEvent.
+click()`, which never exercises `HintBalloon`'s own pointerdown-based
+swallow at all) on a tick, asserting `onLevelRangeChange` is NOT called on
+that first tap, but IS called on a second one — mirroring `PageMenu.
+test.tsx`'s own two-tap test for the kebab toggle.
+
+**A note on verifying this one live: real-browser click automation in
+this session became unreliable partway through this investigation — even
+previously-confirmed-working clicks (the kebab toggle) started
+intermittently failing to register at all, with no code change in
+between, and `find`-tool ref-based clicks turned out not to be reliably
+producing real pointer events in this environment at all (raw
+screenshot-derived coordinate clicks were the only reliable method
+found).** The `dismiss`-memoization fix itself IS independently confirmed
+correct — via direct console-log instrumentation showing the effect's own
+install/cleanup count drop to exactly the expected React StrictMode
+double-invoke pattern (no additional churn) once applied — but the
+end-to-end "first tap on a tick only dismisses" behavior for THIS
+specific change relies on the unit test above plus a real-device check,
+same as every fix in this file that ultimately needed one.
 
 ## Open questions
 

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import * as Slider from '@radix-ui/react-slider'
 import type { LevelSlot } from '../lib/levelOrder'
 import { moveNearestThumb } from '../lib/moveNearestThumb'
@@ -109,12 +109,6 @@ export function DanceScheduleFilters({
   // dismissing the hint on any one of them retires it on the others too,
   // rather than each page nagging separately. See docs/design/onboarding-hints.md.
   const { shouldShow: showLevelHint, dismiss: dismissLevelHint } = useFirstLaunchHint('level-slider')
-  // Passed to HintBalloon as targetRef — see that component's own comment:
-  // a tap anywhere ON the field (ticks, track, thumbs) already dismisses
-  // via the onClick/onValueChange handlers below and should still perform
-  // its own action; a tap anywhere ELSE should dismiss WITHOUT also
-  // triggering whatever it landed on.
-  const levelFieldRef = useRef<HTMLDivElement>(null)
   // Drives the ghost preview marker on the track (.ghostThumb) — which slot's
   // tick, if any, the pointer is currently over. null, not -1: every real slot
   // index (including 0) must stay a valid "this one's hovered" value.
@@ -191,7 +185,6 @@ export function DanceScheduleFilters({
       </div>
 
       <div
-        ref={levelFieldRef}
         className={`${styles.field} ${styles.levelField}`}
         // State marker for tests/consistency with PageMenu.tsx's own toggle
         // (which carries the same attribute) — the ring itself (.hintRing,
@@ -335,13 +328,23 @@ export function DanceScheduleFilters({
             comment above), same anchoring relationship PageMenu.tsx's balloon
             has to its own position: relative .nav. placement="center" — see
             HintBalloon.tsx's own comment on why this caller needs that,
-            unlike PageMenu's default "flush right" one. */}
+            unlike PageMenu's default "flush right" one.
+            No targetRef — see HintBalloon.tsx's own comment on that prop:
+            per direct product decision, a tap on a tick while this hint is
+            showing should behave like every OTHER tap (dismiss only,
+            requiring a second, deliberate tap to actually select a level),
+            the same reasoning PageMenu.tsx's own toggle already applies —
+            not exempted just because it's the hint's own real target.
+            Dragging a thumb is unaffected either way: a drag never
+            produces a 'click' event in the first place (only a tap/click
+            gesture can be "swallowed" by this mechanism — see
+            HintBalloon.tsx's own comment), so Slider.Root's onValueChange
+            below still fires normally on the very first drag. */}
         {showLevelHint && (
           <HintBalloon
             message="Tap or drag to filter dance levels"
             placement="center"
             onDismiss={dismissLevelHint}
-            targetRef={levelFieldRef}
           />
         )}
       </div>

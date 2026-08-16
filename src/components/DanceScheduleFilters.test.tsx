@@ -342,6 +342,32 @@ describe('DanceScheduleFilters', () => {
       )
     })
 
+    // The test above dispatches a bare `click`, with no preceding
+    // `pointerdown` — it exercises the tick's own onClick wiring, but not
+    // whether a REAL tap (pointerdown, then click) gets swallowed on its
+    // first hit. `HintBalloon` no longer exempts this field's own real
+    // target (ticks/thumbs) from that swallow — per direct product
+    // decision, tapping a tick while the hint is showing should behave
+    // like every other first tap: dismiss only, not also change the level
+    // range — matching PageMenu.tsx's own toggle. A real pointerdown+click
+    // pair (not `userEvent.click()`, which this file doesn't otherwise
+    // use) is what actually exercises HintBalloon's own swallow mechanism.
+    it('does NOT change the level range on that same first tap — only a second, deliberate tap does', () => {
+      const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
+      const tick = screen.getByRole('button', { name: 'C1' })
+
+      fireEvent.pointerDown(tick)
+      fireEvent.click(tick)
+
+      expect(onLevelRangeChange).not.toHaveBeenCalled()
+      expect(getLevelField()).toHaveAttribute('data-hint-visible', 'false')
+
+      fireEvent.pointerDown(tick)
+      fireEvent.click(tick)
+
+      expect(onLevelRangeChange).toHaveBeenCalledTimes(1)
+    })
+
     it('dismisses the hint when a thumb is dragged (moved with the keyboard)', () => {
       renderFilters({ minLevelIndex: 2, maxLevelIndex: 7 })
       const [minThumb] = screen.getAllByRole('slider')
