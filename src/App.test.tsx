@@ -1,8 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { App } from './App'
+import { resetLaunchCountGuardForTests } from './hooks/useAppLaunchCount'
 
 describe('App', () => {
+  // useAppLaunchCount.ts's own module-level guard (see its comment) means it
+  // only increments once per "page load" — this file renders <App /> fresh
+  // in every test below, so each one needs its own simulated fresh load, the
+  // same way each already gets a fresh localStorage via setup.
+  beforeEach(() => {
+    resetLaunchCountGuardForTests()
+  })
+
+
   // findByRole (async, auto-retries), not getByRole — every routed page, home
   // included, is a React.lazy-loaded chunk (vite-plugin-pages' react resolver code-
   // splits every route; see vite.config.ts's Pages() call), so its content isn't

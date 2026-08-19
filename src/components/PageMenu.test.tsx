@@ -1,9 +1,19 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
 import { PageMenu } from './PageMenu'
 import { TextSizeProvider } from './TextSizeProvider'
+
+// A few tests below mock window.matchMedia (to simulate a mobile viewport
+// for the first-run text-size prompt suppression check) — restoring it
+// afterward keeps that from leaking into other tests, which rely on the
+// default "no match" stub (test-setup.ts) the same way
+// RotateDeviceBanner.test.tsx's own mockPortraitPhone() comment describes.
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 // The toggle is only visible below the CSS module's mobile breakpoint. Real CSS is
 // loaded in jsdom (vitest.config.ts sets css: true), and per the accname spec a
@@ -158,6 +168,82 @@ describe('PageMenu', () => {
     renderPageMenu()
     expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
     expect(getToggle()).toHaveAttribute('data-hint-visible', 'false')
+  })
+
+  // FirstRunTextSizePrompt.tsx's own modal visually covers this hint entirely
+  // on a genuinely fresh mobile device (both are eligible on launch 1), but
+  // HintBalloon's global "swallow the very next click" listener doesn't know
+  // that — without this suppression, a tap on the modal's own buttons gets
+  // eaten before it ever reaches them. See docs/design/onboarding-hints.md.
+  it('suppresses the kebab-menu hint while the first-run text-size prompt would be showing (mobile, launch 1)', () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList)
+
+    renderPageMenu()
+
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+    expect(getToggle()).toHaveAttribute('data-hint-visible', 'false')
+  })
+
+  it('does NOT suppress the kebab-menu hint at a non-mobile width, even on launch 1', () => {
+    renderPageMenu()
+    expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
+  })
+
+  it('does NOT suppress the kebab-menu hint on mobile once the text-size prompt is dismissed', () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList)
+    localStorage.setItem('dance-schedule:hint-dismissed:text-size', JSON.stringify(true))
+
+    renderPageMenu()
+
+    expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
+  })
+
+  // Regression test for a real bug: PageMenu.tsx's own suppression check
+  // holds a READ-ONLY useFirstLaunchHint('text-size', 1) instance, while
+  // FirstRunTextSizePrompt.tsx is the one that actually calls dismiss() on
+  // that same id, from a completely separate component instance elsewhere
+  // in the tree. Reported live: after picking a text size in that modal,
+  // the kebab-menu hint never reappeared — useFirstLaunchHint.ts's own
+  // cross-instance sync (useSyncExternalStore) is what this test exercises,
+  // simulating the modal's own dismiss() from a sibling rather than
+  // rendering the real modal component here.
+  function TextSizePromptStandIn() {
+    const { dismiss } = useFirstLaunchHint('text-size', 1)
+    return (
+      <button type="button" onClick={dismiss}>
+        Simulate picking a text size
+      </button>
+    )
+  }
+
+  it('un-suppresses the kebab-menu hint once the text-size prompt is dismissed from elsewhere, live', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList)
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/installation']}>
+        <TextSizeProvider>
+          <PageMenu />
+          <TextSizePromptStandIn />
+        </TextSizeProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.queryByText('Tap here for menu')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Simulate picking a text size' }))
+
+    expect(screen.getByText('Tap here for menu')).toBeInTheDocument()
   })
 
   it('dismisses the hint balloon when tapping anywhere outside it', async () => {

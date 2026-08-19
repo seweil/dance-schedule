@@ -5,7 +5,9 @@ import { moveNearestThumb } from '../lib/moveNearestThumb'
 import { getUserLocales } from '../lib/userLocale'
 import { useTextSize } from '../hooks/useTextSize'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { usePinnedMediaQuery } from '../hooks/usePinnedMediaQuery'
 import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
+import { PHONE_QUERY } from '../lib/breakpoints'
 import { HintBalloon } from './HintBalloon'
 import styles from './DanceScheduleFilters.module.css'
 
@@ -108,7 +110,18 @@ export function DanceScheduleFilters({
   // useFirstLaunchHint('level-slider') id/dismissed-flag means seeing and
   // dismissing the hint on any one of them retires it on the others too,
   // rather than each page nagging separately. See docs/design/onboarding-hints.md.
-  const { shouldShow: showLevelHint, dismiss: dismissLevelHint } = useFirstLaunchHint('level-slider')
+  const { shouldShow: levelHintEligible, dismiss: dismissLevelHint } = useFirstLaunchHint('level-slider')
+  // Read-only suppression while FirstRunTextSizePrompt.tsx's modal is up —
+  // see PageMenu.tsx's identical check for the full "why": HintBalloon's own
+  // global click-swallow mechanism isn't aware the modal visually covers it,
+  // and would otherwise eat a tap meant for the modal's own buttons. Pinned
+  // at mount (usePinnedMediaQuery, not the reactive useMediaQuery this file
+  // otherwise uses for isNarrowPortrait/supportsHover above) — mirrors
+  // FirstRunTextSizePrompt.tsx's own pinned check exactly; see that
+  // component's comment.
+  const isPhoneForFirstRunPrompt = usePinnedMediaQuery(PHONE_QUERY)
+  const { shouldShow: firstRunPromptVisible } = useFirstLaunchHint('text-size', 1)
+  const showLevelHint = levelHintEligible && !(isPhoneForFirstRunPrompt && firstRunPromptVisible)
   // Drives the ghost preview marker on the track (.ghostThumb) — which slot's
   // tick, if any, the pointer is currently over. null, not -1: every real slot
   // index (including 0) must stay a valid "this one's hovered" value.

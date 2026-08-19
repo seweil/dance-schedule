@@ -3,10 +3,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { TextSizeProvider } from './TextSizeProvider'
+import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
 import { LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
 
 afterEach(() => {
   Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true })
+  // stubHoverCapable() below mocks window.matchMedia to always report a
+  // match, for every query — without restoring it here, that leaked into
+  // later tests in this file that rely on the default "no match" stub
+  // (test-setup.ts), including the level-slider onboarding hint tests below
+  // once they started reading matchMedia too (PHONE_QUERY, for suppressing
+  // that hint while FirstRunTextSizePrompt.tsx's own modal is up) — same
+  // "restoring afterward keeps mocks from leaking into other tests" reasoning
+  // RotateDeviceBanner.test.tsx's own mockPortraitPhone() comment describes.
+  vi.restoreAllMocks()
 })
 
 vi.mock('./DanceScheduleFilters.module.css', () => ({
@@ -328,6 +338,83 @@ describe('DanceScheduleFilters', () => {
       expect(screen.queryByText('Tap or drag to filter dance levels')).not.toBeInTheDocument()
       expect(getLevelField()).toHaveAttribute('data-hint-visible', 'false')
       expect(getHintRing()).not.toBeInTheDocument()
+    })
+
+    // FirstRunTextSizePrompt.tsx's own modal visually covers this hint
+    // entirely on a genuinely fresh mobile device (both are eligible on
+    // launch 1), but HintBalloon's global "swallow the very next click"
+    // listener doesn't know that — without this suppression, a tap on the
+    // modal's own buttons gets eaten before it ever reaches them. See
+    // docs/design/onboarding-hints.md.
+    it('suppresses the level-slider hint while the first-run text-size prompt would be showing (mobile, launch 1)', () => {
+      vi.spyOn(window, 'matchMedia').mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as MediaQueryList)
+
+      renderFilters()
+
+      expect(screen.queryByText('Tap or drag to filter dance levels')).not.toBeInTheDocument()
+      expect(getLevelField()).toHaveAttribute('data-hint-visible', 'false')
+      expect(getHintRing()).not.toBeInTheDocument()
+    })
+
+    it('does NOT suppress the level-slider hint at a non-mobile width, even on launch 1', () => {
+      renderFilters()
+      expect(screen.getByText('Tap or drag to filter dance levels')).toBeInTheDocument()
+    })
+
+    // Regression test for the same class of bug fixed in PageMenu.test.tsx's
+    // own "un-suppresses ... once the text-size prompt is dismissed from
+    // elsewhere, live" test: this suppression check holds a READ-ONLY
+    // useFirstLaunchHint('text-size', 1) instance, while
+    // FirstRunTextSizePrompt.tsx is the one that actually calls dismiss() on
+    // that same id, from a separate component instance. Confirms
+    // useFirstLaunchHint.ts's useSyncExternalStore fix applies equally here,
+    // not just for the kebab-menu hint it was originally diagnosed against.
+    function TextSizePromptStandIn() {
+      const { dismiss } = useFirstLaunchHint('text-size', 1)
+      return (
+        <button type="button" onClick={dismiss}>
+          Simulate picking a text size
+        </button>
+      )
+    }
+
+    it('un-suppresses the level-slider hint once the text-size prompt is dismissed from elsewhere, live', () => {
+      vi.spyOn(window, 'matchMedia').mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as MediaQueryList)
+      const onDateChange = vi.fn()
+      const onLevelRangeChange = vi.fn()
+      const onShowGcaChange = vi.fn()
+      render(
+        <TextSizeProvider>
+          <DanceScheduleFilters
+            dates={DATES}
+            selectedDate={DATES[0]!}
+            onDateChange={onDateChange}
+            slots={BASE_SLOTS}
+            minLevelIndex={0}
+            maxLevelIndex={BASE_SLOTS.length - 1}
+            onLevelRangeChange={onLevelRangeChange}
+            minPresentLevelIndex={0}
+            maxPresentLevelIndex={BASE_SLOTS.length - 1}
+            showGca
+            onShowGcaChange={onShowGcaChange}
+            hasGcaOnSelectedDate
+          />
+          <TextSizePromptStandIn />
+        </TextSizeProvider>,
+      )
+      expect(screen.queryByText('Tap or drag to filter dance levels')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate picking a text size' }))
+
+      expect(screen.getByText('Tap or drag to filter dance levels')).toBeInTheDocument()
     })
 
     it('dismisses the hint when a tick is clicked', () => {

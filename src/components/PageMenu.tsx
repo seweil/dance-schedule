@@ -4,6 +4,8 @@ import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
+import { usePinnedMediaQuery } from '../hooks/usePinnedMediaQuery'
+import { PHONE_QUERY } from '../lib/breakpoints'
 import { HintBalloon } from './HintBalloon'
 import { TextSizeControl } from './TextSizeControl'
 import styles from './PageMenu.module.css'
@@ -36,7 +38,27 @@ export function PageMenu() {
   // tappable. The hint balloon below is additional, temporary reinforcement
   // during a new user's first few launches specifically, on top of that
   // permanent icon change.
-  const { shouldShow: showHint, dismiss: dismissHint } = useFirstLaunchHint('kebab-menu')
+  const { shouldShow: kebabHintEligible, dismiss: dismissHint } = useFirstLaunchHint('kebab-menu')
+  // Read-only, same as RotateDeviceBanner.tsx's own read of these two ids —
+  // FirstRunTextSizePrompt.tsx's modal has the highest z-index in the app
+  // and visually covers this hint entirely while it's up, but HintBalloon's
+  // own global "swallow the very next click" mechanism (its own comment)
+  // isn't aware of that: it arms unconditionally on ANY tap that isn't on
+  // ITS balloon, including one that actually landed on the modal's own
+  // buttons, and then eats that click before the modal's onClick ever
+  // fires — reported live as "clicking any text-size button dismisses the
+  // kebab hint, but doesn't set the size or close the dialog." Suppressing
+  // this hint outright while the modal is up (rather than trying to make
+  // HintBalloon coverage-aware) sidesteps the whole class of bug: if it
+  // never mounts, its listener never arms in the first place. Mirrors
+  // FirstRunTextSizePrompt.tsx's own isVisible check exactly (PHONE_QUERY
+  // + shouldShow, both pinned at mount via usePinnedMediaQuery rather than
+  // the reactive useMediaQuery — see that hook's own comment) so this only
+  // suppresses while that modal is ACTUALLY showing, not merely
+  // eligible-but-hidden-by-width.
+  const isPhone = usePinnedMediaQuery(PHONE_QUERY)
+  const { shouldShow: firstRunPromptVisible } = useFirstLaunchHint('text-size', 1)
+  const showHint = kebabHintEligible && !(isPhone && firstRunPromptVisible)
 
   function handleToggleClick() {
     toggle()

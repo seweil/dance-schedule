@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import { readStorageJson, writeStorageJson } from '../lib/appStorage'
 
 const DISMISSED_KEY_PREFIX = 'dance-schedule:hint-dismissed:'
@@ -15,6 +15,27 @@ function resolveCurrentLaunchCount(): number {
 
 function resolveDismissed(id: string): boolean {
   return readStorageJson<boolean>(DISMISSED_KEY_PREFIX + id) === true
+}
+
+// Module-level, per-id subscriber registry — see the big comment on
+// useFirstLaunchHint below for why this is needed again (it wasn't, for a
+// while). Each id gets its own Set of React-supplied callbacks; dismissing
+// an id notifies every currently-mounted consumer of THAT id, regardless of
+// which one actually called dismiss().
+const subscribers = new Map<string, Set<() => void>>()
+
+function subscribe(id: string, callback: () => void): () => void {
+  let idSubscribers = subscribers.get(id)
+  if (!idSubscribers) {
+    idSubscribers = new Set()
+    subscribers.set(id, idSubscribers)
+  }
+  idSubscribers.add(callback)
+  return () => idSubscribers.delete(callback)
+}
+
+function notify(id: string) {
+  subscribers.get(id)?.forEach((callback) => callback())
 }
 
 export interface UseFirstLaunchHintResult {
@@ -41,18 +62,26 @@ export interface UseFirstLaunchHintResult {
 // and dismissed it. Every future hint calls this same hook with its own id;
 // nothing here is specific to the kebab-menu hint that motivated it.
 //
-// Each id today has exactly one owning component (PageMenu.tsx for
-// "kebab-menu", DanceScheduleFilters.tsx for "level-slider") that both
-// calls dismiss() and reads shouldShow — so a plain useState, seeded once
-// at mount from storage, is enough; nothing else needs to learn about a
-// dismissal that happens elsewhere while it's still mounted. (An earlier
-// version of this hook briefly went through useSyncExternalStore instead,
-// to support RotateDeviceBanner.tsx reading BOTH ids read-only to suppress
-// itself while either hint was showing — reverted, along with that
-// suppression, once it started causing a visible layout jump; see
-// docs/design/onboarding-hints.md's own "leave the rotate banner up"
-// decision. Revisit this if a future read-only third consumer shows up
-// again.)
+// `dismissed` goes through useSyncExternalStore, not a private useState —
+// this hook briefly used a plain useState (fine as long as exactly one
+// component both owns, i.e. calls dismiss(), and reads a given hint's
+// state), then went through useSyncExternalStore once RotateDeviceBanner.tsx
+// needed to read the kebab-menu/level-slider ids read-only, then reverted
+// back to useState once that particular suppression was abandoned (a
+// different, visual layout-jump issue — see docs/design/onboarding-hints.md's
+// "leave the rotate banner up" decision). It's back again because the same
+// situation recurred for real: FirstRunTextSizePrompt.tsx OWNS
+// `useFirstLaunchHint('text-size', 1)` (calls dismiss()), while
+// PageMenu.tsx/DanceScheduleFilters.tsx each hold their own READ-ONLY
+// `useFirstLaunchHint('text-size', 1)` call to suppress their own hints
+// while that modal is visible. With a private useState, dismissing from the
+// modal's own instance only ever updated THAT instance's local state —
+// PageMenu's/DanceScheduleFilters' own separate copies never learned about
+// it, so they stayed suppressed forever even after the modal was long gone
+// (reported live: "the kebab-menu hint never shows up after picking a text
+// size"). The module-level `subscribers` registry above fixes this
+// permanently for every id, not just "text-size" specifically, since any
+// future hint could grow a second read-only consumer the same way.
 //
 // `dismiss` is wrapped in `useCallback` — NOT just a plain function — even
 // though nothing here needs it memoized for ITS own sake: `HintBalloon.tsx`
@@ -73,12 +102,15 @@ export interface UseFirstLaunchHintResult {
 // entirely rather than trying to reason about exactly which re-render
 // timing made it reproduce.
 export function useFirstLaunchHint(id: string, maxLaunches = 3): UseFirstLaunchHintResult {
-  const [dismissed, setDismissed] = useState(() => resolveDismissed(id))
+  const dismissed = useSyncExternalStore(
+    useCallback((callback) => subscribe(id, callback), [id]),
+    () => resolveDismissed(id),
+  )
   const [launchCount] = useState(() => resolveCurrentLaunchCount())
 
   const dismiss = useCallback(() => {
-    setDismissed(true)
     writeStorageJson(DISMISSED_KEY_PREFIX + id, true)
+    notify(id)
   }, [id])
 
   return { shouldShow: !dismissed && launchCount <= maxLaunches, dismiss }

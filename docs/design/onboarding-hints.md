@@ -113,6 +113,9 @@ questions.
       own listeners churned on every unrelated re-render) — see "The
       level slider loses its targetRef exemption too, and a real
       `dismiss`-identity bug found along the way"
+- [x] A third, genuinely different hint — a first-run, modal text-size
+      prompt, not another `HintBalloon` — see "`text-size`: a third hint,
+      but a modal, not a `HintBalloon`"
 
 ## Arrow design rules (persistent reference)
 **Why this section exists:** these rules have been given, live, more than
@@ -1447,6 +1450,278 @@ double-invoke pattern (no additional churn) once applied — but the
 end-to-end "first tap on a tick only dismisses" behavior for THIS
 specific change relies on the unit test above plus a real-device check,
 same as every fix in this file that ultimately needed one.
+
+### `text-size`: a third hint, but a modal, not a `HintBalloon`
+**Why:** `docs/design/text-size-preference.md`'s own history ended with
+"Text size is always a dropdown menu item, in every orientation" —
+`TextSizeControl` now lives exclusively inside a dropdown (the nav's "Text
+size" toggle, or `PageMenu.tsx`'s hamburger menu), with no always-visible
+row left anywhere. That's a real discoverability regression specifically
+for this app's stated low-vision/older audience: a first-time visitor on a
+phone has to notice a small hamburger icon, open it, and find "Text size"
+among the other items in that dropdown — all at whatever text size the
+browser defaults to — before anything in the app gets bigger. A third
+`useFirstLaunchHint('kebab-menu')`/`useFirstLaunchHint('level-slider')`-style
+`HintBalloon`, pointing an arrow at that same two-taps-deep control, was
+considered and rejected: a small arrow-and-callout is the right weight for
+"here's a feature you might not have noticed," not for "here's the one
+choice most likely to determine whether the rest of this app is legible to
+you." Per direct product decision, `FirstRunTextSizePrompt.tsx` is instead
+a centered, modal-style prompt — reusing `useFirstLaunchHint('text-size',
+1)` for the same persisted "has this been dismissed" bookkeeping the other
+two hints use, but presenting a full dialog (own heading, one line of
+supporting copy, `TextSizeControl` embedded directly so a size can be
+picked right there in one tap, plus a "Continue with default text size"
+button) rather than a small arrow-and-balloon.
+
+**`maxLaunches: 1`, not the shared default of 3.** The two existing hints
+default to showing across a device's first three launches specifically
+because a small, easy-to-miss balloon might reasonably go unnoticed once;
+a full-screen modal blocking the rest of the page cannot be missed the
+first time it appears, so there's no equivalent case for showing it again
+on launches 2 or 3 if it was dismissed (accidentally or on purpose) the
+first time — that would read as nagging, not a considerate re-offer. The
+text-size control itself stays reachable afterward via the nav/menu
+regardless.
+
+**The backdrop is genuinely modal, not decorative — so it skips
+`HintBalloon`'s own pointerdown/click-swallow machinery entirely.**
+`HintBalloon.module.css`'s `.backdrop` is `pointer-events: none` by
+necessity (see "Screen-dimming `.backdrop`" above) — it must never
+intercept a tap meant for the real target underneath it, which is exactly
+why `HintBalloon.tsx` needs its elaborate document-level
+pointerdown-then-swallow-the-next-click logic to dismiss on an "outside"
+tap without also letting that same tap activate whatever it landed on.
+`FirstRunTextSizePrompt.tsx`'s backdrop has no such constraint — it's
+meant to fully block interaction with the page underneath while it's
+showing, so a plain `onClick={dismiss}` on the backdrop (with
+`event.stopPropagation()` on the inner dialog card, so a click inside the
+card doesn't bubble up and dismiss it) is sufficient; there's nothing
+underneath an opaque, blocking backdrop for a tap to fall through to.
+
+**`RotateDeviceBanner.tsx` needed no change.** It hardcodes the
+`kebab-menu`/`level-slider` ids specifically to avoid visually colliding
+with those two *non-blocking* balloons, which can be visible at the same
+time as ordinary page content. This prompt's opaque, blocking backdrop
+already covers `RotateDeviceBanner` (and everything else) while it's
+showing, so there's no equivalent collision for a third hardcoded id to
+prevent.
+
+**`ResetHintsLink.tsx` gained the same treatment as the other two ids** —
+clears `dance-schedule:hint-dismissed:text-size` alongside
+`kebab-menu`/`level-slider` on the same hardcoded-list-of-three convention
+(see that component's own comment for why not a registry).
+
+**Follow-up — `ResetHintsLink` itself reported as not actually re-showing
+the prompt, in dev.** Root cause turned out to be a real, pre-existing gap
+in `useAppLaunchCount.ts`, not specific to `ResetHintsLink` or this hint:
+React StrictMode (`src/main.tsx`, dev-only) deliberately invokes a
+`useState` lazy initializer TWICE per real mount, to help surface impure
+code — confirmed live, this genuinely persisted two separate increments
+(clearing the launch count and reloading landed on 2, not 1), since the
+initializer's own side effect (writing the incremented count to
+localStorage) isn't idempotent on its own. The two pre-existing hints never
+surfaced this because their shared `maxLaunches: 3` default has slack for a
+count inflated by one; `useFirstLaunchHint('text-size', 1)` has none, so it
+silently failed to show even right after a `ResetHintsLink` click. Fixed at
+the root in `useAppLaunchCount.ts` with a module-level (not component-
+state) guard flag — a per-component `useRef` can't work here, since
+StrictMode's double-invoke reruns the entire component function body,
+including the ref's own creation, so nothing inside the component can tell
+invocation #1 apart from #2; a module-level flag survives across both
+because the module itself only loads once per real page load, regardless of
+how many times React calls into it. Production is unaffected (StrictMode's
+double-invoke is dev-only); this only fixes dev-mode testing accuracy for
+all three hints' launch-count math, including `ResetHintsLink` actually
+working for `text-size` going forward.
+
+**Follow-up — restricted to mobile widths only, per direct product
+decision.** The motivating scenario is specifically a low-vision visitor on
+a phone; showing a blocking modal on every first desktop visit too was
+reported as unwanted. Initially gated on a `useMediaQuery` check against
+`PHONE_MAX_WIDTH_PX` (`src/lib/breakpoints.ts`) — later widened to also
+cover landscape, see below. A visitor whose very first launch happens to be
+on desktop simply never sees this prompt at all (it's still gated to
+launch 1 only, regardless of width) — an accepted limitation, not
+considered worth extra machinery to handle, since the control remains
+reachable via the nav/menu regardless.
+
+**Follow-up — widened to also show on a phone in landscape, per direct
+product decision.** The original check above was pure width (`max-width:
+${PHONE_MAX_WIDTH_PX}px`), matching a PORTRAIT phone but not a landscape
+one — a phone's landscape WIDTH routinely exceeds 640px (the same fact
+`PORTRAIT_PHONE_QUERY`'s own comment already documents), so it was
+incorrectly treated as "desktop" and suppressed there too. Replaced with a
+new, orientation-agnostic `PHONE_QUERY` (`src/lib/breakpoints.ts`):
+`(max-width: ${PHONE_MAX_WIDTH_PX}px), (max-height: ${PHONE_MAX_WIDTH_PX}px)`
+— matches if EITHER dimension is at most `PHONE_MAX_WIDTH_PX`, so a
+portrait phone matches via width and a landscape phone matches via height
+(its portrait width, unchanged by rotation), while a real tablet's shorter
+physical dimension exceeds this in both orientations, so it's still
+correctly excluded in either. Not `PORTRAIT_PHONE_QUERY`'s own
+width+portrait combination — that one is deliberately narrower (used
+elsewhere for "should we suggest rotating to landscape," which only makes
+sense in portrait); this needed the opposite, broader shape. One accepted
+false-positive: an unusually short, wide desktop browser window (e.g. a
+snapped half-screen) also matches via the height clause — a real
+device-type check isn't expressible in pure CSS, and this is the same kind
+of viewport-shape heuristic every other breakpoint in this app already
+relies on. Extracted to `breakpoints.ts` (not left local to
+`FirstRunTextSizePrompt.tsx`) once `PageMenu.tsx`/`DanceScheduleFilters.tsx`
+needed the identical check too — see immediately below.
+
+**Follow-up — a real bug, reported live: on a fresh mobile device in
+portrait, tapping ANY text-size button inside the modal dismissed the
+kebab-menu hint underneath it, but neither set the text size nor closed the
+modal.** Root cause: `HintBalloon.tsx`'s kebab-menu hint (and, by the same
+mechanism, the level-slider hint) installs a `document`-level `pointerdown`
+listener that treats ANY tap that isn't on its own balloon as "outside," and
+arms a global flag that swallows the very next `click` event ANYWHERE in the
+document (see `HintBalloon.tsx`'s own long comment on why this exists — it's
+what makes a stray first tap dismiss the hint without ALSO activating
+whatever it happened to land on). That mechanism has no concept of DOM
+z-index or visual coverage: `FirstRunTextSizePrompt.tsx`'s modal sits on top
+of everything and correctly receives the tap as its own real
+`event.target`, but the kebab-menu hint's listener still fires (its own
+balloon isn't what was tapped, so it still counts as "outside"), dismisses
+itself, and swallows the click before it ever reaches the modal's own
+button `onClick`. Fixed by suppressing the kebab-menu hint (`PageMenu.tsx`)
+and the level-slider hint (`DanceScheduleFilters.tsx`) outright while the
+first-run prompt is actually visible — a third, READ-ONLY consumer of
+`useFirstLaunchHint('text-size', 1)` in each (never calls `dismiss()`),
+combined with the same `PHONE_QUERY` check, computing `showHint =
+<ownHintEligible> && !(isPhone && firstRunPromptVisible)`. Mirrors
+`RotateDeviceBanner.tsx`'s own precedent for a component reading ANOTHER
+hint's state read-only to decide whether to suppress itself. This sidesteps
+the whole class of bug rather than trying to make `HintBalloon` aware of
+being covered: if the balloon never mounts, its listener never arms in the
+first place, so there's nothing for the modal's own clicks to collide with.
+`FirstRunTextSizePrompt.tsx`'s own backdrop `onClick`/`stopPropagation`
+approach (see its earlier decision above) was never the problem — DOM
+hit-testing already correctly resolves every tap to the modal's own
+elements; the bug was entirely in a SEPARATE component's global listener
+being unaware of that.
+
+**A pre-existing test-isolation gap, exposed (not introduced) by the fix
+above.** `DanceScheduleFilters.test.tsx` had no `vi.restoreAllMocks()` in
+its `afterEach` — several tests call a `stubHoverCapable()` helper that
+mocks `window.matchMedia` to always report a match, for every query, and
+without restoring it that mock leaked into every later test in the file.
+Nothing previously branching on `matchMedia` output affected hint
+visibility, so this never surfaced; the new `PHONE_QUERY` check above was
+the first thing that did, breaking two previously-passing tests that relied
+on the file's default "no match" behavior. Fixed by adding
+`vi.restoreAllMocks()` to that file's existing `afterEach`, matching
+`RotateDeviceBanner.test.tsx`'s own established pattern —
+`PageMenu.test.tsx` picked up the identical `afterEach` proactively too,
+once its own new suppression tests started mocking `matchMedia` there as
+well.
+
+**Follow-up — `ResetHintsLink` first grew a one-off fix, then was unified
+with `ClearStorageAction.tsx` entirely, per direct product decision.**
+Reported live as confusing: after clicking Reset, the first-run prompt
+correctly reappeared, but whatever size an earlier pass had picked (e.g.
+Large) was still applied underneath it — `ResetHintsLink.tsx` only ever
+cleared `launch-count` and the three `hint-dismissed:*` flags, never
+`useTextSizePreference.ts`'s own `dance-schedule:text-size` key. First fix:
+a fourth hand-picked `localStorage.removeItem('dance-schedule:text-size')`
+alongside the existing four. Superseded immediately after, per direct
+product decision: "Clear saved settings" (`ClearStorageAction.tsx`, linked
+from the Installation page) and this button should reset everything and
+have identical semantics, not maintain two separately hand-picked lists of
+"what counts as resettable" that had already started drifting apart (and
+would keep drifting — any future persisted key would need remembering to
+add to BOTH lists). `ResetHintsLink.tsx` now calls the exact same
+`clearAllStorage()` (`src/lib/appStorage.ts`) `ClearStorageAction.tsx`
+already used — a blunt `localStorage.clear()`, not a curated list — and
+still reloads the page afterward the same as before (`ClearStorageAction`
+itself does not, in favor of its own inline confirmation message instead;
+that UX difference stays, only the underlying "what gets cleared" is now
+shared).
+
+### `useFirstLaunchHint` goes back to `useSyncExternalStore` — a real cross-instance sync bug
+**Why:** Reported live: after picking a text size in `FirstRunTextSizePrompt.tsx`'s
+modal, the kebab-menu hint never reappeared, even on a later page/route where
+it should have been eligible again. Root cause was exactly the situation
+this hook's own comment had predicted and left as a "revisit if..." note:
+`useFirstLaunchHint('text-size', 1)` now has THREE consumers — the modal
+itself (the sole owner, calling `dismiss()`) plus two read-only ones
+(`PageMenu.tsx`, `DanceScheduleFilters.tsx`, added for the suppression fix
+above) — but the hook was still backed by a private `useState`, seeded once
+at mount from storage. Each of the three components held its own
+independent copy of `dismissed`; the modal's own `dismiss()` call updated
+only ITS copy (and localStorage), which `PageMenu`'s/`DanceScheduleFilters`'
+already-mounted instances had no way to learn about, since nothing was
+telling them to re-read storage or re-render.
+
+This is the identical shape of problem `RotateDeviceBanner.tsx` hit
+earlier in this doc's own history (see "`RotateDeviceBanner` suppression,
+and `useFirstLaunchHint` going live across components" above) — solved
+there with `useSyncExternalStore`, then reverted back to plain `useState`
+once that specific suppression was abandoned for an unrelated reason (a
+layout jump). The hook's own comment at the time flagged this explicitly:
+"revisit this if a future read-only third consumer shows up again" — it
+just did, for `text-size` specifically, though the fix this time is kept
+generic (a per-`id` module-level subscriber registry any hint can use, not
+special-cased to `text-size`) rather than re-deriving the same fix narrowly
+a second time.
+
+**Implementation:** a module-level `Map<string, Set<() => void>>`
+(`subscribers`) in `useFirstLaunchHint.ts` — `useSyncExternalStore`'s
+subscribe callback adds/removes this component's own re-render trigger to
+the Set for its `id`; `dismiss()` writes to storage as before, then calls a
+`notify(id)` that invokes every currently-subscribed callback for that same
+`id`, regardless of which component's `dismiss()` triggered it. Confirmed
+live: picking a text size in the modal now immediately un-suppresses the
+kebab-menu hint on whichever page it's next visible on, with no remount
+needed. `getSnapshot` returns a plain boolean (`resolveDismissed(id)`),
+which is safe to return fresh on every call without a stale-reference
+infinite-loop risk `useSyncExternalStore` would otherwise have with an
+object/array snapshot — primitives compare by value, so two `true`s (or two
+`false`s) in a row are already equal as far as React's own bail-out check
+is concerned.
+
+### The redundant "Continue with default text size" button removed
+**Why:** Reported live: `FirstRunTextSizePrompt.tsx` originally paired
+`TextSizeControl`'s own three-way Normal/Large/Extra Large choice with a
+separate "Continue with default text size" button underneath — but
+"Normal" among those three options ALREADY IS the default; the second
+button did the exact same thing (dismiss without changing anything, since
+the preference starts at 'normal' regardless) via a second, differently-worded
+control. Removed outright rather than kept as an alternate path — a
+backdrop click or Escape (both already supported) remain how to leave
+without making an explicit choice at all, so nothing about "how to skip"
+was actually lost, just the redundant, differently-labeled duplicate of an
+option already on offer.
+
+### `PHONE_QUERY` pinned at mount, not tracked live, per direct product decision
+**Why:** A follow-up audit of first-run sequences (device orientation ×
+dismiss timing × which page is landed on first) found that `useMediaQuery`'s
+live reactivity was never actually load-bearing for the one case it was
+meant to matter for: a real phone rotating. `PHONE_QUERY`
+(`src/lib/breakpoints.ts`) already matches a phone in EITHER orientation by
+construction (width-or-height), so it's already `true` at MOUNT time
+regardless of which orientation the phone happens to be in at that instant,
+and stays `true` through a rotation whether or not the value is live-tracked
+afterward. The only thing live-tracking actually did was expose a real, if
+edge-case, surprise: a DESKTOP user manually resizing their browser window
+narrower than the breakpoint mid-session could make the modal suddenly pop
+up — and resizing back out again before dismissing it would make it vanish,
+un-dismissed, only to potentially reappear on a later resize back in, all
+within the same "launch." Per direct product decision, pin it instead: a
+new `usePinnedMediaQuery` hook (`src/hooks/`), a `useMediaQuery`
+sibling that reads `window.matchMedia(query).matches` once via a lazy
+`useState` initializer and never subscribes to the 'change' event at all —
+not a variant/option added to `useMediaQuery` itself, since the two have
+genuinely different semantics (one hook, two behaviors, would need a boolean
+flag every call site would have to reason about; two small hooks, each
+doing exactly one thing, reads clearer). All three `PHONE_QUERY` consumers
+(`FirstRunTextSizePrompt.tsx`, `PageMenu.tsx`, `DanceScheduleFilters.tsx`)
+switched together, so they stay in lockstep — `DanceScheduleFilters.tsx`'s
+OTHER two `useMediaQuery` calls (`isNarrowPortrait`, `supportsHover`) are
+unaffected and deliberately stay reactive, since those genuinely do need to
+track live changes (e.g. the "A1/A2" → "A" tick-label shortening actually
+should respond to a real rotation immediately, unlike this one-time prompt).
 
 ## Open questions
 

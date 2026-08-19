@@ -64,4 +64,30 @@ describe('useFirstLaunchHint', () => {
     render(<TestHarness id="some-other-hint" />)
     expect(screen.getByTestId('should-show')).toHaveTextContent('true')
   })
+
+  // Regression test: FirstRunTextSizePrompt.tsx OWNS useFirstLaunchHint('text-size', 1)
+  // (calls dismiss()), while PageMenu.tsx/DanceScheduleFilters.tsx each hold
+  // their own READ-ONLY instance of the same id to suppress their own hints
+  // while that modal is visible. A private useState per call site (this
+  // hook's earlier implementation) meant dismissing from one instance never
+  // updated any OTHER instance's own copy of shouldShow — reported live as
+  // "the kebab-menu hint never reappears after picking a text size."
+  it('a dismiss() from one instance updates shouldShow in every other mounted instance sharing the same id', async () => {
+    const user = userEvent.setup()
+    render(
+      <div>
+        <TestHarness id="shared-id" />
+        <TestHarness id="shared-id" />
+      </div>,
+    )
+    const [firstShouldShow, secondShouldShow] = screen.getAllByTestId('should-show')
+    const [firstDismissButton] = screen.getAllByRole('button', { name: 'Dismiss' })
+    expect(firstShouldShow).toHaveTextContent('true')
+    expect(secondShouldShow).toHaveTextContent('true')
+
+    await user.click(firstDismissButton!)
+
+    expect(firstShouldShow).toHaveTextContent('false')
+    expect(secondShouldShow).toHaveTextContent('false')
+  })
 })

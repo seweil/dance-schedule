@@ -1,0 +1,50 @@
+/* Genuinely opaque-enough to block interaction with the rest of the page -
+   unlike HintBalloon.module.css's decorative, pointer-events: none backdrop,
+   this one is meant to be clicked (FirstRunTextSizePrompt.tsx's onClick).
+   z-index above everything else in the app, including HintBalloon's own
+   highest layer (21/22) and PageMenu's portaled dropdown (20) - this is the
+   first thing a fresh visitor should see, above any other overlay. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgb(0 0 0 / 60%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+/* Explicit, generous font-sizes on this card's own copy below (not just
+   inherited rem defaults) - this appears before a first-time visitor has
+   had any chance to set data-text-size, so it can't rely on that preference
+   to be legible; it has to already be comfortably readable at whatever size
+   it declares for itself. */
+.dialog {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+  padding: var(--space-md);
+  width: min(26rem, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  text-align: center;
+}
+
+.heading {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.body {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  color: var(--color-text);
+  margin: 0;
+}

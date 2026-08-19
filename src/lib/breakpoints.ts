@@ -27,3 +27,24 @@ export const TABLET_MIN_WIDTH_PX = 641
 // same "reconsider once a second/third consumer needs it" reasoning this
 // file's own PHONE_MAX_WIDTH_PX was originally extracted for.
 export const PORTRAIT_PHONE_QUERY = `(orientation: portrait) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
+
+// Orientation-agnostic "is this a phone" — unlike PORTRAIT_PHONE_QUERY above,
+// this also matches a phone in LANDSCAPE, whose width alone can exceed
+// PHONE_MAX_WIDTH_PX (see that query's own comment on the same fact) while
+// its height — its portrait width, unchanged by rotation — stays narrow.
+// Matches if EITHER dimension is at most PHONE_MAX_WIDTH_PX: a portrait
+// phone via width, a landscape phone via height, and (by construction) a
+// tablet in neither orientation, since a real tablet's shorter physical
+// dimension already exceeds this in both orientations (e.g. an iPad mini's
+// 768px short side). First consumer: FirstRunTextSizePrompt.tsx (the
+// first-run text-size prompt should show on a phone in EITHER orientation,
+// see docs/design/onboarding-hints.md) — extracted here once PageMenu.tsx
+// and DanceScheduleFilters.tsx needed the identical check too, to suppress
+// their own onboarding hints while that prompt is visible (same "extract
+// once a second/third consumer needs it" reasoning PORTRAIT_PHONE_QUERY
+// itself was originally extracted for). One accepted false-positive: an
+// unusually SHORT, WIDE desktop browser window (e.g. a snapped half-screen)
+// also matches via the height clause — a real device-type check isn't
+// expressible in pure CSS, and this is the same kind of viewport-shape
+// heuristic every other breakpoint in this file already relies on.
+export const PHONE_QUERY = `(max-width: ${PHONE_MAX_WIDTH_PX}px), (max-height: ${PHONE_MAX_WIDTH_PX}px)`

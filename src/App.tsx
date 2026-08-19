@@ -5,6 +5,7 @@ import routes from '~react-pages'
 import { BuildInfo } from './components/BuildInfo'
 import { ClearStorageAction } from './components/ClearStorageAction'
 import { EventsListPage } from './components/EventsListPage'
+import { FirstRunTextSizePrompt } from './components/FirstRunTextSizePrompt'
 import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
 import { PageHeader } from './components/PageHeader'
@@ -137,6 +138,7 @@ export function App() {
               regardless of scroll position. This zero-size marker is always
               rendered, at the very top of the page, on every viewport. */}
           <div id="page-top-sentinel" aria-hidden="true" />
+          <FirstRunTextSizePrompt />
           <Nav />
           <UpdatePrompt />
           <ImageGalleryProvider>
