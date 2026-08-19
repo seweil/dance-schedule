@@ -200,7 +200,11 @@ picks up the `.md` extension.
   `![alt](./assets/photo.jpg "thumbnail")` — one of `thumbnail`/`small`/`medium`/
   `large` (`ZoomableImage.tsx`'s `SIZE_CLASSES`); any other title is left alone as an
   ordinary tooltip. Full size is still one tap away via the lightbox regardless of
-  display size.
+  display size. A separate, combinable title token, `no-zoom` — e.g.
+  `"thumbnail no-zoom"` — opts a small/decorative image (an icon, a badge) out of
+  the zoom/lightbox behavior entirely and out of the page's shared image gallery
+  (`ImageGallery.tsx`), so it never becomes a next/prev stop for the page's other,
+  real photos either (`ZoomableImage.tsx`'s `NO_ZOOM_TOKEN`).
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
   routes `vite-plugin-pages` generates — title = Title-cased filename (after
   stripping the order prefix), order = the numeric prefix (see Naming above), Home

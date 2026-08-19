@@ -79,8 +79,13 @@ needed.
   better small in the flow of the page (e.g. a caller headshot) — full size
   is still one tap away — add a standard markdown title of `thumbnail`,
   `small`, `medium`, or `large`:
-  `![Jane Doe](./assets/caller-jane-doe.jpg "thumbnail")`. Any other title
-  text is left alone as a normal image tooltip.
+  `![Jane Doe](./assets/caller-jane-doe.jpg "thumbnail")`. For a small,
+  decorative image that isn't a real photo (an icon, a badge) and shouldn't
+  be clickable or show up when someone's browsing through the page's other
+  photos, add `no-zoom` instead — on its own, or combined with a size:
+  `![Sponsor logo](./assets/sponsor-logo.png "thumbnail no-zoom")`. Any
+  other title text (not one of the words above) is left alone as a normal
+  image tooltip.
 - **Numbering convention:** keep your own page numbers below 10 — 10, 12, 13,
   and 14 are reserved for the automatically-generated "Event Schedule" (see
   step 3), "Dance Schedule", "Room Schedule", and "Caller Schedule" (step 4)

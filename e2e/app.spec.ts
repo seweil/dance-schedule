@@ -39,6 +39,15 @@ test('clicking an embedded markdown image opens the full-screen lightbox', async
   await expect(page.getByRole('dialog')).not.toBeVisible()
 })
 
+test('clicking a "no-zoom" image does not open the lightbox', async ({ page }) => {
+  // Same FAQ page, its own second image — a markdown title of "no-zoom"
+  // (ZoomableImage.tsx) opts a small/decorative image out of the
+  // click-to-zoom behavior the test above covers for an ordinary photo.
+  await page.goto('/automated-testing/faq')
+  await page.getByAltText(/decorative icon, not zoomable/i).click()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+})
+
 test('registers and activates a service worker against the built app', async ({ page }) => {
   await page.goto('/automated-testing/')
   const hasActiveServiceWorker = await page.evaluate(async () => {

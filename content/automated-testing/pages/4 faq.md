@@ -20,6 +20,10 @@ For same-day changes (a room swap, a caller substitution), check the
 printed schedule or day-of announcements as well.
 
 **Can I zoom in on an image?**
-Yes — tap or click any image on the site to open it full-screen.
+Yes — tap or click any photo on the site to open it full-screen. Small
+decorative icons and badges, like the one below, are the exception —
+they're not photos, so tapping them does nothing.
 
 ![A dancer checking the schedule on their phone](./assets/faq.png)
+
+![Decorative icon, not zoomable](./assets/decorative-icon.png "no-zoom")

@@ -9,6 +9,17 @@
   height: auto;
 }
 
+/* A "no-zoom" image (ZoomableImage.tsx's NO_ZOOM_TOKEN) — same base sizing
+   as .zoomable (still an arbitrary, content-author-supplied source image
+   that shouldn't overflow the page), just without the zoom-in cursor, since
+   it isn't actually interactive. A separate class, not .zoomable plus a
+   cursor override — avoids relying on stylesheet rule ORDER to win a
+   same-specificity cascade tie if both classes were ever applied together. */
+.plain {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Opt-in smaller display sizes for an image whose natural resolution doesn't
    suit full-width display in the flow of a content page (e.g. a caller
    headshot) — requested via a markdown image's standard `title` string, see
