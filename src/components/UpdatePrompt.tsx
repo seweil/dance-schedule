@@ -48,7 +48,7 @@ export function UpdatePrompt() {
 
   return (
     <div role="alert" className={styles.banner}>
-      <p className={styles.message}>A new version is available.</p>
+      <p className={styles.message}>A new version is available</p>
       <button type="button" className={styles.button} onClick={handleReload}>
         Reload
       </button>

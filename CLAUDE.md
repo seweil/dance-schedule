@@ -287,6 +287,21 @@ The short version:
   resets, and shared CSS custom-property tokens (colors, spacing). Don't add
   component-specific rules there.
 
+## User-facing text
+
+- **No trailing period on a single standalone sentence in ephemeral UI chrome**
+  — a banner, toast, hint balloon, or one-time dialog message (e.g.
+  `RotateDeviceBanner.tsx`, `UpdatePrompt.tsx`, `HintBalloon.tsx`,
+  `FirstRunTextSizePrompt.tsx`). A period's job is marking a boundary between
+  sentences (or grammatical completion in a document); a single sentence
+  already isolated in its own visual container doesn't need one — it just adds
+  visual weight. Real page content/prose (an actual navigated-to page with
+  body copy, e.g. `ClearStorageAction.tsx`) keeps normal sentence punctuation;
+  this rule is specifically about ephemeral UI chrome, not prose. If a message
+  ever needs multiple sentences, normal punctuation between them is still
+  correct — this is only about the terminal period on an isolated single
+  sentence.
+
 ## PWA-specific guidance
 
 - **Manifest**: generated per content set by `vite-plugin-pwa` (`vite.config.ts`'s

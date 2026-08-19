@@ -90,7 +90,7 @@ export function FirstRunTextSizePrompt() {
         <h2 id={headingId} className={styles.heading}>
           Make text easier to read?
         </h2>
-        <p className={styles.body}>You can change this anytime from the menu.</p>
+        <p className={styles.body}>You can change this anytime from the menu</p>
         {/* No separate "keep default" button - the "Normal" option here IS
             the default, so it would have been a redundant second way to do
             the exact same thing (reported live). Backdrop click/Escape
