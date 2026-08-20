@@ -12,8 +12,12 @@ type ZoomableImageProps = ImgHTMLAttributes<HTMLImageElement>
 // below). Consumed here as a size directive rather than passed through as a
 // literal HTML `title` (browser tooltip) — see parseTitle below for how
 // this combines with NO_ZOOM_TOKEN, and what happens to an unrecognized
-// title.
+// title. `icon` is sized in `em` rather than a fixed pixel width like the
+// other four — it's meant to sit inline mid-sentence (e.g. "tap the ⋮ icon"),
+// scaling with the reader's own text-size preference instead of towering
+// over surrounding text at whatever size the source file happens to be.
 const SIZE_CLASSES: Record<string, string | undefined> = {
+  icon: styles.icon,
   thumbnail: styles.thumbnail,
   small: styles.small,
   medium: styles.medium,

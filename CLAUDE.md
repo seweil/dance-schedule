@@ -137,10 +137,11 @@ e2e/
 ## Content pipeline
 
 For a single Vite process — `pnpm dev`, `pnpm dev:test`, `pnpm build:test` — which
-content set is active is chosen by the `CONTENT_SET` env var read in `vite.config.ts`
-(default `real` if unset) — see "Project structure" above and
-`docs/design/content-sets.md`. `pnpm build` (production) instead publishes **every**
-content set at once, each under its own `/<content-set>/` URL prefix, plus the
+content set is active is chosen by the `CONTENT_SET` env var read in `vite.config.ts`,
+falling back to `content/config.yaml`'s `defaultContentSet` if unset — see "Project
+structure" above and `docs/design/content-sets.md`. `pnpm build` (production) instead
+publishes **every** content set at once, each under its own `/<content-set>/` URL
+prefix, plus the
 default set (`content/config.yaml`'s `defaultContentSet`) additionally mirrored
 unprefixed at `/` — orchestrated by `scripts/build-content-sets.mjs`, which runs one
 `vite build` per set. Everything below refers to whichever single
@@ -197,11 +198,14 @@ picks up the `.md` extension.
   for this, it's automatic. It also caps every content image at the page's own width
   (never wider, regardless of the source file's native resolution) and supports an
   opt-in smaller display size via a markdown image's standard `title` string —
-  `![alt](./assets/photo.jpg "thumbnail")` — one of `thumbnail`/`small`/`medium`/
-  `large` (`ZoomableImage.tsx`'s `SIZE_CLASSES`); any other title is left alone as an
-  ordinary tooltip. Full size is still one tap away via the lightbox regardless of
+  `![alt](./assets/photo.jpg "thumbnail")` — one of `icon`/`thumbnail`/`small`/
+  `medium`/`large` (`ZoomableImage.tsx`'s `SIZE_CLASSES`); any other title is left
+  alone as an ordinary tooltip. `icon` is sized in `em`, not a fixed pixel width
+  like the other four, so it can sit inline mid-sentence (e.g. a how-to step
+  referencing a UI button by its icon) and scales with the reader's text-size
+  preference. Full size is still one tap away via the lightbox regardless of
   display size. A separate, combinable title token, `no-zoom` — e.g.
-  `"thumbnail no-zoom"` — opts a small/decorative image (an icon, a badge) out of
+  `"icon no-zoom"` — opts a small/decorative image (an icon, a badge) out of
   the zoom/lightbox behavior entirely and out of the page's shared image gallery
   (`ImageGallery.tsx`), so it never becomes a next/prev stop for the page's other,
   real photos either (`ZoomableImage.tsx`'s `NO_ZOOM_TOKEN`).

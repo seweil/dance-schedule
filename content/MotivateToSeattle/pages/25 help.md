@@ -6,21 +6,35 @@ Dance Schedule works right in your browser — no app store needed. Adding it
 to your home screen lets it open like any other app, and keeps the schedule
 available even when you don't have a signal or Wi-Fi.
 
-### On iPhone or iPad
+### On iPhone
 
 1. Open [sqdance.app](https://sqdance.app) in **Safari** (no other browser
    will work).
-2. Tap the **••• (more)** button to the right of the address bar.
-3. Tap **Share** in the menu that opens.
+2. Tap the ![](./assets/icon-safari-more.svg "icon no-zoom") **more** button to
+   the right of the address bar.
+3. Tap **Share** ![](./assets/icon-share.svg "icon no-zoom") in the menu that
+   opens.
 4. Scroll down and tap **Add to Home Screen**. If you don't see it, tap
-   **View More** at the bottom of the list first.
+   **More** at the bottom of the list first.
+5. Leave **Open as Web App** turned on.
+6. Tap **Add** in the top right to confirm.
+
+### On iPad
+
+1. Open [sqdance.app](https://sqdance.app) in **Safari** (no other browser
+   will work).
+2. Tap the **Share** icon ![](./assets/icon-share.svg "icon no-zoom") next to
+   the address bar.
+3. Scroll down and tap **Add to Home Screen**. If you don't see it, tap
+   **More** at the bottom of the list first.
+4. Leave **Open as Web App** turned on.
 5. Tap **Add** in the top right to confirm.
 
 ### On Android
 
 1. Open [sqdance.app](https://sqdance.app) in **Chrome**.
-2. Tap the **⋮** menu in the top right. (If you don't see it, swipe
-   downward anywhere on the page.)
+2. Tap the ![](./assets/icon-android-more.svg "icon no-zoom") menu in the top
+   right. (If you don't see it, swipe downward anywhere on the page.)
 3. Tap **Install app** (or **Add to Home screen**, or **Install and create shortcut** →
    **Create shortcut**, depending on version).
 4. Confirm by tapping **Add** or **Install**.
@@ -31,9 +45,9 @@ own after a couple of visits — tapping that works the same way.
 ## Text size
 
 Need bigger text? Tap **Text size** in the menu (top of the screen on
-desktop, in the ☰ menu on phone) and choose Normal, Large, or Extra Large —
-it applies everywhere in the app right away, and is remembered the next
-time you open it.
+desktop, in the ![](./assets/icon-menu.svg "icon no-zoom") menu on phone) and
+choose Normal, Large, or Extra Large — it applies everywhere in the app right
+away, and is remembered the next time you open it.
 
 ## Troubleshooting
 

@@ -37,6 +37,18 @@
    Chromium fell back to the source photo's full native resolution for that
    pass instead of 100px, inflating each table column far past the image's
    actual 100px rendered size. A plain fixed width has no such ambiguity. */
+/* Sits inline mid-sentence (e.g. "tap the ⋮ icon") rather than breaking into
+   its own block like the other size classes below — `em`, not a fixed pixel
+   width, so it scales with the surrounding text (including this app's own
+   Normal/Large/Extra Large text-size preference) instead of a fixed size
+   that towers over small text or shrinks to nothing next to large text.
+   `vertical-align` keeps it sitting on the text baseline instead of the
+   default `bottom`, which visibly drops a square icon below the line. */
+.icon {
+  width: 1.1em;
+  vertical-align: text-bottom;
+}
+
 .thumbnail {
   width: 100px;
 }
