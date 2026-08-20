@@ -465,15 +465,16 @@ actual `content/` folders and push via the API:
 
 ```bash
 node scripts/generate-amplify-rewrites.mjs
-./infra/apply-amplify-rewrites.sh <amplify-app-id>
+./infra/apply-amplify-rewrites.sh
 ```
 
 The first command rewrites `infra/amplify-rewrites.json` from whatever
 content sets currently exist under `content/` — commit that file's change
-alongside your event's own folder. The second pushes it to Amplify (see
-`infra/README.md` for how to find your app id, and for what the script
-does). Ask whoever manages hosting to run the second command if you don't
-have AWS credentials yourself; the first only needs the repo.
+alongside your event's own folder. The second pushes it to Amplify (auto-
+detects the app id, since there's only one today — see `infra/README.md`
+for what to do if that's ever no longer true). Ask whoever manages hosting
+to run the second command if you don't have AWS credentials yourself; the
+first only needs the repo.
 
 **Verify it before considering your event fully live**: `curl -I
 https://<your-domain>/your-event-name/installation` (or any inner page)

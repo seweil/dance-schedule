@@ -23,7 +23,7 @@ debugging trail).
 ```bash
 node scripts/generate-amplify-rewrites.mjs   # regenerates infra/amplify-rewrites.json
                                               # from the actual content/<set>/ directories
-./infra/apply-amplify-rewrites.sh <amplify-app-id>
+./infra/apply-amplify-rewrites.sh
 ```
 
 The generator reads `content/`'s subdirectories directly, so it can never
@@ -33,12 +33,12 @@ added or removed, then re-apply. The apply script pushes the file straight
 to the Amplify API (`aws amplify update-app --custom-rules`) rather than
 pasting into the console's rewrite editor, which has a known quirk of
 injecting stray newlines into copy-pasted rules (same issue
-`infra/dashboard.json`'s own note below describes for CloudWatch). Find
-your app id the same way `infra/set-amplify-env.sh` does:
+`infra/dashboard.json`'s own note below describes for CloudWatch).
 
-```bash
-aws amplify list-apps --region us-east-2 --query 'apps[].{name:name,appId:appId}'
-```
+It auto-detects the app id via `aws amplify list-apps` since there's only
+one Amplify app today — pass one explicitly
+(`./infra/apply-amplify-rewrites.sh <amplify-app-id>`) once a second app
+exists; the script refuses to guess if it finds more than one.
 
 Rewrite/redirect changes take effect immediately on Amplify's edge —
 no rebuild needed, unlike environment variable changes (below). Verify
