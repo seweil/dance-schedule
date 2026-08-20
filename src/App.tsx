@@ -9,6 +9,7 @@ import { FirstRunTextSizePrompt } from './components/FirstRunTextSizePrompt'
 import { ImageGalleryProvider } from './components/ImageGallery'
 import { Nav } from './components/Nav'
 import { PageHeader } from './components/PageHeader'
+import { ResetAction } from './components/ResetAction'
 import { ResetHintsLink } from './components/ResetHintsLink'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { UpdatePrompt } from './components/UpdatePrompt'
@@ -77,6 +78,11 @@ const utilityRoutes: RouteObject[] = [{ path: '/clear-storage', element: <ClearS
 // primary nav destination for a page that's about every OTHER event, not this one.
 const eventsRoutes: RouteObject[] = [{ path: '/events', element: <EventsListPage /> }]
 
+// A shareable link to hand someone else so they can jump straight into a fresh
+// first-run experience — see ResetAction.tsx for why this needs its own route
+// rather than reusing /clear-storage.
+const resetRoutes: RouteObject[] = [{ path: '/reset', element: <ResetAction /> }]
+
 // Without this, any unmatched path (typo, stale link, or — now that every content
 // set publishes under its own "/<set>/" prefix, see docs/design/content-sets.md —
 // a path that happens to look like another set's name, e.g. "/real/test") rendered
@@ -87,7 +93,14 @@ const notFoundRoute: RouteObject = { path: '*', element: <Navigate to="/" replac
 
 function Pages() {
   useLastPagePersistence()
-  return useRoutes([...normalizedRoutes, ...debugRoutes, ...utilityRoutes, ...eventsRoutes, notFoundRoute])
+  return useRoutes([
+    ...normalizedRoutes,
+    ...debugRoutes,
+    ...utilityRoutes,
+    ...eventsRoutes,
+    ...resetRoutes,
+    notFoundRoute,
+  ])
 }
 
 // Fine print at the bottom of the home page only — not global chrome like Nav/
