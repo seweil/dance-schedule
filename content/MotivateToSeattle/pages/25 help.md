@@ -15,7 +15,7 @@ available even when you don't have a signal or Wi-Fi.
 3. Tap **Share** ![](./assets/icon-share.svg "icon no-zoom") in the menu that
    opens.
 4. Scroll down and tap **Add to Home Screen**. If you don't see it, tap
-   **More** at the bottom of the list first.
+   **View More** at the bottom of the list first.
 5. Leave **Open as Web App** turned on.
 6. Tap **Add** in the top right to confirm.
 
@@ -26,7 +26,7 @@ available even when you don't have a signal or Wi-Fi.
 2. Tap the **Share** icon ![](./assets/icon-share.svg "icon no-zoom") next to
    the address bar.
 3. Scroll down and tap **Add to Home Screen**. If you don't see it, tap
-   **More** at the bottom of the list first.
+   **View More** at the bottom of the list first.
 4. Leave **Open as Web App** turned on.
 5. Tap **Add** in the top right to confirm.
 
