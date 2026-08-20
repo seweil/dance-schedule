@@ -28,6 +28,11 @@ the actual shared token that resolves the "reconsider" flag.
 - [x] What actually changes at each breakpoint, feature by feature (for
       someone who wants "what does phone vs. desktop even look like," not
       just the query values) — see "Feature-by-feature: what's active where"
+- [x] A follow-up audit (this doc had drifted behind the code — two later
+      queries, `PORTRAIT_PHONE_QUERY` and `PHONE_QUERY`, and a `(hover: hover)`
+      check existed in the codebase but were never catalogued here) plus three
+      real bugs found and fixed along the way — see "Follow-up audit and three
+      bug fixes" below
 
 ## Decisions
 
@@ -35,13 +40,16 @@ the actual shared token that resolves the "reconsider" flag.
 
 | # | Query | Meaning | Used by |
 |---|-------|---------|---------|
-| 1 | `--phone` (`max-width: 640px`) / `--tablet-and-up` (`min-width: 641px`) | phone vs. tablet-and-up — the app's primary cutover | `Nav.module.css`, `PageMenu.module.css`, `DanceScheduleFilters.module.css` (`.select` border), `ScheduleList.module.css`, `DanceScheduleGrid.module.css` (width half of #2 below); `PHONE_MAX_WIDTH_PX`/`TABLET_MIN_WIDTH_PX` on the JS side (`PageHeader.tsx`, see #4 below) |
+| 1 | `--phone` (`max-width: 640px`) / `--tablet-and-up` (`min-width: 641px`) | phone vs. tablet-and-up — the app's primary cutover | `Nav.module.css`, `PageMenu.module.css`, `HintBalloon.module.css` (its `'center'`-placement balloon repositions once there's room), `DanceScheduleFilters.module.css` (`.select` border), `ScheduleList.module.css`, `DanceScheduleGrid.module.css` (width half of #2 below); `PHONE_MAX_WIDTH_PX`/`TABLET_MIN_WIDTH_PX` on the JS side (feed #8/#9 below) |
 | 2 | `--phone, (max-height: 500px)` | narrow-portrait **or** short-landscape phone (an OR, not just width) | `DanceScheduleGrid.module.css` |
 | 3 | `(orientation: portrait) and (max-width: 480px)` | the single narrowest realistic phone width, portrait only | `DanceScheduleFilters.tsx` (`NARROW_PORTRAIT_QUERY`), duplicated in `DanceScheduleFilters.module.css` |
-| 4 | `(orientation: landscape) and (min-width: 641px)` | `Nav.tsx`'s full tab bar width, landscape only — NOT phone width; this shipped backwards at first (`max-width: 640px`, phone width) before being corrected, see `docs/design/text-size-preference.md`'s own "Revised" note on this | `PageHeader.tsx` (`WIDE_LANDSCAPE_QUERY`, built from `TABLET_MIN_WIDTH_PX`) |
+| 4 | *(removed)* `(orientation: landscape) and (min-width: 641px)` | historical — `PageHeader.tsx`'s old `WIDE_LANDSCAPE_QUERY`, visually hid the page `<h1>` in landscape at tablet-and-up width. Removed: `orientation: landscape` doesn't actually distinguish "landscape phone/tablet" from "an ordinary desktop browser window" — nearly every desktop window IS landscape-shaped, so this was unintentionally hiding the title on virtually all desktop visits, not just the narrow landscape-phone/tablet case it was written for. Per direct product decision, the title now always shows, at every width and orientation — see "Follow-up audit and three bug fixes" below. Listed here only because older commits/docs still reference it, same as #6. |
 | 5 | `(prefers-reduced-motion: reduce)` | not a size breakpoint — an accessibility preference, listed for completeness | `Nav.module.css`, `PageMenu.module.css`, `ScrollToTopButton.tsx` |
 | 6 | *(removed)* `(orientation: landscape)` alone, no width qualifier | historical — `Nav.tsx`'s old `LANDSCAPE_QUERY`, used to gate whether "Text size" was a dropdown or an always-visible row. Removed entirely once that control became a dropdown unconditionally (see `docs/design/text-size-preference.md`'s "Text size is always a dropdown menu item" decision) — listed here only because older commits/docs still reference it. |
 | 7 | `(max-height: 500px)` alone, no width qualifier | vertical space is genuinely limited — deliberately width-agnostic, unlike #2's combined version: a narrow PORTRAIT phone has plenty of vertical room and shouldn't match this one | `PageHeader.module.css` (reduces the margin between the title/menu row and the page content below it) |
+| 8 | `(orientation: portrait) and (max-width: 640px) and (pointer: coarse)` | a genuine portrait PHONE — width/orientation alone (the first two clauses) can't distinguish that from a desktop browser window simply resized narrow-and-tall, which reports `pointer: fine` (a mouse) rather than `coarse` (a finger); see "Follow-up audit and three bug fixes" for why the `pointer` clause was added | `src/lib/breakpoints.ts`'s `PORTRAIT_PHONE_QUERY` — `RotateDeviceBanner.tsx`, `useResetRotateBannerOnLandscape.ts` |
+| 9 | `(max-width: 640px), (max-height: 640px)` | an orientation-agnostic "is this a phone" — matches EITHER dimension being phone-sized, so (unlike #8) it also matches a phone in landscape, whose width alone exceeds 640px while its height (its portrait width, unchanged by rotation) stays narrow. See `docs/design/onboarding-hints.md` for the full history. | `src/lib/breakpoints.ts`'s `PHONE_QUERY` — `FirstRunTextSizePrompt.tsx`, and read-only in `PageMenu.tsx`/`DanceScheduleFilters.tsx` (suppressing their own onboarding hints while that modal is visible) |
+| 10 | `(hover: hover)` | a real mouse/trackpad, not a touchscreen (which reports `hover: none` even though it technically supports `:hover` via tap-and-hold) | `DanceScheduleFilters.module.css` (`ew-resize` cursor on the level-slider thumbs) and, as a JS-side twin of the same query, `DanceScheduleFilters.tsx`'s `supportsHover` (gates the hover-only ghost-preview marker on the slider track — see that file's own comment) |
 
 ### Shared breakpoint token: `src/breakpoints.css` + `src/lib/breakpoints.ts`
 
@@ -72,9 +80,13 @@ across the two files since neither can express the other's half:
   otherwise see a `@custom-media` declared in a different file).
 - **TS side** — `src/lib/breakpoints.ts` exports both `PHONE_MAX_WIDTH_PX =
   640` and `TABLET_MIN_WIDTH_PX = 641`, the same two literals, for
-  `useMediaQuery()` call sites that build a query *string* at runtime
-  rather than writing a static `@media` rule (currently just
-  `PageHeader.tsx`'s `WIDE_LANDSCAPE_QUERY`, built from the latter).
+  `useMediaQuery()`/`usePinnedMediaQuery()` call sites that build a query
+  *string* at runtime rather than writing a static `@media` rule —
+  `PORTRAIT_PHONE_QUERY` (breakpoint #8) and `PHONE_QUERY` (breakpoint #9)
+  are both built from `PHONE_MAX_WIDTH_PX`; `PageHeader.tsx`'s old
+  `WIDE_LANDSCAPE_QUERY`, built from `TABLET_MIN_WIDTH_PX`, was the original
+  (now-removed, see breakpoint #4) consumer that motivated exporting
+  `TABLET_MIN_WIDTH_PX` in the first place.
 
 Both are named as directly as possible (`--phone`/`--tablet-and-up`,
 `PHONE_MAX_WIDTH_PX`/`TABLET_MIN_WIDTH_PX`) rather than something more
@@ -157,6 +169,23 @@ compute a size in JS instead:
   here only because it interacts with the width breakpoints above (a wider
   column at Extra Large leaves less room before a header needs to truncate,
   independent of which width breakpoint is active).
+- **`usePinnedMediaQuery` vs. `useMediaQuery`** (`src/hooks/`) — every query
+  in the table above is evaluated through `useMediaQuery`, which re-subscribes
+  to the real `MediaQueryList`'s `'change'` event and stays LIVE for the
+  rest of that mount: resize the window, rotate the phone, and the app
+  reacts immediately. `PHONE_QUERY` (breakpoint #9) is the one exception —
+  its three consumers (`FirstRunTextSizePrompt.tsx`, and the read-only
+  copies in `PageMenu.tsx`/`DanceScheduleFilters.tsx`) all use
+  `usePinnedMediaQuery` instead, which reads `matchMedia` once at mount and
+  never updates again. Per direct product decision: `PHONE_QUERY`'s own
+  width-or-height OR already makes it orientation-invariant for a genuine
+  phone (true at mount, stays true through a rotation, live-tracked or not)
+  — the only thing live-tracking that one specific query actually did was
+  let a DESKTOP user's window resize make `FirstRunTextSizePrompt.tsx`'s
+  modal pop up (or vanish again, un-dismissed) mid-session, which pinning
+  removes without weakening the phone-rotation case at all. See
+  `docs/design/onboarding-hints.md`'s own "`PHONE_QUERY` pinned at mount"
+  decision for the full history.
 
 ### Fixed inconsistency: `ScheduleList` used to say `min-width: 640px`, one pixel off `Nav`'s true complement
 
@@ -176,6 +205,70 @@ to land exactly on 640px, so this was always more a correctness nit than a
 visible bug — but sharing one token makes this kind of drift structurally
 impossible to reintroduce, not just unlikely.
 
+### Follow-up audit and three bug fixes
+
+**Why the audit:** Before fixing three reported desktop bugs, this doc was
+re-checked against the actual current code (`grep` across every
+`useMediaQuery`/`usePinnedMediaQuery`/`@media` call site) rather than
+trusting its own prior contents — it had genuinely drifted: `PORTRAIT_PHONE_QUERY`
+(breakpoint #8) and `PHONE_QUERY` (breakpoint #9), both added in later
+sessions, were never added to the breakpoints table; `HintBalloon.module.css`'s
+own `--tablet-and-up` use wasn't listed under breakpoint #1's consumers;
+`(hover: hover)` (breakpoint #10) wasn't catalogued at all; and
+`RotateDeviceBanner.tsx`/the first-run text-size prompt weren't in the
+feature-by-feature table even though both are squarely "features that
+depend on window or device." All fixed above, alongside the three real bugs
+below, found BECAUSE this audit forced re-reading every consumer's actual
+current behavior instead of trusting the existing catalog.
+
+**Bug 1 — the page title was hidden on virtually all desktop visits, not
+just landscape phones/tablets.** `PageHeader.tsx`'s old `WIDE_LANDSCAPE_QUERY`
+(`(orientation: landscape) and (min-width: 641px)`, former breakpoint #4)
+was written to avoid the title duplicating `Nav.tsx`'s own already-highlighted
+current tab on a landscape phone/tablet, where vertical space is also scarce
+— but `orientation: landscape` doesn't actually mean "phone or tablet": it's
+simply width > height, true of nearly every ordinary desktop browser window
+too. Reported live as "title hidden above 950px" — that's just wherever a
+particular desktop window happened to already be wider than it was tall,
+which is normally true immediately. Per direct product decision, the
+title now always shows, at every width and orientation, full stop —
+`WIDE_LANDSCAPE_QUERY` and the `isWideLandscape`/`useMediaQuery`
+conditional removed entirely from `PageHeader.tsx`, along with the now-dead
+`.visuallyHidden` CSS class that rule used. The original "duplicates Nav's
+current tab" concern is accepted as a real but lesser cost than hiding the
+page's own heading — the title and the highlighted nav tab can coexist.
+
+**Bug 2 — the nav tab bar showed a native horizontal scrollbar underneath
+its own custom `‹`/`›` arrow buttons.** `Nav.module.css`'s `.list` has
+always needed `overflow-x: auto` to actually be scrollable (see that rule's
+own comment) — which, by default, also paints the browser's OWN scrollbar,
+redundant with (and visually competing against) the explicit
+`.scrollButton` affordance built specifically because the native scrollbar
+alone was "too easy to miss" (see that rule's own comment, further up this
+same file). Fixed by hiding the native scrollbar
+(`scrollbar-width: none` for Firefox; `::-webkit-scrollbar { display: none }`
+for Chromium/WebKit) while leaving `overflow-x: auto` itself unchanged —
+the list stays genuinely scrollable (mouse wheel, trackpad swipe, the arrow
+buttons' own `scrollTo()`, keyboard), just without a second, visually
+competing scroll indicator.
+
+**Bug 3 — the rotate-to-landscape suggestion could be triggered by a
+resized desktop browser window, not just a real phone.**
+`PORTRAIT_PHONE_QUERY` (breakpoint #8) was purely shape-based
+(`(orientation: portrait) and (max-width: 640px)`) — a desktop user
+resizing their browser window narrow-and-tall (or a snapped half-screen
+portrait-shaped window) matched it exactly the same as a genuine phone,
+even though "rotate your phone" makes no sense for a mouse-and-keyboard
+device that can't physically rotate. Fixed by adding `(pointer: coarse)` to
+the shared query — a coarse (finger) pointer is the actual signal for "this
+is a touchscreen device," independent of window shape; an ordinary desktop
+browser reports `pointer: fine` (a mouse) regardless of how its window is
+resized. Fixed at the shared `PORTRAIT_PHONE_QUERY` constant
+(`src/lib/breakpoints.ts`), not locally in `RotateDeviceBanner.tsx` alone,
+so its other consumer (`useResetRotateBannerOnLandscape.ts`) gets the same
+correction automatically — both already shared this one query specifically
+so a fix like this wouldn't need to be applied twice.
+
 ## Feature-by-feature: what's active where
 
 Every UI element/behavior in this app that changes based on the breakpoints
@@ -188,8 +281,11 @@ row names the exact component/file to look at directly.
 |---|---|---|
 | **Top-level navigation** | `PageMenu.tsx`'s hamburger ("☰") button, opening a dropdown with every page link plus "Text size" — shares a row with the page's own title (`PageHeader.tsx`), in every orientation. `Nav.tsx`'s own bar is `display: none`. | `Nav.tsx`'s horizontal tab bar (one `<a>` per page, current page bold + accent-colored + "merged into" the page below), plus a "Text size" toggle as the last tab. `PageMenu.tsx`'s `.nav` is `display: none`. |
 | **"Text size" control** | Lives inside `PageMenu.tsx`'s hamburger dropdown, alongside the page links. | Its own top-level toggle in `Nav.tsx`'s tab bar, opening a small portaled dropdown panel below it (`Nav.module.css`'s `.textSizeDropdown`). Same three Normal/Large/Extra Large buttons either way (`TextSizeControl.tsx`) — only the surrounding menu shape differs. |
-| **Page title (`PageHeader.tsx`'s `<h1>`)** | Always shown normally, in every orientation — `PageMenu.tsx`'s hamburger toggle is closed by default and shows no page name until tapped open, so the title is the only visible page identifier at this width; hiding it here was tried and reverted as a regression, not a fix (see `docs/design/text-size-preference.md`'s "Revised" note). | **Landscape only** (breakpoint #4): visually hidden (still present for screen readers) — it duplicated `Nav.tsx`'s own already-highlighted current tab and cost scarce vertical space there. **Portrait, this width**: shown normally — plenty of vertical room, and `Nav.tsx`'s tab bar reads as ordinary page-top chrome there, not competing with the title the way landscape's cramped vertical space does. |
-| **Nav tab-bar horizontal scroll arrows** (`Nav.module.css`'s `.scrollButton`) | N/A — `Nav.tsx`'s whole bar is hidden here. | Shown only when `Nav.tsx`'s own scroll-position check confirms the tab list has more content in that direction (e.g. six tabs plus "Text size" not all fitting on one line) — a narrow desktop window can still trigger this even though it's "desktop." |
+| **Page title (`PageHeader.tsx`'s `<h1>`)** | Always shown normally, in every orientation — `PageMenu.tsx`'s hamburger toggle is closed by default and shows no page name until tapped open, so the title is the only visible page identifier at this width; hiding it here was tried and reverted as a regression, not a fix (see `docs/design/text-size-preference.md`'s "Revised" note). | **Always shown now, every orientation** — the old landscape-only hiding (breakpoint #4) was removed; see "Follow-up audit and three bug fixes" below for why it was actually hiding the title on virtually all desktop visits, not just the narrow case it was meant for. |
+| **Nav tab-bar horizontal scroll arrows** (`Nav.module.css`'s `.scrollButton`) | N/A — `Nav.tsx`'s whole bar is hidden here. | Shown only when `Nav.tsx`'s own scroll-position check confirms the tab list has more content in that direction (e.g. six tabs plus "Text size" not all fitting on one line) — a narrow desktop window can still trigger this even though it's "desktop." The list's own native browser scrollbar is hidden (`scrollbar-width: none` / `::-webkit-scrollbar { display: none }`) whenever it's actually scrollable, so these arrows are the only visible scroll affordance — see "Follow-up audit and three bug fixes" below. |
+| **Rotate-to-landscape suggestion** (`RotateDeviceBanner.tsx`, breakpoint #8) | Shown only on the three dance-schedule grid pages (Room/Dance/Caller Schedule), only in portrait, only on a genuine touch device (`pointer: coarse` — see "Follow-up audit and three bug fixes" below for why that clause was added) — a desktop window merely resized narrow-and-tall no longer triggers it. Dismissible; resets the next time the device leaves and re-enters portrait (`useRotateBannerDismissed.ts`/`useResetRotateBannerOnLandscape.ts`). | Never shown — `pointer: coarse` alone already rules out an ordinary desktop browser regardless of window shape. |
+| **First-run text-size prompt** (`FirstRunTextSizePrompt.tsx`, breakpoint #9) and its suppression of the kebab-menu/level-slider onboarding hints (`PageMenu.tsx`/`DanceScheduleFilters.tsx`) while it's visible | Shown once, on a genuinely fresh device's first launch (`PHONE_QUERY`, pinned at mount — see the "`usePinnedMediaQuery`" note above). Full design history, including the click-swallow bug this suppression fixes, in `docs/design/onboarding-hints.md`. | Never shown — gated out at desktop widths/aspect ratios by the same `PHONE_QUERY` check. |
+| **Level-slider thumb cursor** (`DanceScheduleFilters.module.css`, breakpoint #10) | No special cursor — a touch device drags with a finger, not a mouse cursor. | `ew-resize` cursor on hover (`(hover: hover)`), plus a JS-driven hover-only "ghost" preview marker on the track (`DanceScheduleFilters.tsx`'s `supportsHover`). |
 | **Menu-row-to-content margin** (`PageHeader.module.css`, breakpoint #7) | Not gated by this table's own width columns at all — purely a height check (`max-height: 500px`), independent of phone/tablet width or orientation. A short window of either width gets the smaller `var(--space-sm)` margin between the title/menu row and the page content below it; a taller one (even a narrow phone in portrait) keeps the normal, more generous `var(--space-md)`. | Same as the left column — this one row is genuinely width-agnostic, unlike every other row in this table. |
 | **Events list layout** (`ScheduleList.module.css`) | Single flex column — date heading, then each event's time/location/description stacked. | 3-column CSS grid (time / location / description) aligned across every date section via `subgrid`, gated on `--tablet-and-up` (breakpoint #1) — a portrait iPad still gets the grid, since width (not orientation) is the actual signal for "room enough." |
 | **`<select>` (Date picker) border** (`DanceScheduleFilters.module.css`) | No border/radius — native mobile `<select>` chrome mostly ignores it anyway. | Rounded 1px border, matching `.timeLabel`'s radius elsewhere in the dance-schedule UI. |

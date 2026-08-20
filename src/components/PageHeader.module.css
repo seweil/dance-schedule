@@ -36,18 +36,3 @@
 .pageHeader h1 {
   margin: 0;
 }
-
-/* Same clip-based technique as TextSizeControl.module.css's own rule of the
-   same name — kept out of sighted view while remaining in the accessibility
-   tree (unlike display: none, which would remove it from both). */
-.visuallyHidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}

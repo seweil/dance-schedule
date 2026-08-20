@@ -31,6 +31,21 @@
      show a permanent vertical scrollbar across the whole tab bar, when nothing
      here should ever scroll vertically at all. */
   overflow-y: hidden;
+  /* Hides the browser's OWN horizontal scrollbar — .scrollButton below is a
+     purpose-built affordance for exactly this list's own overflow (added
+     specifically because the native scrollbar alone was "too easy to miss,"
+     see that rule's own comment), so a second, native scrollbar underneath it
+     is redundant, not an additional cue. Still genuinely scrollable — this
+     only hides the visual indicator, not the scroll behavior itself (mouse
+     wheel, trackpad swipe, .scrollButton's own scrollTo(), and keyboard all
+     keep working). Two vendor-specific properties, not a single standard one
+     — scrollbar-width is Firefox's; ::-webkit-scrollbar (below) is
+     Chromium/WebKit's, which has no equivalent plain property. */
+  scrollbar-width: none;
+}
+
+.list::-webkit-scrollbar {
+  display: none;
 }
 
 /* Scroll-affordance arrows, shown only when Nav.tsx's own scroll-position check

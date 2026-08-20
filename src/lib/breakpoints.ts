@@ -26,7 +26,18 @@ export const TABLET_MIN_WIDTH_PX = 641
 // (App.tsx-global) became a second consumer needing the exact same query —
 // same "reconsider once a second/third consumer needs it" reasoning this
 // file's own PHONE_MAX_WIDTH_PX was originally extracted for.
-export const PORTRAIT_PHONE_QUERY = `(orientation: portrait) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
+//
+// (pointer: coarse) — added per direct product decision: orientation/width
+// alone can't tell a genuine portrait PHONE apart from a desktop browser
+// window simply resized narrow-and-tall (or snapped to a portrait-shaped
+// half-screen), which reported the identical match and suggested "rotate
+// your phone" to someone on a mouse-and-keyboard device that can't
+// physically rotate at all. A coarse (finger) pointer is the actual "this is
+// a touchscreen" signal, independent of window shape — an ordinary desktop
+// browser reports pointer: fine (a mouse) regardless of how its window is
+// sized. See docs/design/responsive-breakpoints.md's "Follow-up audit and
+// three bug fixes".
+export const PORTRAIT_PHONE_QUERY = `(orientation: portrait) and (max-width: ${PHONE_MAX_WIDTH_PX}px) and (pointer: coarse)`
 
 // Orientation-agnostic "is this a phone" — unlike PORTRAIT_PHONE_QUERY above,
 // this also matches a phone in LANDSCAPE, whose width alone can exceed

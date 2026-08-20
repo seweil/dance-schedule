@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { PageHeader } from './PageHeader'
@@ -16,13 +16,6 @@ vi.mock('./PageMenu.module.css', () => ({
 }))
 
 describe('PageHeader', () => {
-  // Only the wide-landscape test below mocks matchMedia — restoring afterward
-  // keeps that mock from leaking into the other tests in this file, which rely
-  // on jsdom's default "no match" stub (test-setup.ts) for the normal case.
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('renders the title as an h1, alongside the mobile menu toggle', () => {
     render(
       <MemoryRouter>
@@ -37,13 +30,13 @@ describe('PageHeader', () => {
     expect(screen.getByRole('button', { name: /menu/i })).toBeInTheDocument()
   })
 
-  it('visually hides the title (but keeps it as an accessible heading) when Nav\'s full tab bar shows in landscape', () => {
-    vi.spyOn(window, 'matchMedia').mockReturnValue({
-      matches: true,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    } as unknown as MediaQueryList)
-
+  // Regression test: an earlier version visually hid the title whenever
+  // Nav.tsx's full tab bar showed in landscape — removed because that
+  // condition doesn't distinguish a landscape phone/tablet from an ordinary
+  // desktop window (see docs/design/responsive-breakpoints.md's "Follow-up
+  // audit and three bug fixes"). The title must always render, visibly, with
+  // no conditional class, at least once past that fix.
+  it('always shows the title visibly, with no conditional visually-hidden class', () => {
     render(
       <MemoryRouter>
         <TextSizeProvider>
@@ -51,9 +44,9 @@ describe('PageHeader', () => {
         </TextSizeProvider>
       </MemoryRouter>,
     )
-
     const heading = screen.getByRole('heading', { level: 1, name: 'Dance Schedule' })
-    expect(heading.className).toMatch(/visuallyHidden/)
+    expect(heading).toBeVisible()
+    expect(heading.className).toBe('')
   })
 
   it('accepts a non-string ReactNode title (e.g. built from JSX, not literal text)', () => {

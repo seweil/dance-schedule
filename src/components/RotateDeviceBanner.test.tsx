@@ -51,4 +51,26 @@ describe('RotateDeviceBanner', () => {
 
     expect(remounted).toBeEmptyDOMElement()
   })
+
+  // Regression test: orientation/width alone can't tell a genuine portrait
+  // phone apart from a desktop browser window simply resized narrow-and-tall
+  // — see PORTRAIT_PHONE_QUERY's own comment (src/lib/breakpoints.ts) and
+  // docs/design/responsive-breakpoints.md's "Follow-up audit and three bug
+  // fixes". This test's own matchMedia mock is query-agnostic (it can't
+  // actually evaluate media features), so it can't simulate "matches
+  // orientation/width but not pointer" — the real signal this test protects
+  // is that the QUERY ITSELF asks about pointer at all, so a real browser
+  // (which DOES evaluate it) has something to rule a resized desktop window
+  // out with.
+  it('checks pointer: coarse as part of its own portrait-phone query, not just orientation/width', () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList)
+
+    render(<RotateDeviceBanner />)
+
+    expect(matchMedia).toHaveBeenCalledWith(expect.stringContaining('pointer: coarse'))
+  })
 })
