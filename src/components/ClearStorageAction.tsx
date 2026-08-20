@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { clearAllStorage } from '../lib/appStorage'
 import { PageHeader } from './PageHeader'
+import styles from './ClearStorageAction.module.css'
 
 // Reachable from a plain link on the Installation page (see content/*/pages), not
 // linked from the nav — a small utility page, not a real destination, so it's
@@ -36,6 +37,7 @@ export function ClearStorageAction() {
       </p>
       <button
         type="button"
+        className={styles.button}
         onClick={() => {
           clearAllStorage()
           setCleared(true)

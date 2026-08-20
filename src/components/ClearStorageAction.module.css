@@ -1,0 +1,23 @@
+/* Resets the browser's UA button chrome — plain <button>s render with a tiny
+   system font by default, out of step with the rest of the page's prose (`font:
+   inherit` picks up this page's own font-size, including the text-size
+   preference) — and gives it the same solid, accent-colored "confirm" look as
+   the rest of the app's primary actions. */
+.button {
+  border: none;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: #fff;
+  font: inherit;
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
