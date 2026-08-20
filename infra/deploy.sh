@@ -61,12 +61,19 @@ PYEOF
 # own Default — `cloudformation deploy` keeps an existing stack's previous
 # value for any parameter you don't pass, so editing the Default alone
 # wouldn't actually change it on an already-deployed stack.
+#
+# "$@" forwards any extra Key=Value pairs this script itself was called with
+# (e.g. `./infra/deploy.sh AlertEmail=someone@example.com
+# JsErrorAlarmThreshold=3`) as additional --parameter-overrides — lets a
+# caller override infra/README.md's other stack parameters (AlertEmail,
+# JsErrorAlarmThreshold, Domains, SessionSampleRate) without editing this
+# script or monitoring.yaml's own Default values.
 aws cloudformation deploy \
   --template-file "$TMP_TEMPLATE" \
   --stack-name "$STACK_NAME" \
   --capabilities CAPABILITY_NAMED_IAM \
   --region "$REGION" \
-  --parameter-overrides RetainTelemetryBeyond30Days=true
+  --parameter-overrides RetainTelemetryBeyond30Days=true "$@"
 
 aws cloudformation describe-stacks \
   --stack-name "$STACK_NAME" \

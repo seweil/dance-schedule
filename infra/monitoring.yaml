@@ -38,6 +38,21 @@ Parameters:
       CloudWatch Logs (billed separately, ingestion + storage — pennies/month
       at this app's traffic), unlocking both longer retention and real
       aggregate reporting via CloudWatch Logs Insights — see infra/README.md.
+  AlertEmail:
+    Type: String
+    Default: steve.weil@gmail.com
+    Description: >
+      Notified when the JS-error alarm below fires or recovers. SNS sends a
+      one-time confirmation email after the first deploy that creates this
+      subscription — it must be clicked before notifications actually start;
+      see docs/design/alerting.md.
+  JsErrorAlarmThreshold:
+    Type: Number
+    Default: 1
+    Description: >
+      Minimum JS errors RUM must record in a single 5-minute window to
+      trigger the alarm. 1 means any single error notifies — raise this if
+      that's too noisy for real traffic volume once you see it in practice.
 
 Conditions:
   EnableCwLogs: !Equals [!Ref RetainTelemetryBeyond30Days, 'true']
@@ -100,6 +115,71 @@ Resources:
           - errors
           - performance
           - http
+
+  # Email delivery for the JS-error alarm below — see docs/design/alerting.md.
+  # A plain SNS topic + email subscription, not a more elaborate paging tool
+  # (PagerDuty etc.): this is a community-event site at a few-hundred-user
+  # scale, not something needing on-call rotations or escalation policies.
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AppMonitorName}-alerts'
+
+  # CloudFormation can create the subscription, but NOT auto-confirm it — SNS
+  # emails AlertEmail a confirmation link the first time this deploys (or
+  # whenever AlertEmail changes), and no notification actually delivers until
+  # that link is clicked. See infra/README.md.
+  AlertsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlertsTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # Alarms on RUM's own automatically-published CloudWatch metric (namespace
+  # AWS/RUM, dimensioned by application_name) rather than a Logs Insights
+  # query the way every QueryDefinition below does — deliberately the ONE
+  # exception to this file's "stay on Logs Insights" convention (see
+  # RequestRateQuery's own comment on why every other query avoids the
+  # AWS/RUM namespace): a CloudFormation-defined CloudWatch Alarm needs a
+  # concrete Namespace/MetricName/Dimensions to evaluate against, and the
+  # RUM-managed CwLogGroup this stack's Logs Insights queries read from has
+  # no fixed, predictable name available at template-authoring time (see
+  # docs/ops.md) — there's no way to point a Logs-based metric filter at it
+  # without a separate manual lookup step after every deploy. The AWS/RUM
+  # namespace's dimension key (application_name) is standard, documented AWS
+  # RUM behavior — see docs/design/alerting.md for the full reasoning,
+  # including the caveat that this hasn't been confirmed against a live
+  # account yet.
+  #
+  # TreatMissingData: notBreaching — most 5-minute periods at this app's
+  # traffic volume will have zero RUM data points at all (no visitors that
+  # instant, let alone an error), which isn't the same thing as "breaching."
+  # OKActions, not just AlarmActions — notifies on recovery too, so a false
+  # alarm or a since-fixed bug doesn't require manually checking whether
+  # it's still ongoing.
+  JsErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AppMonitorName}-js-errors'
+      AlarmDescription: !Sub >-
+        JS errors recorded by RUM app monitor ${AppMonitorName} — a broken
+        deploy or client-side bug affecting real visitors.
+      Namespace: AWS/RUM
+      MetricName: JsErrorCount
+      Dimensions:
+        - Name: application_name
+          Value: !Ref AppMonitorName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref JsErrorAlarmThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+      OKActions:
+        - !Ref AlertsTopic
 
   # Saved CloudWatch Logs Insights queries (docs/ops.md's own "Retention and
   # aggregate reporting" section — this mirrors that doc's query text
@@ -332,3 +412,6 @@ Outputs:
   Region:
     Description: Pass to the web client as VITE_RUM_REGION
     Value: !Ref AWS::Region
+  AlertsTopicArn:
+    Description: SNS topic the JS-error alarm notifies — subscribe another endpoint (Slack webhook via a Lambda, another email) here if needed later.
+    Value: !Ref AlertsTopic

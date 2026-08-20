@@ -136,6 +136,37 @@ If you add or change a custom domain in the Amplify console, update
 `Domains` in `infra/monitoring.yaml` to match and redeploy — RUM silently
 drops events from origins not in that list.
 
+## JS-error alerting
+
+`./infra/deploy.sh` also creates an SNS topic + CloudWatch alarm that emails
+you when RUM records a client-side JS error — see
+`docs/design/alerting.md` for the full reasoning (including an honest
+caveat: the metric this alarms on hasn't been confirmed against a live
+account, only written from documented AWS RUM behavior).
+
+**One-time step after the first deploy**: check `AlertEmail`
+(`steve.weil@gmail.com` by default — override with
+`./infra/deploy.sh AlertEmail=someone@example.com`) for an SNS
+subscription-confirmation email, and click **Confirm subscription**. No
+notifications deliver until that's done — same shape as
+`deploy-email-forwarding.sh`'s SES verification step below.
+
+**To verify it actually works**, since it's untested against a real
+account: trigger a real client-side error (e.g. temporarily throw in a
+component and load the page), then check the alarm's state in the
+CloudWatch console (**Alarms** → `dance-schedule-js-errors`) — it should
+move to `ALARM` within the 5-minute evaluation window and the confirmed
+email address should get a notification. Move it back to `OK` by fixing
+the error and waiting out the window (or just confirm the metric shows a
+data point — `aws cloudwatch get-metric-statistics --namespace AWS/RUM
+--metric-name JsErrorCount --dimensions
+Name=application_name,Value=dance-schedule --start-time <recent> --end-time
+now --period 300 --statistics Sum --region us-east-2`).
+
+To change the sensitivity later: `./infra/deploy.sh JsErrorAlarmThreshold=3`
+(default `1` — any single error notifies), or edit the Default directly in
+`monitoring.yaml` and redeploy with no args.
+
 ## Dashboard
 
 `monitoring.yaml`'s `RumDashboard` resource (an `AWS::CloudWatch::Dashboard`)
