@@ -49,13 +49,18 @@ was added later purely in the console (Domain management → add domain →
 free ACM cert), zero repo changes — the app is now live at `sqdance.app`,
 with the `amplifyapp.com` URL still working alongside it.
 
-### SPA fallback via an Amplify "Rewrites and redirects" rule, not a repo file
+### SPA fallback via an Amplify "Rewrites and redirects" rule
 **Why:** `src/App.tsx` uses `react-router-dom`'s `BrowserRouter`, so a direct
 request to e.g. `/installation` must be served `index.html` (client-side
-routing resolves the path in-browser). This is Amplify console/hosting
-config (Source `</^[^.]+$/>` → Target `/index.html` → Type `200 (Rewrite)`),
-not something expressible in the repo — there's no repo-level Amplify rewrite
-config file.
+routing resolves the path in-browser) — Source `</^[^.]+$/>` → Target
+`/index.html` → Type `200 (Rewrite)`. This is Amplify hosting config, not a
+build-time concern, but it **is** now version-controlled and pushed via the
+API rather than hand-typed into the console — see `infra/amplify-rewrites.json`
+and `infra/README.md`'s "Amplify rewrite rules" section (added 2026-08-20,
+after direct/shared links into a brand-new content set turned out to be
+silently 404ing — console copy-paste had also been introducing stray
+newlines into the rules). `aws amplify update-app --custom-rules` is the API
+equivalent of the console's rewrite editor.
 
 ### Cache headers set via `customHeaders` in `amplify.yml`
 **Why:** Neither Amplify's nor CloudFront's default caching gets this right
@@ -83,19 +88,16 @@ changes, not this Amplify setting.
 ### Per-content-set Amplify rewrite rule, in addition to the root SPA fallback
 **Why:** `pnpm build` now publishes every content set under its own
 `/<set>/` prefix (see `docs/design/content-sets.md`), each an independent
-build with its own `basename`-scoped router. The existing root SPA
-fallback rule (Source `</^[^.]+$/>` → Target `/index.html` → Type 200)
-would incorrectly rewrite a direct/deep-link navigation to e.g.
-`/automated-testing/installation` to the *root* `/index.html` (wrong bundle/basename)
-instead of `/automated-testing/index.html`. This needs **one additional Amplify console
-rewrite rule per content-set path segment** — e.g. Source
-`</automated-testing\/[^.]+$/>` → Target `/automated-testing/index.html` → Type 200 (Rewrite), and
-likewise for `test` and any future set — added/removed by hand in the
-Amplify console whenever a content set is added or removed, mirroring the
-existing "not expressible in the repo" pattern already noted above for the
-root rule. `amplify.yml`'s `customHeaders` patterns were also updated to
-`'**/...'` globs so the no-cache/long-cache header split still applies to
-every set's nested output, not just the root copy.
+build with its own `basename`-scoped router. The root SPA fallback rule
+alone would incorrectly rewrite a direct/deep-link navigation to e.g.
+`/automated-testing/installation` to the *root* `/index.html` (wrong
+bundle/basename) instead of `/automated-testing/index.html`. This needs
+**one additional rewrite rule per content-set path segment** — e.g. Source
+`</automated-testing\/[^.]+$/>` → Target `/automated-testing/index.html` →
+Type 200 (Rewrite), and likewise for every other set. `amplify.yml`'s
+`customHeaders` patterns were also updated to `'**/...'` globs so the
+no-cache/long-cache header split still applies to every set's nested
+output, not just the root copy.
 
 A **second, separate rule is also needed**: a bare `/automated-testing` or
 `/test` (no trailing slash — the natural way to type or bookmark a set's
@@ -108,6 +110,17 @@ covers local testing). Amplify needs one additional redirect rule per
 content-set — Source `/automated-testing` → Target `/automated-testing/` →
 Type 301 (Redirect), and likewise for `test`/future sets — alongside the
 rewrite rule above.
+
+**Update, 2026-08-20:** this per-set rule *pair* was originally
+"added/removed by hand in the Amplify console whenever a content set is
+added or removed" — exactly the kind of easy-to-forget manual step that
+then actually got forgotten, silently 404ing direct/shared links into a
+content set (including `/reset` itself — see `docs/adding-a-new-event.md`'s
+git history around this date for the full debugging trail). Now generated
+from the real `content/<set>/` directories and pushed via the API instead
+— see `infra/amplify-rewrites.json` and `infra/README.md`'s "Amplify
+rewrite rules" section. Adding or removing a content set means
+regenerating and re-applying that file, not editing the console by hand.
 
 ## Open questions
 
@@ -122,8 +135,14 @@ rewrite rule above.
   more control?
 - Analytics (device/browser mix, usage patterns) — addressed in
   `docs/design/monitoring.md`, not still open.
-- The per-content-set Amplify rewrite rules above are manual and easy to
-  forget when adding a new content set — is a checklist/reminder
-  (README, PR template, or a build-time warning if a set has no matching
-  rule — though Amplify's rewrite config isn't introspectable from the
-  repo) worth adding?
+- ~~The per-content-set Amplify rewrite rules above are manual and easy to
+  forget when adding a new content set — is a checklist/reminder worth
+  adding?~~ Addressed twice over: `scripts/generate-amplify-rewrites.mjs`
+  regenerates the full rule set from the real `content/` directories (so it
+  can't forget one the way hand-typing could), and
+  `docs/adding-a-new-event.md`'s Step 7 has a dedicated, hard-to-miss
+  "Required" section pointing at it, plus a `curl` command to verify before
+  considering an event live. A build-time warning is still not possible
+  (Amplify's *live* rewrite config isn't introspectable from the repo —
+  nothing catches the rules going out of sync if someone edits the console
+  directly instead of using the script).

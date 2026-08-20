@@ -7,6 +7,44 @@ monitoring infra that *is* worth managing as code is CloudWatch RUM, since it
 needs a few interlocking IAM/Cognito resources. Plain CloudFormation was
 picked over Terraform/CDK for this — see `docs/design/monitoring.md`.
 
+## Amplify rewrite rules: `infra/amplify-rewrites.json`
+
+The app's "Rewrites and redirects" config (Amplify console → Hosting →
+Rewrites and redirects) is the one piece of the Amplify app's own hosting
+config that *is* worth keeping in source control, even though the app
+itself has no CloudFormation stack — see `docs/design/hosting.md`'s
+"Per-content-set Amplify rewrite rule" decision for why this exists at
+all: `react-router`'s client-side routing means a direct/bookmarked
+request to any inner page (e.g. `/reset`, or `/backtrack2abq/help`) needs a
+server-side rewrite to that content set's own `index.html`, or it 404s —
+this bit us for real once (see git history around 2026-08-20 for the
+debugging trail).
+
+```bash
+node scripts/generate-amplify-rewrites.mjs   # regenerates infra/amplify-rewrites.json
+                                              # from the actual content/<set>/ directories
+./infra/apply-amplify-rewrites.sh <amplify-app-id>
+```
+
+The generator reads `content/`'s subdirectories directly, so it can never
+forget a content set the way hand-typing rules into the console (or a
+manually-maintained list) could — run it again any time a content set is
+added or removed, then re-apply. The apply script pushes the file straight
+to the Amplify API (`aws amplify update-app --custom-rules`) rather than
+pasting into the console's rewrite editor, which has a known quirk of
+injecting stray newlines into copy-pasted rules (same issue
+`infra/dashboard.json`'s own note below describes for CloudWatch). Find
+your app id the same way `infra/set-amplify-env.sh` does:
+
+```bash
+aws amplify list-apps --region us-east-2 --query 'apps[].{name:name,appId:appId}'
+```
+
+Rewrite/redirect changes take effect immediately on Amplify's edge —
+no rebuild needed, unlike environment variable changes (below). Verify
+with e.g. `curl -I https://<your-domain>/reset` — expect `200`, not `404`,
+from a machine with no cached service worker to mask a broken rule.
+
 ## What needs no infra-as-code at all: Amplify access logs
 
 Every Amplify Hosting app already logs every request (path, status, referrer,

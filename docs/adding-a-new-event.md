@@ -441,23 +441,53 @@ correctly there too.
 ## Step 7: Publish it
 
 Once your `content/<your-event-name>/` folder is committed and pushed,
-`pnpm build` (which the deploy pipeline runs automatically) picks it up with
-**no other changes needed** — every folder under `content/` gets published,
-each at its own `/<event-name>/` address.
+`pnpm build` (which the deploy pipeline runs automatically) picks it up and
+publishes it at its own `/<event-name>/` address — but **do not stop there**.
+One more, easy-to-forget, manual step below is required before direct links
+into your event actually work.
 
-Two things worth knowing:
+### ⚠️ Required: regenerate and push the Amplify rewrite rules
+
+This is a separate step from `pnpm build`/the deploy pipeline, and it's easy
+to skip because everything *looks* fine without it: your event's home page
+loads, and clicking around inside the app (nav links, in-app navigation)
+works perfectly. What silently breaks instead is anything that hits the
+server with your event's URL directly — a bookmark, a shared link, a QR
+code, someone typing the URL, or a browser tab that isn't already running
+the app's service worker. Those get a plain 404, with no indication of why.
+
+Every content set (including yours) needs its own pair of rewrite rules —
+see `docs/design/hosting.md`'s "Per-content-set Amplify rewrite rule"
+decision for the full rationale. Rather than hand-typing these into the
+Amplify console (error-prone — the console's rewrite editor is known to
+inject stray newlines when you paste in a rule), regenerate them from the
+actual `content/` folders and push via the API:
+
+```bash
+node scripts/generate-amplify-rewrites.mjs
+./infra/apply-amplify-rewrites.sh <amplify-app-id>
+```
+
+The first command rewrites `infra/amplify-rewrites.json` from whatever
+content sets currently exist under `content/` — commit that file's change
+alongside your event's own folder. The second pushes it to Amplify (see
+`infra/README.md` for how to find your app id, and for what the script
+does). Ask whoever manages hosting to run the second command if you don't
+have AWS credentials yourself; the first only needs the repo.
+
+**Verify it before considering your event fully live**: `curl -I
+https://<your-domain>/your-event-name/installation` (or any inner page)
+should return `200`, not `404`, from a machine that's never loaded the app
+before (no cached service worker to mask a broken rule).
+
+### Also worth knowing
 
 - **Making it the "default" event** (the one shown at the bare site root
   `/`, with no event name in the URL) is a separate, optional step: edit
-  `content/config.yaml`'s `defaultContentSet` to your event's name.
-- **Direct/bookmarked links into your event's pages** (e.g. sharing a link
-  straight to `/your-event-name/installation`) need a one-time manual step
-  in the Amplify hosting console — a rewrite rule for your event's prefix,
-  alongside the ones for the existing events. Ask whoever manages hosting to
-  add it (see `docs/design/hosting.md`'s "Per-content-set Amplify rewrite
-  rule" decision) — until that's added, direct links to inner pages of a
-  *brand-new* event may not resolve correctly, even though the event's own
-  home page and normal in-app navigation work fine.
+  `content/config.yaml`'s `defaultContentSet` to your event's name. The
+  default event needs the rewrite rules above too, in addition to the
+  existing root catch-all — the catch-all only covers its root-mirrored
+  copy at `/`, not deep links using its own `/your-event-name/` prefix.
 
 ## If something goes wrong
 

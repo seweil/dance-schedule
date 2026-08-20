@@ -1,0 +1,47 @@
+[
+  {
+    "source": "/MotivateToSeattle",
+    "status": "301",
+    "target": "/MotivateToSeattle/"
+  },
+  {
+    "source": "</MotivateToSeattle\\/[^.]+$/>",
+    "status": "200",
+    "target": "/MotivateToSeattle/index.html"
+  },
+  {
+    "source": "/automated-testing",
+    "status": "301",
+    "target": "/automated-testing/"
+  },
+  {
+    "source": "</automated-testing\\/[^.]+$/>",
+    "status": "200",
+    "target": "/automated-testing/index.html"
+  },
+  {
+    "source": "/backtrack2abq",
+    "status": "301",
+    "target": "/backtrack2abq/"
+  },
+  {
+    "source": "</backtrack2abq\\/[^.]+$/>",
+    "status": "200",
+    "target": "/backtrack2abq/index.html"
+  },
+  {
+    "source": "/test",
+    "status": "301",
+    "target": "/test/"
+  },
+  {
+    "source": "</test\\/[^.]+$/>",
+    "status": "200",
+    "target": "/test/index.html"
+  },
+  {
+    "source": "</^[^.]+$/>",
+    "status": "200",
+    "target": "/index.html"
+  }
+]
