@@ -12,6 +12,7 @@ import { PageHeader } from './components/PageHeader'
 import { ResetAction } from './components/ResetAction'
 import { ResetHintsLink } from './components/ResetHintsLink'
 import { ScrollToTopButton } from './components/ScrollToTopButton'
+import { SkipLink } from './components/SkipLink'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { ZoomableImage } from './components/ZoomableImage'
 import { RawDanceScheduleDebugPage } from './components/RawDanceScheduleDebugPage'
@@ -150,14 +151,23 @@ export function App() {
               never intersects at all, and the button was stuck permanently visible
               regardless of scroll position. This zero-size marker is always
               rendered, at the very top of the page, on every viewport. */}
+          <SkipLink />
           <div id="page-top-sentinel" aria-hidden="true" />
           <FirstRunTextSizePrompt />
           <Nav />
           <UpdatePrompt />
           <ImageGalleryProvider>
-            <Suspense fallback={<p>Loading…</p>}>
-              <Pages />
-            </Suspense>
+            {/* The routed content landmark a screen reader/keyboard user can jump
+                straight to via SkipLink above, instead of tabbing through the
+                entire nav on every page. ImageGalleryProvider wraps this, not the
+                other way around, so the Lightbox overlay it renders as a sibling
+                of its children stays outside <main> — a global overlay, not part
+                of the page's own content region. */}
+            <main id="main-content">
+              <Suspense fallback={<p>Loading…</p>}>
+                <Pages />
+              </Suspense>
+            </main>
           </ImageGalleryProvider>
           <HomeBuildInfo />
           <ScrollToTopButton />

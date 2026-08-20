@@ -1,0 +1,20 @@
+/* Off-screen (not display: none/visibility: hidden, which would also remove it
+   from the tab order) until focused, then slides into view at the top-left —
+   the standard skip-link pattern. position: fixed rather than absolute so it
+   doesn't depend on a positioned ancestor. */
+.skipLink {
+  position: fixed;
+  top: -3rem;
+  left: var(--space-sm);
+  z-index: 1000;
+  background: var(--color-accent);
+  color: #fff;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 4px;
+  text-decoration: none;
+  transition: top 0.1s ease-in;
+}
+
+.skipLink:focus {
+  top: var(--space-sm);
+}
