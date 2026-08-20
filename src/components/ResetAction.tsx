@@ -14,6 +14,21 @@ import { clearAllStorage } from '../lib/appStorage'
 // manual reload to actually pick it up.
 const CONTROLLERCHANGE_FALLBACK_MS = 3_000
 
+// A second, OUTER safety net around the whole applyPendingUpdate() call below
+// — confirmed live (macOS Safari, a regular non-private window with an
+// already-registered service worker from prior testing): the page got stuck
+// showing chrome (Nav) but no routed content, indefinitely, every fresh visit
+// to this URL, only in that one Safari profile — not in a private window
+// (fresh SW registration each time). CONTROLLERCHANGE_FALLBACK_MS above only
+// bounds the LAST step (waiting for the new worker to actually take control);
+// registration.update() and waitForInstalledWorker() below had no timeout at
+// all, so a wedged/slow-to-settle registration in that state hung the entire
+// chain forever — clearAllStorage() and the redirect never ran, because
+// nothing ever moved past those two awaits. This bounds the WHOLE function,
+// not just its last step, so the reset always proceeds within a few seconds
+// no matter which internal step (if any) never settles.
+const APPLY_UPDATE_OVERALL_TIMEOUT_MS = 5_000
+
 // Waits for a currently-installing worker (if any) to finish installing, so
 // registration.waiting is populated before we check it — registration.update()
 // only resolves once the update *check* completes, not once a found update has
@@ -76,7 +91,8 @@ async function applyPendingUpdate(): Promise<void> {
 // was precached at the time the currently-active service worker installed.
 export function ResetAction() {
   useEffect(() => {
-    void applyPendingUpdate().finally(() => {
+    const timeout = new Promise((resolve) => setTimeout(resolve, APPLY_UPDATE_OVERALL_TIMEOUT_MS))
+    void Promise.race([applyPendingUpdate(), timeout]).finally(() => {
       clearAllStorage()
       window.location.href = import.meta.env.BASE_URL
     })
