@@ -31,10 +31,17 @@ function listContentSets() {
 // own pair must come before the generic root catch-all below, or the catch-all's
 // broader regex would match that set's deep links first and serve the WRONG (root)
 // bundle — see docs/design/hosting.md.
+//
+// [^.]* (zero-or-more), not [^.]+ (one-or-more): a `+` here left the bare
+// "/<set>/" URL (nothing after the trailing slash — exactly what the redirect rule
+// above produces, and how someone would naturally bookmark a set's home page) NOT
+// matching this rule at all, falling through to the generic root catch-all below
+// instead and silently serving the WRONG (root) index.html — confirmed live
+// (`/backtrack2abq/` returned the root bundle's etag) before this fix.
 function rulesForSet(set) {
   return [
     { source: `/${set}`, status: '301', target: `/${set}/` },
-    { source: `</${set}\\/[^.]+$/>`, status: '200', target: `/${set}/index.html` },
+    { source: `</${set}\\/[^.]*$/>`, status: '200', target: `/${set}/index.html` },
   ]
 }
 

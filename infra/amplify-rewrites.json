@@ -5,7 +5,7 @@
     "target": "/MotivateToSeattle/"
   },
   {
-    "source": "</MotivateToSeattle\\/[^.]+$/>",
+    "source": "</MotivateToSeattle\\/[^.]*$/>",
     "status": "200",
     "target": "/MotivateToSeattle/index.html"
   },
@@ -15,7 +15,7 @@
     "target": "/automated-testing/"
   },
   {
-    "source": "</automated-testing\\/[^.]+$/>",
+    "source": "</automated-testing\\/[^.]*$/>",
     "status": "200",
     "target": "/automated-testing/index.html"
   },
@@ -25,7 +25,7 @@
     "target": "/backtrack2abq/"
   },
   {
-    "source": "</backtrack2abq\\/[^.]+$/>",
+    "source": "</backtrack2abq\\/[^.]*$/>",
     "status": "200",
     "target": "/backtrack2abq/index.html"
   },
@@ -35,7 +35,7 @@
     "target": "/test/"
   },
   {
-    "source": "</test\\/[^.]+$/>",
+    "source": "</test\\/[^.]*$/>",
     "status": "200",
     "target": "/test/index.html"
   },
