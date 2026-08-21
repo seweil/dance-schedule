@@ -211,12 +211,32 @@ repeatedly, doesn't break the page. The alarm now needs
 `JsErrorAlarmDatapointsToAlarm` breaching 5-minute windows (default 3 of
 the last `JsErrorAlarmEvaluationPeriods`, i.e. 5) before it actually fires
 — see docs/design/alerting.md's "M out of N" decision — so a single click
-alone won't trip it; click again in each of the next couple of 5-minute
-windows, or temporarily redeploy with
-`./infra/deploy.sh JsErrorAlarmEvaluationPeriods=1
-JsErrorAlarmDatapointsToAlarm=1` to test one-shot the way the alarm
-originally worked, then redeploy again with no override to restore the
-defaults. Check the alarm's state in the CloudWatch console (**Alarms** →
+alone won't trip it. The metric (`JsErrorCount`, dimensioned only by
+`application_name`) sums errors across *all* sessions in each 5-minute
+window — it isn't per-session, so what matters is **spreading clicks
+across 3+ separate 5-minute windows**, not opening multiple tabs/sessions
+(several sessions clicking within the same window still only breaches
+that one window). One tab is enough: click once now, wait for the next
+5-minute wall-clock boundary and click again, then a third time in
+another window — 3 breaching windows out of the trailing 5 trips it,
+usually within 15-25 minutes depending on spacing.
+
+**Avoid the temptation to temporarily override
+`JsErrorAlarmEvaluationPeriods=1 JsErrorAlarmDatapointsToAlarm=1` for a
+one-click test** — `cloudformation deploy` keeps a stack's *previous*
+value for any parameter you don't pass explicitly (see the
+`RetainTelemetryBeyond30Days` comment in `deploy.sh`), so a bare
+follow-up `./infra/deploy.sh` with no args does **not** restore the
+Defaults, it silently keeps the test override in place. That's a real
+footgun now that deploys also run unattended in CI
+(`.github/workflows/deploy-infra.yml`) with no overrides of its own — a
+forgotten test override would stick around indefinitely with nothing
+flagging it. If you do use this for a quick check, you must revert with
+the Defaults passed explicitly:
+`./infra/deploy.sh JsErrorAlarmEvaluationPeriods=5
+JsErrorAlarmDatapointsToAlarm=3`.
+
+Check the alarm's state in the CloudWatch console (**Alarms** →
 `dance-schedule-js-errors`) — the confirmed email address should get a
 notification once it moves to `ALARM`. Move it back to `OK` by waiting out
 a window with no further errors (or just confirm the metric shows a data
