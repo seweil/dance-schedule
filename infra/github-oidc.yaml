@@ -227,6 +227,11 @@ Resources:
                   - sns:Unsubscribe
                   - sns:TagResource
                   - sns:UntagResource
+                  # Added 2026-08-21 so ci.yml's own `notify` job can publish a
+                  # CI pass/fail email to this same, already-confirmed
+                  # dance-schedule-alerts topic — reusing it instead of
+                  # standing up a separate SES identity/topic just for this.
+                  - sns:Publish
                 Resource:
                   - !Sub 'arn:aws:sns:us-east-2:${AWS::AccountId}:dance-schedule*'
               - Sid: LogsQueryDefinitions

@@ -90,3 +90,69 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+
+  # Emails a pass/fail summary once both checks/e2e are done — per direct
+  # request, since this suite (lint+typecheck+unit+e2e) now takes real time
+  # and can fail, and GitHub's own default "email on a failed run you
+  # triggered" notification doesn't cover success, doesn't include the
+  # commit hash, and depends on the pusher's own personal notification
+  # settings rather than always firing the same way. `if: always()` (not the
+  # default `success()`) so this job itself still runs even if checks/e2e
+  # failed — that's exactly the case a FAILED email needs to cover.
+  # push-only, not pull_request: infra/github-oidc.yaml's trust policy only
+  # allows `ref:refs/heads/main` to assume this role at all (see that
+  # file's own gotchas history) — a PR run's ref never matches, so
+  # attempting this on a PR would just fail AssumeRoleWithWebIdentity for
+  # no reason.
+  notify:
+    runs-on: ubuntu-latest
+    needs: [checks, e2e]
+    if: always() && github.event_name == 'push'
+    # Scoped to just this job, not the whole workflow — checks/e2e never
+    # need AWS credentials, and granting id-token: write workflow-wide would
+    # be live (if unused) on every PR run too.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      # AlertsTopicArn (dance-schedule-monitoring's own CloudFormation
+      # output) rather than hardcoding the topic name — reads the exact
+      # deployed resource, not a guessed naming pattern, and needs no new
+      # permission beyond cloudformation:DescribeStacks the role already
+      # grants for this exact stack.
+      - name: Resolve alerts topic ARN
+        id: topic
+        run: |
+          ARN=$(aws cloudformation describe-stacks \
+            --stack-name dance-schedule-monitoring \
+            --region us-east-2 \
+            --query "Stacks[0].Outputs[?OutputKey=='AlertsTopicArn'].OutputValue" \
+            --output text)
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+
+      # continue-on-error — a notification hiccup (e.g. the IAM grant this
+      # needs hasn't been deployed yet — see infra/github-oidc.yaml's own
+      # sns:Publish comment) must never itself paint the whole CI run red;
+      # checks/e2e's own results already speak for themselves.
+      - name: Publish result
+        continue-on-error: true
+        env:
+          RESULT: ${{ (needs.checks.result == 'success' && needs.e2e.result == 'success') && 'PASSED' || 'FAILED' }}
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          aws sns publish \
+            --topic-arn "${{ steps.topic.outputs.arn }}" \
+            --region us-east-2 \
+            --subject "SQDANCE: CI $RESULT — ${SHORT_SHA:0:7}" \
+            --message "CI $RESULT for commit $SHORT_SHA on main.
+
+          checks: ${{ needs.checks.result }}
+          e2e: ${{ needs.e2e.result }}
+
+          https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
