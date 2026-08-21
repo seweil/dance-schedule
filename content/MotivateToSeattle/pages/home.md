@@ -20,7 +20,7 @@ Add to your home screen for quick access, even when you don't have WiFi or cell 
 A weekend of Advanced and Challenge square dancing, October 9–11, 2026,
 hosted by [Puddletown Squares](https://puddletownsquares.org/).
 
-For event or app feedback or help [Email us](mailto:help@sqdance.app).
+For event or app feedback (or assistance) [Email us](mailto:help@sqdance.app).
 
 ----
 

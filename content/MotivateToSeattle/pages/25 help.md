@@ -58,5 +58,5 @@ everything back to its defaults.
 
 ## Still stuck?
 
-[Email us](mailto:help@sqdance.app) with questions about the app or the
+[Email us](mailto:help@sqdance.app) with questions or feedback about the app or the
 event.
