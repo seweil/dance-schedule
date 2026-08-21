@@ -1,0 +1,13 @@
+/* Reads as plain text, underlined so it still looks tappable despite being a
+   <button> (needs onClick, not a navigation) — same pattern as
+   ResetHintsLink.module.css's own .resetLink. */
+.testErrorLink {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
