@@ -34,8 +34,21 @@
    original "wide grid scrolls within its own box" behavior while still
    letting a narrower grid center at its own true width. Overridden below
    (phone/short-landscape) back to edge-to-edge, same as before this change. */
+/* isolation: isolate — confirmed live (real desktop Safari, not just Chromium):
+   without this, .headerWrapper's own `will-change: transform` (below) promotes
+   it to its own GPU compositing layer, and Safari's compositor doesn't always
+   order that layer by page z-index — the sticky header rendered ABOVE
+   DanceScheduleFilters.module.css's level-slider hint (.hintRing/HintBalloon.
+   module.css's .balloon, z-index 21/22) despite its own far lower z-index: 4,
+   even painting over .hintRing's dimming box-shadow, which nothing else on the
+   page escapes. Forcing a real stacking context here contains that: everything
+   inside .panelWrapper, however Safari privately layers it, is now bounded by
+   THIS element's own (unelevated, z-index: auto) place in the page's normal
+   paint order, which the hint's explicit z-index always beats — regardless of
+   whether the underlying compositing quirk is ever otherwise understood. */
 .panelWrapper {
   overflow: auto;
+  isolation: isolate;
   max-height: 70vh;
   border: 1px solid var(--color-border);
   width: fit-content;
