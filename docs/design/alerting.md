@@ -45,13 +45,13 @@ in the same template that creates the app monitor.
 The `AWS/RUM` namespace's `JsErrorCount` metric, dimensioned by
 `application_name`, is standard, documented AWS RUM behavior (published
 automatically once `Telemetries` includes `errors`, which it already does —
-see `RumAppMonitor`'s `AppMonitorConfiguration`). **Caveat, honestly stated:
-this hasn't been confirmed against a live AWS account** — no credentials
-were available to run `aws cloudwatch list-metrics --namespace AWS/RUM`
-while writing this. After deploying, verify the metric is actually
-populating (trigger a real JS error, or wait for one, then check the alarm's
-own CloudWatch console page shows data points) rather than assuming this
-works untested.
+see `RumAppMonitor`'s `AppMonitorConfiguration`). **Confirmed working
+2026-08-21**: a real client-side error (`InvalidStateError`/"newestWorker
+is null" — see `docs/known-issues.md` and `UpdatePrompt.tsx`'s own fix
+commit) tripped the alarm for real, `describe-alarms` showing "Threshold
+Crossed: 1 datapoint... was greater than or equal to the threshold" — this
+wasn't just theoretical AWS documentation, it fired on genuine production
+traffic the same day it was deployed.
 
 ### SNS topic + plain email subscription, not a paging tool
 **Why:** A community-event site at a few-hundred-user scale doesn't need

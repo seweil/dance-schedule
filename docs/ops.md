@@ -568,24 +568,41 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | stats count(*) as jsErrors by bin(15m)
 ```
 
-**Individual JS errors, most recent first** — the rate graph's companion:
-tells you WHICH errors, not just how many. `event_type =
-"com.amazon.rum.js_error_event"` is confirmed (matches
-`com.amazon.rum.page_view_event`'s own confirmed naming convention above),
-but the specific `event_details.*` field names below
-(`type`/`message`/`filename`/`lineno`) are RUM's documented JS-error
-event-detail schema, **not yet confirmed against this account's actual
-live data** — no credentials were available while writing this query. If
-it comes back with blank columns once real errors exist, run `SOURCE
-dataSource(['amazon_cloudwatch.rum_app_monitor']) | filter event_type =
-"com.amazon.rum.js_error_event" | limit 1` first to see an actual event's
-real field names, then fix the `fields` line here and its two other
-copies (`infra/monitoring.yaml`'s `JsErrorsQuery`, and the dashboard
-widget in `infra/dashboard.json`):
+**Individual JS errors, most recent first, with enough to identify the
+client** — the rate graph's companion: tells you WHICH errors, from
+*whom*, not just how many. Every field below is now confirmed against a
+real captured event (the live `InvalidStateError`/"newestWorker is null"
+incident this alarm caught for real — see `docs/known-issues.md`/git
+history around 2026-08-20/21), not just RUM's documented schema:
+
+- **`appVersion`** (top-level `application_version`, not under
+  `metadata`/`event_details`) — the short build/commit hash baked in at
+  build time, the same value `BuildInfo.tsx` shows on the page itself.
+  The fastest way to tell "someone's stuck on an old cached client" from
+  "this is happening on the currently-deployed version" without
+  cross-referencing anything else — this app is a PWA with a service
+  worker precache, so a browser tab can keep running stale code for a
+  while after a deploy (see `docs/design/hosting.md`).
+- **`userId`** (RUM's own long-lived, anonymous, per-device identifier —
+  stable across sessions on the same browser, unlike `sessionId` which
+  resets every visit) — the key field for "is this one stuck device
+  repeatedly erroring, or many different real users hitting a live bug."
+  The same `userId` showing up across many rows points at the former.
+- `browser`/`browserVersion`/`os`/`osVersion`/`deviceType`/`displayMode`
+  (installed PWA vs. browser tab) and `country`/`region`/`city` — the
+  same device/geo breakdown the Overview tab and "Devices, browsers, OS"
+  query above use, here attached to each individual error instead of
+  aggregated.
+- `stack` alongside `filename`/`lineno` — a native browser error (like
+  the `InvalidStateError` above) only populates `stack` as unstructured
+  text; a plain `throw new Error(...)` (e.g.
+  `RawDanceScheduleDebugPage.tsx`'s own test-error trigger) populates
+  `filename`/`lineno` too. Both kept since either can be empty depending
+  on how the error originated — not a sign something's broken.
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page
+| fields @timestamp, event_details.type as errorType, event_details.message as message, event_details.stack as stack, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page, application_version as appVersion, metadata.browserName as browser, metadata.browserVersion as browserVersion, metadata.osName as os, metadata.osVersion as osVersion, metadata.deviceType as deviceType, metadata.displayMode as displayMode, user_details.userId as userId, user_details.sessionId as sessionId, metadata.countryCode as country, metadata.subdivisionCode as region, metadata.localityName as city
 | filter event_type = "com.amazon.rum.js_error_event"
 | sort @timestamp desc
 ```

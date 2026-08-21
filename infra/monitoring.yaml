@@ -389,27 +389,36 @@ Resources:
         | filter event_type = "com.amazon.rum.js_error_event"
         | stats count(*) as jsErrors by bin(15m)
 
-  # The "which errors, exactly" companion to JsErrorRateQuery above — a rate
-  # graph alone tells you SOMETHING broke, not what. event_type itself
-  # ("com.amazon.rum.js_error_event") is the one field name here confirmed
-  # against this file's other queries (matches page_view_event's own
-  # confirmed naming pattern); event_details.type/message/filename/lineno
-  # are RUM's documented JS-error event-detail schema but, like
-  # JsErrorAlarm's AWS/RUM metric namespace, HAVEN'T been confirmed against
-  # this account's actual live event data (no credentials were available
-  # while writing this). If this returns blank columns instead of real
-  # values once deployed, run `SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-  # | filter event_type = "com.amazon.rum.js_error_event" | limit 1` first
-  # to see the real field names an actual error event has, and fix the
-  # `fields` line here (and the matching dashboard widget in
-  # infra/dashboard.json, and docs/ops.md's copy) to match.
+  # The "which errors, exactly, from which client" companion to
+  # JsErrorRateQuery above — a rate graph alone tells you SOMETHING broke,
+  # not what or who. Every field below is now CONFIRMED against a real
+  # captured event (the live InvalidStateError/"newestWorker is null"
+  # incident this alarm caught for real) — filename/lineno are kept anyway
+  # even though that particular event didn't populate them, since a plain
+  # `throw new Error(...)` (e.g. RawDanceScheduleDebugPage.tsx's own test
+  # trigger) does; a native browser error like that one only had `stack`.
+  # Both are harmless-empty when unpopulated, not an error.
+  #
+  # appVersion (RUM's top-level application_version, NOT under metadata/
+  # event_details) is worth calling out specifically: it's the short build/
+  # commit hash baked in at build time (same value BuildInfo.tsx shows on
+  # the page) — the fastest way to tell "this error is from someone stuck
+  # on an old cached client" (see docs/design/hosting.md's PWA-update-flow
+  # notes) from "this is happening on the CURRENTLY deployed version,"
+  # without cross-referencing anything else.
+  #
+  # userId (RUM's own long-lived, anonymous, per-device identifier — stable
+  # across sessions on the same browser, unlike sessionId which resets each
+  # visit) is the key field for "is this actually one stuck device repeatedly
+  # erroring, or many different real users hitting a live bug": the same
+  # userId showing up across many rows here points at the former.
   JsErrorsQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:
       Name: !Sub '${AppMonitorName}/JS errors, most recent first'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page
+        | fields @timestamp, event_details.type as errorType, event_details.message as message, event_details.stack as stack, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page, application_version as appVersion, metadata.browserName as browser, metadata.browserVersion as browserVersion, metadata.osName as os, metadata.osVersion as osVersion, metadata.deviceType as deviceType, metadata.displayMode as displayMode, user_details.userId as userId, user_details.sessionId as sessionId, metadata.countryCode as country, metadata.subdivisionCode as region, metadata.localityName as city
         | filter event_type = "com.amazon.rum.js_error_event"
         | sort @timestamp desc
 
