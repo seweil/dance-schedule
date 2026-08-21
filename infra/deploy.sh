@@ -45,11 +45,28 @@ trap 'rm -f "$TMP_TEMPLATE"' EXIT
 # portable across AWS accounts rather than hardcoding this one's id into it.
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-python3 - "$TMP_TEMPLATE" "$ACCOUNT_ID" <<'PYEOF'
+# The dashboard's "## Releases" table (last 10 commits to origin/main, which
+# is what Amplify's own auto-deploy pipeline actually builds from) is baked
+# in as static markdown at deploy time — CloudWatch dashboards have no live
+# git data source, so this is only ever as fresh as the last time
+# ./infra/deploy.sh ran, NOT automatically updated on each real app release.
+# The generated markdown says so explicitly (see the Python block below), so
+# that staleness is visible on the dashboard itself rather than silently
+# assumed away. A failed fetch (offline, no network) falls through to
+# whatever origin/main ref is already known locally rather than aborting the
+# whole deploy over a non-essential widget.
+git fetch origin main --quiet 2>/dev/null || true
+RELEASE_LOG=$(git log -10 --pretty=format:'%h|%as|%s' origin/main 2>/dev/null || git log -10 --pretty=format:'%h|%as|%s' HEAD)
+
+python3 - "$TMP_TEMPLATE" "$ACCOUNT_ID" "$RELEASE_LOG" <<'PYEOF'
+import json
 import sys
+from datetime import datetime, timezone
 
 out_path = sys.argv[1]
 account_id = sys.argv[2]
+release_log = sys.argv[3]
+
 with open('monitoring.yaml') as f:
     template_lines = f.read().splitlines()
 with open('dashboard.json') as f:
@@ -64,6 +81,26 @@ for line in template_lines:
         result.append(line)
 
 text = '\n'.join(result).replace('__ACCOUNT_ID__', account_id)
+
+rows = []
+for line in release_log.splitlines():
+    if not line.strip():
+        continue
+    commit_hash, date, summary = line.split('|', 2)
+    # A `|` inside a commit summary would otherwise break out of the
+    # markdown table's own column structure.
+    summary = summary.replace('|', '\\|')
+    rows.append(f'| `{commit_hash}` | {date} | {summary} |')
+
+generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+release_markdown = '\n'.join([
+    f'*As of {generated_at} — refreshes on the next `./infra/deploy.sh` run, not automatically on each app release.*',
+    '',
+    '| Commit | Date | Summary |',
+    '|---|---|---|',
+    *rows,
+])
+text = text.replace('__RELEASE_HISTORY__', json.dumps(release_markdown)[1:-1])
 
 with open(out_path, 'w') as f:
     f.write(text + '\n')

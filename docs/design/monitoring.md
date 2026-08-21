@@ -31,6 +31,8 @@ community dance-event site's visitor data.
       far, not designed as a whole) — traffic trends over time, a
       dedicated "pages viewed" widget, and clear activity-vs-sessions
       sectioning — see Decisions
+- [x] Surfacing recent deploy/release history on the dashboard itself,
+      not just in git or the Amplify console — see Decisions
 
 ## Decisions
 
@@ -573,9 +575,36 @@ consistency with everything else in the file). Traffic's own widgets
 exception — they exist specifically to measure raw page-load volume, not
 session counts.
 
+### "## Releases" table: a static git-log snapshot baked in at deploy time, not a live query
+**Why:** Prompted by a direct ask — the last 10 commits to `origin/main`
+(the ref Amplify's own auto-deploy pipeline actually builds from, not
+whatever the local checkout happens to be on), as a hash/date/summary
+table at the bottom of the dashboard. CloudWatch has no live git data
+source, so unlike every other widget on this dashboard, this one can't
+reflect current reality on its own — it's a markdown snapshot,
+regenerated and re-deployed each time `./infra/deploy.sh` runs (see that
+script's own comment), via the same `__PLACEHOLDER__`-substitution
+mechanism the dashboard JSON and the JS-error alarm's account id already
+use (`docs/design/alerting.md`). The generated markdown states its own
+"as of" timestamp explicitly, so the staleness is visible on the
+dashboard itself rather than silently assumed away.
+`./infra/download-dashboard.sh` (the reverse direction) has to
+re-placeholder this one too, matched by its own leading `*As of ` marker
+text — otherwise a console-side pull would permanently bake a
+point-in-time snapshot (and its now-wrong timestamp) into the committed
+file, destroying the placeholder `deploy.sh` needs to regenerate it next
+time.
+
 ## Open questions
 
 - Should access logs eventually be piped into S3 + Athena automatically
   (e.g. a small scheduled Lambda), or is manual console download sufficient
   indefinitely given the traffic volume? See `infra/README.md`'s Athena
   note.
+- Should the "## Releases" table refresh automatically on each real app
+  deploy (e.g. an Amplify build hook calling a lightweight
+  `put-dashboard` update, decoupled from the full `./infra/deploy.sh`
+  stack deploy) instead of only when someone happens to re-run
+  `deploy.sh`? Not built — adds a new moving part (a build hook + a
+  narrower update path) for a widget whose main value is a rough recent
+  history, not minute-by-minute accuracy.

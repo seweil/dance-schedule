@@ -201,6 +201,15 @@ stack (`./infra/deploy.sh`); find it at **CloudWatch → Dashboards →
 `dance-schedule-dashboard`** (or whatever `AppMonitorName` is set to, plus
 `-dashboard`).
 
+Its bottom "## Releases" section is a table of the last 10 commits to
+`origin/main` (hash, date, summary) — baked in as static markdown at
+deploy time, since CloudWatch has no live git data source. **This is only
+as fresh as the last `./infra/deploy.sh` run, not automatically updated on
+each real app release** — the widget's own generated timestamp says so
+explicitly, so re-run `deploy.sh` (safe — see "JS-error alerting" above,
+same "only touches what actually changed" behavior applies) whenever you
+want it current.
+
 That name is deliberately NOT whatever a dashboard you built by hand in
 the console was already called — CloudFormation can't adopt an existing,
 unmanaged resource just by matching its name; deploying a

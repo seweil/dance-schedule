@@ -21,14 +21,26 @@ REGION=us-east-2
 # committed, meant-to-be-portable file.
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# `jq '.'` re-pretty-prints AWS's own (compact, single-line) response —
-# without it, every download would replace the whole file in one line and
-# make `git diff` useless for seeing what actually changed. Needs jq
-# (`brew install jq`), same as set-amplify-env.sh.
+# The live "## Releases" widget holds a timestamped git-log snapshot
+# deploy.sh generated at its last run (see that script's own comment) —
+# baking that back into the committed file would permanently destroy the
+# __RELEASE_HISTORY__ placeholder deploy.sh needs to regenerate it next
+# time, and would make every future download's diff noisy (the timestamp
+# alone changes on every deploy). Matched by its own leading "*As of "
+# marker text, which MUST stay in sync with deploy.sh's own generated
+# markdown — re-placeholdered here the same way __ACCOUNT_ID__ is below.
+#
+# jq's default output is already pretty-printed (unlike AWS's own compact,
+# single-line response) — without that, every download would replace the
+# whole file in one line and make `git diff` useless for seeing what
+# actually changed. Needs jq (`brew install jq`), same as
+# set-amplify-env.sh.
 aws cloudwatch get-dashboard \
   --dashboard-name "$DASHBOARD_NAME" \
   --region "$REGION" \
   --query 'DashboardBody' \
-  --output text | jq '.' | sed "s/$ACCOUNT_ID/__ACCOUNT_ID__/g" > dashboard.json
+  --output text \
+  | jq '(.widgets[] | select(.properties.markdown != null and (.properties.markdown | startswith("*As of "))) | .properties.markdown) = "__RELEASE_HISTORY__"' \
+  | sed "s/$ACCOUNT_ID/__ACCOUNT_ID__/g" > dashboard.json
 
 echo "Wrote $(pwd)/dashboard.json — review with 'git diff infra/dashboard.json', then commit."

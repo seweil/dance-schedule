@@ -194,6 +194,18 @@
         "stacked": false,
         "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, event_details.type as errorType, event_details.message as message, event_details.stack as stack, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page, application_version as appVersion, metadata.browserName as browser, metadata.browserVersion as browserVersion, metadata.osName as os, metadata.osVersion as osVersion, metadata.deviceType as deviceType, metadata.displayMode as displayMode, user_details.userId as userId, user_details.sessionId as sessionId, metadata.countryCode as country, metadata.subdivisionCode as region, metadata.localityName as city\n| filter event_type = \"com.amazon.rum.js_error_event\"\n| sort @timestamp desc"
       }
+    },
+    {
+      "type": "text", "x": 0, "y": 61, "width": 24, "height": 1,
+      "properties": {
+        "markdown": "## Releases"
+      }
+    },
+    {
+      "type": "text", "x": 0, "y": 62, "width": 24, "height": 8,
+      "properties": {
+        "markdown": "__RELEASE_HISTORY__"
+      }
     }
   ]
 }
