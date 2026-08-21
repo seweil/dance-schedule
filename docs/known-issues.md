@@ -149,6 +149,50 @@ silenced would need to run something like
 this repo, not their global config) — not something a Claude Code session
 will do on its own.
 
+## Claude Code's own sandbox blocks AWS SSO token refresh — `aws` CLI calls fail with "Operation not permitted" a few minutes after login
+
+**Found:** 2026-08-21, running `infra/*.sh` scripts (deploying
+`monitoring.yaml`, running Logs Insights queries) across a long Claude Code
+session in this repo. AWS CLI calls that worked fine right after the user
+ran an interactive SSO login started failing again after a few minutes,
+every time, with:
+
+```
+aws: [ERROR]: [Errno 1] Operation not permitted: '/Users/sweil/.aws/login/cache/<token-id>.json'
+```
+
+Not an AWS-side rejection (that would read as an expired/invalid session
+token error) — an OS-level permission error on a local file write. Same
+category of restriction as the git/Keychain entry above: AWS's SSO login
+flow issues a short-lived access token alongside a longer-lived refresh
+token, both cached in `~/.aws/login/cache/*.json`. Once the short-lived
+access token expires (routine, on whatever interval the account's IAM
+Identity Center session policy sets — this repro'd well under an hour),
+the AWS CLI normally uses the refresh token to silently mint a new access
+token and write it back to that same cache file — and that write is what
+the coding agent's own OS-level sandbox blocks, the same way it blocks
+git's Keychain `store` write. The interactive login itself (run once,
+presumably outside/before the sandbox's restrictions applied to that
+process) succeeds and leaves a fresh, temporarily-writable token behind,
+which is why it looks like "login only lasts a few minutes" rather than
+"refresh keeps getting silently blocked."
+
+**Impact:** every `aws` CLI call from within a Claude Code session in this
+sandbox eventually fails this way, need re-running `aws sso login` (or
+whatever this account's login flow is) — outside the sandboxed session,
+same as the git Keychain issue — to get a fresh writable token again.
+Genuinely disruptive here, unlike the cosmetic git warning: mid-task `aws`
+commands (an `infra/deploy.sh` run, a Logs Insights query) just fail
+outright rather than completing with a harmless extra message.
+
+**Not a repo bug — no code-side fix**, and the sandbox itself can't be
+disabled from within a session. **Possible mitigation, not yet tried:**
+this friction is specific to SSO's own short-TTL-token-plus-silent-refresh
+model — a scoped IAM user (see the root-user entry above) using static,
+long-lived access keys instead of SSO wouldn't need any file-based refresh
+cycle at all, since static keys don't expire on a timer. Worth confirming
+once that IAM identity exists.
+
 ## Claude in Chrome's debugging banner shows in every Chrome window, not just the profile it's scoped to
 
 **Found:** 2026-08-04, user question about scoping the `claude-in-chrome`
