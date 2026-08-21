@@ -124,10 +124,14 @@ access key in GitHub at all — see that action's own docs), and runs
 does this stack get deployed," CI and a human running it locally both
 going through the same script.
 
-**Two real, sequential gotchas hit on first bootstrap, 2026-08-21** — both
-diagnosed by temporarily adding a workflow step that fetches and decodes
-GitHub's actual issued OIDC token, rather than continuing to guess from
-documentation/examples:
+**Five real, sequential gotchas hit on first bootstrap, 2026-08-21 — three
+in the trust policy itself, then two more in the deploy role's permissions,
+only surfaced once auth actually started succeeding.** The trust-policy
+gotchas were diagnosed by temporarily adding a workflow step that fetches
+and decodes GitHub's actual issued OIDC token, rather than continuing to
+guess from documentation/examples; the permission gotchas were diagnosed
+from the `AccessDenied`/`Unable to retrieve Id attribute` messages buried
+in `aws cloudformation describe-stack-events` output on each failed run:
 
 1. The role's trust condition originally matched a `StringLike` pattern
    against the `sub` claim (`repo:${GitHubRepo}:ref:refs/heads/main`) —
@@ -146,16 +150,56 @@ documentation/examples:
    policy's Condition must include `sub` or `job_workflow_ref`
    specifically — `repository`/`ref` alone, however precise, doesn't
    satisfy that validation rule.
+3. Switching to `job_workflow_ref` (present on the same token, satisfies
+   AWS's validation requirement, and is actually MORE precise than either
+   earlier attempt — pins to this exact workflow *file*, not just
+   repo+branch) still failed `AssumeRoleWithWebIdentity` on every retry
+   across 14+ minutes, even after byte-verifying (via a debug step's
+   `repr()` output) that the trust policy's value matched the live
+   token's `job_workflow_ref` claim exactly. Propagation delay was ruled
+   out (far longer than IAM's normal window), SCPs were ruled out
+   (`aws organizations describe-organization` confirmed this account is
+   the org's own management account, which SCPs never apply to), and the
+   OIDC provider config was ruled out (`aws iam get-open-id-connect-
+   provider` matched expectations). Resolved, without a root cause ever
+   confirmed, by swapping the condition to `sub` (the older, more
+   battle-tested of the two AWS-accepted claims) as a diagnostic
+   test — it worked immediately (under a second, no retries), pointing at
+   some unexplained AWS-side rough edge specific to `job_workflow_ref` in
+   this scenario rather than anything wrong with this template. `sub` is
+   what `infra/github-oidc.yaml` uses today; its own comment documents all
+   three of these attempts as a warning against reintroducing
+   `job_workflow_ref` without expecting the same failure.
+4. Auth succeeding surfaced the first real permission gap: `AccessDenied`
+   on `cloudformation:GetTemplateSummary`, which `aws cloudformation
+   deploy` calls internally to diff the template before creating a change
+   set — not something `monitoring.yaml`'s own resources need directly.
+   Fixed by adding it to the `CloudFormationStack` policy statement.
+5. Fixing that surfaced a second gap, then a third, both from
+   CloudFormation's own internal calls while resolving
+   `AWS::RUM::AppMonitor`'s `Id` attribute during an UPDATE (not something
+   this template's Resources section calls directly either): first
+   `rum:ListRumMetricsDestinations`, then — once that was granted and the
+   very next deploy attempt failed again — `rum:GetResourcePolicy`. Both
+   added to the `RumAppMonitor` policy statement. Three permission gaps in
+   a row, each only discovered by a real failed deploy rather than
+   reasoning from `monitoring.yaml`'s own resource list, is the standing
+   caution here: this deploy role's scoped-down policy was assembled by
+   guessing at what CloudFormation needs for each resource type, and
+   CloudFormation's own *internal* API calls (distinct from what a
+   template author writes) aren't documented anywhere obvious enough to
+   get right on the first try. If a future template change adds a new
+   resource type here, expect the same discover-via-`AccessDenied` loop
+   rather than assuming the existing policy is complete.
 
-Fixed by matching `job_workflow_ref` instead — present on the same token,
-satisfies AWS's validation requirement, and is actually MORE precise than
-either earlier attempt (pins to this exact workflow *file*, not just
-repo+branch) — see `infra/github-oidc.yaml`'s own comment on the role's
-Condition block for the full detail. Worth remembering if this ever needs
-rebuilding from scratch in a different AWS account/repo: don't trust an
-older tutorial's exact `sub`-pattern condition, or assume any claim-match
-satisfies AWS's own validation, without checking a live token and a real
-deploy first.
+Worth remembering as a whole, if this ever needs rebuilding from scratch in
+a different AWS account/repo: don't trust an older tutorial's exact
+`sub`-pattern condition, don't assume any claim-match satisfies AWS's own
+trust-policy validation, and don't assume a scoped IAM policy is complete
+just because it covers every action the template's own YAML mentions by
+name — check a live token and a real deploy (through to a full,
+successful stack update, not just a successful `AssumeRoleWithWebIdentity`)
+before trusting any of it.
 
 **Doesn't fully close `docs/known-issues.md`'s root-user finding** — the
 OIDC role only covers this one stack's deploy. The *other* `infra/*.sh`

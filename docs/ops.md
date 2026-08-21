@@ -9,6 +9,27 @@ I expect to see."
 
 Region for everything below: **us-east-2** (Ohio).
 
+## Release workflow: what happens on push to main, and how you'd know if something broke
+
+A push to `main` can kick off up to **three independent pipelines** — none of
+them gates any other, so it's worth checking the right one for what you
+actually care about rather than assuming a green result anywhere means the
+others are fine too:
+
+| Pipeline | Runs when | What it does | Where to check | How you'd know it broke |
+| --- | --- | --- | --- | --- |
+| **CI** (`.github/workflows/ci.yml`) | Every push to `main`, and every PR | `checks` job (lint, typecheck, unit tests) + `e2e` job (full Playwright suite against a real build) — see `docs/testing.md` for the full breakdown | GitHub → **Actions** tab → the `CI` run → its Summary page | Red ❌ on the run and on the commit/PR itself. GitHub's own default notification setting emails you when a workflow run *you* triggered fails ("Notify me: For failed workflows only", under your GitHub notification settings) — that's the passive signal if you're not actively watching the Actions tab. |
+| **Amplify Hosting deploy** (`amplify.yml`) | Every push to `main` | Builds and publishes the live app — completely separate from GitHub Actions, doesn't share status with it and isn't gated by CI passing (see `docs/testing.md`'s "CI doesn't block the Amplify deploy itself") | AWS Amplify console → Hosting → your app → `main` branch → deployment history (see "Amplify Hosting" below) | **No automated notification is wired up for this today.** Amplify Hosting does have an optional App settings → Notifications feature (Slack/email/SNS on build failure), but it isn't configured for this app — the only way to know is to check the console, or notice the live site didn't pick up your change / a JS-error alarm fires afterward (see "Alerting" below) as a downstream symptom. |
+| **Infra deploy** (`.github/workflows/deploy-infra.yml`) | Only a push to `main` that touches `infra/monitoring.yaml` or `infra/dashboard.json` (or a manual `workflow_dispatch` run) | Runs `./infra/deploy.sh` via GitHub Actions OIDC — see `docs/design/monitoring.md`'s "Deployed via GitHub Actions OIDC" decision and `infra/github-oidc.yaml`'s gotchas history for how fragile this was to first bootstrap | GitHub → **Actions** tab → the `Deploy infra` run | Same red-❌/email mechanics as CI above. If it fails partway through an update, also check the CloudFormation stack's own **Events** tab (see "CloudFormation" below) — a failed deploy can leave the stack in a rolled-back-but-not-obviously-so state until you look. |
+
+**Bottom line:** a broken CI run does **not** stop Amplify from shipping that
+same broken commit to production, and a broken infra deploy does **not** roll
+back or block the app deploy either — they're three unconnected pipelines
+triggered by the same `git push`. The GitHub Actions tab is the fastest
+single place to check both CI and infra-deploy health at once; Amplify's own
+console is the *only* place that shows the app deploy's own status, since
+nothing forwards it anywhere else.
+
 ## Amplify Hosting
 
 Console: **AWS Amplify → Hosting → your app**.
