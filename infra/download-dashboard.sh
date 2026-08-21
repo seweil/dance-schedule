@@ -13,6 +13,14 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 DASHBOARD_NAME=dance-schedule-dashboard
 REGION=us-east-2
 
+# The live dashboard has the real account id baked into the JS-error alarm
+# widget's ARN (deploy.sh resolves it at deploy time — see that script's own
+# comment on why dashboard.json itself can't express it via CloudFormation
+# intrinsics). Substituted back to the __ACCOUNT_ID__ placeholder here so a
+# download doesn't silently re-hardcode this one account's id into the
+# committed, meant-to-be-portable file.
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
 # `jq '.'` re-pretty-prints AWS's own (compact, single-line) response —
 # without it, every download would replace the whole file in one line and
 # make `git diff` useless for seeing what actually changed. Needs jq
@@ -21,6 +29,6 @@ aws cloudwatch get-dashboard \
   --dashboard-name "$DASHBOARD_NAME" \
   --region "$REGION" \
   --query 'DashboardBody' \
-  --output text | jq '.' > dashboard.json
+  --output text | jq '.' | sed "s/$ACCOUNT_ID/__ACCOUNT_ID__/g" > dashboard.json
 
 echo "Wrote $(pwd)/dashboard.json — review with 'git diff infra/dashboard.json', then commit."

@@ -187,9 +187,9 @@ See `docs/design/alerting.md` for the full rationale. Console: **CloudWatch
 
 | What | Where | What you should see |
 | --- | --- | --- |
-| Alarm state | CloudWatch → Alarms → `dance-schedule-js-errors` | `OK` normally; `ALARM` within ~5 minutes of any real JS error (default threshold: 1). `Insufficient data` briefly after a fresh deploy is normal, not a problem. |
+| Alarm state | CloudWatch → Alarms → `dance-schedule-js-errors`, or the dashboard's own "JS Error Alarm State" widget (top of its "## Errors" section) | `OK` normally; `ALARM` within ~5 minutes of any real JS error (default threshold: 1). `Insufficient data` briefly after a fresh deploy is normal, not a problem. |
 | Notifications | SNS → Topics → `dance-schedule-alerts` → Subscriptions | One `email` subscription, status `Confirmed` — if it still says `PendingConfirmation`, the one-time confirmation link was never clicked (see `infra/README.md`) and nothing will ever notify. |
-| The underlying data | This section's own dashboard — "## Errors" widgets, or the `JsErrorRateQuery`/`JsErrorsQuery` saved queries below | A rate graph plus a table of individual errors (message, filename/line, page) — see the "Retention and aggregate reporting" queries below for the exact query text. |
+| The underlying data | The dashboard's own "## Errors" widgets, or the `JsErrorRateQuery`/`JsErrorsQuery` saved queries below | A rate graph plus a table of individual errors (message, filename/line, page) — see the "Retention and aggregate reporting" queries below for the exact query text. |
 
 **Muting alerts** while actively investigating a known issue (stops
 notifications, not evaluation — the alarm's own state keeps updating
@@ -300,6 +300,20 @@ not precise enough to treat as an exact live counter:
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | fields user_details.sessionId as sessionId
 | stats count_distinct(sessionId) as activeSessions
+```
+
+**Active sessions over time** — the trend behind the single snapshot
+above, for noticing a spike or drop-off rather than only ever seeing
+"right now." Same non-filtered, any-event-counts reasoning, bucketed by
+`bin(15m)` instead of collapsed to one number — backs the dashboard's
+"Active Sessions Over Time" widget, both in the "## Traffic" section
+(moved there from a standalone "## Active Now" section, alongside the
+snapshot widget, since this is fundamentally a traffic question):
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields @timestamp, user_details.sessionId as sessionId
+| stats count_distinct(sessionId) as activeSessions by bin(15m)
 ```
 
 **Devices, browsers, OS, by session, not raw page-view count** — already

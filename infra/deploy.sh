@@ -36,10 +36,20 @@ REGION=us-east-2
 TMP_TEMPLATE="$(mktemp "${TMPDIR:-/tmp}/dance-schedule-monitoring.XXXXXX")"
 trap 'rm -f "$TMP_TEMPLATE"' EXIT
 
-python3 - "$TMP_TEMPLATE" <<'PYEOF'
+# dashboard.json's own "JS Error Alarm State" widget needs the JS-error alarm's
+# full ARN, which embeds the AWS account id — a value dashboard.json itself has
+# no way to express (it's plain static JSON, spliced in as literal text above,
+# not processed by CloudFormation's own !Sub/!Ref the way monitoring.yaml is).
+# Resolved here instead and substituted the same way as the dashboard JSON
+# itself, via a __ACCOUNT_ID__ placeholder in dashboard.json — keeps that file
+# portable across AWS accounts rather than hardcoding this one's id into it.
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+python3 - "$TMP_TEMPLATE" "$ACCOUNT_ID" <<'PYEOF'
 import sys
 
 out_path = sys.argv[1]
+account_id = sys.argv[2]
 with open('monitoring.yaml') as f:
     template_lines = f.read().splitlines()
 with open('dashboard.json') as f:
@@ -53,8 +63,10 @@ for line in template_lines:
     else:
         result.append(line)
 
+text = '\n'.join(result).replace('__ACCOUNT_ID__', account_id)
+
 with open(out_path, 'w') as f:
-    f.write('\n'.join(result) + '\n')
+    f.write(text + '\n')
 PYEOF
 
 # RetainTelemetryBeyond30Days is passed explicitly, not left to the template's

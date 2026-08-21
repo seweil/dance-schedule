@@ -49,13 +49,35 @@
       }
     },
     {
-      "type": "text", "x": 0, "y": 13, "width": 24, "height": 1,
+      "type": "log", "x": 0, "y": 13, "width": 8, "height": 6,
+      "properties": {
+        "title": "Active Sessions (Last 15m)",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "start": "-PT15M",
+        "end": "P0D",
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields user_details.sessionId as sessionId\n| stats count_distinct(sessionId) as activeSessions"
+      }
+    },
+    {
+      "type": "log", "x": 8, "y": 13, "width": 16, "height": 6,
+      "properties": {
+        "title": "Active Sessions Over Time",
+        "view": "timeSeries",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, user_details.sessionId as sessionId\n| stats count_distinct(sessionId) as activeSessions by bin(15m)"
+      }
+    },
+    {
+      "type": "text", "x": 0, "y": 19, "width": 24, "height": 1,
       "properties": {
         "markdown": "## Sessions & Devices"
       }
     },
     {
-      "type": "log", "x": 0, "y": 14, "width": 12, "height": 6,
+      "type": "log", "x": 0, "y": 20, "width": 12, "height": 6,
       "properties": {
         "title": "Browser/OS",
         "view": "table",
@@ -65,7 +87,7 @@
       }
     },
     {
-      "type": "log", "x": 12, "y": 14, "width": 12, "height": 6,
+      "type": "log", "x": 12, "y": 20, "width": 12, "height": 6,
       "properties": {
         "title": "Installed?",
         "view": "table",
@@ -75,7 +97,7 @@
       }
     },
     {
-      "type": "log", "x": 0, "y": 20, "width": 12, "height": 6,
+      "type": "log", "x": 0, "y": 26, "width": 12, "height": 6,
       "properties": {
         "title": "Platform Mix",
         "view": "bar",
@@ -85,7 +107,7 @@
       }
     },
     {
-      "type": "log", "x": 12, "y": 20, "width": 12, "height": 6,
+      "type": "log", "x": 12, "y": 26, "width": 12, "height": 6,
       "properties": {
         "title": "Raw OS Permutations (diagnostic)",
         "view": "table",
@@ -95,13 +117,13 @@
       }
     },
     {
-      "type": "text", "x": 0, "y": 26, "width": 24, "height": 1,
+      "type": "text", "x": 0, "y": 32, "width": 24, "height": 1,
       "properties": {
         "markdown": "## Session Demographics"
       }
     },
     {
-      "type": "log", "x": 0, "y": 27, "width": 8, "height": 6,
+      "type": "log", "x": 0, "y": 33, "width": 8, "height": 6,
       "properties": {
         "title": "MinLevel",
         "view": "bar",
@@ -111,7 +133,7 @@
       }
     },
     {
-      "type": "log", "x": 8, "y": 27, "width": 8, "height": 6,
+      "type": "log", "x": 8, "y": 33, "width": 8, "height": 6,
       "properties": {
         "title": "MaxLevel",
         "view": "bar",
@@ -121,7 +143,7 @@
       }
     },
     {
-      "type": "log", "x": 16, "y": 27, "width": 8, "height": 6,
+      "type": "log", "x": 16, "y": 33, "width": 8, "height": 6,
       "properties": {
         "title": "Font",
         "view": "bar",
@@ -131,7 +153,7 @@
       }
     },
     {
-      "type": "log", "x": 0, "y": 33, "width": 24, "height": 6,
+      "type": "log", "x": 0, "y": 39, "width": 24, "height": 6,
       "properties": {
         "title": "Level Range",
         "view": "bar",
@@ -141,13 +163,20 @@
       }
     },
     {
-      "type": "text", "x": 0, "y": 39, "width": 24, "height": 1,
+      "type": "text", "x": 0, "y": 45, "width": 24, "height": 1,
       "properties": {
         "markdown": "## Errors"
       }
     },
     {
-      "type": "log", "x": 0, "y": 40, "width": 24, "height": 6,
+      "type": "alarm", "x": 0, "y": 46, "width": 24, "height": 3,
+      "properties": {
+        "title": "JS Error Alarm State",
+        "alarms": ["arn:aws:cloudwatch:us-east-2:__ACCOUNT_ID__:alarm:dance-schedule-js-errors"]
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 49, "width": 24, "height": 6,
       "properties": {
         "title": "JS Error Rate",
         "view": "timeSeries",
@@ -157,31 +186,13 @@
       }
     },
     {
-      "type": "log", "x": 0, "y": 46, "width": 24, "height": 6,
+      "type": "log", "x": 0, "y": 55, "width": 24, "height": 6,
       "properties": {
         "title": "JS Errors (most recent first)",
         "view": "table",
         "region": "us-east-2",
         "stacked": false,
         "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page\n| filter event_type = \"com.amazon.rum.js_error_event\"\n| sort @timestamp desc"
-      }
-    },
-    {
-      "type": "text", "x": 0, "y": 52, "width": 24, "height": 1,
-      "properties": {
-        "markdown": "## Active Now"
-      }
-    },
-    {
-      "type": "log", "x": 0, "y": 53, "width": 8, "height": 6,
-      "properties": {
-        "title": "Active Sessions (Last 15m)",
-        "view": "table",
-        "region": "us-east-2",
-        "stacked": false,
-        "start": "-PT15M",
-        "end": "P0D",
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields user_details.sessionId as sessionId\n| stats count_distinct(sessionId) as activeSessions"
       }
     }
   ]

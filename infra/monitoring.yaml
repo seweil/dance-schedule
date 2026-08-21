@@ -361,6 +361,20 @@ Resources:
         | fields user_details.sessionId as sessionId
         | stats count_distinct(sessionId) as activeSessions
 
+  # The trend behind ActiveSessionsQuery's single current snapshot above —
+  # same "any event counts, not just page views" reasoning, bucketed by
+  # bin(15m) instead of collapsed to one number, so a traffic spike/drop-off
+  # is visible over time rather than only as a single "right now" reading.
+  # Backs the dashboard's "Active Sessions Over Time" widget.
+  ActiveSessionsRateQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Active sessions over time'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields @timestamp, user_details.sessionId as sessionId
+        | stats count_distinct(sessionId) as activeSessions by bin(15m)
+
   # Same bin(15m)-as-timeSeries technique as RequestRateRecentQuery above, for
   # docs/design/alerting.md's JsErrorAlarm — this is what the dashboard's own
   # "JS Error Rate" widget renders as a line graph, so seeing the alarm fire

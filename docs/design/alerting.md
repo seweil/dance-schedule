@@ -20,6 +20,8 @@ questions.
 - [x] Alarm sensitivity/threshold — see Decisions
 - [x] Seeing the error rate/history, not just getting notified when it
       crosses a threshold — see Decisions
+- [x] Seeing the alarm's own current state without opening CloudWatch
+      separately — see Decisions
 
 ## Decisions
 
@@ -109,6 +111,41 @@ a line chart, `JsErrorsQuery` as a table) — appended at the bottom of
 widgets by dragging in the console (then syncing back via
 `./infra/download-dashboard.sh`) over hand-editing every other widget's `x`/`y`
 coordinates to make room.
+
+### A real `type: "alarm"` dashboard widget for the alarm's own state, not another metric/log widget
+**Why:** `JsErrorRateQuery`'s graph and `JsErrorsQuery`'s listing both show
+the underlying *data* the alarm watches, but neither shows the alarm's own
+current *state* (`OK`/`ALARM`/`INSUFFICIENT_DATA`) — someone glancing at
+the dashboard still couldn't tell whether it had actually crossed the
+threshold without separately opening CloudWatch → Alarms. CloudWatch
+Dashboards have a dedicated widget type for exactly this
+(`"type": "alarm"`, distinct from `"type": "metric"`/`"type": "log"`) —
+renders as a colored state indicator plus a small graph of the underlying
+metric with the alarm's threshold overlaid, covering both "a graph" and "a
+banner" in one widget rather than needing to build both separately.
+
+Needs the alarm's full ARN (`arn:aws:cloudwatch:<region>:<account-id>:alarm:
+<name>`), which embeds the AWS account id — a value `infra/dashboard.json`
+itself has no way to express portably (it's spliced into `monitoring.yaml`
+as literal static JSON, not processed by CloudFormation's own `!Sub`/`!Ref`
+the way the rest of that template is). Rather than hardcoding this one
+account's id into a file meant to stay portable, `dashboard.json` uses a
+`__ACCOUNT_ID__` placeholder, resolved by `./infra/deploy.sh` via `aws sts
+get-caller-identity` at deploy time — same placeholder-substitution
+mechanism the file already uses for its own JSON-into-YAML splicing, just a
+second pass. `./infra/download-dashboard.sh` (the reverse direction) has to
+undo the same substitution on the way back down, or every download would
+silently re-hardcode the real account id into the committed file.
+
+### Active-session widgets moved into "## Traffic", not left in their own section
+**Why:** Per direct product decision — "Active Now" was originally its own
+appended-at-the-bottom section (see above), but active-session count is
+fundamentally a traffic question, not an errors-adjacent one, so it reads
+more naturally grouped with Request Rate/Pages Viewed. Unlike the "##
+Errors" section's own placement, this move DID require hand-editing every
+subsequent widget's `y` coordinate (see `infra/dashboard.json`) — accepted
+here since it was a direct, explicit request rather than a default worth
+avoiding busywork for.
 
 Same field-name caveat as the alarm's metric: `event_type =
 "com.amazon.rum.js_error_event"` is confirmed (matches
