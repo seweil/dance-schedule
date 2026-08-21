@@ -11,7 +11,7 @@ Region for everything below: **us-east-2** (Ohio).
 
 ## Release workflow: what happens on push to main, and how you'd know if something broke
 
-A push to `main` can kick off up to **three independent pipelines** — none of
+A push to `main` can kick off up to **four independent pipelines** — none of
 them gates any other, so it's worth checking the right one for what you
 actually care about rather than assuming a green result anywhere means the
 others are fine too:
@@ -21,14 +21,15 @@ others are fine too:
 | **CI** (`.github/workflows/ci.yml`) | Every push to `main`, and every PR | `checks` job (lint, typecheck, unit tests) + `e2e` job (full Playwright suite against a real build) — see `docs/testing.md` for the full breakdown | GitHub → **Actions** tab → the `CI` run → its Summary page | Red ❌ on the run and on the commit/PR itself. GitHub's own default notification setting emails you when a workflow run *you* triggered fails ("Notify me: For failed workflows only", under your GitHub notification settings) — that's the passive signal if you're not actively watching the Actions tab. |
 | **Amplify Hosting deploy** (`amplify.yml`) | Every push to `main` | Builds and publishes the live app — completely separate from GitHub Actions, doesn't share status with it and isn't gated by CI passing (see `docs/testing.md`'s "CI doesn't block the Amplify deploy itself") | AWS Amplify console → Hosting → your app → `main` branch → deployment history (see "Amplify Hosting" below) | **No automated notification is wired up for this today.** Amplify Hosting does have an optional App settings → Notifications feature (Slack/email/SNS on build failure), but it isn't configured for this app — the only way to know is to check the console, or notice the live site didn't pick up your change / a JS-error alarm fires afterward (see "Alerting" below) as a downstream symptom. |
 | **Infra deploy** (`.github/workflows/deploy-infra.yml`) | Only a push to `main` that touches `infra/monitoring.yaml` or `infra/dashboard.json` (or a manual `workflow_dispatch` run) | Runs `./infra/deploy.sh` via GitHub Actions OIDC — see `docs/design/monitoring.md`'s "Deployed via GitHub Actions OIDC" decision and `infra/github-oidc.yaml`'s gotchas history for how fragile this was to first bootstrap | GitHub → **Actions** tab → the `Deploy infra` run | Same red-❌/email mechanics as CI above. If it fails partway through an update, also check the CloudFormation stack's own **Events** tab (see "CloudFormation" below) — a failed deploy can leave the stack in a rolled-back-but-not-obviously-so state until you look. |
+| **Dashboard refresh** (`.github/workflows/refresh-dashboard.yml`) | Every push to `main` (or a manual `workflow_dispatch` run) | Runs `./infra/refresh-dashboard.sh` via the same OIDC role — a single `aws cloudwatch put-dashboard` call that regenerates the dashboard's "## Releases" table (last 20 commits), no CloudFormation involved | GitHub → **Actions** tab → the `Refresh dashboard` run | Same red-❌/email mechanics as CI above. A failure here is low-stakes — the dashboard's own release table just goes stale (its generated timestamp says so) until the next successful run; nothing else depends on this pipeline. |
 
 **Bottom line:** a broken CI run does **not** stop Amplify from shipping that
 same broken commit to production, and a broken infra deploy does **not** roll
-back or block the app deploy either — they're three unconnected pipelines
+back or block the app deploy either — they're four unconnected pipelines
 triggered by the same `git push`. The GitHub Actions tab is the fastest
-single place to check both CI and infra-deploy health at once; Amplify's own
-console is the *only* place that shows the app deploy's own status, since
-nothing forwards it anywhere else.
+single place to check CI, infra-deploy, and dashboard-refresh health at
+once; Amplify's own console is the *only* place that shows the app deploy's
+own status, since nothing forwards it anywhere else.
 
 ## Amplify Hosting
 
@@ -668,6 +669,8 @@ this doc's own sections above where relevant.
 | Script | Does | Run it when |
 | --- | --- | --- |
 | `deploy.sh` | Deploys/updates `monitoring.yaml` — RUM app monitor, JS-error alarm + SNS topic, saved Logs Insights queries, the dashboard | After editing `monitoring.yaml`/`dashboard.json`, or to change a parameter (`AlertEmail`, `JsErrorAlarmThreshold`, `JsErrorAlarmEvaluationPeriods`, `JsErrorAlarmDatapointsToAlarm`, `Domains`, `SessionSampleRate`, `RetainTelemetryBeyond30Days`) via `./infra/deploy.sh Key=Value ...`. Also runs automatically in CI on push to `main` when `infra/monitoring.yaml`/`infra/dashboard.json` change — see `infra/README.md`'s "Auto-deploy on push" section |
+| `generate-dashboard-body.sh` | Prints `dashboard.json` with `__ACCOUNT_ID__`/`__RELEASE_HISTORY__` substituted for real values — the shared generator `deploy.sh` and `refresh-dashboard.sh` both call | Not run directly day to day — it's what the two scripts below use internally |
+| `refresh-dashboard.sh` | Pushes a freshly-generated dashboard body straight to AWS via `aws cloudwatch put-dashboard` — no CloudFormation involved, just the "## Releases" table catching up | Runs automatically on every push to `main` via `.github/workflows/refresh-dashboard.yml` — see the Release workflow table above. Run by hand to force a refresh without waiting on CI |
 | `set-amplify-env.sh <app-id> [branch]` | Copies the RUM stack's outputs into Amplify's build-time env vars, triggers a rebuild | Once, right after the first `deploy.sh` (or if the RUM stack is ever recreated) |
 | `disable-js-error-alarm.sh` | Mutes the JS-error alarm's SNS notifications — evaluation keeps running | Actively investigating a known issue, don't want repeat pages |
 | `enable-js-error-alarm.sh` | Un-mutes it | Done investigating |

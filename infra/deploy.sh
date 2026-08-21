@@ -34,42 +34,24 @@ REGION=us-east-2
 # unrestricted shell this still resolves to the same place mktemp's own
 # default normally would.
 TMP_TEMPLATE="$(mktemp "${TMPDIR:-/tmp}/dance-schedule-monitoring.XXXXXX")"
-trap 'rm -f "$TMP_TEMPLATE"' EXIT
+TMP_DASHBOARD="$(mktemp "${TMPDIR:-/tmp}/dance-schedule-dashboard.XXXXXX")"
+trap 'rm -f "$TMP_TEMPLATE" "$TMP_DASHBOARD"' EXIT
 
-# dashboard.json's own "JS Error Alarm State" widget needs the JS-error alarm's
-# full ARN, which embeds the AWS account id — a value dashboard.json itself has
-# no way to express (it's plain static JSON, spliced in as literal text above,
-# not processed by CloudFormation's own !Sub/!Ref the way monitoring.yaml is).
-# Resolved here instead and substituted the same way as the dashboard JSON
-# itself, via a __ACCOUNT_ID__ placeholder in dashboard.json — keeps that file
-# portable across AWS accounts rather than hardcoding this one's id into it.
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+# generate-dashboard-body.sh resolves the account id and the "## Releases"
+# table's last-20-commits markdown — see that script's own comment for why
+# it's factored out (shared with refresh-dashboard.sh, which pushes the same
+# content straight to AWS on every push to main, no CloudFormation involved).
+./generate-dashboard-body.sh > "$TMP_DASHBOARD"
 
-# The dashboard's "## Releases" table (last 20 commits to origin/main, which
-# is what Amplify's own auto-deploy pipeline actually builds from) is baked
-# in as static markdown at deploy time — CloudWatch dashboards have no live
-# git data source, so this is only ever as fresh as the last time
-# ./infra/deploy.sh ran, NOT automatically updated on each real app release.
-# The generated markdown says so explicitly (see the Python block below), so
-# that staleness is visible on the dashboard itself rather than silently
-# assumed away. A failed fetch (offline, no network) falls through to
-# whatever origin/main ref is already known locally rather than aborting the
-# whole deploy over a non-essential widget.
-git fetch origin main --quiet 2>/dev/null || true
-RELEASE_LOG=$(git log -20 --pretty=format:'%h|%as|%s' origin/main 2>/dev/null || git log -20 --pretty=format:'%h|%as|%s' HEAD)
-
-python3 - "$TMP_TEMPLATE" "$ACCOUNT_ID" "$RELEASE_LOG" <<'PYEOF'
-import json
+python3 - "$TMP_TEMPLATE" "$TMP_DASHBOARD" <<'PYEOF'
 import sys
-from datetime import datetime, timezone
 
 out_path = sys.argv[1]
-account_id = sys.argv[2]
-release_log = sys.argv[3]
+dashboard_path = sys.argv[2]
 
 with open('monitoring.yaml') as f:
     template_lines = f.read().splitlines()
-with open('dashboard.json') as f:
+with open(dashboard_path) as f:
     dashboard_lines = f.read().rstrip('\n').splitlines()
 
 result = []
@@ -80,30 +62,8 @@ for line in template_lines:
     else:
         result.append(line)
 
-text = '\n'.join(result).replace('__ACCOUNT_ID__', account_id)
-
-rows = []
-for line in release_log.splitlines():
-    if not line.strip():
-        continue
-    commit_hash, date, summary = line.split('|', 2)
-    # A `|` inside a commit summary would otherwise break out of the
-    # markdown table's own column structure.
-    summary = summary.replace('|', '\\|')
-    rows.append(f'| `{commit_hash}` | {date} | {summary} |')
-
-generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
-release_markdown = '\n'.join([
-    f'*As of {generated_at} — refreshes on the next `./infra/deploy.sh` run, not automatically on each app release.*',
-    '',
-    '| Commit | Date | Summary |',
-    '|---|---|---|',
-    *rows,
-])
-text = text.replace('__RELEASE_HISTORY__', json.dumps(release_markdown)[1:-1])
-
 with open(out_path, 'w') as f:
-    f.write(text + '\n')
+    f.write('\n'.join(result) + '\n')
 PYEOF
 
 # RetainTelemetryBeyond30Days is passed explicitly, not left to the template's

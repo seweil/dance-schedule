@@ -177,6 +177,12 @@ After that, no further manual step is needed — editing `monitoring.yaml`
 and merging to `main` deploys it, the same way editing app code and
 merging deploys the app via Amplify.
 
+The same one-time setup also covers `.github/workflows/refresh-dashboard.yml`
+(see the "## Releases" table section below) — it reuses this identical
+`AWS_DEPLOY_ROLE_ARN` variable and role, just for a different, narrower
+purpose (`cloudwatch:PutDashboard` only, on every push rather than only
+infra-file-touching ones), so there's nothing extra to configure for it.
+
 **Doesn't cover:** `set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
 `deploy-email-forwarding.sh`, `add-email-dns-records.sh`, or the alarm
 mute/unmute scripts — those still need a human running them locally with
@@ -284,13 +290,18 @@ stack (`./infra/deploy.sh`); find it at **CloudWatch → Dashboards →
 `-dashboard`).
 
 Its bottom "## Releases" section is a table of the last 20 commits to
-`origin/main` (hash, date, summary) — baked in as static markdown at
-deploy time, since CloudWatch has no live git data source. **This is only
-as fresh as the last `./infra/deploy.sh` run, not automatically updated on
-each real app release** — the widget's own generated timestamp says so
-explicitly, so re-run `deploy.sh` (safe — see "JS-error alerting" above,
-same "only touches what actually changed" behavior applies) whenever you
-want it current.
+`origin/main` (hash, date, summary) — baked in as static markdown, since
+CloudWatch has no live git data source. **Kept current automatically by
+`.github/workflows/refresh-dashboard.yml`, which runs on every push to
+`main`** (not just the ones `deploy-infra.yml` reacts to — see
+`infra/refresh-dashboard.sh`'s own comment for why this is a separate,
+lightweight `aws cloudwatch put-dashboard` call rather than folding into a
+full `./infra/deploy.sh` run on every commit). The widget's own generated
+timestamp says exactly this, so if it ever looks stale, check the GitHub
+Actions tab for a failed "Refresh dashboard" run rather than assuming you
+need to re-run anything by hand — `./infra/deploy.sh`/`./infra/refresh-
+dashboard.sh` both still work fine locally too, e.g. to force a refresh
+without waiting on CI.
 
 That name is deliberately NOT whatever a dashboard you built by hand in
 the console was already called — CloudFormation can't adopt an existing,

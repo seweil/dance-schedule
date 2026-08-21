@@ -1,0 +1,41 @@
+name: Refresh dashboard
+
+# Keeps infra/dashboard.json's "## Releases" table current on every push to
+# main — deliberately its own workflow, not folded into deploy-infra.yml,
+# since that one only runs on pushes that touch infra/monitoring.yaml or
+# infra/dashboard.json (a real infra change), while this needs to run on
+# EVERY push (an ordinary app-code release is exactly what the Releases
+# table is supposed to reflect). See infra/refresh-dashboard.sh's own
+# comment for why this is a lightweight, CloudFormation-free API call
+# rather than a full ./infra/deploy.sh run on every commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # manual re-run, e.g. after a failed run left the table stale
+
+# id-token: write is what lets this job exchange a GitHub-issued OIDC token
+# for temporary AWS credentials (aws-actions/configure-aws-credentials) —
+# no long-lived AWS access key stored in GitHub at all. Same role
+# deploy-infra.yml uses; refresh-dashboard.sh only calls the one action
+# (cloudwatch:PutDashboard) that role already grants for this exact
+# resource, so no separate role/policy was needed for this workflow.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # generate-dashboard-body.sh's release-history table reads `git log origin/main`, not just the last commit
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Refresh dashboard release history
+        run: ./infra/refresh-dashboard.sh
