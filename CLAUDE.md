@@ -198,13 +198,15 @@ picks up the `.md` extension.
   for this, it's automatic. It also caps every content image at the page's own width
   (never wider, regardless of the source file's native resolution) and supports an
   opt-in smaller display size via a markdown image's standard `title` string —
-  `![alt](./assets/photo.jpg "thumbnail")` — one of `icon`/`thumbnail`/`small`/
-  `medium`/`large` (`ZoomableImage.tsx`'s `SIZE_CLASSES`); any other title is left
-  alone as an ordinary tooltip. `icon` is sized in `em`, not a fixed pixel width
-  like the other four, so it can sit inline mid-sentence (e.g. a how-to step
-  referencing a UI button by its icon) and scales with the reader's text-size
-  preference. Full size is still one tap away via the lightbox regardless of
-  display size. A separate, combinable title token, `no-zoom` — e.g.
+  `![alt](./assets/photo.jpg "thumbnail")` — one of `icon`/`badge`/`thumbnail`/
+  `small`/`medium`/`large` (`ZoomableImage.tsx`'s `SIZE_CLASSES`); any other title
+  is left alone as an ordinary tooltip. `icon` and `badge` are sized in `em`, not
+  a fixed pixel width like the other four, so they can sit inline mid-sentence
+  (e.g. a how-to step referencing a UI button by its icon, or a small event logo
+  before a line of body text) and scale with the reader's text-size preference —
+  `badge` is just the bigger of the two, about two lines of text tall. Full size
+  is still one tap away via the lightbox regardless of display size. A separate,
+  combinable title token, `no-zoom` — e.g.
   `"icon no-zoom"` — opts a small/decorative image (an icon, a badge) out of
   the zoom/lightbox behavior entirely and out of the page's shared image gallery
   (`ImageGallery.tsx`), so it never becomes a next/prev stop for the page's other,

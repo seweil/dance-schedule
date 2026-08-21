@@ -12,12 +12,15 @@ type ZoomableImageProps = ImgHTMLAttributes<HTMLImageElement>
 // below). Consumed here as a size directive rather than passed through as a
 // literal HTML `title` (browser tooltip) — see parseTitle below for how
 // this combines with NO_ZOOM_TOKEN, and what happens to an unrecognized
-// title. `icon` is sized in `em` rather than a fixed pixel width like the
-// other four — it's meant to sit inline mid-sentence (e.g. "tap the ⋮ icon"),
-// scaling with the reader's own text-size preference instead of towering
-// over surrounding text at whatever size the source file happens to be.
+// title. `icon` and `badge` are sized in `em` rather than a fixed pixel
+// width like the other four — meant to sit inline mid-sentence (e.g. "tap
+// the ⋮ icon", or a small event logo before a line of body text), scaling
+// with the reader's own text-size preference instead of towering over
+// surrounding text at whatever size the source file happens to be. `badge`
+// is just the bigger of the two — about two lines of body text tall.
 const SIZE_CLASSES: Record<string, string | undefined> = {
   icon: styles.icon,
+  badge: styles.badge,
   thumbnail: styles.thumbnail,
   small: styles.small,
   medium: styles.medium,

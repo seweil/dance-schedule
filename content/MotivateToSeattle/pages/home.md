@@ -1,4 +1,4 @@
-# Motivate to Seattle
+# ![](./assets/m2s-icon.png "icon no-zoom") Motivate to Seattle
 
 Welcome to Seattle. This website has the detailed dance schedule and can be installed like an app on your phone.
 

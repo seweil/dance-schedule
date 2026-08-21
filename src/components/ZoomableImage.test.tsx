@@ -25,7 +25,7 @@ describe('ZoomableImage', () => {
     expect(img).not.toHaveAttribute('title')
   })
 
-  it.each(['thumbnail', 'small', 'medium', 'large'])(
+  it.each(['badge', 'thumbnail', 'small', 'medium', 'large'])(
     'applies the %s size class and consumes the title as a size directive, not a literal title',
     (size) => {
       renderWithGallery(<ZoomableImage src="./caller.jpg" alt="A caller" title={size} />)

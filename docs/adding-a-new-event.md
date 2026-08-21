@@ -77,8 +77,9 @@ needed.
   clickable/zoomable, and never render wider than the page no matter how
   large the source file is — no extra markup needed. For a photo that looks
   better small in the flow of the page (e.g. a caller headshot) — full size
-  is still one tap away — add a standard markdown title of `thumbnail`,
-  `small`, `medium`, or `large`:
+  is still one tap away — add a standard markdown title of `badge`,
+  `thumbnail`, `small`, `medium`, or `large` (`badge` is the smallest,
+  about two lines of text tall, and stays inline with surrounding text):
   `![Jane Doe](./assets/caller-jane-doe.jpg "thumbnail")`. For a small,
   decorative image that isn't a real photo (an icon, a badge) and shouldn't
   be clickable or show up when someone's browsing through the page's other

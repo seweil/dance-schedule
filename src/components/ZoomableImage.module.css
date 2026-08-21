@@ -49,6 +49,13 @@
   vertical-align: text-bottom;
 }
 
+/* Bigger than .icon but still `em`/inline, not a block-ish fixed px width
+   like .thumbnail below — about two lines of body text tall. */
+.badge {
+  width: 2.5em;
+  vertical-align: text-bottom;
+}
+
 .thumbnail {
   width: 100px;
 }
