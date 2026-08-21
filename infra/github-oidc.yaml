@@ -102,9 +102,24 @@ Resources:
               # (`.github/workflows/deploy-infra.yml`), immune to some
               # future unrelated workflow added to this same repo/branch
               # inheriting this role's trust just by existing there.
+              #
+              # DIAGNOSTIC SWAP, 2026-08-21: job_workflow_ref above matched
+              # the live token byte-for-byte (verified via a debug step's
+              # repr() output) and still got "Not authorized to perform
+              # sts:AssumeRoleWithWebIdentity" on every retry, well past
+              # normal IAM propagation delay, with SCPs independently ruled
+              # out (this account is the Organization's own management
+              # account, which SCPs never apply to). Swapping to `sub`
+              # instead — the older, more battle-tested of the two claims
+              # AWS's own validation accepts — as a clean test to isolate
+              # whether `job_workflow_ref` itself has some AWS-side rough
+              # edge, or whether this was propagation delay all along.
+              # Hardcoded rather than derived from GitHubRepo, since the
+              # numeric owner/repo IDs (confirmed twice now from live
+              # tokens) aren't otherwise available as template inputs.
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:job_workflow_ref: !Sub '${GitHubRepo}/.github/workflows/deploy-infra.yml@refs/heads/main'
+                token.actions.githubusercontent.com:sub: repo:seweil@5559808/dance-schedule@1309336234:ref:refs/heads/main
       MaxSessionDuration: 3600
       Policies:
         - PolicyName: deploy-monitoring-stack
