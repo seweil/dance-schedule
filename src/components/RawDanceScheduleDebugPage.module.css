@@ -11,3 +11,8 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+.confirmation {
+  color: var(--color-accent);
+  font-weight: bold;
+}
