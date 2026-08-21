@@ -175,7 +175,15 @@ blank.
   too easy to miss in practice.
 - **Paused, 2026-08-21: should the alarm ignore known-stale-client noise
   (only alert on the currently-live version, or only on errors affecting
-  multiple sessions), and if so, how?** Triggered by a real incident: the
+  multiple sessions), and if so, how?** *Update, same day:* a decision was
+  in fact made (the "M out of N" option below) and a full proposal drafted
+  against `infra/monitoring.yaml`, but it's sitting in a local, uncommitted
+  git stash rather than applied here — see `docs/known-issues.md`'s
+  "Drafted, not yet applied" entry for how to find and apply it, or redo it
+  by hand if the stash is gone. Left this open-question text as-is below
+  (rather than rewriting it as a resolved Decision) since that's exactly
+  what the stashed version already does — no need to duplicate it here
+  until the stash is actually applied. Triggered by a real incident: the
   alarm fired repeatedly (135+ events over 24h) from a single stuck macOS
   Safari client — `userId 92297ae1-b928-4ee5-9e2a-144bc8ba2166`,
   `appVersion b5f501a` (several commits behind `HEAD`, predating

@@ -83,6 +83,16 @@ custom headers via `amplify.yml`) are split between "in the repo" and
 "console-only" depending on whether CloudFormation/Amplify's build spec can
 express them.
 
+**Revisited 2026-08-21**, per a direct ask that `git push` alone be enough
+to update everything, infra included. A GitHub Actions OIDC auto-deploy
+design was drafted (a new `infra/github-oidc.yaml` +
+`.github/workflows/deploy-infra.yml`) that would supersede this decision,
+but it's **not applied here** — it's sitting in a local, uncommitted git
+stash pending review and a one-time manual AWS bootstrap step. See
+`docs/known-issues.md`'s "Drafted, not yet applied" entry for how to find
+and apply it. Until that happens, this decision (manual local deploy) is
+still what's actually in effect.
+
 ### RUM client wrapped to never throw, and skipped entirely outside production
 **Why:** Per `CLAUDE.md`'s PWA guidance, a new dependency must never turn
 into a blank screen or unhandled rejection. `src/lib/rum.ts` no-ops (rather
