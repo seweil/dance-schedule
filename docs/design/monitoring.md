@@ -135,11 +135,18 @@ full fix.
 **One accepted trade-off against the original "infrequently-changed,
 shouldn't auto-redeploy" framing:** CI-on-push does mean a typo'd
 `monitoring.yaml` edit now reaches AWS automatically instead of waiting
-for someone to notice and run the script — mitigated by the GitHub
-Actions `environment: aws-infra` protection rule on the workflow (see
-`infra/README.md`), which can require a manual approval click before the
-job actually runs, giving back a deliberate pause without giving back a
-whole separate local-credentials step.
+for someone to notice and run the script. A GitHub Actions `environment:
+aws-infra` protection rule (`infra/README.md`'s optional step 3,
+`infra/create-github-infra-environment.sh`) could require a manual
+approval click before the job runs — **deliberately not enabled**: this
+stack is pure observability infra with no effect on the live site (a bad
+deploy degrades monitoring/alerting, not uptime), the deploy role is
+scoped to just this stack's resources regardless, and `main` already
+means "live" repo-wide once Amplify's own gate-free auto-deploy is
+factored in (`docs/design/hosting.md`'s "no custom CI" decision) — adding
+a pause here alone wouldn't have matched the rest of the repo's existing
+trust model. Revisit (the script is still there, unused) if that
+calculus ever changes.
 
 ### RUM client wrapped to never throw, and skipped entirely outside production
 **Why:** Per `CLAUDE.md`'s PWA guidance, a new dependency must never turn

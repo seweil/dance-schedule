@@ -190,22 +190,10 @@ Outputs:
       AWS_DEPLOY_ROLE_ARN (used by .github/workflows/deploy-infra.yml).
     Value: !GetAtt GitHubActionsDeployRole.Arn
 
-# One-time deploy, by hand, with real (for now: root) credentials — the
-# same way infra/deploy.sh's own README section is run:
+# One-time deploy, by hand, with real (for now: root) credentials:
 #
-#   aws cloudformation deploy \
-#     --template-file infra/github-oidc.yaml \
-#     --stack-name dance-schedule-github-oidc \
-#     --capabilities CAPABILITY_NAMED_IAM \
-#     --region us-east-2
+#   ./infra/deploy-github-oidc.sh
+#   ./infra/set-github-deploy-role.sh
+#   ./infra/create-github-infra-environment.sh   # optional, see its own comment
 #
-#   aws cloudformation describe-stacks \
-#     --stack-name dance-schedule-github-oidc \
-#     --region us-east-2 \
-#     --query 'Stacks[0].Outputs'
-#
-# Then set the printed ARN as a GitHub Actions repository variable named
-# AWS_DEPLOY_ROLE_ARN (Settings → Secrets and variables → Actions →
-# Variables — a plain variable, not a secret, since a role ARN grants
-# nothing on its own without the OIDC trust policy above actually matching
-# the caller). See infra/README.md's "Auto-deploy on push" section.
+# See infra/README.md's "Auto-deploy on push" section for the full picture.

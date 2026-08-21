@@ -29,7 +29,13 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: aws-infra # requires a repo/environment protection rule approving deploys, see infra/README.md
+    # No `environment:` gate, by choice — a push to main that touches
+    # infra/monitoring.yaml deploys immediately, matching how the app
+    # itself already deploys via Amplify with no approval step. See
+    # docs/design/monitoring.md's "One accepted trade-off" note. Add
+    # `environment: aws-infra` back here (plus run
+    # ./infra/create-github-infra-environment.sh) if a manual-approval
+    # pause is ever wanted later.
     steps:
       - uses: actions/checkout@v5
         with:

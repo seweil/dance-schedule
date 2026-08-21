@@ -146,30 +146,32 @@ for the full rationale.
    from `monitoring.yaml` on purpose (see that file's own header comment).
    Needs real AWS credentials the same way any first deploy does:
    ```bash
-   aws cloudformation deploy \
-     --template-file infra/github-oidc.yaml \
-     --stack-name dance-schedule-github-oidc \
-     --capabilities CAPABILITY_NAMED_IAM \
-     --region us-east-2
-
-   aws cloudformation describe-stacks \
-     --stack-name dance-schedule-github-oidc \
-     --region us-east-2 \
-     --query 'Stacks[0].Outputs'
+   ./infra/deploy-github-oidc.sh
    ```
-2. Copy the printed `GitHubActionsDeployRoleArn` into this repo's
-   **Settings → Secrets and variables → Actions → Variables** as
-   `AWS_DEPLOY_ROLE_ARN` (a repository *variable*, not a secret — the ARN
-   grants nothing by itself without the role's own OIDC trust condition
-   also matching the caller, so there's nothing sensitive to hide).
-3. Create a **Settings → Environments → `aws-infra`** environment and add
-   a required-reviewer protection rule on it, if you want a manual
-   approval click before each infra deploy actually runs (the workflow
-   already targets this environment name) — optional, but recommended:
-   without it, any push to `main` touching `monitoring.yaml` deploys to
-   AWS with no pause, the same as any other CI step. Skip this step (and
-   remove the `environment:` line from the workflow) if you'd rather it
-   run with zero friction, matching how the app itself deploys.
+2. Wire the role ARN it printed into this repo as a GitHub Actions
+   variable (`AWS_DEPLOY_ROLE_ARN` — a repository *variable*, not a
+   secret; the ARN grants nothing by itself without the role's own OIDC
+   trust condition also matching the caller, so there's nothing sensitive
+   to hide). Requires `jq` and the GitHub CLI (`gh auth login`):
+   ```bash
+   ./infra/set-github-deploy-role.sh
+   ```
+3. Optional — a manual approval click before each infra deploy actually
+   runs, via a required-reviewer rule on a GitHub Environment named
+   `aws-infra`:
+   ```bash
+   ./infra/create-github-infra-environment.sh
+   ```
+   **Deliberately skipped by default** — `.github/workflows/deploy-infra.yml`
+   has no `environment:` line, so a push to `main` touching
+   `monitoring.yaml` deploys to AWS immediately, matching how the app
+   itself already deploys via Amplify with no approval step (see
+   `docs/design/monitoring.md`'s "One accepted trade-off" note for why
+   that's an acceptable risk here: this stack is pure observability infra,
+   a bad deploy degrades monitoring rather than the live site, and the
+   scoped IAM role limits the blast radius regardless). To add the gate
+   back later, run the script above and add `environment: aws-infra` back
+   to the `deploy` job in the workflow.
 
 After that, no further manual step is needed — editing `monitoring.yaml`
 and merging to `main` deploys it, the same way editing app code and
