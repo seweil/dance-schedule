@@ -128,7 +128,57 @@ will bake them into the client bundle — see `src/lib/rum.ts`. Locally,
 ### Updating the stack
 
 Editing `infra/monitoring.yaml` (e.g. adding a domain, changing the sample
-rate) and re-running `./infra/deploy.sh` updates the stack in place.
+rate) and re-running `./infra/deploy.sh` updates the stack in place — or
+just push to `main`, see the next section.
+
+### Auto-deploy on push
+
+`.github/workflows/deploy-infra.yml` runs `./infra/deploy.sh` in CI on
+every push to `main` that touches `infra/monitoring.yaml` or
+`infra/dashboard.json` — a normal `git push` is enough, no one needs to
+also run the script locally afterward. See
+`docs/design/monitoring.md`'s "Deployed via GitHub Actions OIDC" decision
+for the full rationale.
+
+**One-time setup, by hand, before this works for the first time:**
+
+1. Deploy `infra/github-oidc.yaml` — a separate small stack, kept apart
+   from `monitoring.yaml` on purpose (see that file's own header comment).
+   Needs real AWS credentials the same way any first deploy does:
+   ```bash
+   aws cloudformation deploy \
+     --template-file infra/github-oidc.yaml \
+     --stack-name dance-schedule-github-oidc \
+     --capabilities CAPABILITY_NAMED_IAM \
+     --region us-east-2
+
+   aws cloudformation describe-stacks \
+     --stack-name dance-schedule-github-oidc \
+     --region us-east-2 \
+     --query 'Stacks[0].Outputs'
+   ```
+2. Copy the printed `GitHubActionsDeployRoleArn` into this repo's
+   **Settings → Secrets and variables → Actions → Variables** as
+   `AWS_DEPLOY_ROLE_ARN` (a repository *variable*, not a secret — the ARN
+   grants nothing by itself without the role's own OIDC trust condition
+   also matching the caller, so there's nothing sensitive to hide).
+3. Create a **Settings → Environments → `aws-infra`** environment and add
+   a required-reviewer protection rule on it, if you want a manual
+   approval click before each infra deploy actually runs (the workflow
+   already targets this environment name) — optional, but recommended:
+   without it, any push to `main` touching `monitoring.yaml` deploys to
+   AWS with no pause, the same as any other CI step. Skip this step (and
+   remove the `environment:` line from the workflow) if you'd rather it
+   run with zero friction, matching how the app itself deploys.
+
+After that, no further manual step is needed — editing `monitoring.yaml`
+and merging to `main` deploys it, the same way editing app code and
+merging deploys the app via Amplify.
+
+**Doesn't cover:** `set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
+`deploy-email-forwarding.sh`, `add-email-dns-records.sh`, or the alarm
+mute/unmute scripts — those still need a human running them locally with
+their own AWS credentials (see `docs/known-issues.md`'s root-user entry).
 
 ### Redeploying after a domain change
 
@@ -155,19 +205,29 @@ notifications deliver until that's done — same shape as
 account: visit `/debug/dance-schedule` on the live site and click "Trigger
 a test JS error" at the very bottom
 (`src/components/RawDanceScheduleDebugPage.tsx`) — safe to click
-repeatedly, doesn't break the page. Then check the alarm's state in the
-CloudWatch console (**Alarms** → `dance-schedule-js-errors`) — it should
-move to `ALARM` within the 5-minute evaluation window and the confirmed
-email address should get a notification. Move it back to `OK` by waiting
-out the window with no further errors (or just confirm the metric shows a
-data point — `aws cloudwatch get-metric-statistics --namespace AWS/RUM
+repeatedly, doesn't break the page. The alarm now needs
+`JsErrorAlarmDatapointsToAlarm` breaching 5-minute windows (default 3 of
+the last `JsErrorAlarmEvaluationPeriods`, i.e. 5) before it actually fires
+— see docs/design/alerting.md's "M out of N" decision — so a single click
+alone won't trip it; click again in each of the next couple of 5-minute
+windows, or temporarily redeploy with
+`./infra/deploy.sh JsErrorAlarmEvaluationPeriods=1
+JsErrorAlarmDatapointsToAlarm=1` to test one-shot the way the alarm
+originally worked, then redeploy again with no override to restore the
+defaults. Check the alarm's state in the CloudWatch console (**Alarms** →
+`dance-schedule-js-errors`) — the confirmed email address should get a
+notification once it moves to `ALARM`. Move it back to `OK` by waiting out
+a window with no further errors (or just confirm the metric shows a data
+point — `aws cloudwatch get-metric-statistics --namespace AWS/RUM
 --metric-name JsErrorCount --dimensions
 Name=application_name,Value=dance-schedule --start-time <recent> --end-time
 now --period 300 --statistics Sum --region us-east-2`).
 
 To change the sensitivity later: `./infra/deploy.sh JsErrorAlarmThreshold=3`
-(default `1` — any single error notifies), or edit the Default directly in
-`monitoring.yaml` and redeploy with no args.
+(default `1` — any error in a breaching window counts) or
+`./infra/deploy.sh JsErrorAlarmEvaluationPeriods=10
+JsErrorAlarmDatapointsToAlarm=5` (the M-out-of-N window itself), or edit
+the Defaults directly in `monitoring.yaml` and redeploy with no args.
 
 The dashboard below (its own "## Errors" section) graphs the same data this
 alarm watches, plus a table enumerating individual errors — useful for

@@ -83,15 +83,63 @@ custom headers via `amplify.yml`) are split between "in the repo" and
 "console-only" depending on whether CloudFormation/Amplify's build spec can
 express them.
 
-**Revisited 2026-08-21**, per a direct ask that `git push` alone be enough
-to update everything, infra included. A GitHub Actions OIDC auto-deploy
-design was drafted (a new `infra/github-oidc.yaml` +
-`.github/workflows/deploy-infra.yml`) that would supersede this decision,
-but it's **not applied here** — it's sitting in a local, uncommitted git
-stash pending review and a one-time manual AWS bootstrap step. See
-`docs/known-issues.md`'s "Drafted, not yet applied" entry for how to find
-and apply it. Until that happens, this decision (manual local deploy) is
-still what's actually in effect.
+**Superseded 2026-08-21, for the stack deploy step specifically** — see the
+next decision. "Not wired into Amplify's build" is still correct and
+unchanged (this was never an Amplify-build-time concern, and the
+env-var-copying step above is still a manual, occasional action, not
+something that happens on every push) — what changed is *how* the
+`aws cloudformation deploy` step itself runs.
+
+### Deployed via GitHub Actions OIDC on push, not run locally by a developer
+**Why:** Direct ask — `git push` alone should be enough to make every
+change live, infra included, with no separate manual step. The original
+"deploy manually, it's infrequent" rationale above was true but turned out
+to matter less than the cost of the gap it left: every alarm/dashboard
+change sat un-deployed until someone remembered to run
+`./infra/deploy.sh` by hand, and every one of those local runs needed
+working AWS credentials — which, per `docs/known-issues.md`, have been
+root (no scoped identity exists) and, in a Claude Code session
+specifically, stop working a few minutes after `aws sso login` because the
+sandbox blocks the SSO token-refresh file write. Moving the deploy into
+CI sidesteps both: GitHub Actions never touches a developer's local
+credentials or `~/.aws/login/cache` at all.
+
+`infra/github-oidc.yaml` (a small, separate, one-time-bootstrapped stack —
+see that file's own header comment for why it isn't folded into
+`monitoring.yaml`) creates an IAM OIDC trust for
+`token.actions.githubusercontent.com`, scoped to a role
+(`dance-schedule-github-actions-deploy`) that only this repo's own `main`
+branch can assume (`token.actions.githubusercontent.com:sub` condition —
+not any branch, not a fork, not a PR), and whose permissions policy is
+scoped to exactly the resource types `monitoring.yaml` itself creates
+(CloudFormation change-sets on the `dance-schedule-monitoring` stack, the
+one named IAM role it creates, Cognito, RUM, the `dance-schedule*`-named
+CloudWatch alarm/dashboard/SNS topic, Logs query definitions) — not a
+blanket "GitHub Actions can do anything in this account" grant.
+`.github/workflows/deploy-infra.yml` runs on push to `main` when
+`infra/monitoring.yaml`/`infra/dashboard.json` change, assumes that role
+via `aws-actions/configure-aws-credentials`'s OIDC support (no stored AWS
+access key in GitHub at all — see that action's own docs), and runs
+`./infra/deploy.sh` unchanged, so there's exactly one code path for "how
+does this stack get deployed," CI and a human running it locally both
+going through the same script.
+
+**Doesn't fully close `docs/known-issues.md`'s root-user finding** — the
+OIDC role only covers this one stack's deploy. The *other* `infra/*.sh`
+scripts (`set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
+`deploy-email-forwarding.sh`, `add-email-dns-records.sh`, and the alarm
+mute/unmute pair) still need a human's local, currently-root credentials —
+narrower blast radius for the one script that changes most often, not a
+full fix.
+
+**One accepted trade-off against the original "infrequently-changed,
+shouldn't auto-redeploy" framing:** CI-on-push does mean a typo'd
+`monitoring.yaml` edit now reaches AWS automatically instead of waiting
+for someone to notice and run the script — mitigated by the GitHub
+Actions `environment: aws-infra` protection rule on the workflow (see
+`infra/README.md`), which can require a manual approval click before the
+job actually runs, giving back a deliberate pause without giving back a
+whole separate local-credentials step.
 
 ### RUM client wrapped to never throw, and skipped entirely outside production
 **Why:** Per `CLAUDE.md`'s PWA guidance, a new dependency must never turn

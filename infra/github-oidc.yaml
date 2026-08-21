@@ -1,0 +1,211 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  One-time bootstrap: lets GitHub Actions deploy infra/monitoring.yaml
+  without a human running `./infra/deploy.sh` locally. Deliberately its own
+  tiny stack, not folded into monitoring.yaml itself — this creates the
+  trust relationship monitoring.yaml's own deploys will use, so it can't
+  depend on monitoring.yaml already existing, and the two have very
+  different lifecycles (this one is created once and essentially never
+  touched again; monitoring.yaml changes regularly). Must be deployed by
+  hand, the ordinary way (see the comment at the bottom of this file) —
+  there is no chicken-and-egg way for CI to create its own trust before it
+  exists.
+
+  See docs/design/monitoring.md's "Deployed via GitHub Actions OIDC, not a
+  human running aws cloudformation deploy locally" decision for why.
+
+Parameters:
+  GitHubRepo:
+    Type: String
+    Default: seweil/dance-schedule
+    Description: >
+      GitHub "owner/repo" allowed to assume the deploy role. Only this
+      repo's own `main` branch can assume it (see the role's trust policy
+      condition below) — a fork or a PR branch cannot, even though GitHub's
+      OIDC token issuer is shared across all of GitHub.
+
+Resources:
+  # GitHub's own OIDC issuer — one of these can exist per AWS account
+  # (shared across every repo/role that trusts it), so a second project
+  # deploying its own GitHub-Actions-to-AWS role later should reuse this
+  # one via a Fn::ImportValue on GitHubOidcProviderArn below, not create a
+  # second, colliding provider for the same URL.
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      # No ThumbprintList: AWS::IAM::OIDCProvider has accepted GitHub's
+      # well-known thumbprint automatically since mid-2023 (GitHub's own
+      # signing cert rotation is what made ThumbprintList's old
+      # copy-the-cert-fingerprint-by-hand model unworkable in the first
+      # place) — omitting it lets CloudFormation manage that itself rather
+      # than this template silently going stale the next time GitHub
+      # rotates certs.
+
+  # Deliberately scoped to exactly what deploy.sh's `aws cloudformation
+  # deploy` needs for the ONE stack it manages (dance-schedule-monitoring)
+  # — not a generic "GitHub Actions can do anything in this account" role.
+  # Doesn't cover the OTHER infra/*.sh scripts (Amplify env vars, rewrite
+  # rules, email-forwarding) — those still need a human's local
+  # credentials for now; see docs/known-issues.md's root-user entry, which
+  # this narrows but doesn't close.
+  GitHubActionsDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: dance-schedule-github-actions-deploy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              # Restricts to this repo's own main branch specifically —
+              # not "any branch of this repo" (a PR from a fork, or even a
+              # feature branch in this same repo, must not be able to
+              # assume a role that can write production infra) and not
+              # "any repo" (the aud check alone only proves the token came
+              # from *some* GitHub Actions run, not this one).
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubRepo}:ref:refs/heads/main'
+      MaxSessionDuration: 3600
+      Policies:
+        - PolicyName: deploy-monitoring-stack
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # The stack itself, plus its own CloudFormation-managed
+              # change sets — `aws cloudformation deploy` under the hood
+              # creates/executes a change set, it doesn't call
+              # create-stack/update-stack directly.
+              - Sid: CloudFormationStack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:GetTemplate
+                  - cloudformation:DeleteChangeSet
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:us-east-2:${AWS::AccountId}:stack/dance-schedule-monitoring/*'
+                  - !Sub 'arn:aws:cloudformation:us-east-2:${AWS::AccountId}:changeSet/*'
+              # deploy.sh embeds the account id into the dashboard's alarm
+              # ARN and into __ACCOUNT_ID__ — see that script's own comment.
+              - Sid: WhoAmI
+                Effect: Allow
+                Action: sts:GetCallerIdentity
+                Resource: '*'
+              # CAPABILITY_NAMED_IAM: monitoring.yaml creates exactly one
+              # named IAM role (the Cognito unauthenticated guest role for
+              # RUM, see that resource's own comment) — scoped to that
+              # role's own name pattern, not iam:* generally.
+              - Sid: RumGuestRole
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PassRole
+                Resource:
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/dance-schedule*'
+              - Sid: CognitoIdentityPool
+                Effect: Allow
+                Action:
+                  - cognito-identity:CreateIdentityPool
+                  - cognito-identity:DeleteIdentityPool
+                  - cognito-identity:DescribeIdentityPool
+                  - cognito-identity:GetIdentityPoolRoles
+                  - cognito-identity:SetIdentityPoolRoles
+                  - cognito-identity:TagResource
+                  - cognito-identity:UntagResource
+                Resource: '*'
+                # Cognito identity pools have no ARN-path-based scoping
+                # for these actions (CreateIdentityPool's target doesn't
+                # exist yet to scope to) — same shape as the RUM/CloudWatch
+                # Dashboard entries below.
+              - Sid: RumAppMonitor
+                Effect: Allow
+                Action:
+                  - rum:CreateAppMonitor
+                  - rum:DeleteAppMonitor
+                  - rum:GetAppMonitor
+                  - rum:UpdateAppMonitor
+                  - rum:TagResource
+                  - rum:UntagResource
+                Resource: '*'
+              - Sid: AlarmAndDashboard
+                Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricAlarm
+                  - cloudwatch:DeleteAlarms
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:PutDashboard
+                  - cloudwatch:DeleteDashboards
+                  - cloudwatch:GetDashboard
+                  - cloudwatch:TagResource
+                  - cloudwatch:UntagResource
+                Resource:
+                  - !Sub 'arn:aws:cloudwatch:us-east-2:${AWS::AccountId}:alarm:dance-schedule*'
+                  - !Sub 'arn:aws:cloudwatch::${AWS::AccountId}:dashboard/dance-schedule*'
+              - Sid: SnsTopic
+                Effect: Allow
+                Action:
+                  - sns:CreateTopic
+                  - sns:DeleteTopic
+                  - sns:GetTopicAttributes
+                  - sns:SetTopicAttributes
+                  - sns:Subscribe
+                  - sns:Unsubscribe
+                  - sns:TagResource
+                  - sns:UntagResource
+                Resource:
+                  - !Sub 'arn:aws:sns:us-east-2:${AWS::AccountId}:dance-schedule*'
+              - Sid: LogsQueryDefinitions
+                Effect: Allow
+                Action:
+                  - logs:PutQueryDefinition
+                  - logs:DeleteQueryDefinition
+                  - logs:DescribeQueryDefinitions
+                Resource: '*'
+                # QueryDefinition resources have no ARN to scope to either
+                # (they're identified by a generated queryDefinitionId, not
+                # a name CloudFormation can predict before creation).
+
+Outputs:
+  GitHubActionsDeployRoleArn:
+    Description: >
+      Paste into this repo's GitHub Actions secrets/variables as
+      AWS_DEPLOY_ROLE_ARN (used by .github/workflows/deploy-infra.yml).
+    Value: !GetAtt GitHubActionsDeployRole.Arn
+
+# One-time deploy, by hand, with real (for now: root) credentials — the
+# same way infra/deploy.sh's own README section is run:
+#
+#   aws cloudformation deploy \
+#     --template-file infra/github-oidc.yaml \
+#     --stack-name dance-schedule-github-oidc \
+#     --capabilities CAPABILITY_NAMED_IAM \
+#     --region us-east-2
+#
+#   aws cloudformation describe-stacks \
+#     --stack-name dance-schedule-github-oidc \
+#     --region us-east-2 \
+#     --query 'Stacks[0].Outputs'
+#
+# Then set the printed ARN as a GitHub Actions repository variable named
+# AWS_DEPLOY_ROLE_ARN (Settings → Secrets and variables → Actions →
+# Variables — a plain variable, not a secret, since a role ARN grants
+# nothing on its own without the OIDC trust policy above actually matching
+# the caller). See infra/README.md's "Auto-deploy on push" section.

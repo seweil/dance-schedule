@@ -22,6 +22,9 @@ questions.
       crosses a threshold — see Decisions
 - [x] Seeing the alarm's own current state without opening CloudWatch
       separately — see Decisions
+- [x] Filtering noise from a single stuck/stale client re-triggering the
+      alarm repeatedly for an already-known issue — see Decisions ("M out
+      of N")
 
 ## Decisions
 
@@ -156,6 +159,60 @@ checked against this account's real data — see that query's own comment in
 `infra/monitoring.yaml` for how to fix it if the column values come back
 blank.
 
+### "M out of N" alarm evaluation, not a version-scoped or distinct-sessions alarm
+**Why:** Triggered by a real incident (2026-08-21) — the alarm fired
+repeatedly (135+ events over 24h) from a single stuck macOS Safari client
+— `userId 92297ae1-b928-4ee5-9e2a-144bc8ba2166`, `appVersion b5f501a`
+(several commits behind `HEAD`, predating `4e3d658`'s actual fix for the
+exact error it kept throwing: `InvalidStateError`/"newestWorker is null"
+from `UpdatePrompt.tsx`'s unguarded `registration.update()`). Confirmed
+via `JsErrorsQuery`'s enriched fields (`appVersion`, `userId`) that this
+was one already-known, already-fixed-going-forward client repeatedly
+re-triggering the alarm, not live/spreading traffic. Muted via
+`./infra/disable-js-error-alarm.sh` while investigating; the machine was
+suspected stuck and got rebooted, but rather than just wait and see, this
+was settled directly since a decision was needed anyway.
+
+Two more precise designs were discussed and rejected, both real
+increases in infrastructure/risk for a problem that recurs rarely at this
+traffic volume:
+1. **Version-scoped alarm** (`AWS::Logs::MetricFilter` matching
+   `application_version = "<current>"`, replacing the alarm's `AWS/RUM`
+   metric source) — rejected over its **silent total failure** mode: if
+   the tracked "current version" value doesn't exactly match live traffic
+   (a hash-length mismatch, or a deploy pipeline out of sync), the alarm
+   goes quiet **including for real, current bugs**, with no visible sign
+   anything's wrong. Unlike today's alarm, which can only ever be *too
+   noisy*, this could make it fail exactly the way it's not allowed to.
+2. **Distinct-sessions-affected alarm** — rejected because
+   `AWS::Logs::MetricFilter` has no distinct-value aggregation (it can
+   only count matching log lines, or sum/extract one numeric field per
+   line), so "count distinct sessionId with an error" needs a scheduled
+   Lambda (an EventBridge rule running the equivalent
+   `stats count_distinct(sessionId)` Logs Insights query periodically,
+   pushing the result via `PutMetricData`) — genuinely *more*
+   infrastructure than option 1, not less. (Session id as a metric
+   *dimension* instead was also considered and rejected: high-cardinality
+   dimensions are a known CloudWatch custom-metrics cost/cardinality
+   anti-pattern.)
+
+**Chosen instead:** tune the *existing* alarm's own evaluation — CloudWatch's
+native "M out of N" periods, via `EvaluationPeriods`/`DatapointsToAlarm` on
+the same `AWS::CloudWatch::Alarm` resource (defaults: `EvaluationPeriods: 5`,
+`DatapointsToAlarm: 3` — 3 of the last 5 5-minute windows, exposed as
+`JsErrorAlarmEvaluationPeriods`/`JsErrorAlarmDatapointsToAlarm` CloudFormation
+Parameters, same pattern as `JsErrorAlarmThreshold`). No new infrastructure,
+no new failure mode beyond what the alarm already has, and it filters an
+isolated blip (one window with one error) the way the stuck-client incident
+would have looked if it had erred only once instead of continuously.
+**Accepted limitation, not fixed by this:** a client erroring *continuously*
+(as the actual stuck Safari client did) still breaches M of N just like real
+spreading traffic would — this change narrows "isolated blip" noise, it does
+not distinguish "one persistently-broken device" from "a few real affected
+users." If that distinction is ever actually needed, revisit option 1 or 2
+above rather than tightening M-out-of-N further (a wider N/M just delays
+detection of a real problem without solving the underlying ambiguity).
+
 ## Open questions
 
 - **Uptime/availability monitoring** — the original ask's other half ("how
@@ -173,71 +230,3 @@ blank.
   (`docs/ops.md`'s "Aggregate metrics" row) cover that adequately for now?
 - A second SNS subscriber (SMS, a Slack webhook) if email turns out to be
   too easy to miss in practice.
-- **Paused, 2026-08-21: should the alarm ignore known-stale-client noise
-  (only alert on the currently-live version, or only on errors affecting
-  multiple sessions), and if so, how?** *Update, same day:* a decision was
-  in fact made (the "M out of N" option below) and a full proposal drafted
-  against `infra/monitoring.yaml`, but it's sitting in a local, uncommitted
-  git stash rather than applied here — see `docs/known-issues.md`'s
-  "Drafted, not yet applied" entry for how to find and apply it, or redo it
-  by hand if the stash is gone. Left this open-question text as-is below
-  (rather than rewriting it as a resolved Decision) since that's exactly
-  what the stashed version already does — no need to duplicate it here
-  until the stash is actually applied. Triggered by a real incident: the
-  alarm fired repeatedly (135+ events over 24h) from a single stuck macOS
-  Safari client — `userId 92297ae1-b928-4ee5-9e2a-144bc8ba2166`,
-  `appVersion b5f501a` (several commits behind `HEAD`, predating
-  `4e3d658`'s actual fix for the exact error it kept throwing:
-  `InvalidStateError`/"newestWorker is null" from `UpdatePrompt.tsx`'s
-  unguarded `registration.update()`). Confirmed via `JsErrorsQuery`'s
-  enriched fields (`appVersion`, `userId`) that this was one already-known,
-  already-fixed-going-forward client repeatedly re-triggering the alarm,
-  not live/spreading traffic. Muted via `./infra/disable-js-error-alarm.sh`
-  while investigating.
-
-  Two designs discussed, neither built yet:
-  1. **Version-scoped alarm** — a new `AWS::Logs::MetricFilter` matching
-     `application_version = "<current>"` exactly, replacing the alarm's
-     `AWS/RUM` metric source. Real risks: (a) **silent total failure** if
-     the tracked "current version" value doesn't exactly match live
-     traffic (a hash-length mismatch, or `infra/deploy.sh` run out of sync
-     with Amplify's own separate auto-deploy pipeline) — unlike today's
-     alarm, which can only ever be *too noisy*, a version mismatch here
-     makes it go quiet **including for real, current bugs**, with no
-     visible sign anything's wrong; (b) the tracked "current version"
-     needs sourcing from Amplify's own job history via API (the ground
-     truth for what's actually live), not local git state, since the two
-     deploy pipelines are decoupled; (c) a `MetricFilter`'s
-     `DefaultValue: 0` needs setting correctly or `INSUFFICIENT_DATA`
-     flapping results; (d) the metric's own meaning silently shifts every
-     deploy (same metric name, different filter each time) — a historical
-     graph of it would be misleading; (e) `JsErrorRateQuery`'s existing
-     graph isn't version-filtered, so it'd visibly diverge from what the
-     alarm actually watches.
-  2. **Distinct-sessions-affected alarm** (initially pitched as "the
-     simple alternative" — **that framing was wrong**, corrected before
-     any building started): `AWS::Logs::MetricFilter` can only count
-     matching log *lines* (or sum/extract one numeric field per line) — it
-     has no distinct-value aggregation, so "count distinct sessionId with
-     an error" isn't expressible as a plain metric filter the way the
-     original `JsErrorCount` alarm is. A real version of this needs a
-     scheduled Lambda (EventBridge rule running the equivalent
-     `stats count_distinct(sessionId)` Logs Insights query periodically,
-     pushing the result via `PutMetricData`) — genuinely *more*
-     infrastructure than option 1, not less. (Using session id as a metric
-     *dimension* instead was also considered and rejected: high-cardinality
-     dimensions are a known CloudWatch custom-metrics cost/cardinality
-     anti-pattern.)
-
-  A third, no-new-infrastructure option surfaced in the same discussion:
-  tune the *existing* alarm's own evaluation — CloudWatch's "M out of N"
-  periods (e.g. require 3 of 5 breaching 5-minute periods instead of 1) —
-  which filters an isolated blip without needing to know anything about
-  sessions or versions at all, at the cost of not actually distinguishing
-  "one stuck device" from "a few real affected users."
-
-  **Status:** paused before deciding between these, to see whether the
-  problem resolves on its own first — the user is rebooting the suspected
-  stuck machine to confirm whether the errors were coming from it
-  specifically. If they stop after that, no alarm-design change may be
-  needed at all for *this* incident; revisit if/when it recurs.

@@ -34,51 +34,17 @@ local AWS CLI credentials (`aws configure` or an SSO profile) to that
 identity for all day-to-day deploys, and stop signing in as root
 entirely except for the rare account-level task that actually needs it.
 
-## Drafted, not yet applied: JS-error alarm noise-filtering + CI auto-deploy for infra
-
-**Drafted:** 2026-08-21, in response to two direct asks — resolving
-`docs/design/alerting.md`'s paused "should the alarm ignore
-known-stale-client noise" question, and making `git push` alone enough to
-update everything, infra included, with no separate manual step.
-
-A full proposal exists but is **deliberately not applied to the working
-tree or committed** — the user wanted to review it first, and the new CI
-pipeline it adds needs a one-time manual AWS bootstrap step that hadn't
-been run yet. It's saved in a local git stash only (not pushed, not
-visible outside this machine/checkout, and not covered by normal `git
-log`/`git diff` against `origin/main`):
-
-```
-git stash list   # look for: "JS-alarm M-out-of-N tuning + GitHub OIDC CI auto-deploy for infra (proposal, not committed)"
-git stash show -p <ref>   # review the diff first, without applying
-git stash apply <ref>     # apply it (use pop instead of apply to also drop it from the stash list)
-```
-
-Find `<ref>` by message, not by assuming it's still `stash@{0}` — that
-index shifts if anything else gets stashed later on this machine. If the
-stash is gone (e.g. `git stash clear` was run, or this is a different
-checkout entirely), the proposal has to be redone from scratch; nothing
-about it is otherwise recorded in git history.
-
-**What's in it**, for redoing by hand if the stash is ever lost:
-- `infra/monitoring.yaml`: the JS-error alarm changes from firing on any
-  single breaching 5-minute window to CloudWatch's native "M out of N"
-  evaluation (default 3-of-5), via new `JsErrorAlarmEvaluationPeriods`/
-  `JsErrorAlarmDatapointsToAlarm` parameters.
-- `infra/github-oidc.yaml` (new file) + `.github/workflows/deploy-infra.yml`
-  (new file): lets `infra/monitoring.yaml` deploy automatically via GitHub
-  Actions OIDC on push to `main`, so alarm/dashboard changes stop needing a
-  human to run `./infra/deploy.sh` locally. Needs a one-time manual
-  bootstrap deploy of `github-oidc.yaml` with real AWS credentials before
-  any of this takes effect — see that file's own header comment and
-  `infra/README.md`'s "Auto-deploy on push" section (also only in the
-  stash, not the current `infra/README.md`).
-- Matching updates to `docs/design/alerting.md` (the paused question
-  becomes a real Decision), `docs/design/monitoring.md` (a new decision
-  superseding "Deployed manually via `aws cloudformation deploy`"),
-  `docs/ops.md`, and this file's own root-user entry above (narrowing it,
-  not closing it) — none of which are visible in the current versions of
-  those files since they're part of the same stash.
+**Narrowed 2026-08-21, not closed:** `infra/github-oidc.yaml` +
+`.github/workflows/deploy-infra.yml` (see `infra/README.md`'s "Auto-deploy
+on push" and `docs/design/monitoring.md`'s "Deployed via GitHub Actions
+OIDC" decision) move the `dance-schedule-monitoring` stack's own deploys
+onto a scoped IAM role assumed by GitHub Actions via OIDC, with no local
+credentials involved at all for that one script. That's real progress —
+the highest-frequency-change infra script no longer needs a human's root
+session — but `set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
+`deploy-email-forwarding.sh`, and `add-email-dns-records.sh` are
+untouched and still run locally as root. The fix above (a scoped identity
+for local day-to-day use) is still the right direction for those.
 
 ## Claude Code's own sandbox can't launch Chromium — fixed, but only for the exact allowlisted command forms
 

@@ -53,6 +53,24 @@ Parameters:
       Minimum JS errors RUM must record in a single 5-minute window to
       trigger the alarm. 1 means any single error notifies — raise this if
       that's too noisy for real traffic volume once you see it in practice.
+  JsErrorAlarmEvaluationPeriods:
+    Type: Number
+    Default: 5
+    Description: >
+      Number of consecutive 5-minute windows the alarm looks back over (the
+      "N" in "M out of N") — see JsErrorAlarmDatapointsToAlarm below and
+      docs/design/alerting.md's "M out of N" decision.
+  JsErrorAlarmDatapointsToAlarm:
+    Type: Number
+    Default: 3
+    Description: >
+      How many of the last JsErrorAlarmEvaluationPeriods windows must
+      breach JsErrorAlarmThreshold before the alarm actually fires (the "M"
+      in "M out of N"). Default 3-of-5 filters a single isolated blip (e.g.
+      one stuck client repeatedly erroring in one window) while still
+      catching a real, sustained problem — set both this and
+      EvaluationPeriods to 1 to go back to "any single breaching window
+      alarms immediately."
 
 Conditions:
   EnableCwLogs: !Equals [!Ref RetainTelemetryBeyond30Days, 'true']
@@ -158,6 +176,17 @@ Resources:
   # OKActions, not just AlarmActions — notifies on recovery too, so a false
   # alarm or a since-fixed bug doesn't require manually checking whether
   # it's still ongoing.
+  #
+  # EvaluationPeriods/DatapointsToAlarm ("M out of N", default 3-of-5
+  # 5-minute windows rather than 1-of-1) — added after a real incident where
+  # a single stuck stale-client browser tripped the alarm 135+ times over
+  # 24h for an already-fixed bug. Filters an isolated blip (one window with
+  # one error) without needing to know anything about app versions or
+  # session counts, at the accepted cost of NOT distinguishing "one
+  # persistently-erroring stuck device" from "a few real affected users" —
+  # a device erroring continuously still breaches M of N just like real
+  # spreading traffic would. See docs/design/alerting.md's "M out of N"
+  # decision for the alternatives considered and rejected.
   JsErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -172,7 +201,8 @@ Resources:
           Value: !Ref AppMonitorName
       Statistic: Sum
       Period: 300
-      EvaluationPeriods: 1
+      EvaluationPeriods: !Ref JsErrorAlarmEvaluationPeriods
+      DatapointsToAlarm: !Ref JsErrorAlarmDatapointsToAlarm
       Threshold: !Ref JsErrorAlarmThreshold
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching

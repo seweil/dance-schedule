@@ -1,0 +1,45 @@
+name: Deploy infra
+
+# Runs infra/deploy.sh in CI so a push to main is enough to make an
+# infra/monitoring.yaml or infra/dashboard.json change live — no one needs
+# to run the deploy locally with their own AWS credentials afterward. See
+# docs/design/monitoring.md's "Deployed via GitHub Actions OIDC" decision
+# and infra/README.md's "Auto-deploy on push" section.
+#
+# Deliberately does NOT cover the other infra/*.sh scripts (Amplify env
+# vars, rewrite rules, email-forwarding, alarm mute/unmute) — those are
+# either one-off/manual by nature (muting an alarm mid-investigation) or
+# still need a broader credential than this workflow's deliberately
+# narrow OIDC role grants. See docs/known-issues.md's root-user entry.
+on:
+  push:
+    branches: [main]
+    paths:
+      - infra/monitoring.yaml
+      - infra/dashboard.json
+  workflow_dispatch: {} # manual re-run, e.g. after an out-of-band console change drifted the stack
+
+# id-token: write is what lets this job exchange a GitHub-issued OIDC token
+# for temporary AWS credentials (aws-actions/configure-aws-credentials) —
+# no long-lived AWS access key stored in GitHub at all.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: aws-infra # requires a repo/environment protection rule approving deploys, see infra/README.md
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # deploy.sh's release-history table reads `git log origin/main`, not just the last commit
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - name: Deploy monitoring stack
+        run: ./infra/deploy.sh

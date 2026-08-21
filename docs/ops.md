@@ -187,7 +187,7 @@ See `docs/design/alerting.md` for the full rationale. Console: **CloudWatch
 
 | What | Where | What you should see |
 | --- | --- | --- |
-| Alarm state | CloudWatch → Alarms → `dance-schedule-js-errors`, or the dashboard's own "JS Error Alarm State" widget (top of its "## Errors" section) | `OK` normally; `ALARM` within ~5 minutes of any real JS error (default threshold: 1). `Insufficient data` briefly after a fresh deploy is normal, not a problem. |
+| Alarm state | CloudWatch → Alarms → `dance-schedule-js-errors`, or the dashboard's own "JS Error Alarm State" widget (top of its "## Errors" section) | `OK` normally; `ALARM` once 3 of the last 5 5-minute windows record a JS error (defaults — "M out of N", see `docs/design/alerting.md`), i.e. within ~15-25 minutes of a sustained real problem, not a single isolated blip. `Insufficient data` briefly after a fresh deploy is normal, not a problem. |
 | Notifications | SNS → Topics → `dance-schedule-alerts` → Subscriptions | One `email` subscription, status `Confirmed` — if it still says `PendingConfirmation`, the one-time confirmation link was never clicked (see `infra/README.md`) and nothing will ever notify. |
 | The underlying data | The dashboard's own "## Errors" widgets, or the `JsErrorRateQuery`/`JsErrorsQuery` saved queries below | A rate graph plus a table of individual errors (message, filename/line, page) — see the "Retention and aggregate reporting" queries below for the exact query text. |
 
@@ -646,7 +646,7 @@ this doc's own sections above where relevant.
 
 | Script | Does | Run it when |
 | --- | --- | --- |
-| `deploy.sh` | Deploys/updates `monitoring.yaml` — RUM app monitor, JS-error alarm + SNS topic, saved Logs Insights queries, the dashboard | After editing `monitoring.yaml`/`dashboard.json`, or to change a parameter (`AlertEmail`, `JsErrorAlarmThreshold`, `Domains`, `SessionSampleRate`, `RetainTelemetryBeyond30Days`) via `./infra/deploy.sh Key=Value ...` |
+| `deploy.sh` | Deploys/updates `monitoring.yaml` — RUM app monitor, JS-error alarm + SNS topic, saved Logs Insights queries, the dashboard | After editing `monitoring.yaml`/`dashboard.json`, or to change a parameter (`AlertEmail`, `JsErrorAlarmThreshold`, `JsErrorAlarmEvaluationPeriods`, `JsErrorAlarmDatapointsToAlarm`, `Domains`, `SessionSampleRate`, `RetainTelemetryBeyond30Days`) via `./infra/deploy.sh Key=Value ...`. Also runs automatically in CI on push to `main` when `infra/monitoring.yaml`/`infra/dashboard.json` change — see `infra/README.md`'s "Auto-deploy on push" section |
 | `set-amplify-env.sh <app-id> [branch]` | Copies the RUM stack's outputs into Amplify's build-time env vars, triggers a rebuild | Once, right after the first `deploy.sh` (or if the RUM stack is ever recreated) |
 | `disable-js-error-alarm.sh` | Mutes the JS-error alarm's SNS notifications — evaluation keeps running | Actively investigating a known issue, don't want repeat pages |
 | `enable-js-error-alarm.sh` | Un-mutes it | Done investigating |
