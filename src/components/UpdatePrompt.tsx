@@ -32,7 +32,23 @@ export function UpdatePrompt() {
         return
       }
       setInterval(() => {
-        void registration.update()
+        // Confirmed live via RUM (macOS Safari, real production traffic): a
+        // bare, unguarded registration.update() surfaced as
+        // InvalidStateError: "newestWorker is null" — a known WebKit quirk,
+        // update() rejecting (or occasionally throwing synchronously) in
+        // certain internal states, unrelated to anything this app does.
+        // Every 60s on every open Safari tab means this was a real,
+        // ongoing, previously-invisible source of noise. A failed
+        // background update check isn't worth surfacing as an error either
+        // way — the next scheduled check 60s later just tries again — so
+        // both the sync-throw and rejected-promise cases are swallowed
+        // here, matching ResetAction.tsx's own applyPendingUpdate(), which
+        // already guards its own registration.update() call the same way.
+        try {
+          void registration.update().catch(() => undefined)
+        } catch {
+          // Ignored — see comment above.
+        }
       }, UPDATE_CHECK_INTERVAL_MS)
     },
   })
