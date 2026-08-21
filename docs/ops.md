@@ -302,18 +302,26 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | stats count_distinct(sessionId) as activeSessions
 ```
 
-**Active sessions over time** — the trend behind the single snapshot
-above, for noticing a spike or drop-off rather than only ever seeing
-"right now." Same non-filtered, any-event-counts reasoning, bucketed by
-`bin(15m)` instead of collapsed to one number — backs the dashboard's
-"Active Sessions Over Time" widget, both in the "## Traffic" section
-(moved there from a standalone "## Active Now" section, alongside the
-snapshot widget, since this is fundamentally a traffic question):
+**Active sessions over time, one line per app version** — the trend
+behind the single snapshot above, for noticing a spike or drop-off rather
+than only ever seeing "right now." Same non-filtered, any-event-counts
+reasoning, bucketed by `bin(15m)` instead of collapsed to one number —
+backs the dashboard's "Active Sessions Over Time, by Version" widget,
+both in the "## Traffic" section (moved there from a standalone "##
+Active Now" section, alongside the snapshot widget, since this is
+fundamentally a traffic question). Grouped by `application_version` too,
+not just `bin(15m)` — Logs Insights' `stats ... by bin(15m), someField`
+renders as one line per distinct `someField` value on a `timeSeries`
+dashboard widget, so this gets a per-version breakdown for free. Directly
+useful for a question that came up for real (see
+`docs/known-issues.md`/git history around 2026-08-21): how many active
+sessions are still on an old version after a deploy, versus how quickly
+they're moving onto the current one:
 
 ```
 SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-| fields @timestamp, user_details.sessionId as sessionId
-| stats count_distinct(sessionId) as activeSessions by bin(15m)
+| fields @timestamp, user_details.sessionId as sessionId, application_version as appVersion
+| stats count_distinct(sessionId) as activeSessions by bin(15m), appVersion
 ```
 
 **Devices, browsers, OS, by session, not raw page-view count** — already
@@ -328,8 +336,10 @@ single-page one.
 **Two raw-value naming inconsistencies get normalized here before
 grouping**, confirmed live from real session data: `osName` reports the
 same OS as both `"Mac OS"` and `"macOS"` (different lengths — 6 vs 5
-characters — confirmed via the diagnostic `strlen()` widget below, not
-just eyeballed), and `browserName` reports the same browser as both
+characters — originally confirmed via a diagnostic `strlen()` column on
+the Raw OS Permutations query below, since removed once the finding was
+confirmed and normalized here, not just eyeballed), and `browserName`
+reports the same browser as both
 `"Chrome"` and `"Google Chrome"` (the bare `"Chrome"` form paired with
 `osName: "iOS"` — likely Chrome-on-iOS's `CriOS` UA token parsing
 differently than desktop/Android Chrome's). Neither is a bug in this

@@ -576,7 +576,7 @@ exception — they exist specifically to measure raw page-load volume, not
 session counts.
 
 ### "## Releases" table: a static git-log snapshot baked in at deploy time, not a live query
-**Why:** Prompted by a direct ask — the last 10 commits to `origin/main`
+**Why:** Prompted by a direct ask — the last 20 commits to `origin/main`
 (the ref Amplify's own auto-deploy pipeline actually builds from, not
 whatever the local checkout happens to be on), as a hash/date/summary
 table at the bottom of the dashboard. CloudWatch has no live git data

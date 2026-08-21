@@ -280,20 +280,23 @@ Resources:
   # didn't catch a real iPhone session showing what LOOKED like the exact
   # same "iOS" string). Rather than guess a fourth time, this lists every
   # ACTUAL (osName, displayMode, deviceType) combination present in the
-  # data, with its own session count, sorted descending — plus
-  # strlen(osName), specifically to catch invisible characters (trailing
-  # whitespace, a non-breaking space, etc.) a value read off the console
-  # and retyped into chat can't reveal, but a length that's NOT what it
-  # visually looks like immediately would.
+  # data, with its own session count, sorted descending. Originally also
+  # carried strlen(osName) — specifically to catch invisible characters
+  # (trailing whitespace, a non-breaking space) a value read off the
+  # console and retyped into chat can't reveal — which is what caught the
+  # real "Mac OS" vs "macOS" length mismatch documented in docs/ops.md;
+  # removed per direct request once that finding was confirmed and
+  # normalized (see DevicesBrowsersOsQuery above), since it had served its
+  # one-time diagnostic purpose.
   RawOsPermutationsQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:
       Name: !Sub '${AppMonitorName}/Raw OS-displayMode-deviceType permutations'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields metadata.osName, strlen(metadata.osName) as osNameLen, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId
+        | fields metadata.osName, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId
         | filter event_type = "com.amazon.rum.page_view_event"
-        | stats count_distinct(sessionId) as sessions by metadata.osName, osNameLen, metadata.displayMode, metadata.deviceType
+        | stats count_distinct(sessionId) as sessions by metadata.osName, metadata.displayMode, metadata.deviceType
         | sort sessions desc
 
   PagesViewedQuery:
@@ -365,15 +368,22 @@ Resources:
   # same "any event counts, not just page views" reasoning, bucketed by
   # bin(15m) instead of collapsed to one number, so a traffic spike/drop-off
   # is visible over time rather than only as a single "right now" reading.
+  # Grouped by application_version too, not just bin(15m) — Logs Insights'
+  # `stats ... by bin(15m), someField` renders as one line per distinct
+  # someField value on a timeSeries dashboard widget, so this gets a
+  # per-version breakdown for free rather than needing a separate query —
+  # directly useful for spotting how many active sessions are stuck on an
+  # old version after a deploy (see docs/known-issues.md's root-user entry's
+  # sibling investigation, where this exact question came up for real).
   # Backs the dashboard's "Active Sessions Over Time" widget.
   ActiveSessionsRateQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:
-      Name: !Sub '${AppMonitorName}/Active sessions over time'
+      Name: !Sub '${AppMonitorName}/Active sessions over time, by version'
       QueryString: |-
         SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
-        | fields @timestamp, user_details.sessionId as sessionId
-        | stats count_distinct(sessionId) as activeSessions by bin(15m)
+        | fields @timestamp, user_details.sessionId as sessionId, application_version as appVersion
+        | stats count_distinct(sessionId) as activeSessions by bin(15m), appVersion
 
   # Same bin(15m)-as-timeSeries technique as RequestRateRecentQuery above, for
   # docs/design/alerting.md's JsErrorAlarm — this is what the dashboard's own

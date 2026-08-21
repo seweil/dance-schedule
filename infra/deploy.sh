@@ -45,7 +45,7 @@ trap 'rm -f "$TMP_TEMPLATE"' EXIT
 # portable across AWS accounts rather than hardcoding this one's id into it.
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# The dashboard's "## Releases" table (last 10 commits to origin/main, which
+# The dashboard's "## Releases" table (last 20 commits to origin/main, which
 # is what Amplify's own auto-deploy pipeline actually builds from) is baked
 # in as static markdown at deploy time — CloudWatch dashboards have no live
 # git data source, so this is only ever as fresh as the last time
@@ -56,7 +56,7 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 # whatever origin/main ref is already known locally rather than aborting the
 # whole deploy over a non-essential widget.
 git fetch origin main --quiet 2>/dev/null || true
-RELEASE_LOG=$(git log -10 --pretty=format:'%h|%as|%s' origin/main 2>/dev/null || git log -10 --pretty=format:'%h|%as|%s' HEAD)
+RELEASE_LOG=$(git log -20 --pretty=format:'%h|%as|%s' origin/main 2>/dev/null || git log -20 --pretty=format:'%h|%as|%s' HEAD)
 
 python3 - "$TMP_TEMPLATE" "$ACCOUNT_ID" "$RELEASE_LOG" <<'PYEOF'
 import json

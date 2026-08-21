@@ -201,7 +201,7 @@ stack (`./infra/deploy.sh`); find it at **CloudWatch → Dashboards →
 `dance-schedule-dashboard`** (or whatever `AppMonitorName` is set to, plus
 `-dashboard`).
 
-Its bottom "## Releases" section is a table of the last 10 commits to
+Its bottom "## Releases" section is a table of the last 20 commits to
 `origin/main` (hash, date, summary) — baked in as static markdown at
 deploy time, since CloudWatch has no live git data source. **This is only
 as fresh as the last `./infra/deploy.sh` run, not automatically updated on

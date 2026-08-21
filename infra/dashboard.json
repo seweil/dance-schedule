@@ -63,11 +63,11 @@
     {
       "type": "log", "x": 8, "y": 13, "width": 16, "height": 6,
       "properties": {
-        "title": "Active Sessions Over Time",
+        "title": "Active Sessions Over Time, by Version",
         "view": "timeSeries",
         "region": "us-east-2",
         "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, user_details.sessionId as sessionId\n| stats count_distinct(sessionId) as activeSessions by bin(15m)"
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, user_details.sessionId as sessionId, application_version as appVersion\n| stats count_distinct(sessionId) as activeSessions by bin(15m), appVersion"
       }
     },
     {
@@ -113,7 +113,7 @@
         "view": "table",
         "region": "us-east-2",
         "stacked": false,
-        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.osName, strlen(metadata.osName) as osNameLen, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count_distinct(sessionId) as sessions by metadata.osName, osNameLen, metadata.displayMode, metadata.deviceType\n| sort sessions desc"
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields metadata.osName, metadata.displayMode, metadata.deviceType, user_details.sessionId as sessionId\n| filter event_type = \"com.amazon.rum.page_view_event\"\n| stats count_distinct(sessionId) as sessions by metadata.osName, metadata.displayMode, metadata.deviceType\n| sort sessions desc"
       }
     },
     {
@@ -202,7 +202,7 @@
       }
     },
     {
-      "type": "text", "x": 0, "y": 62, "width": 24, "height": 8,
+      "type": "text", "x": 0, "y": 62, "width": 24, "height": 14,
       "properties": {
         "markdown": "__RELEASE_HISTORY__"
       }
