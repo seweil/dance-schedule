@@ -173,3 +173,63 @@ blank.
   (`docs/ops.md`'s "Aggregate metrics" row) cover that adequately for now?
 - A second SNS subscriber (SMS, a Slack webhook) if email turns out to be
   too easy to miss in practice.
+- **Paused, 2026-08-21: should the alarm ignore known-stale-client noise
+  (only alert on the currently-live version, or only on errors affecting
+  multiple sessions), and if so, how?** Triggered by a real incident: the
+  alarm fired repeatedly (135+ events over 24h) from a single stuck macOS
+  Safari client — `userId 92297ae1-b928-4ee5-9e2a-144bc8ba2166`,
+  `appVersion b5f501a` (several commits behind `HEAD`, predating
+  `4e3d658`'s actual fix for the exact error it kept throwing:
+  `InvalidStateError`/"newestWorker is null" from `UpdatePrompt.tsx`'s
+  unguarded `registration.update()`). Confirmed via `JsErrorsQuery`'s
+  enriched fields (`appVersion`, `userId`) that this was one already-known,
+  already-fixed-going-forward client repeatedly re-triggering the alarm,
+  not live/spreading traffic. Muted via `./infra/disable-js-error-alarm.sh`
+  while investigating.
+
+  Two designs discussed, neither built yet:
+  1. **Version-scoped alarm** — a new `AWS::Logs::MetricFilter` matching
+     `application_version = "<current>"` exactly, replacing the alarm's
+     `AWS/RUM` metric source. Real risks: (a) **silent total failure** if
+     the tracked "current version" value doesn't exactly match live
+     traffic (a hash-length mismatch, or `infra/deploy.sh` run out of sync
+     with Amplify's own separate auto-deploy pipeline) — unlike today's
+     alarm, which can only ever be *too noisy*, a version mismatch here
+     makes it go quiet **including for real, current bugs**, with no
+     visible sign anything's wrong; (b) the tracked "current version"
+     needs sourcing from Amplify's own job history via API (the ground
+     truth for what's actually live), not local git state, since the two
+     deploy pipelines are decoupled; (c) a `MetricFilter`'s
+     `DefaultValue: 0` needs setting correctly or `INSUFFICIENT_DATA`
+     flapping results; (d) the metric's own meaning silently shifts every
+     deploy (same metric name, different filter each time) — a historical
+     graph of it would be misleading; (e) `JsErrorRateQuery`'s existing
+     graph isn't version-filtered, so it'd visibly diverge from what the
+     alarm actually watches.
+  2. **Distinct-sessions-affected alarm** (initially pitched as "the
+     simple alternative" — **that framing was wrong**, corrected before
+     any building started): `AWS::Logs::MetricFilter` can only count
+     matching log *lines* (or sum/extract one numeric field per line) — it
+     has no distinct-value aggregation, so "count distinct sessionId with
+     an error" isn't expressible as a plain metric filter the way the
+     original `JsErrorCount` alarm is. A real version of this needs a
+     scheduled Lambda (EventBridge rule running the equivalent
+     `stats count_distinct(sessionId)` Logs Insights query periodically,
+     pushing the result via `PutMetricData`) — genuinely *more*
+     infrastructure than option 1, not less. (Using session id as a metric
+     *dimension* instead was also considered and rejected: high-cardinality
+     dimensions are a known CloudWatch custom-metrics cost/cardinality
+     anti-pattern.)
+
+  A third, no-new-infrastructure option surfaced in the same discussion:
+  tune the *existing* alarm's own evaluation — CloudWatch's "M out of N"
+  periods (e.g. require 3 of 5 breaching 5-minute periods instead of 1) —
+  which filters an isolated blip without needing to know anything about
+  sessions or versions at all, at the cost of not actually distinguishing
+  "one stuck device" from "a few real affected users."
+
+  **Status:** paused before deciding between these, to see whether the
+  problem resolves on its own first — the user is rebooting the suspected
+  stuck machine to confirm whether the errors were coming from it
+  specifically. If they stop after that, no alarm-design change may be
+  needed at all for *this* incident; revisit if/when it recurs.
