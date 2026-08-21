@@ -18,7 +18,7 @@ Console: **AWS Amplify → Hosting → your app**.
 | Build/deploy status | Branch (`main`) → deployment history | One entry per push to `main`, each showing provision/build/deploy/verify phase status. A push should trigger a new build within ~1 minute; a full build+deploy typically finishes in a few minutes. |
 | Environment variables | App settings → Environment variables | `VITE_RUM_APP_MONITOR_ID`, `VITE_RUM_IDENTITY_POOL_ID`, `VITE_RUM_REGION` — set via `infra/set-amplify-env.sh`, not by hand (see `infra/README.md`). Missing/stale values here mean the next build won't collect RUM data — `src/lib/rum.ts` silently no-ops rather than erroring. |
 | Domains | App settings → Domain management | `sqdance.app` (custom) and the platform-provided `<branch>.<app-id>.amplifyapp.com` URL, both live. |
-| Rewrites and redirects | App settings → Rewrites and redirects | SPA fallback rules — one root rule plus one rewrite+redirect pair per content set (`automated-testing`, `test`, ...). **Console-only, not in the repo** — see `docs/design/hosting.md`'s "Per-content-set Amplify rewrite rule" decision. Check this first if a direct link to a non-root route 404s after adding a new content set. |
+| Rewrites and redirects | App settings → Rewrites and redirects | SPA fallback rules — one root rule plus one rewrite+redirect pair per content set (`automated-testing`, `test`, ...). Generated from `infra/amplify-rewrites.json`, pushed via `./infra/apply-amplify-rewrites.sh` — not hand-typed here, see the Scripts reference below. Check this first if a direct link to a non-root route 404s after adding a new content set (usually means the generator/apply script wasn't re-run). |
 | Access logs | Monitoring → Access logs | Per-request logs (path, status, referrer, **User-Agent**, timestamp) for any 2-week window you pick, downloadable as CSV. No setup, no retention limit, always available — see `infra/README.md`. This is the fallback for raw traffic data if CloudWatch RUM (below) is ever unavailable or you need pre-RUM historical data. |
 | Aggregate metrics | Monitoring → (default CloudWatch metrics graphs) | Request count, bytes served, 4xx/5xx rate — coarse, no device/browser breakdown. RUM below is the richer source for that. |
 
@@ -179,6 +179,29 @@ up, rather than instrumenting speculatively.
 Adding a new custom event type requires no infra change — `CustomEvents` is
 already `ENABLED` on the app monitor; just add another `trackEvent(...)`
 call site and redeploy the app.
+
+### Alerting
+
+See `docs/design/alerting.md` for the full rationale. Console: **CloudWatch
+→ Alarms → `dance-schedule-js-errors`** (same region, us-east-2).
+
+| What | Where | What you should see |
+| --- | --- | --- |
+| Alarm state | CloudWatch → Alarms → `dance-schedule-js-errors` | `OK` normally; `ALARM` within ~5 minutes of any real JS error (default threshold: 1). `Insufficient data` briefly after a fresh deploy is normal, not a problem. |
+| Notifications | SNS → Topics → `dance-schedule-alerts` → Subscriptions | One `email` subscription, status `Confirmed` — if it still says `PendingConfirmation`, the one-time confirmation link was never clicked (see `infra/README.md`) and nothing will ever notify. |
+| The underlying data | This section's own dashboard — "## Errors" widgets, or the `JsErrorRateQuery`/`JsErrorsQuery` saved queries below | A rate graph plus a table of individual errors (message, filename/line, page) — see the "Retention and aggregate reporting" queries below for the exact query text. |
+
+**Muting alerts** while actively investigating a known issue (stops
+notifications, not evaluation — the alarm's own state keeps updating
+normally, so this isn't the same as losing visibility):
+
+```bash
+./infra/disable-js-error-alarm.sh   # mute
+./infra/enable-js-error-alarm.sh    # un-mute
+```
+
+Nothing reminds you to run the second one — muting is meant to be a short,
+deliberate window, not a way to forget about an alarm.
 
 ### Retention and aggregate reporting
 
@@ -537,16 +560,40 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 
 Console: **CloudFormation → Stacks → `dance-schedule-monitoring`** (us-east-2).
 
-- **Resources tab**: the Cognito unauthenticated identity pool, its guest
-  IAM role, and the RUM app monitor — three resources total, matching
-  `infra/monitoring.yaml`.
+- **Resources tab**: everything `infra/monitoring.yaml` defines — the
+  Cognito unauthenticated identity pool + guest IAM role, the RUM app
+  monitor, the JS-error alarm + its SNS topic/subscription, every saved
+  `AWS::Logs::QueryDefinition`, and the dashboard itself.
 - **Outputs tab**: `AppMonitorId` / `IdentityPoolId` / `Region` — the same
   values `infra/set-amplify-env.sh` reads to populate Amplify's environment
-  variables. Useful to cross-check if the Amplify env vars above ever look
-  wrong or stale.
+  variables — plus `AlertsTopicArn`, useful if you ever want to add a
+  second SNS subscriber by hand. Cross-check here if the Amplify env vars
+  above ever look wrong or stale.
 - **Events tab**: deploy/update history for the stack itself (not to be
   confused with RUM's own Events tab above) — useful if `./infra/deploy.sh`
   ever fails partway through.
+
+## Scripts reference
+
+Every script below lives in `infra/` (one lives in `scripts/` at the repo
+root instead, noted below) and requires the AWS CLI installed and
+credentialed (`aws configure` or `aws sso login`). None of these run
+automatically as part of a deploy — Amplify's own pipeline (`amplify.yml`)
+only builds and publishes the app itself; everything here is a deliberate,
+manual step. Fuller detail on each lives in `infra/README.md`, linked from
+this doc's own sections above where relevant.
+
+| Script | Does | Run it when |
+| --- | --- | --- |
+| `deploy.sh` | Deploys/updates `monitoring.yaml` — RUM app monitor, JS-error alarm + SNS topic, saved Logs Insights queries, the dashboard | After editing `monitoring.yaml`/`dashboard.json`, or to change a parameter (`AlertEmail`, `JsErrorAlarmThreshold`, `Domains`, `SessionSampleRate`, `RetainTelemetryBeyond30Days`) via `./infra/deploy.sh Key=Value ...` |
+| `set-amplify-env.sh <app-id> [branch]` | Copies the RUM stack's outputs into Amplify's build-time env vars, triggers a rebuild | Once, right after the first `deploy.sh` (or if the RUM stack is ever recreated) |
+| `disable-js-error-alarm.sh` | Mutes the JS-error alarm's SNS notifications — evaluation keeps running | Actively investigating a known issue, don't want repeat pages |
+| `enable-js-error-alarm.sh` | Un-mutes it | Done investigating |
+| `download-dashboard.sh` | Pulls the *live* CloudWatch dashboard definition back into `infra/dashboard.json` | After manually dragging/resizing a widget in the console, to fold that change back into source control |
+| `apply-amplify-rewrites.sh [app-id]` | Pushes `infra/amplify-rewrites.json` (the SPA rewrite/redirect rules) to Amplify's hosting config via the API — auto-detects the app id if there's only one | After running the generator below, or any time the rewrite rules need to change |
+| `../scripts/generate-amplify-rewrites.mjs` (repo root — `node scripts/generate-amplify-rewrites.mjs`) | Regenerates `infra/amplify-rewrites.json` from the actual `content/<set>/` directories | Whenever a content set (event) is added or removed — see `docs/adding-a-new-event.md`'s Step 7 |
+| `deploy-email-forwarding.sh [address]` | Deploys/updates `email-forwarding.yaml` — SES receipt rule + forwarding Lambda for `help@sqdance.app` | After editing that template, or to change the forward-to address |
+| `add-email-dns-records.sh` | Writes the email-forwarding stack's required DNS records (MX + 3 DKIM CNAMEs) into Route53 | Once, after the first `deploy-email-forwarding.sh`, or if the domain's DNS ever moves |
 
 ## Quick troubleshooting map
 
@@ -556,5 +603,6 @@ Console: **CloudFormation → Stacks → `dance-schedule-monitoring`** (us-east-
 | RUM session/event counts look lower than expected | Check it's not just the known offline undercount above before assuming something's broken |
 | Custom events missing but built-in telemetry (device/browser) works | `CustomEvents.Status` on the app monitor — must be `ENABLED` in `monitoring.yaml`, requires a stack redeploy if just added |
 | Need counts/group-by, not just individual events | RUM's own Events tab can't do this — use CloudWatch Logs Insights against the log group `RetainTelemetryBeyond30Days` creates, see this doc's "Retention and aggregate reporting" section above |
-| A route 404s after adding a content set | Amplify's Rewrites and redirects — needs a new rule pair, console-only, see the Amplify Hosting table above |
+| A route 404s after adding a content set | Run `node scripts/generate-amplify-rewrites.mjs && ./infra/apply-amplify-rewrites.sh` — see the Amplify Hosting table and Scripts reference above/below |
 | Site looks stale after a deploy | This is a PWA with a service worker precache — a new build can sit "waiting" until the app's own update-prompt UI (or a manual `skipWaiting`) activates it; don't assume a redeploy is broken just because a browser tab still shows old content |
+| Getting repeat JS-error alarm emails while already investigating | `./infra/disable-js-error-alarm.sh` to mute, `./infra/enable-js-error-alarm.sh` when done — see the Alerting section above |

@@ -152,12 +152,14 @@ notifications deliver until that's done — same shape as
 `deploy-email-forwarding.sh`'s SES verification step below.
 
 **To verify it actually works**, since it's untested against a real
-account: trigger a real client-side error (e.g. temporarily throw in a
-component and load the page), then check the alarm's state in the
+account: visit `/debug/dance-schedule` on the live site and click "Trigger
+a test JS error" at the very bottom
+(`src/components/RawDanceScheduleDebugPage.tsx`) — safe to click
+repeatedly, doesn't break the page. Then check the alarm's state in the
 CloudWatch console (**Alarms** → `dance-schedule-js-errors`) — it should
 move to `ALARM` within the 5-minute evaluation window and the confirmed
-email address should get a notification. Move it back to `OK` by fixing
-the error and waiting out the window (or just confirm the metric shows a
+email address should get a notification. Move it back to `OK` by waiting
+out the window with no further errors (or just confirm the metric shows a
 data point — `aws cloudwatch get-metric-statistics --namespace AWS/RUM
 --metric-name JsErrorCount --dimensions
 Name=application_name,Value=dance-schedule --start-time <recent> --end-time
@@ -171,6 +173,20 @@ The dashboard below (its own "## Errors" section) graphs the same data this
 alarm watches, plus a table enumerating individual errors — useful for
 seeing *when* a spike started and *which* errors they actually were,
 beyond just the alarm firing.
+
+### Muting alerts while investigating
+
+```bash
+./infra/disable-js-error-alarm.sh   # stop SNS notifications
+./infra/enable-js-error-alarm.sh    # resume them
+```
+
+Mutes only the alarm's *notifications* (`ActionsEnabled`) — the alarm keeps
+evaluating and its `ALARM`/`OK` state still shows correctly in the console
+and on the dashboard, so muting doesn't mean losing visibility, just not
+getting paged while you look into something already noticed. No
+redeploy needed either direction, and nothing reminds you to re-enable —
+see `docs/ops.md`'s "Muting alerts" note.
 
 ## Dashboard
 
