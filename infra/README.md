@@ -167,6 +167,11 @@ To change the sensitivity later: `./infra/deploy.sh JsErrorAlarmThreshold=3`
 (default `1` — any single error notifies), or edit the Default directly in
 `monitoring.yaml` and redeploy with no args.
 
+The dashboard below (its own "## Errors" section) graphs the same data this
+alarm watches, plus a table enumerating individual errors — useful for
+seeing *when* a spike started and *which* errors they actually were,
+beyond just the alarm firing.
+
 ## Dashboard
 
 `monitoring.yaml`'s `RumDashboard` resource (an `AWS::CloudWatch::Dashboard`)

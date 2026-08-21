@@ -341,6 +341,44 @@ Resources:
         | filter event_type = "com.amazon.rum.page_view_event"
         | stats count(*) as pageViews by bin(15m)
 
+  # Same bin(15m)-as-timeSeries technique as RequestRateRecentQuery above, for
+  # docs/design/alerting.md's JsErrorAlarm — this is what the dashboard's own
+  # "JS Error Rate" widget renders as a line graph, so seeing the alarm fire
+  # and seeing WHEN it started don't require two different tools.
+  JsErrorRateQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/JS error rate over time'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields @timestamp
+        | filter event_type = "com.amazon.rum.js_error_event"
+        | stats count(*) as jsErrors by bin(15m)
+
+  # The "which errors, exactly" companion to JsErrorRateQuery above — a rate
+  # graph alone tells you SOMETHING broke, not what. event_type itself
+  # ("com.amazon.rum.js_error_event") is the one field name here confirmed
+  # against this file's other queries (matches page_view_event's own
+  # confirmed naming pattern); event_details.type/message/filename/lineno
+  # are RUM's documented JS-error event-detail schema but, like
+  # JsErrorAlarm's AWS/RUM metric namespace, HAVEN'T been confirmed against
+  # this account's actual live event data (no credentials were available
+  # while writing this). If this returns blank columns instead of real
+  # values once deployed, run `SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+  # | filter event_type = "com.amazon.rum.js_error_event" | limit 1` first
+  # to see the real field names an actual error event has, and fix the
+  # `fields` line here (and the matching dashboard widget in
+  # infra/dashboard.json, and docs/ops.md's copy) to match.
+  JsErrorsQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/JS errors, most recent first'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page
+        | filter event_type = "com.amazon.rum.js_error_event"
+        | sort @timestamp desc
+
   FontSizeQuery:
     Type: AWS::Logs::QueryDefinition
     Properties:

@@ -18,6 +18,8 @@ questions.
 - [x] Where to alarm from, given RUM's data — see Decisions
 - [x] How to get notified — see Decisions
 - [x] Alarm sensitivity/threshold — see Decisions
+- [x] Seeing the error rate/history, not just getting notified when it
+      crosses a threshold — see Decisions
 
 ## Decisions
 
@@ -87,6 +89,35 @@ other than "no problem detected." `OKActions` (not just `AlarmActions`)
 notifies on recovery too, matching CLAUDE.md's own PWA-update-flow
 principle of never leaving someone to wonder about state silently — here,
 whether a firing alarm is still ongoing.
+
+### Dashboard graph + listing on Logs Insights, not the `AWS/RUM` metric the alarm uses
+**Why:** The alarm itself had to break `infra/monitoring.yaml`'s
+"everything on Logs Insights" convention out of necessity (see above) — the
+dashboard graph doesn't share that constraint, since a dashboard `log`-type
+widget can already query RUM's managed data source directly
+(`SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])`, the same
+mechanism every other widget/query in this file already uses successfully),
+with no log-group-name problem the way an alarm's `MetricFilter` would
+have. Staying on Logs Insights here also gets a second thing the metric
+alone can't: `JsErrorsQuery` enumerates individual error events
+(timestamp, message, filename/line, page) sorted most-recent-first, not
+just a count — a rate graph alone tells you *something* broke, not *what*.
+Added as a new "## Errors" dashboard section (`JsErrorRateQuery` graphed as
+a line chart, `JsErrorsQuery` as a table) — appended at the bottom of
+`infra/dashboard.json` rather than reordered near the top, matching
+`infra/README.md`'s own stated preference for repositioning dashboard
+widgets by dragging in the console (then syncing back via
+`./infra/download-dashboard.sh`) over hand-editing every other widget's `x`/`y`
+coordinates to make room.
+
+Same field-name caveat as the alarm's metric: `event_type =
+"com.amazon.rum.js_error_event"` is confirmed (matches
+`com.amazon.rum.page_view_event`'s own already-confirmed naming pattern),
+but `JsErrorsQuery`'s specific `event_details.*` fields
+(`type`/`message`/`filename`/`lineno`) are RUM's documented schema, not yet
+checked against this account's real data — see that query's own comment in
+`infra/monitoring.yaml` for how to fix it if the column values come back
+blank.
 
 ## Open questions
 

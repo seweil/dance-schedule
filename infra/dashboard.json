@@ -139,6 +139,32 @@
         "stacked": false,
         "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields event_details.min as minLevel, event_details.max as maxLevel, user_details.sessionId as sessionId\n| filter event_type = \"dance_schedule_level_range\"\n| fields concat(minLevel, \"-\", maxLevel) as range\n| stats count_distinct(sessionId) as sessions by range\n| sort sessions desc"
       }
+    },
+    {
+      "type": "text", "x": 0, "y": 39, "width": 24, "height": 1,
+      "properties": {
+        "markdown": "## Errors"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 40, "width": 24, "height": 6,
+      "properties": {
+        "title": "JS Error Rate",
+        "view": "timeSeries",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp\n| filter event_type = \"com.amazon.rum.js_error_event\"\n| stats count(*) as jsErrors by bin(15m)"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 46, "width": 24, "height": 6,
+      "properties": {
+        "title": "JS Errors (most recent first)",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page\n| filter event_type = \"com.amazon.rum.js_error_event\"\n| sort @timestamp desc"
+      }
     }
   ]
 }

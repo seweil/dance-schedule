@@ -495,6 +495,44 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | sort sessions desc
 ```
 
+**JS error rate over time** — same `bin(15m)`-as-timeSeries technique as
+Request Rate (Last 3h) above, filtered to RUM's built-in JS-error event
+instead of page views. Backs both the "JS Error Rate" dashboard widget and
+`docs/design/alerting.md`'s `JsErrorAlarm` (the alarm itself evaluates the
+separate `AWS/RUM` CloudWatch metric, not this query — see that doc for
+why an alarm couldn't stay on Logs Insights the way everything else here
+does — but this graph lets you see WHEN an alarm-triggering spike started,
+not just that the alarm fired):
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields @timestamp
+| filter event_type = "com.amazon.rum.js_error_event"
+| stats count(*) as jsErrors by bin(15m)
+```
+
+**Individual JS errors, most recent first** — the rate graph's companion:
+tells you WHICH errors, not just how many. `event_type =
+"com.amazon.rum.js_error_event"` is confirmed (matches
+`com.amazon.rum.page_view_event`'s own confirmed naming convention above),
+but the specific `event_details.*` field names below
+(`type`/`message`/`filename`/`lineno`) are RUM's documented JS-error
+event-detail schema, **not yet confirmed against this account's actual
+live data** — no credentials were available while writing this query. If
+it comes back with blank columns once real errors exist, run `SOURCE
+dataSource(['amazon_cloudwatch.rum_app_monitor']) | filter event_type =
+"com.amazon.rum.js_error_event" | limit 1` first to see an actual event's
+real field names, then fix the `fields` line here and its two other
+copies (`infra/monitoring.yaml`'s `JsErrorsQuery`, and the dashboard
+widget in `infra/dashboard.json`):
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page
+| filter event_type = "com.amazon.rum.js_error_event"
+| sort @timestamp desc
+```
+
 ## CloudFormation
 
 Console: **CloudFormation → Stacks → `dance-schedule-monitoring`** (us-east-2).
