@@ -165,6 +165,24 @@
         "stacked": false,
         "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields @timestamp, event_details.type as errorType, event_details.message as message, event_details.filename as filename, event_details.lineno as line, metadata.pageId as page\n| filter event_type = \"com.amazon.rum.js_error_event\"\n| sort @timestamp desc"
       }
+    },
+    {
+      "type": "text", "x": 0, "y": 52, "width": 24, "height": 1,
+      "properties": {
+        "markdown": "## Active Now"
+      }
+    },
+    {
+      "type": "log", "x": 0, "y": 53, "width": 8, "height": 6,
+      "properties": {
+        "title": "Active Sessions (Last 15m)",
+        "view": "table",
+        "region": "us-east-2",
+        "stacked": false,
+        "start": "-PT15M",
+        "end": "P0D",
+        "query": "SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor']) logGroups(namePrefix: [], class: \"STANDARD\") |\nfields user_details.sessionId as sessionId\n| stats count_distinct(sessionId) as activeSessions"
+      }
     }
   ]
 }

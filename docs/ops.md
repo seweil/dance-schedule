@@ -282,6 +282,26 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | stats count(*) as pageViews by bin(15m)
 ```
 
+**Active sessions right now** — "who's around" isn't the same question as
+"how many page views," especially for this app: the whole point is
+checking a schedule and leaving the tab open, not repeated navigation. So
+this deliberately does NOT filter to `page_view_event` the way every other
+query on this page does — a session counts as active if it emitted ANY RUM
+event (page view, custom event, JS/HTTP error) in the selected window.
+Pinned to the last 15 minutes on the dashboard's own "Active Sessions
+(Last 15m)" widget, same `start`/`end` pinning technique as Request Rate
+(Last 3h) above. Worth being honest about what this is and isn't: not true
+real-time concurrency (RUM events can lag actual arrival by a little), but
+a reasonable "how many people right now" proxy at this app's traffic
+volume — good enough to notice "traffic just spiked" or "nobody's here,"
+not precise enough to treat as an exact live counter:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields user_details.sessionId as sessionId
+| stats count_distinct(sessionId) as activeSessions
+```
+
 **Devices, browsers, OS, by session, not raw page-view count** — already
 graphed natively in the Overview tab above with no query needed; the
 equivalent Logs Insights query (useful if you want to cross-tabulate with

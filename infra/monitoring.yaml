@@ -341,6 +341,26 @@ Resources:
         | filter event_type = "com.amazon.rum.page_view_event"
         | stats count(*) as pageViews by bin(15m)
 
+  # "Active" means "emitted ANY RUM event" (page view, custom event, JS/HTTP
+  # error) within whatever time range is selected — deliberately NOT filtered
+  # to page_view_event the way every query above is, since a session sitting
+  # on one page without navigating (this app's whole point — check the
+  # schedule, leave the tab open) would otherwise undercount as inactive. No
+  # saved time window here (a QueryDefinition has none — pick one when
+  # running it from the Queries tab); the dashboard's own "Active Sessions
+  # (Last 15m)" widget pins one via widget-level start/end, same technique as
+  # Request Rate (Last 3h) above. Not true real-time concurrency (RUM events
+  # can lag arrival by a little), but a reasonable "who's around right now"
+  # proxy at this app's traffic volume.
+  ActiveSessionsQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: !Sub '${AppMonitorName}/Active sessions'
+      QueryString: |-
+        SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+        | fields user_details.sessionId as sessionId
+        | stats count_distinct(sessionId) as activeSessions
+
   # Same bin(15m)-as-timeSeries technique as RequestRateRecentQuery above, for
   # docs/design/alerting.md's JsErrorAlarm — this is what the dashboard's own
   # "JS Error Rate" widget renders as a line graph, so seeing the alarm fire
