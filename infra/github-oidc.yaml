@@ -192,13 +192,15 @@ Resources:
                   - rum:UpdateAppMonitor
                   - rum:TagResource
                   - rum:UntagResource
-                  # Discovered 2026-08-21: CloudFormation calls this itself
-                  # while resolving AWS::RUM::AppMonitor's Id attribute
-                  # during an update — not something monitoring.yaml's own
-                  # template calls directly, but the deploy failed with
-                  # AccessDenied on it ("Unable to retrieve Id attribute
-                  # for AWS::RUM::AppMonitor") without this grant.
+                  # Discovered 2026-08-21: CloudFormation calls both of
+                  # these itself while resolving AWS::RUM::AppMonitor's Id
+                  # attribute during an update — not something
+                  # monitoring.yaml's own template calls directly, but the
+                  # deploy failed with AccessDenied on each in turn
+                  # ("Unable to retrieve Id attribute for
+                  # AWS::RUM::AppMonitor") without these grants.
                   - rum:ListRumMetricsDestinations
+                  - rum:GetResourcePolicy
                 Resource: '*'
               - Sid: AlarmAndDashboard
                 Effect: Allow
