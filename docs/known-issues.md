@@ -3,6 +3,37 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
+## High priority: AWS deploys are running as the account's root user, not a scoped IAM identity
+
+**Found 2026-08-21**, running `./infra/deploy.sh` in a Claude Code
+session: `aws sts get-caller-identity` returned
+`arn:aws:iam::038964339720:root` — not an IAM user or an assumed role.
+Every `infra/*.sh` script (`deploy.sh`, `set-amplify-env.sh`,
+`apply-amplify-rewrites.sh`, `enable-js-error-alarm.sh`/
+`disable-js-error-alarm.sh`, `deploy-email-forwarding.sh`,
+`add-email-dns-records.sh`) has been run — at least in this session —
+with full, unscoped root credentials rather than a permission-bounded
+identity.
+
+**Why this matters:** root has no permission boundary at all. A leaked
+credential, a scripting mistake (wrong `--stack-name`, typo'd `--region`,
+a destructive command run against the wrong resource), or a compromised
+local machine has unlimited blast radius across the *entire* AWS
+account — not just this app's own stacks/buckets/domains. AWS's own
+long-standing guidance is to avoid using root for routine work and
+reserve it only for the handful of account-level tasks that genuinely
+require it (closing the account, certain billing/support operations).
+
+**Fix:** create a scoped IAM identity (an IAM user, or better, an SSO/
+assumed role) covering exactly what these scripts touch —
+CloudFormation (the `dance-schedule-monitoring` and
+`dance-schedule-email-forwarding` stacks), Amplify (app + env-var
+management), CloudWatch (Alarms, Logs, RUM), SNS, SES, Route53, and
+Cognito (the identity pool `monitoring.yaml` creates) — then switch
+local AWS CLI credentials (`aws configure` or an SSO profile) to that
+identity for all day-to-day deploys, and stop signing in as root
+entirely except for the rare account-level task that actually needs it.
+
 ## Claude Code's own sandbox can't launch Chromium — fixed, but only for the exact allowlisted command forms
 
 **Resolved 2026-08-01** (commit `084f6b1`, `.claude/settings.json`) — but
