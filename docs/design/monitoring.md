@@ -124,25 +124,38 @@ access key in GitHub at all — see that action's own docs), and runs
 does this stack get deployed," CI and a human running it locally both
 going through the same script.
 
-**Real gotcha hit on first bootstrap, 2026-08-21**: the role's trust
-condition originally matched a `StringLike` pattern against the `sub`
-claim (`repo:${GitHubRepo}:ref:refs/heads/main`) — every real deploy
-failed with "Not authorized to perform sts:AssumeRoleWithWebIdentity"
-despite the role, the OIDC provider, and the GitHub repo variable all
-verified correct by hand. Diagnosed by temporarily adding a workflow step
-that fetches and decodes GitHub's actual issued token: the real `sub` was
-`repo:seweil@5559808/dance-schedule@1309336234:ref:refs/heads/main` —
-GitHub now embeds immutable numeric owner/repo IDs into `sub` (a
-hardening change against repo-rename/transfer trust reuse), which isn't
-reflected in a lot of older GitHub-OIDC-for-AWS examples. Fixed by
-matching the `repository`/`ref` claims directly instead (both present as
-their own top-level claims on the same token) rather than trying to
-reconstruct the compound `sub` string, including its now-required numeric
-IDs — see `infra/github-oidc.yaml`'s own comment on the role's Condition
-block for the full detail. Worth remembering if this ever needs
+**Two real, sequential gotchas hit on first bootstrap, 2026-08-21** — both
+diagnosed by temporarily adding a workflow step that fetches and decodes
+GitHub's actual issued OIDC token, rather than continuing to guess from
+documentation/examples:
+
+1. The role's trust condition originally matched a `StringLike` pattern
+   against the `sub` claim (`repo:${GitHubRepo}:ref:refs/heads/main`) —
+   every real deploy failed with "Not authorized to perform
+   sts:AssumeRoleWithWebIdentity" despite the role, the OIDC provider, and
+   the GitHub repo variable all verified correct by hand. The decoded
+   token showed the real `sub` was
+   `repo:seweil@5559808/dance-schedule@1309336234:ref:refs/heads/main` —
+   GitHub now embeds immutable numeric owner/repo IDs into `sub` (a
+   hardening change against repo-rename/transfer trust reuse), not
+   reflected in a lot of older GitHub-OIDC-for-AWS examples.
+2. Switching to match the `repository`/`ref` claims directly instead
+   (both present as their own top-level claims on the same token,
+   sidestepping the numeric IDs entirely) got REJECTED outright by AWS on
+   deploy: IAM enforces server-side that a GitHub Actions OIDC trust
+   policy's Condition must include `sub` or `job_workflow_ref`
+   specifically — `repository`/`ref` alone, however precise, doesn't
+   satisfy that validation rule.
+
+Fixed by matching `job_workflow_ref` instead — present on the same token,
+satisfies AWS's validation requirement, and is actually MORE precise than
+either earlier attempt (pins to this exact workflow *file*, not just
+repo+branch) — see `infra/github-oidc.yaml`'s own comment on the role's
+Condition block for the full detail. Worth remembering if this ever needs
 rebuilding from scratch in a different AWS account/repo: don't trust an
-older tutorial's exact `sub`-pattern condition without checking a live
-token first.
+older tutorial's exact `sub`-pattern condition, or assume any claim-match
+satisfies AWS's own validation, without checking a live token and a real
+deploy first.
 
 **Doesn't fully close `docs/known-issues.md`'s root-user finding** — the
 OIDC role only covers this one stack's deploy. The *other* `infra/*.sh`

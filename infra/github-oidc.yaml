@@ -70,27 +70,41 @@ Resources:
               # "any repo" (the aud check alone only proves the token came
               # from *some* GitHub Actions run, not this one).
               #
-              # Matches on the `repository`/`ref` claims directly, NOT a
-              # `sub`-string StringLike pattern like
-              # `repo:${GitHubRepo}:ref:refs/heads/main` — that was tried
-              # first and failed with "Not authorized to perform
-              # sts:AssumeRoleWithWebIdentity" on every real run, diagnosed
-              # 2026-08-21 by printing the actual issued token: GitHub now
-              # embeds immutable numeric owner/repo IDs into `sub`
-              # (`repo:seweil@5559808/dance-schedule@1309336234:ref:...`,
-              # not the ID-less `repo:seweil/dance-schedule:ref:...` this
-              # role's condition originally assumed), a hardening change
-              # against repo-rename/transfer trust reuse that isn't
-              # reflected in a lot of older GitHub-OIDC-for-AWS examples
-              # floating around. `repository`/`ref` are separate top-level
-              # claims on the same token (confirmed live via that same
-              # debug run) — matching those directly sidesteps needing to
-              # know or hardcode the numeric IDs at all, and is no less
-              # secure: `repository` is still exact-string, not a prefix.
+              # Two real, sequential failures getting here, both diagnosed
+              # 2026-08-21 by printing the actual issued token in a
+              # temporary debug workflow step rather than continuing to
+              # guess from documentation/examples:
+              #
+              # 1. A `sub`-string StringLike pattern
+              #    (`repo:${GitHubRepo}:ref:refs/heads/main`) failed every
+              #    real run with "Not authorized to perform
+              #    sts:AssumeRoleWithWebIdentity" — GitHub now embeds
+              #    immutable numeric owner/repo IDs into `sub`
+              #    (`repo:seweil@5559808/dance-schedule@1309336234:ref:...`,
+              #    not the ID-less format that pattern assumed), a
+              #    hardening change against repo-rename/transfer trust
+              #    reuse not reflected in a lot of older GitHub-OIDC-for-AWS
+              #    examples floating around.
+              # 2. Switching to matching the `repository`/`ref` claims
+              #    directly (functionally just as scoped, and sidesteps the
+              #    numeric IDs entirely) instead REJECTED the stack update
+              #    outright: AWS enforces server-side that a GitHub Actions
+              #    OIDC trust policy's Condition must include `sub` or
+              #    `job_workflow_ref` specifically (IAM error: "must
+              #    evaluate ... token.actions.githubusercontent.com:sub or
+              #    token.actions.githubusercontent.com:job_workflow_ref
+              #    which is not scoped to all") — `repository`/`ref` alone,
+              #    however precise, doesn't satisfy that validation rule.
+              #
+              # `job_workflow_ref` (not `sub`) is what's actually used
+              # below — it's MORE precise than a repo+branch match, since
+              # it also pins to this exact workflow FILE
+              # (`.github/workflows/deploy-infra.yml`), immune to some
+              # future unrelated workflow added to this same repo/branch
+              # inheriting this role's trust just by existing there.
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:repository: !Ref GitHubRepo
-                token.actions.githubusercontent.com:ref: refs/heads/main
+                token.actions.githubusercontent.com:job_workflow_ref: !Sub '${GitHubRepo}/.github/workflows/deploy-infra.yml@refs/heads/main'
       MaxSessionDuration: 3600
       Policies:
         - PolicyName: deploy-monitoring-stack
