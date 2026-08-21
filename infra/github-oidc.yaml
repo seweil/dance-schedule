@@ -139,6 +139,7 @@ Resources:
                   - cloudformation:DescribeStacks
                   - cloudformation:DescribeStackEvents
                   - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
                   - cloudformation:DeleteChangeSet
                 Resource:
                   - !Sub 'arn:aws:cloudformation:us-east-2:${AWS::AccountId}:stack/dance-schedule-monitoring/*'

@@ -41,25 +41,6 @@ jobs:
         with:
           fetch-depth: 0 # deploy.sh's release-history table reads `git log origin/main`, not just the last commit
 
-      # TEMPORARY debug step (second round — see docs/design/monitoring.md's
-      # "Two real, sequential gotchas" note) — the deployed trust policy's
-      # job_workflow_ref condition looks byte-for-byte correct by eye, but
-      # AssumeRoleWithWebIdentity still fails, so print the CURRENT actual
-      # token's claim with repr() to catch anything a plain eyeball
-      # comparison of copy-pasted terminal output could miss (trailing
-      # whitespace, an invisible character, etc.). Remove once diagnosed.
-      - name: Debug OIDC token claims
-        run: |
-          JWT=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r '.value')
-          python3 -c "
-          import base64, json
-          payload = '$JWT'.split('.')[1]
-          payload += '=' * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload))
-          print(json.dumps(claims, indent=2))
-          print('job_workflow_ref repr:', repr(claims.get('job_workflow_ref')))
-          "
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
