@@ -63,16 +63,34 @@ Resources:
               Federated: !Ref GitHubOidcProvider
             Action: sts:AssumeRoleWithWebIdentity
             Condition:
-              StringEquals:
-                token.actions.githubusercontent.com:aud: sts.amazonaws.com
               # Restricts to this repo's own main branch specifically —
               # not "any branch of this repo" (a PR from a fork, or even a
               # feature branch in this same repo, must not be able to
               # assume a role that can write production infra) and not
               # "any repo" (the aud check alone only proves the token came
               # from *some* GitHub Actions run, not this one).
-              StringLike:
-                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubRepo}:ref:refs/heads/main'
+              #
+              # Matches on the `repository`/`ref` claims directly, NOT a
+              # `sub`-string StringLike pattern like
+              # `repo:${GitHubRepo}:ref:refs/heads/main` — that was tried
+              # first and failed with "Not authorized to perform
+              # sts:AssumeRoleWithWebIdentity" on every real run, diagnosed
+              # 2026-08-21 by printing the actual issued token: GitHub now
+              # embeds immutable numeric owner/repo IDs into `sub`
+              # (`repo:seweil@5559808/dance-schedule@1309336234:ref:...`,
+              # not the ID-less `repo:seweil/dance-schedule:ref:...` this
+              # role's condition originally assumed), a hardening change
+              # against repo-rename/transfer trust reuse that isn't
+              # reflected in a lot of older GitHub-OIDC-for-AWS examples
+              # floating around. `repository`/`ref` are separate top-level
+              # claims on the same token (confirmed live via that same
+              # debug run) — matching those directly sidesteps needing to
+              # know or hardcode the numeric IDs at all, and is no less
+              # secure: `repository` is still exact-string, not a prefix.
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:repository: !Ref GitHubRepo
+                token.actions.githubusercontent.com:ref: refs/heads/main
       MaxSessionDuration: 3600
       Policies:
         - PolicyName: deploy-monitoring-stack

@@ -109,9 +109,9 @@ see that file's own header comment for why it isn't folded into
 `monitoring.yaml`) creates an IAM OIDC trust for
 `token.actions.githubusercontent.com`, scoped to a role
 (`dance-schedule-github-actions-deploy`) that only this repo's own `main`
-branch can assume (`token.actions.githubusercontent.com:sub` condition —
-not any branch, not a fork, not a PR), and whose permissions policy is
-scoped to exactly the resource types `monitoring.yaml` itself creates
+branch can assume (`token.actions.githubusercontent.com:repository`/`:ref`
+conditions — not any branch, not a fork, not a PR), and whose permissions
+policy is scoped to exactly the resource types `monitoring.yaml` itself creates
 (CloudFormation change-sets on the `dance-schedule-monitoring` stack, the
 one named IAM role it creates, Cognito, RUM, the `dance-schedule*`-named
 CloudWatch alarm/dashboard/SNS topic, Logs query definitions) — not a
@@ -123,6 +123,26 @@ access key in GitHub at all — see that action's own docs), and runs
 `./infra/deploy.sh` unchanged, so there's exactly one code path for "how
 does this stack get deployed," CI and a human running it locally both
 going through the same script.
+
+**Real gotcha hit on first bootstrap, 2026-08-21**: the role's trust
+condition originally matched a `StringLike` pattern against the `sub`
+claim (`repo:${GitHubRepo}:ref:refs/heads/main`) — every real deploy
+failed with "Not authorized to perform sts:AssumeRoleWithWebIdentity"
+despite the role, the OIDC provider, and the GitHub repo variable all
+verified correct by hand. Diagnosed by temporarily adding a workflow step
+that fetches and decodes GitHub's actual issued token: the real `sub` was
+`repo:seweil@5559808/dance-schedule@1309336234:ref:refs/heads/main` —
+GitHub now embeds immutable numeric owner/repo IDs into `sub` (a
+hardening change against repo-rename/transfer trust reuse), which isn't
+reflected in a lot of older GitHub-OIDC-for-AWS examples. Fixed by
+matching the `repository`/`ref` claims directly instead (both present as
+their own top-level claims on the same token) rather than trying to
+reconstruct the compound `sub` string, including its now-required numeric
+IDs — see `infra/github-oidc.yaml`'s own comment on the role's Condition
+block for the full detail. Worth remembering if this ever needs
+rebuilding from scratch in a different AWS account/repo: don't trust an
+older tutorial's exact `sub`-pattern condition without checking a live
+token first.
 
 **Doesn't fully close `docs/known-issues.md`'s root-user finding** — the
 OIDC role only covers this one stack's deploy. The *other* `infra/*.sh`
