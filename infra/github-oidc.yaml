@@ -117,6 +117,20 @@ Resources:
               # Hardcoded rather than derived from GitHubRepo, since the
               # numeric owner/repo IDs (confirmed twice now from live
               # tokens) aren't otherwise available as template inputs.
+              #
+              # Worth being explicit about now that it's no longer
+              # hypothetical: `sub` (repo+branch-scoped) is coarser than
+              # `job_workflow_ref` (workflow-file-scoped) would have been —
+              # see the "MORE precise" paragraph above — and THREE separate
+              # workflows now assume this role under that one shared trust:
+              # deploy-infra.yml, refresh-dashboard.yml, and ci.yml's
+              # `notify` job. If this is ever "hardened" back to
+              # `job_workflow_ref`, pinned to just one of those files, it
+              # will silently break `sts:AssumeRoleWithWebIdentity` for the
+              # other two — not a hypothetical regression, since that's
+              # exactly the swap the DIAGNOSTIC SWAP above already tried and
+              # reverted once, before either of the other two workflows
+              # existed to be broken by it.
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 token.actions.githubusercontent.com:sub: repo:seweil@5559808/dance-schedule@1309336234:ref:refs/heads/main

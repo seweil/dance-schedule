@@ -126,8 +126,17 @@ jobs:
       # deployed resource, not a guessed naming pattern, and needs no new
       # permission beyond cloudformation:DescribeStacks the role already
       # grants for this exact stack.
+      #
+      # continue-on-error on THIS step too, not just "Publish result" below
+      # — a notification hiccup (e.g. a transient AWS API error here, or the
+      # IAM grant this needs not deployed yet — see infra/github-oidc.yaml's
+      # own sns:Publish comment) must never itself paint the whole CI run
+      # red; checks/e2e's own results already speak for themselves. Without
+      # this, a failure resolving the ARN alone would fail the job even
+      # though the publish step right after it is already guarded.
       - name: Resolve alerts topic ARN
         id: topic
+        continue-on-error: true
         run: |
           ARN=$(aws cloudformation describe-stacks \
             --stack-name dance-schedule-monitoring \
@@ -136,10 +145,6 @@ jobs:
             --output text)
           echo "arn=$ARN" >> "$GITHUB_OUTPUT"
 
-      # continue-on-error — a notification hiccup (e.g. the IAM grant this
-      # needs hasn't been deployed yet — see infra/github-oidc.yaml's own
-      # sns:Publish comment) must never itself paint the whole CI run red;
-      # checks/e2e's own results already speak for themselves.
       - name: Publish result
         continue-on-error: true
         env:

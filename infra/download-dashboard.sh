@@ -22,12 +22,13 @@ REGION=us-east-2
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # The live "## Releases" widget holds a timestamped git-log snapshot
-# deploy.sh generated at its last run (see that script's own comment) —
-# baking that back into the committed file would permanently destroy the
-# __RELEASE_HISTORY__ placeholder deploy.sh needs to regenerate it next
-# time, and would make every future download's diff noisy (the timestamp
-# alone changes on every deploy). Matched by its own leading "*As of "
-# marker text, which MUST stay in sync with deploy.sh's own generated
+# generate-dashboard-body.sh produced at its last run (see that script's own
+# comment — deploy.sh and refresh-dashboard.sh both just call it) — baking
+# that back into the committed file would permanently destroy the
+# __RELEASE_HISTORY__ placeholder it needs to regenerate next time, and
+# would make every future download's diff noisy (the timestamp alone
+# changes on every run). Matched by its own leading "*As of " marker text,
+# which MUST stay in sync with generate-dashboard-body.sh's own generated
 # markdown — re-placeholdered here the same way __ACCOUNT_ID__ is below.
 #
 # jq's default output is already pretty-printed (unlike AWS's own compact,
