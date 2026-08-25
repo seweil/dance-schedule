@@ -236,6 +236,15 @@ export function DanceScheduleFilters({
                 key={slot.label}
                 type="button"
                 className={styles.tick}
+                // Drives .tick[data-in-range='false']'s muted label styling
+                // (DanceScheduleFilters.module.css) — a level present that day but
+                // currently outside the selected [minLevelIndex, maxLevelIndex]
+                // range reads as visibly de-emphasized, distinct from a selected
+                // one, so it's clear at a glance which levels are hidden by the
+                // filter rather than just relying on the track's own highlighted
+                // range (easy to miss — see that CSS rule's own comment). Ticks
+                // themselves (the mark below the label) are untouched.
+                data-in-range={index >= minLevelIndex && index <= maxLevelIndex}
                 style={{ left: `calc(8px + (100% - 16px) * ${fraction})` }}
                 // Full slot.label, not the conditionally-shortened text below — a
                 // screen reader still announces "A1/A2," not the ambiguous "A"

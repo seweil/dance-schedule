@@ -467,6 +467,25 @@ describe('DanceScheduleFilters', () => {
     })
   })
 
+  describe('out-of-range tick styling', () => {
+    it('marks ticks inside the selected range as in-range, and ticks outside it as not', () => {
+      renderFilters({ minLevelIndex: 2, maxLevelIndex: 5 })
+
+      expect(screen.getByRole('button', { name: LEVEL_ORDER[1]! })).toHaveAttribute('data-in-range', 'false')
+      expect(screen.getByRole('button', { name: LEVEL_ORDER[2]! })).toHaveAttribute('data-in-range', 'true')
+      expect(screen.getByRole('button', { name: LEVEL_ORDER[5]! })).toHaveAttribute('data-in-range', 'true')
+      expect(screen.getByRole('button', { name: LEVEL_ORDER[6]! })).toHaveAttribute('data-in-range', 'false')
+    })
+
+    it('marks every present tick in-range when the selection spans the full present range', () => {
+      renderFilters()
+
+      for (const level of LEVEL_ORDER) {
+        expect(screen.getByRole('button', { name: level })).toHaveAttribute('data-in-range', 'true')
+      }
+    })
+  })
+
   describe('with a present-level range narrower than the full slots', () => {
     it('renders ticks only for slots within [minPresentLevelIndex, maxPresentLevelIndex]', () => {
       renderFilters({ minPresentLevelIndex: 2, maxPresentLevelIndex: 5 })

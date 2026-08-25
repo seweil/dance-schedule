@@ -552,6 +552,21 @@
   cursor: pointer;
 }
 
+/* A level present that day but currently outside the selected level range reads
+   as de-emphasized — normal weight, muted gray (same #888 convention as
+   BuildInfo.module.css's own muted fine print) instead of this file's ordinary
+   bold/full-color label — so it's clear at a glance which levels the filter is
+   currently hiding, without adding any new UI element or taking any extra
+   layout space. Per direct product decision, reusing a real report that the
+   track's own highlighted range (.sliderRange) wasn't a strong enough signal on
+   its own to explain a missing session. Only the label text changes — the tick
+   MARK (.tickMark) below it keeps its ordinary color regardless, so an
+   out-of-range level still visibly marks its position on the track. */
+.tick[data-in-range='false'] {
+  font-weight: 400;
+  color: #888;
+}
+
 /* var(--color-text), not --color-border (#ddd) — the latter reads as barely
    visible against the page background, too subtle to register as a real tick
    mark at a glance. 2px, not 1px, for the same reason — thicker and darker
