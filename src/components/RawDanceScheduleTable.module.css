@@ -2,10 +2,14 @@
    to its own content (no width: 100%) — cells never wrap (white-space: nowrap
    below), so stretching to the window's width only spread columns apart with
    dead space on a wide desktop monitor instead of ever wrapping/reflowing
-   anything. */
+   anything. Full margin shorthand, not just margin-bottom — src/index.css's
+   own global `table` rule centers a GFM markdown table via `margin: ... auto`,
+   and this class's own bottom-only override left that left/right auto in
+   place, centering this table under its own heading instead of sitting flush
+   left with it. */
 .table {
   width: fit-content;
-  margin-bottom: var(--space-md);
+  margin: 0 0 var(--space-md) 0;
   border-collapse: collapse;
 }
 
