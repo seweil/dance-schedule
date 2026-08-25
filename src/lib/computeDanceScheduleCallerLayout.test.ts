@@ -41,16 +41,11 @@ function makeFreeform(startTime: string, endTime: string, overrides: Partial<Dan
   } as DanceSession
 }
 
-// A caller only gets a column once they have MORE THAN 3 HOURS across the whole
-// event (event-wide, not reactive to the level filter or which date is selected)
-// — pad a caller of interest with one early-morning session of this many hours
-// (disjoint from any test's own daytime scenario) so the specific behavior under
-// test isn't entangled with the hour threshold itself. Built from a start Date +
-// hour offset (not a string template) so fractional hours (e.g. 3.5) work exactly,
-// not just whole ones. Every test in this file that doesn't explicitly test
-// cross-date aggregation keeps all its sessions on a single date, so passing the
-// same array as both `dateSessions`/`visibleSessions` and `allSessions` preserves
-// each test's original single-day intent.
+// Gives a caller of interest one early-morning session (disjoint from any test's
+// own daytime scenario, in its own "Padding Room") so a test can set up a second,
+// unrelated session for the same caller without it interfering with the specific
+// behavior under test. Built from a start Date + hour offset (not a string
+// template) so fractional hours (e.g. 3.5) work exactly, not just whole ones.
 function padHours(caller: string, hours = 4): DanceSession[] {
   const start = new Date('2026-07-02T00:00:00.000Z')
   const end = new Date(start.getTime() + hours * 60 * 60 * 1000)
@@ -72,7 +67,7 @@ function backToBackDances(caller: string, count: number, startHour: number): Dan
 
 describe('computeDanceScheduleCallerLayout', () => {
   it('returns an empty layout for no sessions', () => {
-    expect(computeDanceScheduleCallerLayout([], [], [])).toEqual({
+    expect(computeDanceScheduleCallerLayout([], [])).toEqual({
       visibleCallers: [],
       columnWidthsRem: [],
       totalRows: 0,
@@ -85,7 +80,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     const padding = padHours('Vic Ceder')
     const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, session]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     expect(layout.visibleCallers).toEqual(['Vic Ceder'])
     const placement = layout.placements.find((p) => p.session === session)
@@ -106,7 +101,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       'Terri Sherrer',
     ])
     const sessions = [...padding, session]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     expect(layout.visibleCallers).toEqual(['Michael Kellogg', 'Terri Sherrer'])
     const placements = layout.placements.filter((p) => p.session === session)
@@ -124,7 +119,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     const first = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const second = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Allan Hurst'])
     const sessions = [...padding, first, second]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     expect(layout.visibleCallers).toEqual(['Allan Hurst', 'Vic Ceder'])
   })
@@ -135,7 +130,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     // Maltenfort scheduled/padded first — proves the tiebreak is the full name, not
     // appearance order.
     const sessions = [...maltenfort, ...kellogg]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     expect(layout.visibleCallers).toEqual(['Michael Kellogg', 'Michael Maltenfort'])
   })
@@ -149,7 +144,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     // callers' column-order positions (alphabetical by first name) are preserved.
     const visibleSessions = [...cederDances, ...jensenDances]
 
-    const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions, dateSessions)
+    const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions)
 
     expect(layout.visibleCallers).toEqual(['Kris Jensen', 'Vic Ceder'])
   })
@@ -160,7 +155,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     const dateSessions = [...cederDances, ...hurstDances] // Vic Ceder appears first
     const visibleSessions = hurstDances // Vic Ceder filtered out entirely by level
 
-    const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions, dateSessions)
+    const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions)
 
     expect(layout.visibleCallers).toEqual(['Allan Hurst'])
   })
@@ -170,7 +165,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       description: 'Lunch Break',
       location: { kind: 'roomless' },
     })
-    const layout = computeDanceScheduleCallerLayout([lunch], [lunch], [lunch])
+    const layout = computeDanceScheduleCallerLayout([lunch], [lunch])
 
     expect(layout.visibleCallers).toEqual([])
     expect(layout.placements).toMatchObject([
@@ -183,7 +178,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     const countryWestern = makeFreeform('2026-07-02T21:00:00.000Z', '2026-07-02T22:00:00.000Z')
     const session = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, countryWestern, session]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     // The freeform session now floats, so its 9-10pm range DOES contribute to the
     // axis, and it gets its own "free" placement alongside the real session's.
@@ -201,7 +196,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     })
     const afternoon = backToBackDances('Vic Ceder', 2, 13) // 1pm-3pm, back-to-back
     const sessions = [...morning, lunch, ...afternoon]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     // 2 morning rows + 1 lunch row + 2 afternoon rows = 5 — the lunch row survives
     // compression (it's occupied by the floating break), but the genuinely idle
@@ -212,8 +207,7 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   it('omits "GCA Caller Showcase Dance" sessions entirely, even for an otherwise-qualifying caller', () => {
-    // 4 hours of showcase dances would clear MIN_CALLER_HOURS on a raw sum, but
-    // none of them should count at all — this caller should get no column.
+    // None of these should count at all — this caller should get no column.
     const showcase = Array.from({ length: 4 }, (_, i) =>
       makeSession(
         `2026-07-02T0${i}:00:00.000Z`,
@@ -222,123 +216,37 @@ describe('computeDanceScheduleCallerLayout', () => {
         { eventType: 'GCA Caller Showcase Dance', location: located('Hemon') },
       ),
     )
-    const layout = computeDanceScheduleCallerLayout(showcase, showcase, showcase)
+    const layout = computeDanceScheduleCallerLayout(showcase, showcase)
 
     expect(layout.visibleCallers).toEqual([])
     expect(layout.placements).toEqual([])
   })
 
   it('excludes only the showcase dances, not a caller\'s other real sessions', () => {
-    const padding = padHours('Vic Ceder') // 4 real hours — qualifies on its own
+    const real = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const showcase = makeSession('2026-07-02T20:00:00.000Z', '2026-07-02T20:30:00.000Z', ['Vic Ceder'], {
       eventType: 'GCA Caller Showcase Dance',
     })
-    const sessions = [...padding, showcase]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const sessions = [real, showcase]
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     expect(layout.visibleCallers).toEqual(['Vic Ceder'])
     expect(layout.placements.find((p) => p.session === showcase)).toBeUndefined()
     expect(layout.placements).toHaveLength(1)
   })
 
-  it('hides a caller with exactly 3 hours; shows one with more than 3', () => {
-    const three = padHours('Barry Clasper', 3)
-    const four = padHours('Justin Russell', 4)
-    const sessions = [...three, ...four]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+  it('gives a caller a column even for a single short session, with no hour floor to clear (regression)', () => {
+    // Mirrors a real report: a caller with just one 30-minute slot (split off a
+    // longer one shared with another caller) didn't appear on this page in any
+    // form. This view used to require a caller's event-wide total to exceed 3
+    // hours before they'd get a column at all — removed per direct product
+    // decision, since every real caller should show up here regardless of how
+    // little time they have scheduled.
+    const short = makeSession('2026-07-02T18:00:00.000Z', '2026-07-02T18:30:00.000Z', ['Rob Page'])
+    const layout = computeDanceScheduleCallerLayout([short], [short])
 
-    expect(layout.visibleCallers).toEqual(['Justin Russell'])
-  })
-
-  it('aggregates hours across every date in the event, not just the day being viewed', () => {
-    // 2 hours on July 2 alone would not qualify (under 3), but a further 2 hours
-    // on July 3 pushes the EVENT-WIDE total to 4 — should show on July 2 anyway.
-    const july2 = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T15:00:00.000Z', ['Deborah Chapman'])
-    const july3 = makeSession('2026-07-03T13:00:00.000Z', '2026-07-03T15:00:00.000Z', ['Deborah Chapman'], {
-      date: new Date('2026-07-03T00:00:00.000Z'),
-    })
-    const allSessions = [july2, july3]
-
-    const layout = computeDanceScheduleCallerLayout([july2], [july2], allSessions)
-
-    expect(layout.visibleCallers).toEqual(['Deborah Chapman'])
-  })
-
-  it('hides a caller whose event-wide total lands exactly on the 3-hour boundary, even split across days', () => {
-    const july2 = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:30:00.000Z', ['Wendy VanderMeulen'])
-    const july3 = makeSession('2026-07-03T13:00:00.000Z', '2026-07-03T14:30:00.000Z', ['Wendy VanderMeulen'], {
-      date: new Date('2026-07-03T00:00:00.000Z'),
-    })
-    const allSessions = [july2, july3] // 1.5h + 1.5h = exactly 3.0h event-wide
-
-    const layout = computeDanceScheduleCallerLayout([july2], [july2], allSessions)
-
-    expect(layout.visibleCallers).toEqual([])
-  })
-
-  it('counts accumulated hours toward the threshold, not raw session count', () => {
-    // 2 long sessions, 4 hours total — qualifies despite having fewer dances.
-    const fewLong = [
-      makeSession('2026-07-02T00:00:00.000Z', '2026-07-02T02:00:00.000Z', ['Dave Decot'], {
-        location: located('Padding Room'),
-      }),
-      makeSession('2026-07-02T02:00:00.000Z', '2026-07-02T04:00:00.000Z', ['Dave Decot'], {
-        location: located('Padding Room'),
-      }),
-    ]
-    // 5 short sessions, 2.5 hours total — does not qualify despite having more dances.
-    const manyShort = Array.from({ length: 5 }, (_, i) =>
-      makeSession(
-        `2026-07-02T0${i}:00:00.000Z`,
-        `2026-07-02T0${i}:30:00.000Z`,
-        ['Ted Lizotte'],
-        { location: located('Padding Room') },
-      ),
-    )
-    const sessions = [...fewLong, ...manyShort]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
-
-    expect(layout.visibleCallers).toEqual(['Dave Decot'])
-  })
-
-  it('splits a co-taught session evenly across callers toward each of their own hour totals', () => {
-    // Michael Kellogg has 3 solo hours + half of a 1-hour co-taught session = 3.5
-    // (shown, > 3). Terri Sherrer only has that same half-hour share = 0.5 (hidden).
-    const kellogSolo = padHours('Michael Kellogg', 3)
-    const coTaught = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', [
-      'Michael Kellogg',
-      'Terri Sherrer',
-    ])
-    const sessions = [...kellogSolo, coTaught]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
-
-    expect(layout.visibleCallers).toEqual(['Michael Kellogg'])
-    expect(layout.placements.filter((p) => p.session === coTaught)).toHaveLength(1)
-  })
-
-  it('keeps a caller eligible from their event-wide hour total, even when the level-filtered subset alone would not qualify (regression)', () => {
-    // Mirrors a real reported bug: a caller had 3 one-hour sessions within a
-    // narrow level range — exactly 3 hours, not enough to qualify alone — plus a
-    // 4th one-hour session at a level outside that range, pushing their EVENT-WIDE
-    // total to 4 hours. Narrowing the level filter to exclude that 4th session
-    // must not make the caller's column (or their still-in-range sessions)
-    // disappear, the way computing the threshold from the filtered set itself did.
-    const inRange = [
-      makeSession('2026-07-02T11:00:00.000Z', '2026-07-02T12:00:00.000Z', ['Ted Lizotte'], { levels: ['Plus'] }),
-      makeSession('2026-07-02T13:30:00.000Z', '2026-07-02T14:30:00.000Z', ['Ted Lizotte'], { levels: ['A2'] }),
-      makeSession('2026-07-02T14:30:00.000Z', '2026-07-02T15:30:00.000Z', ['Ted Lizotte'], { levels: ['Plus'] }),
-    ]
-    const outOfRange = makeSession('2026-07-02T15:30:00.000Z', '2026-07-02T16:30:00.000Z', ['Ted Lizotte'], {
-      levels: ['C1'],
-    })
-    const dateSessions = [...inRange, outOfRange]
-    const visibleSessions = inRange // simulates the level filter excluding the C1 session
-
-    const layout = computeDanceScheduleCallerLayout(dateSessions, visibleSessions, dateSessions)
-
-    expect(layout.visibleCallers).toEqual(['Ted Lizotte'])
-    expect(layout.placements).toHaveLength(3)
-    expect(layout.placements.find((p) => p.session === outOfRange)).toBeUndefined()
+    expect(layout.visibleCallers).toEqual(['Rob Page'])
+    expect(layout.placements.find((p) => p.session === short)).toBeDefined()
   })
 
   it('sorts placements by rowStart then columnStart', () => {
@@ -346,7 +254,7 @@ describe('computeDanceScheduleCallerLayout', () => {
     const later = makeSession('2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z', ['Allan Hurst'])
     const earlier = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
     const sessions = [...padding, later, earlier]
-    const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+    const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
     const daytime = layout.placements.filter((p) => p.session === later || p.session === earlier)
     expect(daytime.map((p) => p.session)).toEqual([earlier, later])
@@ -358,7 +266,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const a = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Vic Ceder'])
       const b = makeSession('2026-07-02T09:30:00.000Z', '2026-07-02T10:30:00.000Z', ['Vic Ceder'])
       const sessions = [...padding, a, b]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const placementA = layout.placements.find((p) => p.session === a)
       const placementB = layout.placements.find((p) => p.session === b)
@@ -372,7 +280,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const morning = makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Vic Ceder'])
       const afternoon = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', ['Vic Ceder'])
       const sessions = [...padding, morning, afternoon]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       for (const placement of layout.placements.filter(
         (p) => p.session === morning || p.session === afternoon,
@@ -388,7 +296,7 @@ describe('computeDanceScheduleCallerLayout', () => {
         'Vic Ceder',
       ])
       const sessions = [...padding, session]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.visibleCallers).toEqual(['Vic Ceder'])
       expect(layout.placements.filter((p) => p.session === session)).toHaveLength(1)
@@ -402,7 +310,7 @@ describe('computeDanceScheduleCallerLayout', () => {
         'All Headliners',
       ])
       const sessions = [...padding, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const placement = layout.placements.find((p) => p.session === allHeadliners)
       expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length, floatKind: 'busy' })
@@ -412,7 +320,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const padding = padHours('Vic Ceder')
       const allCallers = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Callers'])
       const sessions = [...padding, allCallers]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const placement = layout.placements.find((p) => p.session === allCallers)
       expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length, floatKind: 'busy' })
@@ -424,7 +332,7 @@ describe('computeDanceScheduleCallerLayout', () => {
         'All Headliners',
       ])
       const sessions = [...padding, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.visibleCallers).toEqual(['Vic Ceder'])
     })
@@ -435,7 +343,7 @@ describe('computeDanceScheduleCallerLayout', () => {
         'All Headliners',
       ])
       const sessions = [...padding, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.timeMarks.some((mark) => mark.label === '9:00 PM')).toBe(true)
       expect(layout.placements.find((p) => p.session === allHeadliners)).toBeDefined()
@@ -450,7 +358,7 @@ describe('computeDanceScheduleCallerLayout', () => {
         'All Headliners',
       ])
       const sessions = [...padding, real, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const realPlacement = layout.placements.find((p) => p.session === real)
       const floatingPlacement = layout.placements.find((p) => p.session === allHeadliners)
@@ -462,7 +370,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', [
         'All Headliners',
       ])
-      const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners], [allHeadliners])
+      const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners])
 
       expect(layout.visibleCallers).toEqual([])
       expect(layout.placements).toMatchObject([{ columnStart: 0, columnSpan: 1, floatKind: 'busy' }])
@@ -474,19 +382,16 @@ describe('computeDanceScheduleCallerLayout', () => {
         'All Headliners',
       ])
       const sessions = [...padding, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.columnWidthsRem[0]).toBe(CALLER_COLUMN_WIDTH_REM)
     })
 
-    it('is excluded from the GCA-showcase-style event-wide hour totals but still floats regardless of its own hours', () => {
-      // An all-headliners session doesn't need to clear MIN_CALLER_HOURS at all —
-      // unlike a real caller, its eligibility isn't hour-gated, since it never
-      // claims a column of its own to be eligible FOR.
+    it('floats regardless of its own duration, even a short one', () => {
       const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T19:30:00.000Z', [
         'All Headliners',
       ])
-      const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners], [allHeadliners])
+      const layout = computeDanceScheduleCallerLayout([allHeadliners], [allHeadliners])
 
       expect(layout.placements.find((p) => p.session === allHeadliners)).toBeDefined()
     })
@@ -497,20 +402,17 @@ describe('computeDanceScheduleCallerLayout', () => {
       const padding = padHours('Vic Ceder')
       const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
       const sessions = [...padding, gcaCallers]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const placement = layout.placements.find((p) => p.session === gcaCallers)
       expect(placement).toMatchObject({ columnStart: 0, columnSpan: layout.visibleCallers.length, floatKind: 'free' })
     })
 
-    it('never appears in visibleCallers or claims its own column, regardless of accumulated hours', () => {
-      // 4 hours would clear MIN_CALLER_HOURS on a raw sum if it were ever eligible
-      // to be treated as a real caller — it must never be, no matter how much time
-      // accumulates under this literal placeholder name.
+    it('never appears in visibleCallers or claims its own column, no matter how much time accumulates under it', () => {
       const gcaCallers = Array.from({ length: 4 }, (_, i) =>
         makeSession(`2026-07-02T0${i}:00:00.000Z`, `2026-07-02T0${i + 1}:00:00.000Z`, ['GCA Callers']),
       )
-      const layout = computeDanceScheduleCallerLayout(gcaCallers, gcaCallers, gcaCallers)
+      const layout = computeDanceScheduleCallerLayout(gcaCallers, gcaCallers)
 
       expect(layout.visibleCallers).toEqual([])
     })
@@ -522,7 +424,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       })
       const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
       const sessions = [...padding, real, gcaCallers]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const realPlacement = layout.placements.find((p) => p.session === real)
       const floatingPlacement = layout.placements.find((p) => p.session === gcaCallers)
@@ -534,7 +436,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
       const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Headliners'])
       const sessions = [gcaCallers, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.placements.find((p) => p.session === gcaCallers)).toMatchObject({ floatKind: 'free' })
       expect(layout.placements.find((p) => p.session === allHeadliners)).toMatchObject({ floatKind: 'busy' })
@@ -561,7 +463,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const gcaCallers = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['GCA Callers'])
       const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Headliners'])
       const sessions = [registration, gcaCallers, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const registrationPlacement = layout.placements.find((p) => p.session === registration)
       const gcaPlacement = layout.placements.find((p) => p.session === gcaCallers)
@@ -592,7 +494,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       ])
       const gcaCallers = makeSession('2026-07-02T20:00:00.000Z', '2026-07-02T20:30:00.000Z', ['GCA Callers'])
       const sessions = [allHeadliners, gcaCallers]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const allHeadlinersPlacement = layout.placements.find((p) => p.session === allHeadliners)
       expect(allHeadlinersPlacement!.rowSpan).toBeGreaterThan(1)
@@ -611,7 +513,7 @@ describe('computeDanceScheduleCallerLayout', () => {
         'All Headliners',
       ])
       const sessions = [lunch, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const lunchPlacement = layout.placements.find((p) => p.session === lunch)
       const allHeadlinersPlacement = layout.placements.find((p) => p.session === allHeadliners)
@@ -630,7 +532,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       })
       const allHeadliners = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['All Headliners'])
       const sessions = [...padding, real, allHeadliners]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.placements.find((p) => p.session === real)).toMatchObject({ lane: 0, laneCount: 1 })
       expect(layout.placements.find((p) => p.session === allHeadliners)).toMatchObject({ lane: 0, laneCount: 1 })
@@ -646,7 +548,7 @@ describe('computeDanceScheduleCallerLayout', () => {
 
     it('keeps a column at its ordinary width when nothing in it ever overlaps', () => {
       const padding = padHours('Vic Ceder')
-      const layout = computeDanceScheduleCallerLayout(padding, padding, padding)
+      const layout = computeDanceScheduleCallerLayout(padding, padding)
 
       expect(layout.columnWidthsRem[0]).toBe(CALLER_COLUMN_WIDTH_REM)
     })
@@ -657,7 +559,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const morning = backToBackDances('Vic Ceder', 4, 9) // 9am-1pm, back-to-back
       const afternoon = backToBackDances('Allan Hurst', 4, 15) // 3pm-7pm, back-to-back
       const sessions = [...morning, ...afternoon]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       // 4 rows for the morning block + 4 for the afternoon block — the 1pm-3pm gap
       // between them contributes ZERO rows, not the usual one-row-per-gap.
@@ -675,7 +577,7 @@ describe('computeDanceScheduleCallerLayout', () => {
 
     it('always keeps the trailing marker for the end of the last session', () => {
       const only = backToBackDances('Vic Ceder', 4, 9)
-      const layout = computeDanceScheduleCallerLayout(only, only, only)
+      const layout = computeDanceScheduleCallerLayout(only, only)
 
       const trailing = layout.timeMarks[layout.timeMarks.length - 1]
       expect(trailing).toEqual({ rowStart: 5, label: '1:00 PM' })
@@ -689,7 +591,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       // columns, not a requirement that every visible column has something.
       const hurst = backToBackDances('Allan Hurst', 4, 9)
       const sessions = [...ceder, ...hurst]
-      const layout = computeDanceScheduleCallerLayout(sessions, sessions, sessions)
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       expect(layout.totalRows).toBe(4)
       expect(layout.placements).toHaveLength(8)

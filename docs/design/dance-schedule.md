@@ -340,17 +340,15 @@ rather than alphabetically; caller columns sort alphabetically. A level
 with zero hours is omitted entirely as a column, same as before.
 
 **The caller table also drops any caller whose own total is 3 hours or
-under** (`MIN_CALLER_HOURS`) — per direct product decision, a separate,
-independent threshold of the same name and value as the Caller Schedule
-page's own `MIN_CALLER_HOURS` (same unit, same number, and — as of the fix
-described in that page's own section below — the same event-wide-total
-scope too, though the two constants remain independent rather than shared,
-since they're separate product decisions that could in principle diverge).
-Since
-filtering happens before the Total row/column are computed, a filtered-out
-caller's hours don't silently leak into either table's own totals — the
-displayed grand total is honestly just the sum of the callers actually
-shown.
+under** (`MIN_CALLER_HOURS`) — per direct product decision. The Caller
+Schedule page (`computeDanceScheduleCallerLayout.ts`) used to have its own,
+separate threshold of the same name and value, computed the same event-wide
+way, but that one was later removed entirely — see that page's own section
+below — so this is now the only `MIN_CALLER_HOURS` left, and it applies only
+to this debug-page/dump summary table. Since filtering happens before the
+Total row/column are computed, a filtered-out caller's hours don't silently
+leak into either table's own totals — the displayed grand total is honestly
+just the sum of the callers actually shown.
 
 ### Hour summaries also live in the real spreadsheet, as generated static tabs — not live formulas, and not an allow-list of tab names
 **Why:** Direct request — duplicate the debug page's two hour-summary
@@ -874,11 +872,13 @@ callers" checkbox that could never do anything.
 two-part pattern already used for the caller-columns view's `callerOrder`
 (stable, computed event-wide) versus a session's actual visibility in
 `dateSessions`/`visibleSessions` (see "Caller-columns view" below) — not a
-repeat of that view's own `MIN_CALLER_HOURS` instability bug, since neither
-of these two controls has a stability requirement to violate; both are
-explicitly meant to react to the selected date, and that view's bug was
-about protecting something *else* (a caller's column identity) from
-day-to-day churn.
+repeat of that view's own `MIN_CALLER_HOURS` instability bug (see
+"Caller-columns view" below — that threshold has since been removed
+entirely, but the stability bug it once had is still the instructive
+precedent here), since neither of these two controls has a stability
+requirement to violate; both are explicitly meant to react to the selected
+date, and that view's bug was about protecting something *else* (a caller's
+column identity) from day-to-day churn.
 
 - `slots` (`getLevelSlots`) is untouched — still the single, stable,
   config-driven index space every other level computation depends on. No
@@ -1305,50 +1305,52 @@ next — was itself the problem, not a deliberate simplification worth keeping.
 See "Meals/breaks float too, distinguished from 'busy' by color" below for the
 fix and the closely-related "GCA Callers" case that prompted revisiting this.
 
-**"GCA Caller Showcase Dance" sessions are omitted entirely, and a caller
-needs more than 3 hours to get a column at all:** both per direct product
+**"GCA Caller Showcase Dance" sessions are omitted entirely; every other real,
+named caller gets a column regardless of hours:** per direct product
 decision, not something derived from the room/level views' own precedent.
 A showcase dance credits a caller but isn't representative of what they
 normally do, so it's excluded up front (`GCA_CALLER_SHOWCASE_EVENT_TYPE`,
 via the shared `isEligibleCallerSession` guard) — before column derivation,
-before hour-totaling, before anything else — rather than just hidden on the
-card the way `showGca` hides the subordinate GCA line elsewhere.
-`MIN_CALLER_HOURS` (3, computed via the shared `sessionHours` helper also
-used by the debug-page hour summary above) then drops any caller whose
-remaining (non-showcase) hour total across the WHOLE EVENT (every date, not
-just the one selected) is 3 or under. **Deliberately computed from
-`allSessions` (every date, unfiltered), not `dateSessions`/`visibleSessions`**
-— a caller's eligibility for a column at all must stay as stable across the
-level filter AND the selected date as their column's *order* already is
-across the level filter (see "Columns are data-derived" above), even though
-which of their sessions are actually drawn still reacts to both normally.
-Computing the threshold from the filtered set instead was a real shipped
-bug: a caller with, say, 3 one-hour sessions inside a narrow level range
-plus a 4th one-hour session just outside it has a wider total of 4 hours (a
-real column), but an in-range total of only 3 (at the threshold, not over
-it) — narrowing the level range to exclude that 4th session made the
-caller's *entire* column vanish, including their still-in-range sessions,
-purely because the range had narrowed. Originally computed per-day rather
-than event-wide, which had an analogous problem across dates instead of
-across the level filter: a real caller with several 1-hour sessions spread
-across different days, each day individually under the threshold, never got
-a column on any day even though their event-wide total cleared it —
-confirmed against real production data and changed to sum `allSessions`
-instead, per direct product decision. A co-taught session splits its
-duration evenly across its distinct callers (same convention as the
-debug-page hour summary's own even split) rather than crediting each with
-the full session, so it's possible for a co-taught session's identical card
-to appear under only one of its two callers' columns, if just one of them
-clears the threshold on their own.
+before anything else — rather than just hidden on the card the way `showGca`
+hides the subordinate GCA line elsewhere.
 
-**A caller's column visibility is still a two-part check, same shape as the
-room view's own order-vs-visibility split:** clearing `MIN_CALLER_HOURS`
-event-wide makes a caller *eligible*, but they also need at least one
-session in the current date's level-filtered `visibleSessions` to actually
-show a column — an eligible caller with nothing visible right now would
-otherwise render as a pointless empty column. `visibleCallers` is
-`callerOrder` filtered by BOTH the event-wide hour total AND membership in
-a `visibleCallerSet` built from the filtered sessions, mirroring exactly how
+This view used to also drop any caller whose remaining (non-showcase) hour
+total across the whole event was 3 or under (`MIN_CALLER_HOURS`, computed
+event-wide via `allSessions` so a caller's column eligibility stayed as
+stable across the level filter and the selected date as their column's
+*order* already is — see "Columns are data-derived" above). **Removed
+entirely** after a real report: a caller with just one short session — a
+30-minute slot split off a longer one shared with another caller — didn't
+clear the threshold and so didn't appear on this page in any form, which was
+more surprising than a small column would have been. `visibleCallers` is now
+just `callerOrder` filtered down to callers with something in the current
+`visibleCallerSet` (see the two-part order-vs-visibility split below) — no
+hour computation at all. `computeDanceScheduleHourSummary.ts` keeps its own,
+separate `MIN_CALLER_HOURS` for the unrelated "Hours by Caller" debug-page
+summary table, unaffected by this change.
+
+(Historical note on the now-removed threshold, kept because the debugging
+story is instructive: computing it from the level-filtered set instead of
+`allSessions` was a real shipped bug — a caller with, say, 3 one-hour
+sessions inside a narrow level range plus a 4th one-hour session just
+outside it has a wider total of 4 hours, but an in-range total of only 3;
+narrowing the level range to exclude that 4th session made the caller's
+*entire* column vanish, including their still-in-range sessions, purely
+because the range had narrowed. An earlier, per-day version had an
+analogous problem across dates instead of across the level filter — a real
+caller with several 1-hour sessions spread across different days, each day
+individually under the threshold, never got a column on any day even though
+their event-wide total cleared it. Both were fixed by summing `allSessions`
+before the threshold concept was removed outright.)
+
+**A caller's column visibility is a stable-order-vs-reactive-visibility split,
+same shape as the room view's own:** `callerOrder` (every non-showcase caller,
+derived from `dateSessions`, unfiltered) gives every real caller a stable
+position; they also need at least one session in the current date's
+level-filtered `visibleSessions` to actually show a column — a caller with
+nothing visible right now would otherwise render as a pointless empty column.
+`visibleCallers` is `callerOrder` filtered down to membership in a
+`visibleCallerSet` built from the filtered sessions, mirroring exactly how
 the room view's `visibleRoomSet` (filter-reactive) narrows `roomOrder`
 (already computed globally across every date, same stability precedent this
 followed).

@@ -12,12 +12,12 @@ const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEV
 
 // A caller only appears in the caller table at all once their OWN total (summed
 // across every day) exceeds this many hours — per direct product decision, a
-// caller with only a couple hours isn't worth a whole column on this summary. A
-// separate, independent threshold of the same name and value exists on the Dance
-// by Caller page (computeDanceScheduleCallerLayout.ts) — same unit (hours) and
-// number, but the two are computed differently (this one is a global per-event
-// total across every day; that one is a per-day total) and not meant to be
-// unified into one shared constant.
+// caller with only a couple hours isn't worth a whole column on this summary. The
+// Dance by Caller page (computeDanceScheduleCallerLayout.ts) used to have its own,
+// separate threshold of the same name and value, but that one was removed — every
+// real caller gets a column there now regardless of hours (see that file's own
+// comment for why); this one is unaffected, and still gates only this summary
+// table.
 const MIN_CALLER_HOURS = 3
 
 export interface DanceScheduleHourSummaryColumn {
@@ -56,11 +56,7 @@ export interface DanceScheduleHourSummary {
   callers: DanceScheduleHourSummaryTable
 }
 
-// Exported for computeDanceScheduleCallerLayout.ts's own, independent
-// MIN_CALLER_HOURS threshold — shares this formula so the two can't drift on what
-// "an hour of dancing" means, even though the two thresholds themselves are
-// computed differently (see MIN_CALLER_HOURS above).
-export function sessionHours(session: DanceSession): number {
+function sessionHours(session: DanceSession): number {
   return (session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)
 }
 
@@ -107,10 +103,10 @@ function buildTable(
  * one and one tagged with an unordered level like Intro/Various — this is
  * meant to be a complete, honest accounting of the raw parsed data, not a mirror
  * of any page's own curated display rules (contrast the Caller Schedule page,
- * which deliberately omits showcase dances and callers under a dance-COUNT
- * threshold — this file's own caller table instead filters by total HOURS, a
- * different, unrelated threshold — see MIN_CALLER_HOURS). A freeform session
- * contributes nothing to either summary, having neither a level nor a caller.
+ * which deliberately omits showcase dances entirely — this file's own caller
+ * table still counts them, just filtered by this file's own, independent
+ * MIN_CALLER_HOURS floor). A freeform session contributes nothing to either
+ * summary, having neither a level nor a caller.
  *
  * A session spanning more than one level, or co-taught by more than one caller,
  * splits its duration evenly across the distinct levels/callers it lists (a
