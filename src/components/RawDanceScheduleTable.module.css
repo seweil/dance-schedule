@@ -1,6 +1,10 @@
-/* Desktop-only debug view — no responsive breakpoints, dense and wide by design. */
+/* Desktop-only debug view — no responsive breakpoints, dense by design. Sized
+   to its own content (no width: 100%) — cells never wrap (white-space: nowrap
+   below), so stretching to the window's width only spread columns apart with
+   dead space on a wide desktop monitor instead of ever wrapping/reflowing
+   anything. */
 .table {
-  width: 100%;
+  width: fit-content;
   margin-bottom: var(--space-md);
   border-collapse: collapse;
 }
