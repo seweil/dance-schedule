@@ -6,6 +6,21 @@
 body {
   margin: 0;
   padding: 0 var(--space-sm);
+  /* max(), not env() alone — a device with no safe area at all (env() resolves to
+     0, or the browser doesn't support it) still gets --space-md of breathing room
+     at the bottom of every page, same reasoning as the explicit top/side padding
+     above; a device that DOES report a real inset (an iPhone's home-indicator
+     gesture bar, or a rounded-corner screen edge) gets whichever is larger. A real
+     report: the very last element on a page (e.g. the debug page's test-error
+     confirmation text, or the Home page's fine print) could end up sitting right
+     under/behind that gesture bar with no padding of its own to push clear of it.
+     Applies globally, to every page, since any page's last element can be the one
+     that ends up there — not just <main>'s own content (this is body's own
+     padding, so it also covers HomeBuildInfo/ScrollToTopButton, rendered as
+     App.tsx siblings of <main>). Requires index.html's viewport-fit=cover — see
+     that meta tag's own comment — or env() here is pinned to 0 and this is just
+     the plain --space-md fallback on every device, iPhone or not. */
+  padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
 }
 
 :root {

@@ -26,7 +26,7 @@ test('the debug page shows which content set built it', async ({ page }) => {
   const { defaultContentSet } = loadTopLevelContentConfig(process.cwd())
   await page.goto('/debug/dance-schedule')
   await expect(
-    page.getByRole('heading', { name: new RegExp(`dance schedule.*debug.*${defaultContentSet}`, 'i') }),
+    page.getByRole('heading', { name: new RegExp(`schedule details.*${defaultContentSet}`, 'i') }),
   ).toBeVisible()
 })
 

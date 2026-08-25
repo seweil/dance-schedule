@@ -340,15 +340,24 @@ rather than alphabetically; caller columns sort alphabetically. A level
 with zero hours is omitted entirely as a column, same as before.
 
 **The caller table also drops any caller whose own total is 3 hours or
-under** (`MIN_CALLER_HOURS`) — per direct product decision. The Caller
-Schedule page (`computeDanceScheduleCallerLayout.ts`) used to have its own,
-separate threshold of the same name and value, computed the same event-wide
-way, but that one was later removed entirely — see that page's own section
-below — so this is now the only `MIN_CALLER_HOURS` left, and it applies only
-to this debug-page/dump summary table. Since filtering happens before the
-Total row/column are computed, a filtered-out caller's hours don't silently
-leak into either table's own totals — the displayed grand total is honestly
-just the sum of the callers actually shown.
+under from their own column** (`MIN_CALLER_HOURS`) — per direct product
+decision. The Caller Schedule page (`computeDanceScheduleCallerLayout.ts`)
+used to have its own, separate threshold of the same name and value,
+computed the same event-wide way, but that one was later removed entirely —
+see that page's own section below — so this is now the only
+`MIN_CALLER_HOURS` left, and it applies only to this debug-page/dump summary
+table.
+
+A filtered-out caller's hours aren't dropped along with their column,
+though — every excluded caller's per-day hours are summed into one trailing
+`"Other"` column instead (omitted entirely when nothing needs rolling up),
+so the caller table's own `totalByDate`/grand total always equal the level
+table's for the same day. This reverses an earlier version of this table,
+where a filtered-out caller's hours simply vanished — real production data
+surfaced the caller table quietly running lower than the level table on any
+day with a sub-threshold caller (e.g. a headliner's own opening slot split
+into two 30-minute callers, each too short to clear the floor alone), with
+no visible column to explain the gap.
 
 ### Hour summaries also live in the real spreadsheet, as generated static tabs — not live formulas, and not an allow-list of tab names
 **Why:** Direct request — duplicate the debug page's two hour-summary

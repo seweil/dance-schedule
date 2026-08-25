@@ -62,7 +62,7 @@ function TriggerTestErrorLink() {
 export function RawDanceScheduleDebugPage() {
   return (
     <>
-      <PageHeader title={`Dance Schedule — Debug (${contentSets.activeSet})`} />
+      <PageHeader title={`Schedule details (${contentSets.activeSet})`} />
       <BuildInfo />
       <RawDanceScheduleTable sessions={buildDanceSchedule(danceSessionsData)} />
       <TriggerTestErrorLink />

@@ -139,10 +139,14 @@ outputs:
 4. **Sum each level's/caller's per-day shares into a grand total**, then apply
    each table's own floor: a level with a grand total of exactly `0` is
    omitted as a column entirely (no separate threshold otherwise); a caller
-   is omitted unless their grand total exceeds `MIN_CALLER_HOURS` (`3`,
-   `computeDanceScheduleHourSummary.ts` — strictly greater than, so exactly
-   3.0 is still excluded). Both thresholds apply to the caller's/level's
-   **own total across every day**, not any single day's total.
+   doesn't get their own column unless their grand total exceeds
+   `MIN_CALLER_HOURS` (`3`, `computeDanceScheduleHourSummary.ts` — strictly
+   greater than, so exactly 3.0 is still excluded). Both thresholds apply to
+   the caller's/level's **own total across every day**, not any single day's
+   total. A filtered-out caller's hours aren't dropped, though — they're
+   rolled into one trailing `"Other"` column (omitted only when there's
+   nothing to roll up), so the caller table's own day/grand totals always
+   equal the level table's, never running lower.
 5. **Displayed values are rounded** to at most 2 decimal places with trailing
    zeros dropped (`formatHours()`) — a `1/3` split reads as `0.33`, a whole
    number as `4`, not `4.00`.
@@ -186,12 +190,14 @@ A few things worth knowing before you run it or read its output:
   formula can re-derive), so **re-run it any time a day's schedule in the
   workbook changes**, or the tabs silently go stale.
 - **The spreadsheet's caller table has no hour floor** — it's generated with
-  `minCallerHours: 0`, so every caller with any measured hours gets a row,
-  unlike the debug page/dump's own version (and this doc's hand-calculation
-  steps above), which drops anyone at or under `MIN_CALLER_HOURS` (`3`). Per
-  direct product decision, to keep the spreadsheet's own version simpler than
-  the app's curated one — expect the two to disagree on caller *count* for
-  that reason alone, even when every individual total matches.
+  `minCallerHours: 0`, so every caller with any measured hours gets their own
+  row and there's never anything left to roll into an "Other" one, unlike the
+  debug page/dump's own version (and this doc's hand-calculation steps
+  above), which rolls anyone at or under `MIN_CALLER_HOURS` (`3`) into a
+  shared `"Other"` row instead of giving them their own. Per direct product
+  decision, to keep the spreadsheet's own version simpler than the app's
+  curated one — expect the two to disagree on caller *count* for that reason
+  alone, even when every individual total matches.
 - **Each generated tab has a built-in staleness check** — a "Calculated" row
   (a fixed timestamp from when the script ran) next to a "Saved" row (a live
   `=NOW()` formula, seeded to match "Calculated" until the workbook is

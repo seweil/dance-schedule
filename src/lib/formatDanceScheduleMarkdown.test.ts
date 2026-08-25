@@ -201,7 +201,7 @@ describe('formatDanceScheduleMarkdown', () => {
       expect(markdown).toContain('| Total | 4 | 4 |')
     })
 
-    it('excludes a caller at or under the 3-hour threshold from the caller summary', () => {
+    it('rolls a caller at or under the 3-hour threshold into an "Other" column instead of dropping their hours', () => {
       const threeHourSession: DanceSession = {
         ...longSession,
         endTime: new Date('2026-07-02T15:00:00.000Z'), // exactly 3 hours
@@ -213,7 +213,9 @@ describe('formatDanceScheduleMarkdown', () => {
         markdown.indexOf('## Thursday, July 2, 2026'),
       )
       expect(callerSection).not.toContain('Vic Ceder')
-      expect(callerSection).toContain('| Date | Total |\n| --- | --- |\n| Thu, Jul 2 | 0 |\n| Total | 0 |')
+      expect(callerSection).toContain(
+        '| Date | Other | Total |\n| --- | --- | --- |\n| Thu, Jul 2 | 3 | 3 |\n| Total | 3 | 3 |',
+      )
     })
 
     it('gives each date its own row', () => {

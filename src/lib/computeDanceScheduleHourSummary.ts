@@ -20,6 +20,10 @@ const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEV
 // table.
 const MIN_CALLER_HOURS = 3
 
+// Label for the caller table's own rolled-up bucket for every caller filtered out
+// by MIN_CALLER_HOURS — see buildTable's own comment for why this exists.
+const OTHER_CALLERS_LABEL = 'Other'
+
 export interface DanceScheduleHourSummaryColumn {
   label: string
   // One entry per DanceScheduleHourSummary.dates, in the same order.
@@ -28,10 +32,13 @@ export interface DanceScheduleHourSummaryColumn {
 }
 
 // Rendered as a cross-tab with days as rows: `columns` becomes one table column
-// each, `totalByDate` is the row-total column at the right (summed across only
-// THIS table's own, possibly-filtered columns — the caller table's per-day totals
-// reflect just the callers who cleared MIN_CALLER_HOURS, not everyone), and
-// `grandTotal` is the single bottom-right cell.
+// each, `totalByDate` is the row-total column at the right, and `grandTotal` is
+// the single bottom-right cell. `totalByDate`/`grandTotal` are always summed
+// across EVERY caller/level with any measured hours, not just the ones shown as
+// their own column — see buildTable's own comment: the caller table's own
+// "Other" column (below MIN_CALLER_HOURS) is what visibly accounts for the
+// difference, so both tables' day totals always agree instead of the caller
+// table's silently running lower.
 export interface DanceScheduleHourSummaryTable {
   columns: DanceScheduleHourSummaryColumn[]
   totalByDate: number[]
@@ -52,7 +59,9 @@ export interface DanceScheduleHourSummary {
   levels: DanceScheduleHourSummaryTable
   // Columns grouped headline-first, each group sorted by descending total hours
   // (ties broken alphabetically) — see DanceScheduleHourSummaryTable's
-  // `groupBoundary`. Omits anyone at or under MIN_CALLER_HOURS.
+  // `groupBoundary`. A caller at or under MIN_CALLER_HOURS doesn't get their own
+  // column, but their hours still land in a trailing "Other" column (see
+  // buildTable) rather than vanishing from the table's totals.
   callers: DanceScheduleHourSummaryTable
 }
 
@@ -68,30 +77,47 @@ export function formatHours(hours: number): string {
   return Number(hours.toFixed(2)).toString()
 }
 
+// A column filtered out by `minTotal` (the caller table's MIN_CALLER_HOURS floor
+// — the level table passes 0, which every real level clears by construction, so
+// it never has anything to roll up here) used to just vanish, taking its hours
+// with it — leaving the caller table's own totalByDate/grandTotal lower than the
+// level table's for the same day, even though both are meant to describe the
+// same underlying schedule. Every excluded column's hours are now summed
+// per-date into `excludedHoursByDate` instead, so the caller (this file's own
+// computeDanceScheduleHourSummary) can roll them into one trailing "Other"
+// column — keeping every filtered-out caller's hours visibly accounted for
+// rather than silently dropped, while `totalByDate`/`grandTotal` here already
+// include them regardless of whether the caller adds that column.
 function buildTable(
   totals: Map<string, number[]>,
   dateCount: number,
   compare: (a: DanceScheduleHourSummaryColumn, b: DanceScheduleHourSummaryColumn) => number,
   minTotal: number,
-): DanceScheduleHourSummaryTable {
-  const columns = Array.from(totals.entries())
-    .map(([label, hoursByDate]) => ({
-      label,
-      hoursByDate,
-      total: hoursByDate.reduce((sum, hours) => sum + hours, 0),
-    }))
-    .filter((column) => column.total > minTotal)
-    .sort(compare)
+): DanceScheduleHourSummaryTable & { excludedHoursByDate: number[] } {
+  const allColumns = Array.from(totals.entries()).map(([label, hoursByDate]) => ({
+    label,
+    hoursByDate,
+    total: hoursByDate.reduce((sum, hours) => sum + hours, 0),
+  }))
+  const columns = allColumns.filter((column) => column.total > minTotal).sort(compare)
+  const excludedColumns = allColumns.filter((column) => column.total <= minTotal)
 
   const totalByDate = new Array<number>(dateCount).fill(0)
-  for (const column of columns) {
+  for (const column of allColumns) {
     for (let dateIndex = 0; dateIndex < dateCount; dateIndex++) {
       totalByDate[dateIndex] = totalByDate[dateIndex]! + column.hoursByDate[dateIndex]!
     }
   }
   const grandTotal = totalByDate.reduce((sum, hours) => sum + hours, 0)
 
-  return { columns, totalByDate, grandTotal }
+  const excludedHoursByDate = new Array<number>(dateCount).fill(0)
+  for (const column of excludedColumns) {
+    for (let dateIndex = 0; dateIndex < dateCount; dateIndex++) {
+      excludedHoursByDate[dateIndex] = excludedHoursByDate[dateIndex]! + column.hoursByDate[dateIndex]!
+    }
+  }
+
+  return { columns, totalByDate, grandTotal, excludedHoursByDate }
 }
 
 /**
@@ -168,12 +194,23 @@ export function computeDanceScheduleHourSummary(
   })
 
   const levelOrderIndex = new Map(LEVEL_DISPLAY_ORDER.map((level, index) => [level, index]))
-  const levels = buildTable(
+  const levelsResult = buildTable(
     levelTotals,
     dates.length,
     (a, b) => (levelOrderIndex.get(a.label) ?? Infinity) - (levelOrderIndex.get(b.label) ?? Infinity),
     0,
   )
+  // Rebuilt without buildTable's internal-only `excludedHoursByDate` — the level
+  // table has no floor to roll anyone up from (minTotal 0 above), so it's always
+  // all-zero anyway, but this field is never meant to be part of the public
+  // DanceScheduleHourSummaryTable shape (contrast `callers` below, which uses its
+  // own excludedHoursByDate to build the "Other" column before being rebuilt the
+  // same way).
+  const levels: DanceScheduleHourSummaryTable = {
+    columns: levelsResult.columns,
+    totalByDate: levelsResult.totalByDate,
+    grandTotal: levelsResult.grandTotal,
+  }
   const callers = buildTable(
     callerTotals,
     dates.length,
@@ -187,11 +224,35 @@ export function computeDanceScheduleHourSummary(
     },
     minCallerHours,
   )
+  // Computed against callers.columns BEFORE the "Other" column (below) is
+  // appended — "Other" is never a real headline/showcase caller, so it must
+  // never be mistaken for (or shift) the showcase-only group's own boundary.
   const groupBoundary = callers.columns.findIndex((column) => !(callerHasHeadlineHours.get(column.label) ?? false))
+
+  // Every caller filtered out of `callers.columns` by MIN_CALLER_HOURS still has
+  // their hours counted in `callers.excludedHoursByDate` (see buildTable) —
+  // rolled up into one trailing "Other" column here, rather than just leaving
+  // them absorbed into totalByDate/grandTotal with no column to show for it.
+  // Omitted entirely when there's nothing to roll up (every caller cleared the
+  // floor, or `minCallerHours` was overridden to 0 — see this function's own
+  // doc comment), same as a level with zero hours is omitted entirely above.
+  const otherTotal = callers.excludedHoursByDate.reduce((sum, hours) => sum + hours, 0)
+  const callerColumns =
+    otherTotal > 0
+      ? [
+          ...callers.columns,
+          { label: OTHER_CALLERS_LABEL, hoursByDate: callers.excludedHoursByDate, total: otherTotal },
+        ]
+      : callers.columns
 
   return {
     dates,
     levels,
-    callers: groupBoundary > 0 && groupBoundary < callers.columns.length ? { ...callers, groupBoundary } : callers,
+    callers: {
+      columns: callerColumns,
+      totalByDate: callers.totalByDate,
+      grandTotal: callers.grandTotal,
+      ...(groupBoundary > 0 && groupBoundary < callers.columns.length ? { groupBoundary } : {}),
+    },
   }
 }

@@ -56,7 +56,7 @@ describe('PageHeader', () => {
           <PageHeader
             title={
               <>
-                Dance Schedule — Debug (<em>test</em>)
+                Schedule details (<em>test</em>)
               </>
             }
           />
@@ -64,7 +64,7 @@ describe('PageHeader', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Dance Schedule — Debug (test)',
+      'Schedule details (test)',
     )
   })
 })

@@ -129,17 +129,55 @@ describe('computeDanceScheduleHourSummary', () => {
   })
 
   describe('MIN_CALLER_HOURS filtering', () => {
-    it('excludes a caller whose total is exactly 3 hours', () => {
+    it('excludes a caller whose total is exactly 3 hours, but rolls their hours into an "Other" column', () => {
       const session = makeSession({
         startTime: new Date('2026-07-02T12:00:00.000Z'),
         endTime: new Date('2026-07-02T15:00:00.000Z'), // exactly 3 hours
       })
       const summary = computeDanceScheduleHourSummary([session])
 
-      expect(summary.callers.columns).toEqual([])
-      // Their (excluded) hours still don't silently leak into the table's own totals.
-      expect(summary.callers.totalByDate).toEqual([0])
-      expect(summary.callers.grandTotal).toBe(0)
+      expect(summary.callers.columns).toEqual([{ label: 'Other', hoursByDate: [3], total: 3 }])
+      // Their hours still don't silently leak OUT of the table's own totals —
+      // now visibly accounted for by the "Other" column above, instead of just
+      // being absent from both the column list and the totals.
+      expect(summary.callers.totalByDate).toEqual([3])
+      expect(summary.callers.grandTotal).toBe(3)
+    })
+
+    it('rolls multiple sub-threshold callers into the same "Other" column, summed together', () => {
+      const sessions = [
+        makeSession({ callers: ['Rob Page'], startTime: new Date('2026-07-02T12:00:00.000Z'), endTime: new Date('2026-07-02T12:30:00.000Z') }),
+        makeSession({ callers: ['Kurt Gollhardt'], startTime: new Date('2026-07-02T12:30:00.000Z'), endTime: new Date('2026-07-02T13:00:00.000Z') }),
+      ]
+      const summary = computeDanceScheduleHourSummary(sessions)
+
+      expect(summary.callers.columns).toEqual([{ label: 'Other', hoursByDate: [1], total: 1 }])
+    })
+
+    it('omits the "Other" column entirely when no caller is filtered out', () => {
+      const summary = computeDanceScheduleHourSummary([makeLongSession()])
+
+      expect(summary.callers.columns.map((column) => column.label)).toEqual(['Vic Ceder'])
+    })
+
+    it('places "Other" after the showcase-only group, without disturbing the real groupBoundary', () => {
+      const sessions = [
+        makeLongSession({ callers: ['Vic Ceder'] }), // headline, 4h
+        makeLongSession({ eventType: GCA_CALLER_SHOWCASE_EVENT_TYPE, callers: ['Janienne Alexander'] }), // showcase-only, 4h
+        makeSession({
+          callers: ['Rob Page'],
+          startTime: new Date('2026-07-02T12:00:00.000Z'),
+          endTime: new Date('2026-07-02T12:30:00.000Z'), // sub-threshold, 0.5h
+        }),
+      ]
+      const summary = computeDanceScheduleHourSummary(sessions)
+
+      expect(summary.callers.columns.map((column) => column.label)).toEqual([
+        'Vic Ceder',
+        'Janienne Alexander',
+        'Other',
+      ])
+      expect(summary.callers.groupBoundary).toBe(1)
     })
 
     it('includes a caller at or under the default 3-hour floor when minCallerHours is overridden to 0', () => {
