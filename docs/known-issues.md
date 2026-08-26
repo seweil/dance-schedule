@@ -77,7 +77,27 @@ so this isn't believed to be a real gap, just untested by that one session).
 **Not yet done, still needs a human:** deactivating whatever root
 credentials were in local day-to-day use before this (IAM console → My
 Security Credentials — not something the AWS CLI can do on root's own
-behalf).
+behalf). **Update 2026-08-26:** confirmed there's no long-lived root
+*access key* to deactivate at all in this account — day-to-day root use
+here is via `aws login` (console-session-bridging, see that entry below),
+not a static key. So there's nothing to deactivate in IAM; the real
+remaining step is to stop *signing into the console as root* day-to-day.
+
+**Paused mid-decision 2026-08-26 — resume here:** decided against IAM
+Identity Center for personal console login (real tradeoffs discussed —
+temporary sessions, cleaner CloudTrail identity, scales to future
+accounts/people — but all low-value for a genuinely single-operator
+account) in favor of a plain IAM user with `AdministratorAccess`,
+console-login-only (password + MFA), deliberately **no access key** (no
+CLI use needed under this identity — `dance-schedule-deploy` already
+covers the infra scripts). Not yet created. Next steps when resuming:
+1. IAM console → Users → create the user, attach `AdministratorAccess`
+   (or a scoped-down policy if preferred on reflection), enable console
+   access with a password, set up MFA.
+2. Start signing into the console as that user instead of root for
+   everyday work; reserve root sign-in for genuinely account-level tasks.
+3. Nothing to touch in this repo for this step — it's pure AWS account
+   configuration, no infra/*.sh or template changes.
 
 ## Claude Code's own sandbox can't launch Chromium — fixed, but only for the exact allowlisted command forms
 
