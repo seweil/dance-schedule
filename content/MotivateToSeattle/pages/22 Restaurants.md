@@ -2,11 +2,14 @@
 
 Restaurants are grouped by distance from the hotel and by price/formality. Ratings and review counts are from Google (pulled Aug 2026) and summarized by AI.
 
-> **Note:** Google also lists many nearby restaurants that are inside security at the airport.
+> **Note:** Google also lists many nearby restaurants that are inside security at the airport. Check before you go.
 
 ---
 
 ## Walking Distance (under 10 min on foot)
+
+### [Spencer's](https://www.hilton.com/en/hotels/seaahhh-hilton-seattle-airport-and-conference-center/dining/)
+Right here in the Hilton.
 
 ### [13 Coins SeaTac](https://www.google.com/maps/search/?api=1&query=13+Coins+SeaTac+18000+International+Blvd+SeaTac+WA)
 18000 International Blvd — ~0.2 mi, inside the DoubleTree next door
