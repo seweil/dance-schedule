@@ -185,8 +185,53 @@ infra-file-touching ones), so there's nothing extra to configure for it.
 
 **Doesn't cover:** `set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
 `deploy-email-forwarding.sh`, `add-email-dns-records.sh`, or the alarm
-mute/unmute scripts — those still need a human running them locally with
-their own AWS credentials (see `docs/known-issues.md`'s root-user entry).
+mute/unmute scripts — those still need a human running them locally. See
+the next section for a scoped identity to run them with, instead of root.
+
+## A scoped IAM identity for the scripts CI doesn't cover
+
+`infra/local-deploy-user.yaml` creates an IAM user (`dance-schedule-deploy`)
+whose policy covers exactly the scripts listed just above, plus the same
+`dance-schedule-monitoring` scope `github-oidc.yaml` already grants CI (so
+this one identity can also run `deploy.sh`/`refresh-dashboard.sh`/
+`download-dashboard.sh` locally, not just the ones CI doesn't touch). See
+that template's own header comment for the full reasoning, including why
+it's a user with a static access key rather than an assumable role
+(`docs/known-issues.md`'s AWS-SSO entry).
+
+**One-time setup, by hand, with real (for now: root) credentials** — same
+chicken-and-egg as `deploy-github-oidc.sh` above:
+
+```bash
+./infra/deploy-local-user.sh
+```
+
+Prints a fresh `AccessKeyId`/`SecretAccessKey` (skips creating a second one
+if `dance-schedule-deploy` already has a key) — put it into a named CLI
+profile, never into this repo:
+
+```bash
+aws configure --profile dance-schedule-deploy
+```
+
+Then run any of the scripts above with `AWS_PROFILE=dance-schedule-deploy`
+prefixed, instead of your own (root) credentials. Once you've confirmed
+each one still works under that profile, deactivate whatever root
+credentials you were using day-to-day (IAM console → **My Security
+Credentials**, root only — not something the AWS CLI can do on a
+non-root caller's behalf).
+
+**Verified against the real account 2026-08-26** — `enable-js-error-alarm.sh`,
+`apply-amplify-rewrites.sh`, `add-email-dns-records.sh`,
+`deploy-email-forwarding.sh`, and `set-amplify-env.sh` all succeeded under
+the new profile with no `AccessDenied`; see `docs/known-issues.md`'s
+root-user entry for the full verification notes, including two real
+template bugs the first deploy attempt surfaced (a `Description` over
+CloudFormation's 1024-char limit, and an inline user policy over IAM's
+2048-byte limit — both fixed; the policy is now a customer-managed
+`AWS::IAM::ManagedPolicy` instead of an inline one) and one caveat
+(`set-amplify-env.sh` triggers a real production build unconditionally,
+so "just verifying permissions" also redeploys the live site).
 
 ### Redeploying after a domain change
 

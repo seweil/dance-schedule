@@ -46,6 +46,39 @@ session — but `set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
 untouched and still run locally as root. The fix above (a scoped identity
 for local day-to-day use) is still the right direction for those.
 
+**Fixed and verified 2026-08-26:** `infra/local-deploy-user.yaml` +
+`infra/deploy-local-user.sh` (see `infra/README.md`'s "A scoped IAM
+identity for the scripts CI doesn't cover") — an IAM user
+(`dance-schedule-deploy`) covering every script listed above, so a human's
+local, day-to-day AWS CLI use never needs root either, going forward. A
+static access key, not an assumable role — SSO's own short-TTL-token-refresh
+is what the very next entry below describes breaking under this sandbox,
+and a static key has no refresh cycle to hit that.
+
+Two real template bugs surfaced during the actual bootstrap deploy, both
+fixed in `local-deploy-user.yaml`: the `Description` field exceeded
+CloudFormation's 1024-character limit (trimmed, detail moved to a `#`
+comment instead), and the policy — as an inline `AWS::IAM::User` policy —
+exceeded IAM's 2048-byte inline-policy limit at ~4.8KB (converted to a
+customer-managed `AWS::IAM::ManagedPolicy`, 6144-byte limit, attached to
+the same user).
+
+**Verified against the real account, same session:** `enable-js-error-alarm.sh`,
+`apply-amplify-rewrites.sh`, `add-email-dns-records.sh`, and
+`deploy-email-forwarding.sh` all succeeded under the new profile with no
+`AccessDenied`. `set-amplify-env.sh` also succeeded — note it triggers a
+real production build unconditionally (not just when env vars actually
+change), so running it as a "just verifying permissions" check still
+redeployed the live site. `disable-js-error-alarm.sh` specifically wasn't
+exercised (blocked by Claude Code's own auto-mode classifier, unrelated to
+AWS IAM — `enable` exercises the identical `cloudwatch:*AlarmActions` grant,
+so this isn't believed to be a real gap, just untested by that one session).
+
+**Not yet done, still needs a human:** deactivating whatever root
+credentials were in local day-to-day use before this (IAM console → My
+Security Credentials — not something the AWS CLI can do on root's own
+behalf).
+
 ## Claude Code's own sandbox can't launch Chromium — fixed, but only for the exact allowlisted command forms
 
 **Resolved 2026-08-01** (commit `084f6b1`, `.claude/settings.json`) — but

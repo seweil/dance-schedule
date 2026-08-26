@@ -1,0 +1,324 @@
+# One-time bootstrap: an IAM user with a scoped policy (and a long-lived
+# access key, created separately by deploy-local-user.sh — see that
+# script's own comment for why CloudFormation itself doesn't create the
+# key) covering every infra/*.sh script that infra/github-oidc.yaml's own
+# CI role doesn't — see infra/README.md's "Doesn't cover" list:
+# set-amplify-env.sh, apply-amplify-rewrites.sh, deploy-email-forwarding.sh,
+# add-email-dns-records.sh, enable/disable-js-error-alarm.sh — plus the
+# identical dance-schedule-monitoring scope github-oidc.yaml already grants
+# GitHub Actions, so this one user can also run deploy.sh/refresh-
+# dashboard.sh/download-dashboard.sh locally without root. Closes (or at
+# least substantially narrows) docs/known-issues.md's root-user entry.
+#
+# Deliberately an IAM user with a static access key, not an assumable role:
+# this account's AWS SSO session credentials silently stop refreshing under
+# a coding agent's own sandbox (see that same doc's separate SSO entry) — a
+# static key has no refresh cycle to break. The real cost is a genuinely
+# long-lived secret: store it via a named AWS CLI profile
+# (`aws configure --profile dance-schedule-deploy`), never in this repo, and
+# rotate it (`aws iam create-access-key` + `update-access-key --status
+# Inactive` on the old one + `delete-access-key`) if it's ever suspected
+# leaked.
+#
+# Deliberately its OWN stack, not folded into github-oidc.yaml or
+# monitoring.yaml: different lifecycle (created once, essentially never
+# touched again, same as github-oidc.yaml) and a different principal type
+# (a user meant for a human's local CLI, not a role assumed by CI) — kept
+# separate so editing one's scope can never accidentally widen the other's.
+#
+# Must be deployed by hand, with real (for now: root) credentials — same
+# chicken-and-egg as github-oidc.yaml's own bootstrap: creating an IAM
+# user/policy needs IAM permissions the not-yet-existing user doesn't have.
+# This is the LAST time that should be necessary.
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  One-time bootstrap: an IAM user + scoped policy covering every infra/*.sh
+  script github-oidc.yaml's own CI role doesn't (see infra/README.md's
+  "Doesn't cover" list), so local day-to-day use never needs root either.
+  Static access key, not an assumable role — see the comment above this
+  line for the full reasoning. Deployed by hand, with root, one time only.
+
+Parameters:
+  AmplifyAppId:
+    Type: String
+    Description: >
+      This app's Amplify app id — scopes every Amplify permission below to
+      this one app, not every app in the account. deploy-local-user.sh
+      resolves this automatically (same auto-discovery
+      apply-amplify-rewrites.sh already does) when there's exactly one
+      Amplify app in the account/region; pass it explicitly only if that
+      ever stops being true. Find it by hand with:
+      aws amplify list-apps --region us-east-2 --query 'apps[].{name:name,appId:appId}'
+  Route53HostedZoneId:
+    Type: String
+    Description: >
+      sqdance.app's Route53 hosted zone id, WITHOUT the "/hostedzone/"
+      prefix — scopes DNS-write permission to this one zone, not every
+      zone in the account. deploy-local-user.sh resolves this
+      automatically too. Find it by hand with:
+      aws route53 list-hosted-zones-by-name --dns-name sqdance.app --max-items 1 --query 'HostedZones[0].Id' --output text | sed 's#/hostedzone/##'
+
+Resources:
+  DeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: dance-schedule-deploy
+
+  # A customer-managed policy, not an inline Policies: entry on DeployUser
+  # itself (tried first — fails outright: IAM caps an inline USER policy at
+  # 2048 bytes, and this one compiles to ~4.8KB; a managed policy's own cap
+  # is 6144 characters, comfortably enough here).
+  DeployUserPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: dance-schedule-deploy
+      Users:
+        - !Ref DeployUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # --- dance-schedule-monitoring (us-east-2) —
+          # identical scope to github-oidc.yaml's own
+          # GitHubActionsDeployRole policy; see that file's own Sid
+          # comments for the full reasoning behind each one. Repeated
+          # here rather than shared via a managed policy, per this
+          # template's own header comment (unrelated lifecycles).
+          - Sid: MonitoringStack
+            Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+              - cloudformation:DeleteChangeSet
+            Resource:
+              - !Sub 'arn:aws:cloudformation:us-east-2:${AWS::AccountId}:stack/dance-schedule-monitoring/*'
+              - !Sub 'arn:aws:cloudformation:us-east-2:${AWS::AccountId}:changeSet/*'
+          - Sid: WhoAmI
+            Effect: Allow
+            Action: sts:GetCallerIdentity
+            Resource: '*'
+          - Sid: RumGuestRole
+            Effect: Allow
+            Action:
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:GetRole
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:GetRolePolicy
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:TagRole
+              - iam:UntagRole
+              - iam:PassRole
+            Resource:
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/dance-schedule*'
+            # AttachRolePolicy/DetachRolePolicy added beyond
+            # github-oidc.yaml's own copy of this Sid — not needed by
+            # monitoring.yaml's RUM guest role, but needed below by
+            # email-forwarding.yaml's ForwarderRole (which attaches the
+            # AWS-managed AWSLambdaBasicExecutionRole policy) — kept in
+            # this one shared Sid rather than a second near-duplicate,
+            # since the Resource pattern is identical either way.
+          - Sid: CognitoIdentityPool
+            Effect: Allow
+            Action:
+              - cognito-identity:CreateIdentityPool
+              - cognito-identity:DeleteIdentityPool
+              - cognito-identity:DescribeIdentityPool
+              - cognito-identity:GetIdentityPoolRoles
+              - cognito-identity:SetIdentityPoolRoles
+              - cognito-identity:TagResource
+              - cognito-identity:UntagResource
+            Resource: '*'
+            # No ARN-path-based scoping available — CreateIdentityPool's
+            # target doesn't exist yet to scope to, same shape as
+            # AmplifyListApps/Route53DiscoverZone below.
+          - Sid: RumAppMonitor
+            Effect: Allow
+            Action:
+              - rum:CreateAppMonitor
+              - rum:DeleteAppMonitor
+              - rum:GetAppMonitor
+              - rum:UpdateAppMonitor
+              - rum:TagResource
+              - rum:UntagResource
+              - rum:ListRumMetricsDestinations
+              - rum:GetResourcePolicy
+            Resource: '*'
+          - Sid: AlarmAndDashboard
+            Effect: Allow
+            Action:
+              - cloudwatch:PutMetricAlarm
+              - cloudwatch:DeleteAlarms
+              - cloudwatch:DescribeAlarms
+              # Beyond github-oidc.yaml's own copy of this Sid — needed
+              # by enable-js-error-alarm.sh/disable-js-error-alarm.sh,
+              # which CI never calls (muting is an ad hoc, human-in-the-
+              # loop action, not something a push-triggered deploy does).
+              - cloudwatch:EnableAlarmActions
+              - cloudwatch:DisableAlarmActions
+              - cloudwatch:PutDashboard
+              - cloudwatch:DeleteDashboards
+              - cloudwatch:GetDashboard
+              - cloudwatch:TagResource
+              - cloudwatch:UntagResource
+            Resource:
+              - !Sub 'arn:aws:cloudwatch:us-east-2:${AWS::AccountId}:alarm:dance-schedule*'
+              - !Sub 'arn:aws:cloudwatch::${AWS::AccountId}:dashboard/dance-schedule*'
+          - Sid: SnsTopic
+            Effect: Allow
+            Action:
+              - sns:CreateTopic
+              - sns:DeleteTopic
+              - sns:GetTopicAttributes
+              - sns:SetTopicAttributes
+              - sns:Subscribe
+              - sns:Unsubscribe
+              - sns:TagResource
+              - sns:UntagResource
+              - sns:Publish
+            Resource:
+              - !Sub 'arn:aws:sns:us-east-2:${AWS::AccountId}:dance-schedule*'
+          - Sid: LogsQueryDefinitions
+            Effect: Allow
+            Action:
+              - logs:PutQueryDefinition
+              - logs:DeleteQueryDefinition
+              - logs:DescribeQueryDefinitions
+            Resource: '*'
+
+          # --- Amplify: set-amplify-env.sh, apply-amplify-rewrites.sh ---
+          - Sid: AmplifyApp
+            Effect: Allow
+            Action:
+              - amplify:GetApp
+              - amplify:UpdateApp
+              - amplify:StartJob
+            Resource:
+              - !Sub 'arn:aws:amplify:us-east-2:${AWS::AccountId}:apps/${AmplifyAppId}'
+              - !Sub 'arn:aws:amplify:us-east-2:${AWS::AccountId}:apps/${AmplifyAppId}/branches/*'
+          - Sid: AmplifyListApps
+            Effect: Allow
+            Action: amplify:ListApps
+            Resource: '*'
+            # Read-only discovery (both scripts' own auto-detect-the-one-
+            # app fallback, and this stack's own deploy script) — no
+            # per-app resource to scope a LIST action to.
+
+          # --- Route53: add-email-dns-records.sh ---
+          - Sid: Route53DiscoverZone
+            Effect: Allow
+            Action: route53:ListHostedZonesByName
+            Resource: '*'
+          - Sid: Route53Records
+            Effect: Allow
+            Action:
+              - route53:ListResourceRecordSets
+              - route53:ChangeResourceRecordSets
+            Resource:
+              - !Sub 'arn:aws:route53:::hostedzone/${Route53HostedZoneId}'
+
+          # --- dance-schedule-email-forwarding (us-east-1) ---
+          - Sid: EmailForwardingStack
+            Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+              - cloudformation:DeleteChangeSet
+            Resource:
+              - !Sub 'arn:aws:cloudformation:us-east-1:${AWS::AccountId}:stack/dance-schedule-email-forwarding/*'
+              - !Sub 'arn:aws:cloudformation:us-east-1:${AWS::AccountId}:changeSet/*'
+          - Sid: EmailForwardingBucket
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:PutBucketPolicy
+              - s3:GetBucketPolicy
+              - s3:DeleteBucketPolicy
+              - s3:PutLifecycleConfiguration
+              - s3:GetLifecycleConfiguration
+              - s3:PutBucketTagging
+              - s3:GetBucketTagging
+            Resource: '*'
+            # email-forwarding.yaml's EmailBucket has no explicit
+            # BucketName (CloudFormation generates one at deploy time),
+            # so there's no ARN to scope to ahead of time — same shape
+            # as CognitoIdentityPool above. Deliberately NOT adding a
+            # fixed BucketName to that template to enable scoping this:
+            # S3 bucket names are immutable, so pinning one now would
+            # REPLACE (delete + recreate) the already-deployed bucket for
+            # no real security gain — its own bucket policy already
+            # restricts writes to SES only, and its objects auto-expire
+            # in 14 days (that template's own LifecycleConfiguration).
+            # The blast radius of this Resource: '*' is bucket-admin
+            # actions, not the mail contents inside it.
+          - Sid: EmailForwarderFunction
+            Effect: Allow
+            Action:
+              - lambda:CreateFunction
+              - lambda:DeleteFunction
+              - lambda:GetFunction
+              - lambda:UpdateFunctionCode
+              - lambda:UpdateFunctionConfiguration
+              - lambda:AddPermission
+              - lambda:RemovePermission
+              - lambda:GetPolicy
+              - lambda:TagResource
+              - lambda:UntagResource
+            Resource:
+              - !Sub 'arn:aws:lambda:us-east-1:${AWS::AccountId}:function:dance-schedule*'
+          - Sid: EmailForwardingSes
+            Effect: Allow
+            Action:
+              # AWS::SES::EmailIdentity
+              - ses:CreateEmailIdentity
+              - ses:DeleteEmailIdentity
+              - ses:GetEmailIdentity
+              - ses:PutEmailIdentityDkimSigningAttributes
+              # AWS::SES::ReceiptRuleSet / AWS::SES::ReceiptRule
+              - ses:CreateReceiptRuleSet
+              - ses:DeleteReceiptRuleSet
+              - ses:DescribeReceiptRuleSet
+              - ses:CreateReceiptRule
+              - ses:DeleteReceiptRule
+              - ses:UpdateReceiptRule
+              - ses:DescribeReceiptRule
+              # Called directly by deploy-email-forwarding.sh /
+              # add-email-dns-records.sh, not by CloudFormation itself
+              - ses:SetActiveReceiptRuleSet
+              - ses:VerifyEmailIdentity
+              - ses:GetIdentityVerificationAttributes
+              - ses:TagResource
+              - ses:UntagResource
+            Resource: '*'
+            # Not resource-scoped: several of SES's classic v1 actions
+            # here (VerifyEmailIdentity, GetIdentityVerificationAttributes,
+            # SetActiveReceiptRuleSet) don't support resource-level
+            # permissions at all per AWS's own docs, and mixing scoped +
+            # unscoped actions in one Sid isn't possible — kept as one
+            # Resource: '*' Sid rather than guessing wrong and risking a
+            # rejected policy. UNTESTED against a real deploy (no AWS
+            # access from this environment) — same caveat
+            # github-oidc.yaml's own RumAppMonitor Sid comment describes
+            # (its extra ListRumMetricsDestinations/GetResourcePolicy
+            # grants were only discovered after a real AccessDenied) —
+            # expect a possible follow-up grant if a real
+            # deploy-email-forwarding.sh run surfaces one.
+
+Outputs:
+  DeployUserName:
+    Description: >
+      Pass to `aws iam create-access-key --user-name` (deploy-local-user.sh
+      does this automatically).
+    Value: !Ref DeployUser
