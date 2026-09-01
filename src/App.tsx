@@ -22,6 +22,8 @@ import { useLastPagePersistence } from './hooks/useLastPagePersistence'
 import { useNudgeScrollOnOrientationChange } from './hooks/useNudgeScrollOnOrientationChange'
 import { useResetRotateBannerOnLandscape } from './hooks/useResetRotateBannerOnLandscape'
 import { normalizeRoutes } from './lib/buildNavTree'
+import { mailtoAddress, withDiagnostics } from './lib/mailtoDiagnostics'
+import { trackEvent } from './lib/rum'
 
 // A content page's markdown `# Title` compiles to a plain `<h1>` — this override
 // routes it through PageHeader.tsx too, same as every hand-written page already
@@ -38,13 +40,34 @@ function MdxH1({ children }: { children?: ReactNode }) {
 // Routing same-origin absolute paths through react-router's Link (basename-relative,
 // same distinction BuildInfo.tsx already draws for "/events") keeps them in the
 // current build. Anything else — external URLs, mailto:, protocol-relative "//..." —
-// is left as a real <a>.
+// is left as a real <a>, except a mailto: href, which also gets a build +
+// client diagnostics block folded into its body via mailtoDiagnostics.ts, so
+// a content page's "Email us" link (e.g. content/MotivateToSeattle/pages/25
+// help.md) doesn't need any special markup to report that back — see that
+// file's own comment for why this is a blanket mailto: behavior rather than
+// something each content author opts into per link. Also fires a
+// `mailto_link_clicked` CloudWatch RUM custom event (src/lib/rum.ts) on
+// click — someone opening their mail client doesn't necessarily go on to
+// actually send anything, so this is a "reached for help" signal, not a
+// substitute for knowing whether the email itself arrived. See
+// docs/ops.md's custom-events table.
 function MdxA({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement>) {
   if (href?.startsWith('/') && !href.startsWith('//')) {
     return (
       <Link to={href} {...rest}>
         {children}
       </Link>
+    )
+  }
+  if (href?.startsWith('mailto:')) {
+    return (
+      <a
+        href={withDiagnostics(href)}
+        onClick={() => trackEvent('mailto_link_clicked', { address: mailtoAddress(href) })}
+        {...rest}
+      >
+        {children}
+      </a>
     )
   }
   return (

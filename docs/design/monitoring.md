@@ -256,6 +256,18 @@ asked for, not a generic "track every click" wrapper — add more call sites
 the same way if a specific question comes up later, rather than
 instrumenting speculatively.
 
+**A fourth event, `mailto_link_clicked`, added later** when asked directly
+whether a "mail us" feedback link's click could be made visible in
+CloudWatch. Unlike the three above, this one lives in `App.tsx`'s `MdxA`
+`MDXProvider` override, not a hook — interaction-only (clicking a mailto
+link is a discrete event, not an ongoing preference, so no fire-on-mount
+the way the level-range/text-size events get), payload `{ address }`. It's
+a blanket behavior on every `mailto:` href in content, not specific to any
+one address, the same "no content-author opt-in needed" reasoning as
+`mailtoDiagnostics.ts`'s build/client diagnostics feature it sits next to
+(see that file's own comment) — both ride the same `MdxA` interception
+point.
+
 ### `RetainTelemetryBeyond30Days` (CwLogEnabled) on by default, for aggregate reporting
 **Why:** The RUM console's Events tab only supports browsing individual
 events — no count/group-by over custom event fields (e.g. "how many

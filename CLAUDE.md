@@ -211,6 +211,16 @@ picks up the `.md` extension.
   the zoom/lightbox behavior entirely and out of the page's shared image gallery
   (`ImageGallery.tsx`), so it never becomes a next/prev stop for the page's other,
   real photos either (`ZoomableImage.tsx`'s `NO_ZOOM_TOKEN`).
+- **Email links**: every rendered `mailto:` link (e.g.
+  `[Email us](mailto:help@sqdance.app)`) automatically gets a build + client
+  diagnostics block folded into its body — build hash/time, current page URL,
+  online/installed status, user agent — via `src/lib/mailtoDiagnostics.ts`,
+  applied through the same `MdxA` `MDXProvider` override in `App.tsx` as the
+  routing behavior above. Content authors write a plain mailto link; no extra
+  markup needed. An existing `subject`/`body` in the markdown link's own
+  `mailto:` URL is preserved, with diagnostics appended after any existing body.
+  A click also fires a `mailto_link_clicked` CloudWatch RUM custom event
+  (`{ address }`) — see `docs/ops.md`'s custom-events table.
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
   routes `vite-plugin-pages` generates — title = Title-cased filename (after
   stripping the order prefix), order = the numeric prefix (see Naming above), Home

@@ -178,15 +178,24 @@ count" as a literal, complete count of app usage.
 
 ### Events tab — custom, app-specific events
 
-Search by event type. Three exist today (added in `useDanceScheduleFilters.ts`
-and `useTextSizePreference.ts` — see `docs/design/monitoring.md`'s custom-events
-decision for the full rationale):
+Search by event type. Four exist today (three added in
+`useDanceScheduleFilters.ts` and `useTextSizePreference.ts` — see
+`docs/design/monitoring.md`'s custom-events decision for the full rationale;
+the fourth, `mailto_link_clicked`, added in `App.tsx`'s `MdxA`):
 
 | Event type | Fires when | Payload |
 | --- | --- | --- |
 | `dance_schedule_date_selected` | User picks a date on any dance-schedule-family page | `{ date: "YYYY-MM-DD" }` |
 | `dance_schedule_level_range` | On every page load, and on every subsequent change the user actually makes (slider drag, tick click, or "Show all levels") — NOT when switching to a date whose present range happens to trim the view; see `useDanceScheduleFilters.ts`'s userMin/MaxLevelIndex vs. minLevelIndex/maxLevelIndex split | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
 | `text_size_preference` | On every page load, and on every subsequent change | `{ textSize: "normal" \| "large" \| "x-large" }` |
+| `mailto_link_clicked` | User clicks any `mailto:` link in content (e.g. a page's "Email us" link) — every content set's markdown links go through the same `MdxA` override, so this covers any future mailto link, not just today's one address | `{ address: "help@sqdance.app" }` |
+
+`mailto_link_clicked` fires on the browser opening a mail client (`<a>`'s own
+click), not on the email actually being sent — someone can still cancel or
+close the compose window after clicking; treat this as a "reached for help"
+signal, not proof an email arrived. See `src/lib/mailtoDiagnostics.ts` for the
+separate, unrelated behavior of also folding build/client diagnostics into
+that same link's body.
 
 `dance_schedule_level_range` and `text_size_preference` both fire
 on every page load, not just when someone changes the setting — deliberate,
