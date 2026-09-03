@@ -19,6 +19,7 @@ describe('withDiagnostics', () => {
     expect(result).toMatch(/^mailto:help@sqdance\.app\?body=/)
 
     const body = decodeURIComponent(new URLSearchParams(result.split('?')[1]).get('body') ?? '')
+    expect(body).toContain('Details:')
     expect(body).toContain('Page: ')
     expect(body).toMatch(/Build \S+ at /)
     expect(body).toContain(navigator.userAgent)
@@ -36,12 +37,17 @@ describe('withDiagnostics', () => {
     const result = withDiagnostics('mailto:help@sqdance.app?subject=Bug&body=Steps%20to%20reproduce%3A')
     const params = new URLSearchParams(result.split('?')[1])
     expect(params.get('subject')).toBe('Bug')
-    expect(decodeURIComponent(params.get('body') ?? '')).toMatch(/^Steps to reproduce:\r\n\r\n---/)
+    expect(decodeURIComponent(params.get('body') ?? '')).toMatch(/^Steps to reproduce:\n\n---/)
   })
 
   it('encodes the body with %20, not "+", so spaces survive in mail clients that read "+" literally', () => {
     const result = withDiagnostics('mailto:help@sqdance.app')
     expect(result).not.toContain('+')
+  })
+
+  it('uses bare \\n, not \\r\\n, for line breaks — macOS/iOS Mail renders %0D%0A as a literal "<BR>"', () => {
+    const result = withDiagnostics('mailto:help@sqdance.app')
+    expect(result).not.toContain('%0D')
   })
 })
 

@@ -24,18 +24,40 @@ export function withDiagnostics(href: string): string {
   }
 
   const builtAt = new Date(__BUILD_TIME__)
-  // \r\n, not \n — the more broadly compatible mailto body line-ending
-  // across mail clients.
+  // Reported live: Chrome on macOS silently drops the entire `body` when
+  // handing a mailto: link off to Mail.app, past some undocumented length in
+  // Chrome's own external-protocol handoff — bisected empirically (repeatedly
+  // testing mailto: links of a known encoded body length directly in Chrome's
+  // address bar) to somewhere between 395 and 432 characters on that one
+  // combination. Deliberately NOT trimmed to duck under that, though: Chrome
+  // on iOS and Android, and Safari/Firefox on the same Mac, all populate the
+  // FULL body (including the user agent below) correctly — this is narrowly
+  // a macOS-desktop-Chrome-only quirk, not a general mailto/RFC 6068 limit,
+  // and per direct product decision isn't worth degrading the diagnostics for
+  // every other platform to work around. Neither Chromium's own source
+  // (`external_protocol_handler.cc`, `platform_util_mac.mm`) nor Apple's
+  // NSWorkspace/NSURL docs publish a length limit for this path — whatever's
+  // failing is happening inside Mail.app/Launch Services itself, with no
+  // documented number to design against.
+  //
+  // \n, not \r\n — a separate, real, independently-confirmed bug (unrelated
+  // to the length issue above): macOS/iOS Mail (14.6+) renders a mailto:
+  // body's "%0D%0A" sequences as the literal text "<BR>" instead of an
+  // actual line break (Apple's own explanation: rich-content support was
+  // stripped from mailto handling as a security fix, and this is a side
+  // effect). Bare "%0A" isn't strictly RFC 6068-compliant, but it sidesteps
+  // that bug and is accepted fine by every other mail client that matters
+  // here.
   const diagnostics = [
     '',
     '',
     '---',
-    'If you are reporting a technical problem, these details will help us diagnose',
+    'Details:',
     `Page: ${window.location.href}`,
     `Build ${__BUILD_NUMBER__} at ${buildDateFormatter.format(builtAt)}, ${buildTimeFormatter.format(builtAt)}`,
     `${navigator.onLine ? 'Online' : 'Offline'} · ${isStandalonePwa() ? 'Installed' : 'Browser'}`,
     navigator.userAgent,
-  ].join('\r\n')
+  ].join('\n')
 
   const [address, query = ''] = href.slice('mailto:'.length).split('?')
   // Parsed (not hand-split) so a content author's own subject=/body= — none
