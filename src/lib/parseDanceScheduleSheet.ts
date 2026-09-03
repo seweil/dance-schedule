@@ -12,14 +12,15 @@ const FREEFORM_PREFIX = '* '
 const DITTO_MARKER = '"'
 
 // Any sheet name starting with this prefix is treated as non-schedule content —
-// a general escape hatch for notes/utility/summary tabs living alongside the real
-// per-day sheets in the same workbook (e.g. scripts/generate-dance-schedule-hour-tabs.ts's
-// generated "- Hours by Level"/"- Hours by Caller" tabs), not tied to any specific
-// tab name. Every OTHER sheet is still assumed to be a real schedule day and must
-// parse as one — parseSheetDate below throws loudly on a genuine mismatch — so
-// this prefix is the only way to opt a sheet out of that expectation; a real day
-// sheet's own accidentally-unparseable name still fails the build exactly as
-// before, since it would never legitimately start with "-".
+// a general escape hatch for a notes/utility tab a content author hand-adds
+// alongside the real per-day sheets in the same workbook, not tied to any
+// specific tab name. Every OTHER sheet is still assumed to be a real schedule
+// day and must parse as one — parseSheetDate below throws loudly on a genuine
+// mismatch — so this prefix is the only way to opt a sheet out of that
+// expectation; a real day sheet's own accidentally-unparseable name still
+// fails the build exactly as before, since it would never legitimately start
+// with "-". See docs/design/dance-schedule.md's own entry on this convention
+// for why it's a prefix rather than a hardcoded allow-list of tab names.
 export const NON_SCHEDULE_SHEET_PREFIX = '-'
 
 export function isNonScheduleSheetName(sheetName: string): boolean {

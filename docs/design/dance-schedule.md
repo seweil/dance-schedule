@@ -55,9 +55,10 @@ separate, later phase.
       see Decisions
 - [x] Debug/dump summary of total hours per level and per caller — see
       Decisions
-- [x] Duplicating the hour summary into the real spreadsheet as tabs, and
-      how to keep the build from choking on a non-day tab once one exists
-      — see Decisions
+- [x] How to keep the build from choking on a non-day tab, for a hand-added
+      notes/utility sheet — see Decisions (previously also covered
+      duplicating the hour summary into the real spreadsheet as generated
+      tabs — removed, see that entry's own superseded note)
 - [x] Making the "Type - " portion of a cell optional for plain dancing —
       see Decisions
 
@@ -359,192 +360,63 @@ day with a sub-threshold caller (e.g. a headliner's own opening slot split
 into two 30-minute callers, each too short to clear the floor alone), with
 no visible column to explain the gap.
 
-### Hour summaries also live in the real spreadsheet, as generated static tabs — not live formulas, and not an allow-list of tab names
-**Why:** Direct request — duplicate the debug page's two hour-summary
-tables (above) as real worksheet tabs inside the actual source
-`dance-schedule.xlsx` for the default content set
-(`content/backtrack2abq/`), so anyone opening the file in Excel sees the
-same totals without visiting the app, omitting the caller table's own
-`MIN_CALLER_HOURS` floor for simplicity (every caller with any measured
-hours appears). `gca` credit needed no extra exclusion — it was never
-counted toward anyone's hours to begin with.
+### Hour summaries also lived in the real spreadsheet, as generated static tabs — removed once the app itself became the sole source of truth
+**Removed 2026-09-03.** The generated `"- Hours by Level"`/`"- Hours by
+Caller"` tabs (written by `scripts/generate-dance-schedule-hour-tabs.ts`)
+duplicated `computeDanceScheduleHourSummary.ts`'s live totals as static
+values inside `dance-schedule.xlsx`, so someone opening the spreadsheet
+directly in Excel would see the same numbers without visiting the app. In
+practice this added a manual step (re-run the generator after every
+schedule edit) that provided no value once the app's own live
+computation — the debug page, and `dance-schedule-dump.md`'s "Hours by
+level"/"Hours by caller" tables, both regenerated automatically at build
+time — was already the thing anyone actually checked; the spreadsheet's
+own copy just went stale between edits despite the built-in "Status"
+staleness check (below), and stale numbers in the one place someone might
+trust at a glance are worse than no numbers there at all.
+`scripts/generate-dance-schedule-hour-tabs.ts` and its `tsx`
+devDependency (needed only to run that script) were deleted; the tabs
+themselves were stripped from every content set's `dance-schedule.xlsx`
+that had them (MotivateToSeattle, backtrack2abq).
 
-**Static values, not live Excel formulas.** A session's cell text is a
-compound parsed string (level + event type + caller(s) + optional GCA/
-multi-room directives) — replicating this app's crediting logic (even-
-split across distinct levels/callers, dedup, GCA exclusion) as native
-Excel formulas would mean reimplementing that parsing in spreadsheet-
-formula form, which this codebase has never done anywhere and isn't a
-good fit for what formulas are for. Instead, `scripts/generate-dance-schedule-hour-tabs.ts`
-(a permanent, reusable, re-runnable tool — same model as
-`scripts/edit-test-data.mjs`, not a one-off) reuses the app's own real
-`loadDanceScheduleData`/`buildDanceSchedule`/`computeDanceScheduleHourSummary`
-TypeScript pipeline to compute the numbers once and writes them as plain
-values, each rounded to `formatHours`'s own ≤2-decimal convention before
-writing (not just displayed that way via `numFmt`) — a share that's
-conceptually a whole number (e.g. an un-split 1-hour session) previously
-stored as a near-integer float like `0.9999999999999999`. Every hour
-column's `numFmt` is `'General'`, not a custom pattern like `'0.##'`:
-Google Sheets (unlike Excel) renders a custom format with only OPTIONAL
-decimal placeholders as a dangling "5." for a value that's exactly a
-whole number — a real, observed rendering bug in that app, independent of
-the stored value's own precision (rounding the stored value alone, an
-earlier attempt at this fix, resolved it in Excel but not Sheets).
-`'General'` has no such quirk in either app. **Accepted tradeoff:** these
-two tabs go stale if a day sheet is edited without re-running the
-generator afterward — flagged both in a note row and a live "Status"
-formula (see below) inside the generated tabs themselves, and here.
+**What's still true, and still relevant if this is ever reconsidered:** a
+session's cell text is a compound parsed string, not something a plain
+Excel formula can re-derive — replicating this app's crediting logic
+(even-split across distinct levels/callers, dedup, GCA exclusion) as
+native spreadsheet formulas was never on the table, so any future version
+of this would still need to be generated by a script reusing the app's
+own TypeScript pipeline, not live formulas. The staleness-detection trick
+tried here — a literal "Calculated" timestamp next to a live
+`=NOW()`-formula "Saved" cell, compared by a "Status" formula, so an
+edited-since-generated workbook at least *looks* stale — is preserved in
+this note as a worked pattern in case a similar problem comes up
+elsewhere, but isn't itself in use anywhere in this codebase anymore.
 
-**A live "Saved" formula flags staleness, without reimplementing the
-parsing pipeline in Excel.** Each tab's footer ends in four rows —
-"Calculated", "Saved", "Status", then the "Generated by…" note — rather
-than cramming everything into fewer, wider rows: an earlier version
-packed "Calculated at"/"Saved at" into one combined date+time cell each,
-side by side in a single row, which got visibly truncated by the hour
-columns' narrow default width. "Calculated" and "Saved" each get two
-cells — a date-only column (`m/d/yyyy`) and a time-only column
-(`h:mm:ss AM/PM`) — both pointing at the exact same underlying value;
-Excel's non-bracketed time format codes show only the time-of-day portion
-(value mod 1) regardless of the date part also present in that same
-value, so no separate "date-only" and "time-only" values are needed, just
-two different `numFmt`s on the same cell content.
-
-"Calculated" is a plain literal — a fixed snapshot of when the script
-computed the numbers above. **"Saved" is a live `=NOW()` FORMULA, not a
-literal**, seeded with a cached result equal to when the script wrote
-this file, so it reads identically to "Calculated" until something
-actually changes. `NOW()` is volatile, so Excel/Sheets recalculate it —
-and everything else — whenever the workbook actually recalculates. In
-real Excel, with automatic calculation (the default), that happens on
-every EDIT, not on every open: a file with cached formula results just
-shows those cached results until something is actually touched. So a
-user manually editing a day's schedule after this script ran causes
-"Saved" to visibly jump forward to that edit's own time, live, with no
-need to re-run the generator to notice — "Status" then holds
-`=IF(saved>calculated+TIME(0,0,15),"⚠ stale…","✓ up to date…")`,
-comparing the live cell against the fixed one (either cell's own "date"
-or "time" reference works for this, since both carry the full value
-regardless of which portion their own numFmt happens to display).
-
-**An earlier version of this got the anchor wrong**: it compared plain
-`NOW()` directly against "Calculated at" with a multi-minute buffer —
-since `NOW()` reflects whatever moment the workbook happens to
-recalculate at, including simply opening the file well after generation
-with zero edits, that version flagged a perfectly fresh, untouched
-spreadsheet as stale the moment anyone opened it more than a couple of
-minutes later. Anchoring on a *separate live cell* that only moves when
-something is actually edited — rather than comparing straight against
-`NOW()` — is what actually distinguishes "time passed" from "someone
-touched this." The grace period is 15 seconds, not minutes, because it
-only needs to cover the genuinely short gap between `savedAt` (captured
-immediately before the script starts writing the new sheet content) and
-the real `workbook.xlsx.writeFile` call actually finishing — milliseconds
-in practice for a workbook this size. **Known platform gap:** Google
-Sheets (unlike Excel) recalculates volatile functions like `NOW()` on
-every open regardless of cached results, so "Saved" — and therefore
-"Status" — can still read as stale there just from opening the file well
-after it was generated, even with zero edits. No plain formula can fix
-that; it's a real limitation of that platform, not a bug in this script.
-This mechanism can't detect a specific edit or verify totals are still
-correct — no plain Excel formula can re-derive this app's parsing logic
-(see above) — it's a coarse "has this workbook been touched since it was
-saved" tripwire, not a substitute for re-running the generator. Timezone
-handling: Excel dates carry no timezone at all — a literal date cell and
-`NOW()` are both just "whatever the local wall clock said." The generator
-constructs both timestamp values from this machine's own local wall-clock
-fields (not UTC) precisely so they're comparable to a later `NOW()`
-recalculation — a same-machine-in-practice heuristic (this spreadsheet is
-generated and edited by the same organizer), not something provably
-correct across timezones, which would need VBA. A related, now-fixed bug:
-ExcelJS's `column.numFmt` backfills every cell that already exists in
-that column at the moment it's set, so the hour-column `numFmt` loop
-above must run *before* these timestamp rows are added — doing it after
-(the original order) silently clobbered the date/time format on the
-"Calculated"/"Saved" cells, since they share columns 2 and 3 with the
-hour data.
-
-**Columns are sized to fit their own header text ("autofit"), not left at
-Excel's default width.** Every column — including each caller's own —
-gets `width = header-label-length + 3`, a standard workaround for
-ExcelJS's lack of true autofit (real autofit needs font-metric rendering,
-which only a spreadsheet app does at open time). A caller's own name is
-always this script's widest content in their column, so sizing off the
-header alone is sufficient. **A real bug surfaced building this:**
-sizing was first attempted by scanning each column's own `cell.text` for
-its actual widest content, but ExcelJS's `.text` getter doesn't apply a
-`numFmt` to a literal `Date`-valued cell — it falls back to the raw JS
-`Date`'s own `.toString()` (e.g. `"Thu Aug 06 2026 08:57:52 GMT-0700
-(Pacific Daylight Time)"`), which blew the "Calculated"/"Saved" columns
-out to ~60 characters wide. Fixed by computing width from known label
-text directly (header labels, plus — for column 1 specifically — the
-per-day date labels and the footer's own row labels) instead of
-depending on `.text` at all.
-
-**The level table uses a flat column width (10) instead of per-label
-sizing.** Label-based autofit (above) assumes a caller/level name is
-always the widest thing in its own column — true for caller names, false
-for level codes (`SSD`, `A1`, `C3A`, …), which are all short enough that
-the footer's own "8/6/2026"/"3:52:12 PM" date/time cells (sharing those
-same columns) would come out WIDER than the level-code-sized column,
-narrower than what's needed. A flat width, sized to comfortably fit those
-date/time strings, both fixes that and reads as more visually balanced
-across a row of uniformly-short level codes than jagged per-label widths
-would. `applyColumnWidths` takes `'fit-label'` or a flat number per call;
-`writeSummaryTable` is told which mode to use per sheet in `main()`.
-
-**Caller columns are grouped headline-first, then GCA-showcase-only, each
-sorted by descending hours.** Previously alphabetical. A caller whose
-*entire* credited total comes from `GCA_CALLER_SHOWCASE_EVENT_TYPE`
-sessions (a rotating short-slot exhibition block, not indicative of a
-caller's real weekend workload) is a fundamentally different kind of
-entry than someone who actually headlined a real session — mixing them
-into one alphabetical list buried real, lower-hour headline callers (e.g.
-a caller co-teaching one short session) among a dozen 0.5-hour showcase
-credits. `computeDanceScheduleHourSummary`'s `DanceScheduleHourSummaryTable`
-now carries an optional `groupBoundary` (the count of leading headline
-columns), set only on the caller table and only when both groups are
-non-empty; the generator script renders a medium-weight right border on
-that boundary column, across the header/date/Total rows, so the sheet
-itself makes the split visually obvious. A caller who both headlines one
-session and does a showcase slot still counts as headline (their
-showcase hours aren't excluded from their total, only from this
-grouping) — see `computeDanceScheduleHourSummary.ts`'s own
-`callerHasHeadlineHours` tracking.
-
-**A build-breaking gotcha this surfaced:** the real build-time parser
-(`vite-plugin-dance-schedule.ts` → `read-excel-file`) reads *every*
-worksheet in the workbook unconditionally, and `parseSheetDate` throws an
-*uncaught* `Unrecognized date format` error for any sheet name that isn't
-a recognized date pattern — there was no existing way to add a non-day tab
-to this workbook without crashing the real build the moment it's added.
+### The `-`-prefix convention for non-schedule tabs (still live, independent of the removed hour-summary tabs above)
+**Why:** The real build-time parser (`vite-plugin-dance-schedule.ts` →
+`read-excel-file`) reads *every* worksheet in the workbook
+unconditionally, and `parseSheetDate` throws an *uncaught* `Unrecognized
+date format` error for any sheet name that isn't a recognized date
+pattern — there was no way to add a non-day tab (notes, scratch
+calculations, anything) to this workbook without crashing the build the
+moment it's added.
 
 **Fixed with a `-`-prefix convention, not a hardcoded allow-list of
 specific tab names** — `isNonScheduleSheetName`/`NON_SCHEDULE_SHEET_PREFIX`
 (`parseDanceScheduleSheet.ts`) treat any sheet name starting with `-` as
 non-schedule content, skipped before the plugin's loop even attempts to
-parse it as a day. Considered and rejected an exact-name allow-list
-(`Set(['Hours by Level', 'Hours by Caller'])`) first — a prefix is more
-general (any future notes/utility tab opts out the same way, with no code
-change needed to "register" its exact name) while preserving the same
-safety property either design would have: a genuinely mistyped *real* day
-sheet name never starts with `-`, so it still fails the build loudly
-exactly as before, rather than being silently skipped. The generated tabs
-are named `- Hours by Level` / `- Hours by Caller`; the generator script's
-own idempotent re-run logic (removing a previous version of each tab
-before adding a fresh one) matches those two exact names specifically,
-deliberately *not* "remove anything `-`-prefixed" — that broader rule
-belongs only to the parser's general skip check, so a hypothetical
-unrelated `-`-prefixed tab someone adds by hand later is never touched by
-this script.
+parse it as a day. Considered and rejected an exact-name allow-list first
+— a prefix is more general (any future notes/utility tab opts out the
+same way, with no code change needed to "register" its exact name) while
+preserving the same safety property either design would have: a genuinely
+mistyped *real* day sheet name never starts with `-`, so it still fails
+the build loudly exactly as before, rather than being silently skipped.
 
-**New `tsx` devDependency** — needed so the generator script can import
-the real pipeline's `.ts` source directly rather than risk drifting from
-it by reimplementing the logic in plain JS (this repo's other `scripts/*.mjs`
-tools are plain JS with no TS-execution capability). Invoke it via `node
---import=tsx scripts/generate-dance-schedule-hour-tabs.ts`, not `pnpm exec
-tsx ...`/the bare `tsx` CLI — the latter's IPC-socket setup failed with
-`EPERM` in the sandboxed environment this was developed in; `node
---import=tsx` runs the identical transform without that wrapper.
+Originally added alongside the generated hour-summary tabs above (which
+used this mechanism to opt themselves out of day-sheet parsing) — kept
+after those tabs were removed, since it's generic infrastructure with no
+dependency on that specific feature: a hand-added `-`-prefixed notes tab
+still works the same way.
 
 ### Room-spanning and roomless sessions: a `location` field, not `room: string`
 **Why:** Before the real display page is built (see the deferred

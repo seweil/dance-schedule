@@ -11,8 +11,8 @@ function parseOneCell(cellText: string, header: string[] = ['Time', 'Ballroom Ce
 
 describe('isNonScheduleSheetName', () => {
   it('treats a "-"-prefixed name as non-schedule content', () => {
-    expect(isNonScheduleSheetName('- Hours by Level')).toBe(true)
-    expect(isNonScheduleSheetName('-Hours by Caller')).toBe(true)
+    expect(isNonScheduleSheetName('- Notes')).toBe(true)
+    expect(isNonScheduleSheetName('-Scratch')).toBe(true)
   })
 
   it('treats a real date-like sheet name as schedule content', () => {

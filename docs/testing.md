@@ -160,56 +160,6 @@ headline-callers-first / GCA-showcase-only-callers-last split
 `GCA_CALLER_SHOWCASE_EVENT_TYPE` sessions still gets a column (if over the
 hour floor) but sorts after every real headliner.
 
-## Regenerating the totals baked into the real spreadsheet
-
-The numbers above aren't just displayed in the app — `scripts/generate-dance-schedule-hour-tabs.ts`
-writes the same two tables as static `"- Hours by Level"`/`"- Hours by Caller"`
-tabs directly into `content/<CONTENT_SET>/data/dance-schedule.xlsx`, so anyone
-who opens the real spreadsheet in Excel sees the same totals without visiting
-the app.
-
-```
-CONTENT_SET=<your-event-name> node --import=tsx scripts/generate-dance-schedule-hour-tabs.ts
-```
-
-`CONTENT_SET` is required (not defaulted) — this writes directly to a real
-content set's workbook on disk, so a missing/mistyped value fails loud
-(`assertContentSetExists`) rather than silently touching the wrong event.
-
-Not `pnpm exec tsx ...` or the bare `tsx` CLI — the script's own header
-comment notes its IPC-socket setup fails with `EPERM` in at least one
-sandboxed environment; `node --import=tsx` runs the identical transform
-without that wrapper.
-
-A few things worth knowing before you run it or read its output:
-
-- **This is a manual, permanent tool, not part of any build** — it doesn't
-  run in `pnpm build`/`pnpm dev`, CI, or the Amplify deploy. The tab values
-  are static snapshots, not live formulas (the source cells are compound
-  parsed strings — `"Level : Type - Caller"` — not something a plain Excel
-  formula can re-derive), so **re-run it any time a day's schedule in the
-  workbook changes**, or the tabs silently go stale.
-- **The spreadsheet's caller table has no hour floor** — it's generated with
-  `minCallerHours: 0`, so every caller with any measured hours gets their own
-  row and there's never anything left to roll into an "Other" one, unlike the
-  debug page/dump's own version (and this doc's hand-calculation steps
-  above), which rolls anyone at or under `MIN_CALLER_HOURS` (`3`) into a
-  shared `"Other"` row instead of giving them their own. Per direct product
-  decision, to keep the spreadsheet's own version simpler than the app's
-  curated one — expect the two to disagree on caller *count* for that reason
-  alone, even when every individual total matches.
-- **Each generated tab has a built-in staleness check** — a "Calculated" row
-  (a fixed timestamp from when the script ran) next to a "Saved" row (a live
-  `=NOW()` formula, seeded to match "Calculated" until the workbook is
-  actually edited) and a "Status" formula comparing the two. If "Status"
-  reads as stale, the tab's numbers no longer necessarily match the day
-  sheets — re-run the script. (Google Sheets recalculates `NOW()` on every
-  open regardless of edits, so "Status" can read as stale there just from
-  opening the file — a real platform gap, not a bug.)
-- **Both tab names start with `"-"`** (`isNonScheduleSheetName`,
-  `parseDanceScheduleSheet.ts`) so the real schedule parser skips them
-  instead of trying to parse them as another day's grid.
-
 ## Previewing a different config.yaml value without editing it
 
 `config.yaml` is one value per content set — there's no way to have, say,

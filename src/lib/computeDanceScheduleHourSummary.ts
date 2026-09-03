@@ -47,8 +47,7 @@ export interface DanceScheduleHourSummaryTable {
   // least one non-GCA-showcase session) from a trailing "GCA showcase only" group
   // (everyone left, whose entire credited total came from GCA_CALLER_SHOWCASE_EVENT_TYPE
   // sessions) — only set on the caller table, and only when both groups are
-  // non-empty (nothing to separate otherwise). Consumers render a divider at this
-  // boundary; see scripts/generate-dance-schedule-hour-tabs.ts.
+  // non-empty (nothing to separate otherwise).
   groupBoundary?: number
 }
 
@@ -140,19 +139,8 @@ function buildTable(
  * so each table's own grand total always equals the total structured-session
  * hours scheduled, never double- or under-counted (modulo whichever callers the
  * hour threshold excludes).
- *
- * `options.minCallerHours` overrides MIN_CALLER_HOURS for the caller table only
- * (the level table has no such floor to begin with) — added for
- * scripts/generate-dance-schedule-hour-tabs.ts, which passes 0 ("every caller
- * with any measured hours," per direct product decision to omit the debug
- * page's own 3-hour floor for that spreadsheet tab). Defaults to MIN_CALLER_HOURS
- * so the debug page's own call site (no options passed) is unaffected.
  */
-export function computeDanceScheduleHourSummary(
-  sessions: DanceSession[],
-  options: { minCallerHours?: number } = {},
-): DanceScheduleHourSummary {
-  const minCallerHours = options.minCallerHours ?? MIN_CALLER_HOURS
+export function computeDanceScheduleHourSummary(sessions: DanceSession[]): DanceScheduleHourSummary {
   const groups = groupDanceSessionsByDate(sessions)
   const dates = groups.map((group) => group.date)
 
@@ -222,7 +210,7 @@ export function computeDanceScheduleHourSummary(
       }
       return b.total - a.total || a.label.localeCompare(b.label)
     },
-    minCallerHours,
+    MIN_CALLER_HOURS,
   )
   // Computed against callers.columns BEFORE the "Other" column (below) is
   // appended — "Other" is never a real headline/showcase caller, so it must
@@ -234,8 +222,7 @@ export function computeDanceScheduleHourSummary(
   // rolled up into one trailing "Other" column here, rather than just leaving
   // them absorbed into totalByDate/grandTotal with no column to show for it.
   // Omitted entirely when there's nothing to roll up (every caller cleared the
-  // floor, or `minCallerHours` was overridden to 0 — see this function's own
-  // doc comment), same as a level with zero hours is omitted entirely above.
+  // floor), same as a level with zero hours is omitted entirely above.
   const otherTotal = callers.excludedHoursByDate.reduce((sum, hours) => sum + hours, 0)
   const callerColumns =
     otherTotal > 0

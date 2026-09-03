@@ -241,10 +241,9 @@ usually already kept in practice.
   `Thursday July 2`. The year is inferred the same way as event dates
   (step 3) — include it in the sheet name only if you need to override that.
   Don't start a real day sheet's name with a hyphen (`-`) — that prefix is
-  reserved to mark a tab as non-schedule content (e.g. the generated
-  "Hours by Level"/"Hours by Caller" summary tabs — see "Checking your work"
-  below), so a sheet named that way is silently skipped rather than parsed as
-  a day.
+  reserved to mark a tab as non-schedule content (e.g. a personal notes tab
+  you keep alongside the real day sheets), so a sheet named that way is
+  silently skipped rather than parsed as a day.
 - **Row 1** = room names, one per column (can differ per sheet, e.g. a room
   only used on Saturday).
 - **Column A** = a time slot per row (e.g. `12:30p-1:30p`, same flexible

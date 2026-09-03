@@ -27,9 +27,10 @@ export interface DanceSchedulePluginOptions {
   contentDir: string
 }
 
-// Exported so scripts/generate-dance-schedule-hour-tabs.ts can reuse the exact
-// same read-and-parse-and-aggregate-errors pipeline the real build runs, rather
-// than a reimplementation that could silently drift from it.
+// Exported so vite-plugin-content-sets.ts can reuse the exact same read-and-
+// parse-and-aggregate-errors pipeline the real build runs (for its own
+// dateRange field), rather than a reimplementation that could silently drift
+// from it.
 export async function loadDanceScheduleData(danceScheduleFile: string): Promise<DanceSessionData[]> {
   // Reads every sheet (one per day) via the default export — this file's matrix
   // shape (rooms as columns, time slots as rows) doesn't fit read-excel-file's
@@ -41,9 +42,9 @@ export async function loadDanceScheduleData(danceScheduleFile: string): Promise<
 
   for (const sheet of sheets) {
     // Skips any sheet deliberately opted out of day-sheet parsing (see
-    // isNonScheduleSheetName's own comment) — e.g. this file's own generated
-    // "- Hours by Level"/"- Hours by Caller" summary tabs. Every other sheet is
-    // still assumed to be a real schedule day and parsed/validated as one.
+    // isNonScheduleSheetName's own comment) — e.g. a hand-added notes tab.
+    // Every other sheet is still assumed to be a real schedule day and
+    // parsed/validated as one.
     if (isNonScheduleSheetName(sheet.sheet)) {
       continue
     }

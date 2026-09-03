@@ -25,12 +25,7 @@ export default tseslint.config(
     },
   },
   {
-    files: [
-      'e2e/**/*.ts',
-      'playwright.config.ts',
-      'vite.config.ts',
-      'scripts/generate-dance-schedule-hour-tabs.ts',
-    ],
+    files: ['e2e/**/*.ts', 'playwright.config.ts', 'vite.config.ts'],
     languageOptions: { globals: globals.node },
   },
   eslintConfigPrettier,
