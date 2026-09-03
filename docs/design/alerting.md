@@ -25,6 +25,8 @@ questions.
 - [x] Filtering noise from a single stuck/stale client re-triggering the
       alarm repeatedly for an already-known issue — see Decisions ("M out
       of N")
+- [x] A way to verify the whole pipeline actually works, on demand, without
+      waiting for a real bug — see Decisions
 
 ## Decisions
 
@@ -212,6 +214,38 @@ not distinguish "one persistently-broken device" from "a few real affected
 users." If that distinction is ever actually needed, revisit option 1 or 2
 above rather than tightening M-out-of-N further (a wider N/M just delays
 detection of a real problem without solving the underlying ambiguity).
+
+### A dedicated test-error trigger on the debug page, not "throw something in devtools"
+**Why:** Everything above was validated against a real production bug
+(2026-08-21) — useful evidence the pipeline works, but not something you can
+repeat on demand to confirm it's still wired up correctly after a future
+change (a bad `infra/monitoring.yaml` edit, a lapsed SNS confirmation, a
+`VITE_RUM_*` env var going stale in Amplify). Manually triggering an error
+via the browser devtools console works but isn't repeatable/discoverable —
+anyone wanting to verify this has to already know RUM's `errors` telemetry
+is just `window.onerror`/`unhandledrejection` under the hood, then find a
+safe way to throw one without actually breaking the page they're on.
+
+`RawDanceScheduleDebugPage.tsx` (`/debug/dance-schedule`, already included
+in production per the earlier debug-page decision, just not linked from
+nav) gained a `TriggerTestErrorLink` button instead: `throw new Error(...)`
+from inside the button's own `onClick`, not during render — React's error-
+boundary machinery only intercepts errors thrown while rendering/in
+lifecycles/effects, never inside a plain event handler, so this propagates
+as a genuine uncaught exception (exactly what RUM's `errors` telemetry
+listens for) without unmounting the page or leaving it broken. Safe to
+click repeatedly — confirmed by an inline "Triggered — check RUM/CloudWatch
+for the event" message (auto-hiding after a few seconds, restarting its own
+timer on each click) rather than anything that could look like a crash.
+
+**A click counter, not a boolean, drives that confirmation message** —
+verifying the "M out of N" alarm (above) means clicking this several times,
+spaced across separate 5-minute windows, and each click needs to restart
+the auto-hide timer even if an earlier confirmation is still showing.
+See `docs/ops.md`'s "Live-testing the alarm end to end" for the actual
+step-by-step (where to click, how long to wait between clicks, what to
+watch for) — this entry is the why, not the how, and the two shouldn't
+drift: if the button's own behavior ever changes, update both.
 
 ## Open questions
 

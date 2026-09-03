@@ -222,6 +222,44 @@ See `docs/design/alerting.md` for the full rationale. Console: **CloudWatch
 | Notifications | SNS → Topics → `dance-schedule-alerts` → Subscriptions | One `email` subscription, status `Confirmed` — if it still says `PendingConfirmation`, the one-time confirmation link was never clicked (see `infra/README.md`) and nothing will ever notify. This same topic/subscription is also where `ci.yml`'s `notify` job sends its `SQDANCE: CI PASSED/FAILED` emails (see the Release workflow table above) — not JS-error-specific despite the topic's own name, so don't be surprised to see both kinds of email in the same inbox. |
 | The underlying data | The dashboard's own "## Errors" widgets, or the `JsErrorRateQuery`/`JsErrorsQuery` saved queries below | A rate graph plus a table of individual errors (message, filename/line, page) — see the "Retention and aggregate reporting" queries below for the exact query text. |
 
+**Live-testing the alarm end to end** — confirms the whole pipeline (RUM →
+the `AWS/RUM` `JsErrorCount` metric → alarm → SNS → email) still actually
+works, not just that the config looks right on paper. There's a built-in
+trigger for exactly this — no devtools console needed:
+
+1. On the **live deployed site** (not local `pnpm dev`/`pnpm preview` — RUM
+   only initializes in a real production build with the `VITE_RUM_*` env
+   vars set, `src/lib/rum.ts`), open any content set's
+   `/debug/dance-schedule` page (e.g. `https://sqdance.app/debug/dance-schedule`)
+   — reachable in production, just not linked from the nav.
+2. Click **"Trigger a test JS error (for RUM/CloudWatch alerting
+   verification — see docs/design/alerting.md)"** at the bottom
+   (`RawDanceScheduleDebugPage.tsx`'s `TriggerTestErrorLink`) — throws a
+   real `Error` from inside the button's own click handler (not during
+   render), so it propagates as a genuine uncaught `window.onerror`, exactly
+   what RUM's `errors` telemetry listens for, without breaking the page or
+   losing your place. Safe to click as many times as you need.
+3. **One click is enough to confirm RUM is capturing errors at all** — check
+   the RUM console's Events tab, or run `JsErrorsQuery` (below), for the
+   event. Allow a few minutes for RUM to flush and for Logs Insights to see
+   it.
+4. **Actually tripping the alarm** needs the default "M out of N" — 3 of the
+   last 5 5-minute windows recording at least 1 error
+   (`JsErrorAlarmDatapointsToAlarm`/`JsErrorAlarmEvaluationPeriods`,
+   `infra/monitoring.yaml`'s `JsErrorAlarm`, `Period: 300`). A single burst
+   of clicks only fills ONE window — click once, wait for the next
+   5-minute window to start, click again, wait again, click a third time.
+   Budget ~15–25 minutes total. Watch CloudWatch → Alarms →
+   `dance-schedule-js-errors` transition `OK` → `ALARM`, and confirm the
+   SNS email actually lands in your inbox.
+5. The alarm auto-recovers to `OK` on its own (with its own "back to OK"
+   email, via `OKActions`) once a full evaluation window passes with no
+   further breaching periods — nothing to manually reset.
+6. Planning several rounds of this (e.g. while tuning the threshold)? Mute
+   notifications first (see "Muting alerts" just below) so you're not
+   spamming your own inbox — evaluation keeps running, only the email
+   stops — then un-mute when you're done.
+
 **Muting alerts** while actively investigating a known issue (stops
 notifications, not evaluation — the alarm's own state keeps updating
 normally, so this isn't the same as losing visibility):
