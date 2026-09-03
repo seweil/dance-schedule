@@ -22,7 +22,7 @@ export function writeStorageJson(key: string, value: unknown): void {
   }
 }
 
-// Used by the Installation page's "Clear saved settings" link — a full
+// Used by resetAppState.ts (every reset entry point in the app) — a full
 // localStorage.clear() (not just this app's own keys) since that's the whole of
 // what "storage" means for this app; it has no other client-side persistence.
 export function clearAllStorage(): void {

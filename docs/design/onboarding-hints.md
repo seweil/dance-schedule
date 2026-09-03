@@ -1639,6 +1639,28 @@ itself does not, in favor of its own inline confirmation message instead;
 that UX difference stays, only the underlying "what gets cleared" is now
 shared).
 
+**Follow-up, 2026-09-03 — the remaining UX difference above (reload vs.
+inline confirmation) also went away, folded into a new shared
+`src/lib/resetAppState.ts`, now used by all three entry points including
+the separate `/reset` route (`ResetAction.tsx`), which previously had its
+own third, most-thorough variant (force-checking for and applying a
+pending service-worker update before clearing storage) that neither of
+the other two did.** Per direct product framing: the only real use case
+across all three is "get me to a known, fresh, current state" — no
+scenario called for three different meanings of "reset," just three call
+sites that had drifted independently. Each now runs the identical three
+steps — force-apply any pending service-worker update, clear storage,
+then a real (non-client-routed) navigation home — differing only in
+*when* they run: `ClearStorageAction.tsx`/`ResetHintsLink.tsx` still
+require an explicit click first (unchanged rationale — a stray link/back-
+forward/SW-prefetch landing here shouldn't silently wipe state), while
+`/reset` still runs automatically on mount (landing on that URL already
+IS the explicit signal). `ClearStorageAction.tsx`'s own inline
+confirmation message is gone — the page navigates away before it would
+matter — and both button-triggered entry points now show a disabled
+"Resetting…" state instead, since the added service-worker-update step
+can take a few seconds.
+
 ### `useFirstLaunchHint` goes back to `useSyncExternalStore` — a real cross-instance sync bug
 **Why:** Reported live: after picking a text size in `FirstRunTextSizePrompt.tsx`'s
 modal, the kebab-menu hint never reappeared, even on a later page/route where
