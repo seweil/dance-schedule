@@ -30,6 +30,7 @@ export function withDiagnostics(href: string): string {
     '',
     '',
     '---',
+    'If you are reporting a technical problem, these details will help us diagnose',
     `Page: ${window.location.href}`,
     `Build ${__BUILD_NUMBER__} at ${buildDateFormatter.format(builtAt)}, ${buildTimeFormatter.format(builtAt)}`,
     `${navigator.onLine ? 'Online' : 'Offline'} · ${isStandalonePwa() ? 'Installed' : 'Browser'}`,
