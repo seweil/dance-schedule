@@ -220,7 +220,12 @@ picks up the `.md` extension.
   markup needed. An existing `subject`/`body` in the markdown link's own
   `mailto:` URL is preserved, with diagnostics appended after any existing body.
   A click also fires a `mailto_link_clicked` CloudWatch RUM custom event
-  (`{ address }`) — see `docs/ops.md`'s custom-events table.
+  (`{ address }`) — see `docs/ops.md`'s custom-events table. See
+  `docs/design/mailto-diagnostics.md` for why the block is `\n`-joined, not
+  `\r\n`, and for a real, undocumented body-length limit found on macOS
+  desktop Chrome specifically (Chrome silently drops the whole body past
+  ~400 characters when handing the link off to Mail.app) — every other
+  platform tested handles the full block fine, so it's kept unshortened.
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
   routes `vite-plugin-pages` generates — title = Title-cased filename (after
   stripping the order prefix), order = the numeric prefix (see Naming above), Home
