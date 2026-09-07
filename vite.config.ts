@@ -182,6 +182,20 @@ export default defineConfig(async () => {
       contentConfigPlugin({ dataDir: CONTENT_DIR }),
       contentSetsPlugin({ defaultSet: topLevelContentConfig.defaultContentSet, activeSet: CONTENT_SET }),
       react(),
+      // index.html's <title> is a static "Dance Schedule" placeholder — this
+      // swaps in the active content set's own manifest.shortName (the same
+      // string used for the installed-app label) so the plain browser tab,
+      // not just the install dialog, identifies which event it is.
+      {
+        name: 'content-set-html-title',
+        transformIndexHtml(html: string) {
+          const escaped = manifestStrings.shortName.replace(
+            /[&<>"']/g,
+            (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!,
+          )
+          return html.replace('<title>Dance Schedule</title>', `<title>${escaped}</title>`)
+        },
+      },
       VitePWA({
         strategies: 'generateSW',
         registerType: 'prompt',

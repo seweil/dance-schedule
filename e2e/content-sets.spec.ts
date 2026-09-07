@@ -16,6 +16,10 @@ import { loadTopLevelContentConfig } from '../content-config'
 test('the "test" content set publishes its own distinct build', async ({ page }) => {
   await page.goto('/test/')
   await expect(page.getByRole('heading', { name: /test content set/i })).toBeVisible()
+  // The browser tab title is per-content-set too (content/test/config.yaml's
+  // manifest.shortName), not the generic "Dance Schedule" placeholder every
+  // set used to ship — see vite.config.ts's content-set-html-title plugin.
+  await expect(page).toHaveTitle('Edge Cases')
 })
 
 test('the debug page shows which content set built it', async ({ page }) => {
