@@ -201,13 +201,17 @@ name — check a live token and a real deploy (through to a full,
 successful stack update, not just a successful `AssumeRoleWithWebIdentity`)
 before trusting any of it.
 
-**Doesn't fully close `docs/known-issues.md`'s root-user finding** — the
-OIDC role only covers this one stack's deploy. The *other* `infra/*.sh`
+**Didn't by itself close `docs/known-issues.md`'s root-user finding** — the
+OIDC role only ever covered this one stack's deploy. The *other* `infra/*.sh`
 scripts (`set-amplify-env.sh`, `apply-amplify-rewrites.sh`,
 `deploy-email-forwarding.sh`, `add-email-dns-records.sh`, and the alarm
-mute/unmute pair) still need a human's local, currently-root credentials —
-narrower blast radius for the one script that changes most often, not a
-full fix.
+mute/unmute pair) needed a separate fix, since OIDC-for-CI doesn't help a
+human running them locally — narrower blast radius for the one script that
+changes most often, not a full fix on its own. **That separate fix has since
+landed**: `infra/local-deploy-user.yaml` (a scoped IAM user,
+`dance-schedule-deploy`) now covers every script in that list too, so a
+human's local day-to-day use no longer needs root either — see
+`docs/known-issues.md`'s root-user finding, "Fixed and verified 2026-08-26."
 
 **One accepted trade-off against the original "infrequently-changed,
 shouldn't auto-redeploy" framing:** CI-on-push does mean a typo'd

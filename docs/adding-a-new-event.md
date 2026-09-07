@@ -217,8 +217,9 @@ line for that event rather than showing it blank.
 - `18:00 - 19:30` (24-hour)
 - `6:00pm to 7:30pm`
 - `6:00p-7:30p` (no trailing "m" at all — also works)
-- **AM/PM optional on the *start* time** if the end time has it (e.g.
-  `6 - 7:30pm` is understood as 6:00 PM – 7:30 PM). If leaving it off would
+- **AM/PM optional on *either* the start or the end time**, as long as the
+  other one has it — e.g. `6 - 7:30pm` is understood as 6:00 PM – 7:30 PM,
+  and `6:00pm - 7:30` is understood the same way. If leaving it off would
   put the start time after the end time, the app flips it for you (e.g.
   `11 - 1pm` is understood as 11:00 AM – 1:00 PM, not 11:00 PM). When in
   doubt, just write both times out fully.

@@ -97,6 +97,17 @@ live: with this in place, `.roomHeader`'s `y` went from `0` to `-203.6`
 after a 400px page scroll, i.e. it stopped pinning entirely.
 
 ### The fix: split into a sticky `headerGrid` and a locally-scrolling `bodyGrid`
+**Updated since this was written:** the walkthrough below describes this
+logic as living inline in `DanceScheduleGrid.tsx`, which was accurate when
+first shipped. It's since been extracted into `src/hooks/useSyncedGridScroll.ts`
+(the `headerRef`/`setBodyRef`/scroll-sync logic) and
+`src/components/StickyScrollGrid.tsx` (the wrapper markup) once a third
+consumer needed the identical shell — see `docs/design/dance-schedule.md`'s
+"Sticky-scroll grid shell extracted at its third consumer" decision.
+`DanceScheduleGrid.tsx` now just renders `<StickyScrollGrid>`. The mechanism
+itself — why two grids, why a callback ref, why `overflow-x: hidden` on the
+header — is otherwise unchanged; only which file each piece lives in.
+
 **Why:** the two failures above share one root cause — the *same* element
 can't simultaneously (a) be a scroll-clipping box for horizontal overflow
 and (b) have viewport-relative vertical stickiness pass through it. The
@@ -253,6 +264,17 @@ holds across the entire scrollable range — confirmed at true max scroll
 after the fix (`timeLabel`'s `x` stays `1`, not drifting negative).
 
 ### Fixed room column width, not `minmax(..., 1fr)`
+**Updated since this was written:** the constant and its value below are as
+originally shipped. It's since moved to `ROOM_COLUMN_WIDTH_REM`/
+`ROOM_COLUMN_WIDTH` in `src/lib/computeDanceScheduleLayout.ts` (not
+`DanceScheduleGrid.tsx`, which now just imports it) and changed from a plain
+`150px` to `9.375rem` — the same physical width at 100% root font-size, but
+one that now scales with the text-size preference feature
+(`useTextSizePreference.ts`) instead of staying visually fixed while card
+text scales past it. The "why fixed, not `1fr`" reasoning below is otherwise
+unaffected — only the unit and file changed, not the fixed-vs-flexible
+decision itself.
+
 **Found:** applying `width: max-content` alone (without also touching the
 column-width unit) fixed the sticky bug but surfaced a *second*, subtler
 bug: `headerGrid` and `bodyGrid` are separate grid containers that only

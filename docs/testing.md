@@ -12,7 +12,7 @@ execute the e2e layer directly in this environment.
 | --- | --- | --- | --- |
 | **Lint** (ESLint) | Style/correctness lint rules, unused code, hook-rule violations | — | `pnpm lint` (`pnpm lint:fix` to auto-fix) |
 | **Typecheck** (`tsc --noEmit`) | Type errors across the whole repo | — | `pnpm typecheck` (also the first half of `pnpm build`) |
-| **Unit tests** (Vitest + jsdom) | Logic bugs in pure functions, hooks, and component rendering/interaction | Colocated `*.test.ts`/`*.test.tsx` next to the file under test (plus two root-level exceptions: `content-config.test.ts`, `content-icons.test.ts`) | `pnpm test` (`pnpm test:watch` for watch mode, `pnpm test:coverage` for a coverage report) |
+| **Unit tests** (Vitest + jsdom) | Logic bugs in pure functions, hooks, and component rendering/interaction | Colocated `*.test.ts`/`*.test.tsx` next to the file under test (plus three root-level exceptions: `content-config.test.ts`, `content-icons.test.ts`, `vite-plugin-content-config.test.ts`) | `pnpm test` (`pnpm test:watch` for watch mode, `pnpm test:coverage` for a coverage report) |
 | **E2E tests** (Playwright) | Real-browser behavior: PWA install/offline/service-worker flow, multi-content-set builds, responsive/mobile layout, full user flows through the real built app | `e2e/*.spec.ts` | `pnpm test:e2e` |
 | **Build-time data validation** (not a "test" file, but functions as one) | A malformed `dance-schedule.xlsx`/`event-schedule.xlsx` row, or an invalid `content/<set>/config.yaml` | `vite-plugin-schedule.ts`, `vite-plugin-dance-schedule.ts`, `vite-plugin-content-config.ts`, `content-config.ts` | Runs automatically inside `pnpm build`/`pnpm dev` — a bad row or config value fails the build/dev-server start with a named error identifying the offending row/field, rather than silently producing wrong output |
 
@@ -80,8 +80,10 @@ under `e2e/`, one file per broad feature area (`app.spec.ts`,
 source tree — a Playwright spec exercises a full user flow across many
 components at once, so component-level colocation doesn't apply.
 
-As of this writing: ~40 unit test files (colocated under `src/`, plus the
-three root-level exceptions above) and 3 e2e spec files. Run
+As of this writing: ~65 unit test files (colocated under `src/`, plus the
+three root-level exceptions above) and 5 e2e spec files
+(`app.spec.ts`, `caller-schedule.spec.ts`, `content-sets.spec.ts`,
+`dance-schedule.spec.ts`, `room-schedule.spec.ts`). Run
 `pnpm test:coverage` for current, real numbers — don't trust a stale count
 here as the codebase grows.
 
@@ -93,8 +95,9 @@ here as the codebase grows.
   (routes `/room-schedule`/`/dance-schedule`/`/caller-schedule`) each now
   have their own unit test plus e2e coverage — this bullet used to flag all
   four as gaps; only `SchedulePage.tsx` still is.
-- `src/components/BuildInfo.tsx` and `src/components/UpdatePrompt.tsx` have
-  no unit test and aren't asserted on by any e2e spec either.
+- `src/components/UpdatePrompt.tsx` has no unit test and isn't asserted on
+  by any e2e spec either — `BuildInfo.tsx` used to be a second example here
+  too, but now has its own `BuildInfo.test.tsx`.
 - Three root Vite plugins (`vite-plugin-schedule.ts`,
   `vite-plugin-dance-schedule.ts`, `vite-plugin-content-sets.ts`) are
   intentionally untested as plugins — their parsing/validation *logic* is

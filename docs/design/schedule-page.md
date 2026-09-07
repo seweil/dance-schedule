@@ -168,14 +168,18 @@ build (per the earlier decision) only if none match.
 
 **The two inference heuristics (deliberately chosen to be forgiving,
 each with a documented, testable rule — not open-ended guessing):**
-- **Meridiem inference** (e.g. `"6 - 7:30pm"`, `"11 - 1pm"`): if the start
-  time has no AM/PM and the end time does, first try applying the end's
-  meridiem to the start. If that would make the start time later than or
-  equal to the end time on the same day (e.g. naively reading `"11 - 1pm"`
-  as 11pm–1pm), flip the inferred meridiem instead, so the start always
-  precedes the end (e.g. `"11 - 1pm"` → 11:00 AM – 1:00 PM). Both times
-  explicitly specifying AM/PM, or both in 24-hour format, are unaffected
-  by this heuristic.
+- **Meridiem inference** (e.g. `"6 - 7:30pm"`, `"11 - 1pm"`): works in
+  **either direction** — if exactly one side has no AM/PM (the other does),
+  first try applying the explicit side's meridiem to the ambiguous one. If
+  that would make the start time later than or equal to the end time on the
+  same day (e.g. naively reading `"11 - 1pm"` as 11pm–1pm), flip the
+  inferred meridiem instead, so the start always precedes the end (e.g.
+  `"11 - 1pm"` → 11:00 AM – 1:00 PM). This is symmetric: the end can be the
+  ambiguous side instead (e.g. `"11:00am - 9"` → 9:00 PM, not 9:00 AM, since
+  9:00 AM would put the end before the start) — see `parseTimeRange.ts`'s
+  `inferAmbiguousHour24`, used both directions. Both times explicitly
+  specifying AM/PM, or both in 24-hour format, are unaffected by this
+  heuristic.
 - **Year inference** (e.g. `"8/15"`, `"Aug 15"`): assume the current year
   (as of build time); if that produces a date more than ~6 months in the
   past relative to build time, assume next year instead — handles the

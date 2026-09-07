@@ -104,15 +104,19 @@ this is real data, not an estimate, given the app's traffic volume stays
 well inside RUM's free tier.
 
 **Installed vs. browser tab** (`displayMode`: `standalone`/`browser`) isn't
-one of RUM's own built-in dimensions, but a custom *session attribute*
-(`src/lib/rum.ts`'s `initRum` calls `awsRum.addSessionAttributes(...)` once
-per session — see `docs/design/monitoring.md`'s decision for why a session
-attribute rather than a custom event). AWS attaches session attributes to
-every event's own `metadata`, the same place `deviceType`/`browserName`
-live, so it's filterable the same two ways as those: the console's search
-bar (`displayMode=standalone`) or a Logs Insights `metadata.displayMode`
-query. Also shown as plain fine print on the home page itself (next to the
-Online/Offline text) — no AWS console needed for a quick check.
+one of RUM's own built-in dimensions, but a custom *session attribute* — set
+via `sessionAttributes` in `src/lib/rum.ts`'s `AwsRumConfig` passed to the
+`AwsRum` constructor, not a separate `awsRum.addSessionAttributes(...)` call
+after construction (deliberately: AWS's own documented pattern, and one less
+place for a partial failure to leave a session with no `displayMode` at all
+— see that file's own comment and `docs/design/monitoring.md`'s decision for
+why a session attribute rather than a custom event). AWS attaches session
+attributes to every event's own `metadata`, the same place `deviceType`/
+`browserName` live, so it's filterable the same two ways as those: the
+console's search bar (`displayMode=standalone`) or a Logs Insights
+`metadata.displayMode` query. Also shown as plain fine print on the home
+page itself (next to the Online/Offline text) — no AWS console needed for a
+quick check.
 
 ### Page loads vs. sessions vs. users/devices
 

@@ -55,7 +55,10 @@ before any Vite plugin has even been constructed — there's no
 directly from `vite.config.ts`'s top-level code, mirroring how
 `BUILD_NUMBER` is already computed synchronously at that same point via
 `execSync`. Missing `content/config.yaml` → falls back to
-`defaultContentSet: 'real'` (today's prior hardcoded behavior, unchanged).
+`defaultContentSet: 'automated-testing'` (today's prior hardcoded behavior,
+unchanged — `content-config.ts`'s `DEFAULT_CONTENT_SET`; see
+`docs/design/content-sets.md` for the rename from the set's original name,
+`real`, to `automated-testing`).
 Malformed YAML, or `defaultContentSet` not a string → throws, fail-loud
 (this repo's consistent parsing philosophy, per
 `docs/design/schedule-page.md`).

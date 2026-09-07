@@ -438,7 +438,20 @@ trade-off, since the reading-order win was the explicit ask, not
 pixel-precise pointing.
 
 ### Screen-dimming `.backdrop`
-**Why:** Per direct product decision — dim everything else while a hint is
+**Superseded — the `.backdrop` div described below was removed.** A plain
+dim layer unavoidably painted OVER the real controls a hint is trying to
+emphasize too, not just the rest of the page — reported live as hiding
+exactly what the hint should be drawing attention to. Each hint's own real
+target now carries its OWN `box-shadow: 0 0 0 9999px ...` instead (see
+`PageMenu.module.css`'s `.toggle[data-hint-visible='true']` and
+`DanceScheduleFilters.module.css`'s `.hintRing`, and `HintBalloon.module.css`'s
+own top-of-file comment) — a shadow only ever paints OUTSIDE its casting
+element's own box, so the target's own interior is structurally exempt from
+the dim, not just visually layered above it. The z-index layering rationale
+below is otherwise still accurate (the per-target elements still need to sit
+above the rest of the page); only the backdrop-div mechanism itself is gone.
+
+**Why (original decision, kept for history):** Per direct product decision — dim everything else while a hint is
 showing, so the balloon and whatever ring/outline its caller draws around
 the real target read as the one thing to look at. Added inside
 `HintBalloon.tsx` itself (a `position: fixed; inset: 0` `<div>` rendered as
