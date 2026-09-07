@@ -24,7 +24,7 @@ hyphens only, no spaces (e.g. `spring-2027`, `fall-convention`). This becomes
 part of the web address (`/spring-2027/...`), so keep it short. Avoid these
 exact names, which are reserved for the app's own files: `assets`, `icons`,
 `index.html`, `manifest.webmanifest`, `sw.js`, `debug`, `clear-storage`,
-`events`, or anything starting with `workbox-`.
+`events`, `reset`, `__root__`, or anything starting with `workbox-`.
 
 Everything for your event lives under one new folder:
 

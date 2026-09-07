@@ -30,11 +30,14 @@ const DIST_DIR = path.join(root, 'dist')
 // dist/ tree (e.g. a set literally named "assets" would collide with the default
 // build's own /assets/ directory) — not expected in practice, but fail loudly
 // rather than silently overwrite build output. See docs/design/content-sets.md.
-// "debug"/"clear-storage"/"events" are included alongside the static asset paths
-// because they're real routes hardcoded into every build (src/App.tsx's
-// debugRoutes/utilityRoutes/eventsRoutes) — a content set with any of those names
-// would produce a real dist/<name>/index.html that permanently shadows that
-// hardcoded route.
+// "debug"/"clear-storage"/"events"/"reset" are included alongside the static asset
+// paths because they're real routes hardcoded into every build (src/App.tsx's
+// debugRoutes/utilityRoutes/eventsRoutes/resetRoutes) — a content set with any of
+// those names would produce a real dist/<name>/index.html that permanently shadows
+// that hardcoded route. "__root__" is this script's own internal staging directory
+// name for the default set's unprefixed mirror build (below) — a content set with
+// that literal name would collide with it and crash the merge step with a
+// confusing missing-directory error instead of this named one.
 const RESERVED_NAMES = new Set([
   'assets',
   'icons',
@@ -44,6 +47,8 @@ const RESERVED_NAMES = new Set([
   'debug',
   'clear-storage',
   'events',
+  'reset',
+  '__root__',
 ])
 
 function listContentSets() {

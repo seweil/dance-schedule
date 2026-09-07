@@ -270,9 +270,9 @@ at, with no manual path-prefixing needed.
 - Content-set names are not currently checked against a reserved list
   beyond a small hardcoded set in `scripts/build-content-sets.mjs`
   (`assets`, `icons`, `index.html`, `manifest.webmanifest`, `sw.js`,
-  `debug`, `clear-storage`, `events`, `workbox-*`) — a set colliding with
-  one of these fails the build loudly, but the check is manual/hardcoded
-  rather than derived from Vite's actual build output.
+  `debug`, `clear-storage`, `events`, `reset`, `__root__`, `workbox-*`) — a
+  set colliding with one of these fails the build loudly, but the check is
+  manual/hardcoded rather than derived from Vite's actual build output.
 - Direct/deep-link navigation into a prefixed set (e.g. a bookmark or
   shared link to `/automated-testing/installation`) needs server-side SPA-fallback
   rewrite rules aware of each prefix — see `docs/design/hosting.md`'s new
