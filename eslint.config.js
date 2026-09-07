@@ -28,5 +28,17 @@ export default tseslint.config(
     files: ['e2e/**/*.ts', 'playwright.config.ts', 'vite.config.ts'],
     languageOptions: { globals: globals.node },
   },
+  // scripts/*.mjs previously matched no `files` pattern above, so `eslint .`
+  // scanned them but applied zero real rules (only eslintConfigPrettier's
+  // stylistic disables, which have nothing to disable without a base config).
+  {
+    files: ['scripts/**/*.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: globals.node,
+    },
+  },
   eslintConfigPrettier,
 )

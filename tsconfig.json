@@ -25,6 +25,9 @@
     "vite.config.ts",
     "playwright.config.ts",
     "vite-plugin-schedule.ts",
-    "vite-plugin-dance-schedule.ts"
+    "vite-plugin-dance-schedule.ts",
+    "content-config.test.ts",
+    "content-icons.test.ts",
+    "vite-plugin-content-config.test.ts"
   ]
 }

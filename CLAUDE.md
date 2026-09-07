@@ -35,6 +35,7 @@ pnpm build            # type-check + production build
 pnpm preview          # serve the production build locally (needed to test SW/offline behavior)
 pnpm test             # run unit tests (Vitest)
 pnpm test:watch       # run unit tests in watch mode
+pnpm test:coverage    # run unit tests with a coverage report (what CI's "with coverage" step runs)
 pnpm test:e2e         # run Playwright tests against the built/previewed app
 pnpm typecheck        # tsc --noEmit
 pnpm lint             # eslint
