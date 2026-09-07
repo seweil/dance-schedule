@@ -68,6 +68,19 @@ describe('loadContentConfigData', () => {
       writeConfig('features:\n  combineC3BC4: yes-please\n')
       expect(() => loadContentConfigData(configFile)).toThrow(/"features\.combineC3BC4" must be a boolean/)
     })
+
+    it('throws when combineA1A2 is present but explicitly blank (YAML null), not just absent', () => {
+      // A key left with no value mid-edit (or after a merge conflict) parses as
+      // YAML null, not "missing" — this must not silently take the default the
+      // way a genuinely absent key does.
+      writeConfig('features:\n  combineA1A2:\n')
+      expect(() => loadContentConfigData(configFile)).toThrow(/"features\.combineA1A2" must be a boolean/)
+    })
+
+    it('throws when the features section itself is not a mapping', () => {
+      writeConfig('features: false\n')
+      expect(() => loadContentConfigData(configFile)).toThrow(/"features" must be a mapping/)
+    })
   })
 
   describe('danceSchedule.roomOrder (config.yaml-driven)', () => {
@@ -98,6 +111,13 @@ describe('loadContentConfigData', () => {
     it('throws when roomOrder is an array containing a non-string', () => {
       writeConfig('danceSchedule:\n  roomOrder: [Room A, 42]\n')
       expect(() => loadContentConfigData(configFile)).toThrow(/"danceSchedule\.roomOrder" must be/)
+    })
+
+    it('throws when the danceSchedule section itself is not a mapping', () => {
+      // A plausible real mistake: writing "danceSchedule: spreadsheet" instead
+      // of nesting roomOrder under it.
+      writeConfig('danceSchedule: spreadsheet\n')
+      expect(() => loadContentConfigData(configFile)).toThrow(/"danceSchedule" must be a mapping/)
     })
   })
 

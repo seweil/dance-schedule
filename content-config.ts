@@ -40,6 +40,10 @@ export function loadTopLevelContentConfig(root: string): TopLevelContentConfig {
   const configFile = path.resolve(root, TOP_LEVEL_CONFIG_RELATIVE_PATH)
 
   if (!fs.existsSync(configFile)) {
+    // Same validation every other path through this function gets — without
+    // it, a renamed/deleted DEFAULT_CONTENT_SET only surfaces much later as a
+    // raw error deep in plugin resolution instead of this named one.
+    assertContentSetExists(root, DEFAULT_CONTENT_SET, 'the built-in default content set')
     return { defaultContentSet: DEFAULT_CONTENT_SET }
   }
 
@@ -69,6 +73,13 @@ export function loadTopLevelContentConfig(root: string): TopLevelContentConfig {
 // deep inside plugin resolution (a pre-existing open question in
 // docs/design/content-sets.md, closed by this check).
 export function assertContentSetExists(root: string, name: string, source: string): void {
+  // Checked explicitly — path.resolve(root, 'content', '') collapses to the
+  // content/ directory itself, which always exists, so an empty name would
+  // otherwise silently pass this check and only fail much later with a
+  // confusing raw ENOENT deep inside plugin resolution.
+  if (name === '') {
+    throw new Error(`${source} names an empty content set name`)
+  }
   const dir = contentSetDir(root, name)
   if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
     throw new Error(`${source} names content set ${JSON.stringify(name)}, but ${dir} doesn't exist`)
@@ -124,14 +135,19 @@ export function loadContentManifestStrings(root: string, contentDir: string): Co
   const shortName = (manifest as Record<string, unknown>).shortName ?? DEFAULT_MANIFEST_STRINGS.shortName
   const description = (manifest as Record<string, unknown>).description ?? DEFAULT_MANIFEST_STRINGS.description
 
-  if (typeof name !== 'string') {
-    throw new Error(`${configFile}'s "manifest.name" must be a string, got ${JSON.stringify(name)}`)
+  // Non-empty, not just string-typed — an explicit "" (e.g. left over from an
+  // unfilled template) would otherwise silently ship as the real value (a
+  // blank PWA app name, in name/shortName's case) with no build error.
+  if (typeof name !== 'string' || name.trim() === '') {
+    throw new Error(`${configFile}'s "manifest.name" must be a non-empty string, got ${JSON.stringify(name)}`)
   }
-  if (typeof shortName !== 'string') {
-    throw new Error(`${configFile}'s "manifest.shortName" must be a string, got ${JSON.stringify(shortName)}`)
+  if (typeof shortName !== 'string' || shortName.trim() === '') {
+    throw new Error(`${configFile}'s "manifest.shortName" must be a non-empty string, got ${JSON.stringify(shortName)}`)
   }
-  if (typeof description !== 'string') {
-    throw new Error(`${configFile}'s "manifest.description" must be a string, got ${JSON.stringify(description)}`)
+  if (typeof description !== 'string' || description.trim() === '') {
+    throw new Error(
+      `${configFile}'s "manifest.description" must be a non-empty string, got ${JSON.stringify(description)}`,
+    )
   }
 
   return { name, shortName, description }

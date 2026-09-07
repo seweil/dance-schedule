@@ -60,6 +60,13 @@ describe('loadTopLevelContentConfig', () => {
     writeTopLevelConfig(root, 'defaultContentSet: nonexistent\n')
     expect(() => loadTopLevelContentConfig(root)).toThrow(/nonexistent.*doesn't exist/)
   })
+
+  it('throws when content/config.yaml is missing AND the built-in default content set directory does not exist either', () => {
+    // No makeContentSetDir(root, 'automated-testing') call, unlike the "defaults
+    // to automated-testing" test above — this path used to skip validation
+    // entirely and return the hardcoded fallback unchecked.
+    expect(() => loadTopLevelContentConfig(root)).toThrow(/automated-testing.*doesn't exist/)
+  })
 })
 
 describe('assertContentSetExists', () => {
@@ -78,6 +85,11 @@ describe('assertContentSetExists', () => {
     fs.mkdirSync(path.join(root, 'content'), { recursive: true })
     fs.writeFileSync(path.join(root, 'content/not-a-dir'), '')
     expect(() => assertContentSetExists(root, 'not-a-dir', 'source')).toThrow()
+  })
+
+  it('throws on an empty content set name, even though content/ itself always exists', () => {
+    fs.mkdirSync(path.join(root, 'content'), { recursive: true })
+    expect(() => assertContentSetExists(root, '', 'source')).toThrow(/source names an empty content set name/)
   })
 })
 
@@ -140,18 +152,43 @@ describe('loadContentManifestStrings', () => {
 
   it('throws when manifest.name is present but not a string', () => {
     writeContentSetConfig(root, 'real', 'manifest:\n  name: 42\n')
-    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/"manifest\.name" must be a string/)
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
+      /"manifest\.name" must be a non-empty string/,
+    )
   })
 
   it('throws when manifest.shortName is present but not a string', () => {
     writeContentSetConfig(root, 'real', 'manifest:\n  shortName: 42\n')
-    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/"manifest\.shortName" must be a string/)
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
+      /"manifest\.shortName" must be a non-empty string/,
+    )
   })
 
   it('throws when manifest.description is present but not a string', () => {
     writeContentSetConfig(root, 'real', 'manifest:\n  description: 42\n')
     expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
-      /"manifest\.description" must be a string/,
+      /"manifest\.description" must be a non-empty string/,
+    )
+  })
+
+  it('throws when manifest.name is an empty string', () => {
+    writeContentSetConfig(root, 'real', 'manifest:\n  name: ""\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
+      /"manifest\.name" must be a non-empty string/,
+    )
+  })
+
+  it('throws when manifest.shortName is an empty string', () => {
+    writeContentSetConfig(root, 'real', 'manifest:\n  shortName: ""\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
+      /"manifest\.shortName" must be a non-empty string/,
+    )
+  })
+
+  it('throws when manifest.description is an empty string', () => {
+    writeContentSetConfig(root, 'real', 'manifest:\n  description: ""\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
+      /"manifest\.description" must be a non-empty string/,
     )
   })
 })

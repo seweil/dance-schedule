@@ -21,11 +21,30 @@ function readBooleanFeatureFlag(
   features: Record<string, unknown>,
   key: 'combineA1A2' | 'combineC3BC4',
 ): boolean {
-  const value = features[key] ?? true
+  // Only a genuinely absent key (undefined) gets the default — an explicit
+  // `null` (e.g. a key present but left blank mid-edit) falls through to the
+  // type check below and throws, the same as any other wrong-typed value,
+  // rather than silently taking the default too.
+  const value = features[key] === undefined ? true : features[key]
   if (typeof value !== 'boolean') {
     throw new Error(`${configFile}'s "features.${key}" must be a boolean, got ${JSON.stringify(value)}`)
   }
   return value
+}
+
+// Validates a top-level config.yaml section (e.g. `features:`, `danceSchedule:`)
+// is actually a YAML mapping before treating it as one — a scalar value where a
+// nested section was expected (e.g. a forgotten indent) would otherwise silently
+// index as `undefined` on every key lookup and fall through to defaults with no
+// error at all.
+function asConfigSection(configFile: string, sectionName: string, value: unknown): Record<string, unknown> {
+  if (value === undefined) {
+    return {}
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${configFile}'s "${sectionName}" must be a mapping, got ${JSON.stringify(value)}`)
+  }
+  return value as Record<string, unknown>
 }
 
 // Shape-only validation — this file has no knowledge of the event's real room
@@ -124,14 +143,15 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
       throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
     }
 
-    const features = ((parsed as Record<string, unknown> | null)?.features ?? {}) as Record<string, unknown>
+    const features = asConfigSection(configFile, 'features', (parsed as Record<string, unknown> | null)?.features)
     combineA1A2 = readBooleanFeatureFlag(configFile, features, 'combineA1A2')
     combineC3BC4 = readBooleanFeatureFlag(configFile, features, 'combineC3BC4')
 
-    const danceSchedule = ((parsed as Record<string, unknown> | null)?.danceSchedule ?? {}) as Record<
-      string,
-      unknown
-    >
+    const danceSchedule = asConfigSection(
+      configFile,
+      'danceSchedule',
+      (parsed as Record<string, unknown> | null)?.danceSchedule,
+    )
     roomOrder = readRoomOrder(configFile, danceSchedule)
   }
 
