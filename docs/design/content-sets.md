@@ -252,6 +252,34 @@ test-fixture sets alphabetically. `'events'` was added to
 literally named `events` would produce a real `dist/events/index.html` that
 permanently shadows this hardcoded route.
 
+### Per-page route collision guard (`vite.config.ts`'s `onRoutesGenerated`)
+**Why:** `RESERVED_NAMES` above only guards a whole content *set's* name
+(the URL prefix, e.g. `/events/...`) — it says nothing about an individual
+*page* inside a set colliding with a route. Two distinct ways that can
+happen, neither previously caught: (1) a content page's route matching one
+of App.tsx's own hardcoded routes (`/debug`, `/debug/dance-schedule`,
+`/clear-storage`, `/events`, `/reset`) — those live entirely outside
+`~react-pages`, so nothing generated from `content/<set>/pages/` was ever
+checked against them; react-router's own tie-break for two routes with the
+same path is array order, so the content page would silently win, breaking
+the real feature everywhere it's linked, with no build error. (2) two
+*generated* routes normalizing to the same href — most plausibly a content
+page accidentally named the same as one of `src/pages/*.tsx`'s reserved
+schedule pages (`event-schedule`/`dance-schedule`/`room-schedule`/
+`caller-schedule`), since both directories feed the same `~react-pages`
+plugin instance (see "Content pipeline" in `CLAUDE.md`). Both are now
+checked inside `onRoutesGenerated` itself — the one place that already sees
+every generated route's raw path before `normalizeRoutes` strips its order
+prefix client-side, so this check re-strips the same prefix itself (a small
+duplication of `buildNavTree.ts`'s regex, not an import, since that module
+carries a client-side type import this Node-context check doesn't need) —
+and throws a named, fail-loud build error identifying both colliding
+pages, instead of letting either failure mode reach production. Verified
+live: a temporary `content/test/pages/events.md` and a temporary
+`content/test/pages/dance-schedule.md` each correctly fail the build with
+a clear message; a full `pnpm build` across all four real content sets is
+unaffected.
+
 Each entry links via a plain `<a href="/<set>/">`, not a `react-router`
 `Link` — same reasoning as the debug page's existing cross-set links:
 crossing to another content set is a full separate app/build (a real page

@@ -29,6 +29,31 @@ interface GeneratedPageRoute {
   children?: GeneratedPageRoute[]
 }
 
+// Mirrors src/lib/buildNavTree.ts's own order-prefix-stripping regex (duplicated,
+// not imported — that module carries a react-router-dom type import meant for the
+// client bundle; this runs in the Node/build context and only needs the one
+// regex). A generated route's raw `.path` (e.g. "2 installation", confirmed via a
+// debug build — no leading slash) still has its order prefix at this point in the
+// pipeline; normalizeRoutes only strips it client-side in App.tsx, after routes
+// reach the browser, so this check must strip it too or every prefixed route would
+// look falsely unique.
+const ROUTE_ORDER_PREFIX = /^(\d+) (.+)$/
+
+function normalizedRouteHref(rawPath: string): string {
+  if (rawPath === '/' || rawPath === '') {
+    return '/'
+  }
+  const match = rawPath.match(ROUTE_ORDER_PREFIX)
+  return `/${match ? match[2] : rawPath}`
+}
+
+// The routes App.tsx adds by hand, outside ~react-pages entirely (debugRoutes/
+// utilityRoutes/eventsRoutes/resetRoutes) — onRoutesGenerated below only ever sees
+// ~react-pages' own generated routes, so it has no visibility into these on its
+// own; duplicated here so a colliding content-page route can be caught at build
+// time instead of only silently losing a routing tie-break at runtime.
+const HARDCODED_APP_ROUTES = new Set(['/debug', '/debug/dance-schedule', '/clear-storage', '/events', '/reset'])
+
 // Baked in at build time (never re-evaluated client-side) so the debug page can
 // show which build is running — the short commit hash doubles as a build number
 // since this project has no CI-assigned incrementing build counter.
@@ -164,9 +189,35 @@ export default defineConfig(async () => {
           // virtual:schedule import) is never referenced anywhere in the
           // build. Nav.tsx/buildNavTree.ts need no changes — they already
           // derive the menu generically from whatever routes exist.
-          return HAS_EVENT_SCHEDULE
+          const filtered = HAS_EVENT_SCHEDULE
             ? routes
             : routes.filter((route) => !route.element?.endsWith('/10 event-schedule.tsx'))
+
+          // Fail loud on any route collision, rather than letting react-router's
+          // own array-order tie-break silently pick one at runtime — either two
+          // generated routes normalizing to the same href (e.g. a content page
+          // accidentally named the same as one of src/pages/*.tsx's reserved
+          // schedule pages), or a generated route colliding with one of App.tsx's
+          // own hardcoded routes above.
+          const seenHrefs = new Map<string, string>()
+          for (const route of filtered) {
+            const href = normalizedRouteHref(route.path)
+            const source = route.element ?? href
+            if (HARDCODED_APP_ROUTES.has(href)) {
+              throw new Error(
+                `Page ${JSON.stringify(source)} resolves to route ${JSON.stringify(href)}, which collides with a hardcoded app route (src/App.tsx) — rename the page.`,
+              )
+            }
+            const existing = seenHrefs.get(href)
+            if (existing) {
+              throw new Error(
+                `Page ${JSON.stringify(source)} resolves to route ${JSON.stringify(href)}, which collides with ${JSON.stringify(existing)} — rename one of them.`,
+              )
+            }
+            seenHrefs.set(href, source)
+          }
+
+          return filtered
         },
       }),
       // Only registered when the file exists — belt-and-suspenders alongside
