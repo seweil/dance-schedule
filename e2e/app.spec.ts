@@ -115,7 +115,10 @@ test('nav links to the schedule page, which renders events', async ({ page }) =>
   // Asserts structurally (at least one event renders) rather than exact event content,
   // since data/event-schedule.xlsx is live hand-authored content, not a test fixture —
   // coupling assertions to its exact contents would make this brittle to content edits.
-  await expect(page.getByRole('listitem').first()).toBeVisible()
+  // Not getByRole('listitem').first() — the list's first item is a date heading
+  // (ScheduleList.tsx interleaves one per date), not an event card, so that locator
+  // would stay green even if every event card failed to render.
+  await expect(page.locator('[class*="card"]').first()).toBeVisible()
 })
 
 test('app shell still renders the schedule page when offline after the SW takes control', async ({
@@ -130,7 +133,8 @@ test('app shell still renders the schedule page when offline after the SW takes 
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('heading', { name: /schedule/i })).toBeVisible()
-  await expect(page.getByRole('listitem').first()).toBeVisible()
+  // Not getByRole('listitem').first() — see the identical note above.
+  await expect(page.locator('[class*="card"]').first()).toBeVisible()
   await context.setOffline(false)
 })
 
