@@ -500,11 +500,13 @@ describe('computeDanceScheduleCallerLayout', () => {
       expect(allHeadlinersPlacement!.rowSpan).toBeGreaterThan(1)
     })
 
-    it('still lane-splits two floating entries that start at exactly the same time (clipping cannot apply)', () => {
-      // Clipping only looks at entries starting STRICTLY AFTER another entry's
-      // own start — two entries starting simultaneously never trigger it, so
-      // the lane-split mechanism (assignLanesPerSlot) is still needed for this
-      // defensive, data-entry-error-like case.
+    it('still lane-splits two floating entries that start at exactly the same time and span the same one row', () => {
+      // A same-start neighbor DOES trigger clipping (see clipFreeFloatingEntries's
+      // own comment) — but clipping floors at 1 row, and both entries here are
+      // already exactly 1 row (an isolated hour with no internal boundary), so
+      // clipping doesn't change either one's rowSpan; they still fully overlap
+      // and the lane-split mechanism (assignLanesPerSlot) is what actually
+      // resolves this defensive, data-entry-error-like case.
       const lunch = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', {
         description: 'Lunch Break',
         location: { kind: 'roomless' },
@@ -520,6 +522,26 @@ describe('computeDanceScheduleCallerLayout', () => {
       expect(lunchPlacement).toMatchObject({ laneCount: 2 })
       expect(allHeadlinersPlacement).toMatchObject({ laneCount: 2 })
       expect(lunchPlacement!.lane).not.toBe(allHeadlinersPlacement!.lane)
+    })
+
+    it('clips a free entry that starts at the same moment as a longer-spanning other entry', () => {
+      // A break and a real session starting at the identical time, but the
+      // break's own span is longer — its "nothing scheduled yet" claim is
+      // false from the very first row, not just once the real session's own
+      // later rows begin, so it should clip down to the 1-row floor
+      // immediately rather than rendering full-width over the real session.
+      const lunch = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z', {
+        description: 'Lunch Break',
+        location: { kind: 'roomless' },
+      })
+      const real = makeSession('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', ['Vic Ceder'], {
+        location: located('Ballroom East'),
+      })
+      const sessions = [lunch, real]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+      const lunchPlacement = layout.placements.find((p) => p.session === lunch)
+      expect(lunchPlacement).toMatchObject({ rowSpan: 1, floatKind: 'free' })
     })
 
     it('does not lane-split a floating entry against a real per-caller entry it overlaps', () => {

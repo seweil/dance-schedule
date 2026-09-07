@@ -318,6 +318,11 @@ describe('parseDanceScheduleSheet', () => {
       expect(errors).toEqual([])
     })
 
+    it('does not falsely flag a "ROOMS:" line that lists the same room twice', () => {
+      const { errors } = parseOneCell('SSD : Combined Dance - Vic Ceder\nROOMS: Ballroom Centre, Ballroom Centre')
+      expect(errors).toEqual([])
+    })
+
     it('does not check GCA credits for double-booking, only headline callers', () => {
       const rows = [
         ['Time', 'Ballroom Centre', 'Ballroom East'],

@@ -238,7 +238,11 @@ function clipFreeFloatingEntries(entries: RawEntry[]): void {
     const rowEnd = entry.rowStart + entry.rowSpan
     let earliestOtherStart: number | undefined
     for (const other of entries) {
-      if (other === entry || other.rowStart <= entry.rowStart || other.rowStart >= rowEnd) {
+      // other.rowStart < entry.rowStart (not <=) — a same-start neighbor still
+      // counts: the free entry's "nothing scheduled yet" claim is already false
+      // from its very first row if something else begins at the same moment,
+      // not just once something begins strictly after it.
+      if (other === entry || other.rowStart < entry.rowStart || other.rowStart >= rowEnd) {
         continue
       }
       if (earliestOtherStart === undefined || other.rowStart < earliestOtherStart) {
@@ -246,7 +250,12 @@ function clipFreeFloatingEntries(entries: RawEntry[]): void {
       }
     }
     if (earliestOtherStart !== undefined) {
-      clippedRowSpans.set(entry, earliestOtherStart - entry.rowStart)
+      // Floored at 1, not 0 — a same-start neighbor clips the "before anything
+      // starts" portion down to nothing, but a zero-row grid item isn't
+      // renderable; one row is this codebase's existing minimum for a
+      // degenerate/collapsed span (see computeDanceScheduleTimeAxis.ts's own
+      // gap-collapse behavior).
+      clippedRowSpans.set(entry, Math.max(1, earliestOtherStart - entry.rowStart))
     }
   }
   for (const [entry, rowSpan] of clippedRowSpans) {

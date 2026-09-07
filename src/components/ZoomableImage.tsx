@@ -53,7 +53,10 @@ function parseTitle(title: string | undefined) {
     return { sizeClass: undefined, noZoom: false, tooltip: title }
   }
   const tokens = title.toLowerCase().split(/\s+/)
-  const sizeToken = tokens.find((token) => token in SIZE_CLASSES)
+  // hasOwnProperty, not `in` — `in` also matches inherited Object.prototype
+  // property names (e.g. a caption containing the word "constructor"), which
+  // would misclassify a real caption as a recognized size directive.
+  const sizeToken = tokens.find((token) => Object.hasOwn(SIZE_CLASSES, token))
   const noZoom = tokens.includes(NO_ZOOM_TOKEN)
   const recognized = sizeToken !== undefined || noZoom
   return {

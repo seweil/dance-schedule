@@ -31,7 +31,10 @@ export function ScheduleList({ events }: { events: ScheduleEvent[] }) {
           </li>
           {group.events.map((event, index) => (
             <li
-              key={event.startTime.toISOString()}
+              // startTime alone isn't always unique — two events can share a start
+              // time (e.g. parallel activities) — so index is appended to keep keys
+              // unique within this day's list even then.
+              key={`${event.startTime.toISOString()}-${index}`}
               className={`${styles.card} ${index === 0 ? '' : styles.cardDivider} ${index % 2 === 1 ? styles.cardAlt : ''}`.trim()}
             >
               <p className={styles.time}>{formatTimeRange(event.startTime, event.endTime)}</p>

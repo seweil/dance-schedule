@@ -509,7 +509,7 @@ export function parseDanceScheduleSheet(
       }
 
       if (session.location.kind === 'located') {
-        for (const room of session.location.rooms) {
+        for (const room of new Set(session.location.rooms)) {
           const conflict = checkAndRecordBooking(
             roomBookings,
             room,
