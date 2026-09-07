@@ -18,6 +18,15 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(fileURLToPath(import.meta.url), '../..')
 const OUTPUT_FILE = path.join(root, 'infra/amplify-rewrites.json')
 
+// Content-set names aren't actually validated as regex-safe anywhere in the
+// pipeline (the documented "lowercase letters, digits, hyphens only"
+// convention isn't enforced) — escaping here means a future name containing
+// a regex metacharacter still produces a correct, literal-matching rule
+// instead of a broken/over-broad one.
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 function listContentSets() {
   const contentDir = path.join(root, 'content')
   return fs
@@ -39,9 +48,10 @@ function listContentSets() {
 // instead and silently serving the WRONG (root) index.html — confirmed live
 // (`/backtrack2abq/` returned the root bundle's etag) before this fix.
 function rulesForSet(set) {
+  const escaped = escapeRegExp(set)
   return [
     { source: `/${set}`, status: '301', target: `/${set}/` },
-    { source: `</${set}\\/[^.]*$/>`, status: '200', target: `/${set}/index.html` },
+    { source: `</${escaped}\\/[^.]*$/>`, status: '200', target: `/${set}/index.html` },
   ]
 }
 

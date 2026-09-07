@@ -251,9 +251,17 @@ export default defineConfig(async () => {
           // rule below instead, which actually reaches the network/Amplify. Other
           // (non-root) builds don't need this — their own scope is already narrowly
           // "/<set>/", so they can't shadow a sibling set's paths in the first place.
+          // Content-set names aren't actually validated as regex-safe anywhere in
+          // the pipeline, so each is escaped before going into this RegExp — a
+          // future name containing a regex metacharacter would otherwise either
+          // throw here (breaking the default production build outright) or
+          // silently compile into an unintended pattern, defeating the shadowing
+          // protection this denylist exists to provide (see the comment above).
           navigateFallbackDenylist:
             BASE_PATH === '/'
-              ? listContentSets(process.cwd()).map((set) => new RegExp(`^/${set}/`))
+              ? listContentSets(process.cwd()).map(
+                  (set) => new RegExp(`^/${set.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/`),
+                )
               : undefined,
           runtimeCaching: [
             {

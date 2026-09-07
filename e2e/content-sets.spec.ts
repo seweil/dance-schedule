@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test'
 import { loadTopLevelContentConfig } from '../content-config'
 
+// Content-set names aren't actually validated as regex-safe anywhere in the
+// pipeline (the documented "lowercase letters, digits, hyphens only"
+// convention isn't enforced), so a future name with a regex metacharacter
+// could otherwise make this test's RegExp throw or match the wrong thing.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 // `pnpm build` publishes every content set under its own "/<set>/" prefix (see
 // docs/design/content-sets.md) — these tests exercise that.
 //
@@ -30,7 +38,7 @@ test('the debug page shows which content set built it', async ({ page }) => {
   const { defaultContentSet } = loadTopLevelContentConfig(process.cwd())
   await page.goto('/debug/dance-schedule')
   await expect(
-    page.getByRole('heading', { name: new RegExp(`schedule details.*${defaultContentSet}`, 'i') }),
+    page.getByRole('heading', { name: new RegExp(`schedule details.*${escapeRegExp(defaultContentSet)}`, 'i') }),
   ).toBeVisible()
 })
 
