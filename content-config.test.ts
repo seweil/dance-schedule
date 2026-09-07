@@ -100,6 +100,7 @@ describe('loadContentManifestStrings', () => {
     expect(loadContentManifestStrings(root, 'content/real')).toEqual({
       name: 'Dance Schedule',
       shortName: 'Dance Schedule',
+      description: 'Schedule, room assignments, and callers for this dance weekend — installable and works offline.',
     })
   })
 
@@ -108,15 +109,28 @@ describe('loadContentManifestStrings', () => {
     expect(loadContentManifestStrings(root, 'content/real')).toEqual({
       name: 'Dance Schedule',
       shortName: 'Dance Schedule',
+      description: 'Schedule, room assignments, and callers for this dance weekend — installable and works offline.',
     })
   })
 
-  it('reads an explicit manifest.name/manifest.shortName override', () => {
-    writeContentSetConfig(root, 'test', 'manifest:\n  name: Dance Schedule (Test)\n  shortName: DS Test\n')
+  it('reads an explicit manifest.name/manifest.shortName/manifest.description override', () => {
+    writeContentSetConfig(
+      root,
+      'test',
+      'manifest:\n  name: Dance Schedule (Test)\n  shortName: DS Test\n  description: A test fixture event.\n',
+    )
     expect(loadContentManifestStrings(root, 'content/test')).toEqual({
       name: 'Dance Schedule (Test)',
       shortName: 'DS Test',
+      description: 'A test fixture event.',
     })
+  })
+
+  it('falls back to the default description when only name/shortName are overridden', () => {
+    writeContentSetConfig(root, 'test', 'manifest:\n  name: Dance Schedule (Test)\n  shortName: DS Test\n')
+    expect(loadContentManifestStrings(root, 'content/test').description).toBe(
+      'Schedule, room assignments, and callers for this dance weekend — installable and works offline.',
+    )
   })
 
   it('throws on malformed YAML', () => {
@@ -132,6 +146,13 @@ describe('loadContentManifestStrings', () => {
   it('throws when manifest.shortName is present but not a string', () => {
     writeContentSetConfig(root, 'real', 'manifest:\n  shortName: 42\n')
     expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(/"manifest\.shortName" must be a string/)
+  })
+
+  it('throws when manifest.description is present but not a string', () => {
+    writeContentSetConfig(root, 'real', 'manifest:\n  description: 42\n')
+    expect(() => loadContentManifestStrings(root, 'content/real')).toThrow(
+      /"manifest\.description" must be a string/,
+    )
   })
 })
 

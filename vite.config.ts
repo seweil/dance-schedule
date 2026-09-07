@@ -195,7 +195,7 @@ export default defineConfig(async () => {
           id: '.',
           name: manifestStrings.name,
           short_name: manifestStrings.shortName,
-          description: 'TODO: one-line description of what this app does.',
+          description: manifestStrings.description,
           start_url: '.',
           scope: '.',
           display: 'standalone',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { readStorageJson, writeStorageJson } from '../lib/appStorage'
 import { trackEvent } from '../lib/rum'
 
@@ -33,10 +33,14 @@ export interface UseTextSizePreferenceResult {
 // happens to render this hook. 'normal' removes the attribute entirely rather than
 // setting it to "normal", matching index.css's own convention of no attribute at
 // all meaning "today's unchanged default" — see docs/design/text-size-preference.md.
+// useLayoutEffect (not useEffect) so a stored large/x-large preference is applied
+// before the browser's first paint, not after — same reasoning as this file's own
+// landscape-dropdown-clamp fix elsewhere; a plain useEffect here would flash every
+// returning visitor's page at normal size for one frame before correcting.
 export function useTextSizePreference(): UseTextSizePreferenceResult {
   const [textSize, setTextSize] = useState<TextSize>(() => resolveStoredTextSize())
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (textSize === 'normal') {
       delete document.documentElement.dataset.textSize
     } else {

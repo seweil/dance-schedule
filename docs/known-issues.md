@@ -3,6 +3,18 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
+## Full-repo audit (2026-09-07): 67 findings, being worked through
+
+`docs/dance-schedule-audit.html` — a full read-through of every directory in
+the repo (12 chunks, split after two whole-repo `max`-effort review attempts
+each exhausted the session budget before finishing), cross-checked against
+tests, callers, and design docs. 33 bugs, 15 duplication/cleanup, 12 stale-doc
+issues, 4 efficiency, 3 test-coverage gaps. Raw working notes and the
+chunk-by-chunk plan are in `.code-review-progress.md` at the repo root
+(gitignored... actually committed, see that file). Items being fixed are
+tracked below as they're addressed rather than duplicated into this list;
+anything from the audit still open when work pauses gets its own entry here.
+
 ## High priority: AWS deploys are running as the account's root user, not a scoped IAM identity
 
 **Found 2026-08-21**, running `./infra/deploy.sh` in a Claude Code

@@ -1,0 +1,827 @@
+<title>Dance Schedule Audit</title>
+<style>
+  :root {
+    --ink: #1b211d;
+    --ink-soft: #576059;
+    --ink-faint: #7c8378;
+    --paper: #f1f0ea;
+    --surface: #ffffff;
+    --surface-raised: #fbfaf6;
+    --rule: #dad8ce;
+    --rule-strong: #c3c1b5;
+    --accent: #2e5c86;
+    --accent-soft: #e3ecf3;
+    --accent-ink: #1d3a54;
+
+    --bug: #a6402a;
+    --bug-soft: #f5e4df;
+    --cleanup: #3e6e63;
+    --cleanup-soft: #e2ede9;
+    --docs: #8a6a2e;
+    --docs-soft: #f1e9d8;
+    --efficiency: #5c4e8a;
+    --efficiency-soft: #e9e5f3;
+    --coverage: #8a4a5c;
+    --coverage-soft: #f2e2e6;
+
+    --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+    --font-body: 'Public Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e9e7df;
+      --ink-soft: #a7ae9f;
+      --ink-faint: #7d8578;
+      --paper: #141815;
+      --surface: #1c211d;
+      --surface-raised: #212722;
+      --rule: #343b33;
+      --rule-strong: #444c40;
+      --accent: #7fabdc;
+      --accent-soft: #1e2e3d;
+      --accent-ink: #bcd6f0;
+
+      --bug: #e08668;
+      --bug-soft: #33241e;
+      --cleanup: #86c4ae;
+      --cleanup-soft: #1e2f29;
+      --docs: #d9bb78;
+      --docs-soft: #322a1a;
+      --efficiency: #b3a5dd;
+      --efficiency-soft: #262138;
+      --coverage: #dd9bad;
+      --coverage-soft: #2f1f26;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #e9e7df;
+    --ink-soft: #a7ae9f;
+    --ink-faint: #7d8578;
+    --paper: #141815;
+    --surface: #1c211d;
+    --surface-raised: #212722;
+    --rule: #343b33;
+    --rule-strong: #444c40;
+    --accent: #7fabdc;
+    --accent-soft: #1e2e3d;
+    --accent-ink: #bcd6f0;
+
+    --bug: #e08668;
+    --bug-soft: #33241e;
+    --cleanup: #86c4ae;
+    --cleanup-soft: #1e2f29;
+    --docs: #d9bb78;
+    --docs-soft: #322a1a;
+    --efficiency: #b3a5dd;
+    --efficiency-soft: #262138;
+    --coverage: #dd9bad;
+    --coverage-soft: #2f1f26;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+
+  .hero {
+    position: relative;
+    padding: 4rem 1.5rem 3rem;
+    background:
+      repeating-linear-gradient(
+        0deg, transparent, transparent 27px, color-mix(in srgb, var(--ink) 5%, transparent) 28px
+      ),
+      repeating-linear-gradient(
+        90deg, transparent, transparent 27px, color-mix(in srgb, var(--ink) 5%, transparent) 28px
+      );
+    border-bottom: 1px solid var(--rule);
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 55% at 20% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-inner { max-width: 62rem; margin: 0 auto; position: relative; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    display: inline-block;
+    padding: 0.3em 0.7em;
+    border-radius: 3px;
+    margin-bottom: 1.1rem;
+  }
+  .hero h1 { font-size: clamp(2.1rem, 4.4vw, 3.2rem); letter-spacing: -0.01em; }
+  .hero p.lede {
+    max-width: 42rem;
+    margin-top: 1rem;
+    font-size: 1.08rem;
+    color: var(--ink-soft);
+  }
+  .hero .meta {
+    margin-top: 1.6rem;
+    display: flex;
+    gap: 1.6rem;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--ink-faint);
+  }
+  .hero .meta strong { color: var(--ink); font-weight: 600; }
+
+  .stats {
+    max-width: 62rem;
+    margin: -1.6rem auto 0;
+    position: relative;
+    padding: 0 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.7rem;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 0.85rem 0.7rem;
+    text-align: center;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+  .stat .n {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+  .stat .label {
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.03em;
+    margin-top: 0.25rem;
+  }
+  .stat.total .n { color: var(--ink); }
+  .stat.bug .n { color: var(--bug); }
+  .stat.cleanup .n { color: var(--cleanup); }
+  .stat.docs .n { color: var(--docs); }
+  .stat.efficiency .n { color: var(--efficiency); }
+  .stat.coverage .n { color: var(--coverage); }
+
+  .layout {
+    max-width: 62rem;
+    margin: 3rem auto 5rem;
+    padding: 0 1.5rem;
+    display: grid;
+    grid-template-columns: 218px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 1.5rem;
+    font-size: 0.86rem;
+  }
+  nav.toc .toc-title {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    margin-bottom: 0.7rem;
+  }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+  nav.toc a {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    padding: 0.32rem 0.5rem;
+    border-radius: 4px;
+    border-left: 2px solid transparent;
+  }
+  nav.toc a:hover { background: var(--surface-raised); color: var(--ink); }
+  nav.toc a .cnt { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+  nav.toc .starthere {
+    display: block;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  main { min-width: 0; }
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 1.3rem 1.5rem;
+    margin-bottom: 3rem;
+  }
+  .callout h2 { font-size: 1.15rem; margin-bottom: 0.9rem; }
+  .callout ol { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.65rem; }
+  .callout li { font-size: 0.94rem; }
+  .callout li a { color: var(--ink); font-weight: 600; text-decoration: none; }
+  .callout li a:hover { text-decoration: underline; }
+  .callout li .why { color: var(--ink-soft); font-weight: 400; }
+
+  section.area {
+    margin-bottom: 2.6rem;
+    scroll-margin-top: 1.2rem;
+  }
+  .area-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--rule-strong);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.1rem;
+  }
+  .area-head h2 { font-size: 1.35rem; }
+  .area-head .area-count {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .area-note {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin: -0.6rem 0 1.1rem;
+    max-width: 46rem;
+  }
+
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 7px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 0.7rem;
+  }
+  .finding-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.45rem;
+  }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.2em 0.55em;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .badge.bug { background: var(--bug-soft); color: var(--bug); }
+  .badge.cleanup { background: var(--cleanup-soft); color: var(--cleanup); }
+  .badge.docs { background: var(--docs-soft); color: var(--docs); }
+  .badge.efficiency { background: var(--efficiency-soft); color: var(--efficiency); }
+  .badge.coverage { background: var(--coverage-soft); color: var(--coverage); }
+
+  .loc {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--ink-faint);
+  }
+  .verified {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 3px;
+    padding: 0.15em 0.5em;
+  }
+  .finding .summary { font-weight: 600; margin-bottom: 0.3rem; }
+  .finding .scenario { color: var(--ink-soft); font-size: 0.93rem; }
+  .finding code { font-family: var(--font-mono); font-size: 0.9em; background: var(--surface-raised); padding: 0.1em 0.35em; border-radius: 3px; }
+
+  footer {
+    max-width: 62rem;
+    margin: 0 auto 4rem;
+    padding: 1.5rem;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+  }
+  footer code { font-family: var(--font-mono); background: var(--surface-raised); padding: 0.1em 0.4em; border-radius: 3px; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; margin-bottom: 1rem; }
+    nav.toc ol { flex-direction: row; flex-wrap: wrap; }
+    nav.toc a { border-left: none; border: 1px solid var(--rule); font-size: 0.78rem; }
+    .stats { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+
+  html { scroll-behavior: smooth; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<div class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Full-repo review · high effort · 12 chunks</span>
+    <h1>Dance Schedule Audit</h1>
+    <p class="lede">Every directory in the repo, read end to end and cross-checked against its own tests, its callers, and the design docs that describe it — split into chunks that could each finish inside one session, after two whole-repo attempts at <code>max</code> effort ran out of budget mid-scan.</p>
+    <div class="meta">
+      <span><strong>67</strong> findings</span>
+      <span><strong>12</strong> areas covered</span>
+      <span><strong>9</strong> verified by repro or live run</span>
+      <span>2026‑09‑06 → 2026‑09‑07</span>
+    </div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat total"><div class="n">67</div><div class="label">Total</div></div>
+  <div class="stat bug"><div class="n">33</div><div class="label">Bug</div></div>
+  <div class="stat cleanup"><div class="n">15</div><div class="label">Cleanup</div></div>
+  <div class="stat docs"><div class="n">12</div><div class="label">Docs&nbsp;drift</div></div>
+  <div class="stat efficiency"><div class="n">4</div><div class="label">Efficiency</div></div>
+  <div class="stat coverage"><div class="n">3</div><div class="label">No&nbsp;test</div></div>
+</div>
+
+<div class="layout">
+  <nav class="toc" aria-label="Areas reviewed">
+    <div class="toc-title">Jump to area</div>
+    <ol>
+      <li><a href="#claude-conventions">CLAUDE.md conventions <span class="cnt">6</span></a></li>
+      <li><a href="#wrapper-delegation">Wrapper/delegation <span class="cnt">3</span></a></li>
+      <li><a href="#src-lib">src/lib <span class="cnt">3</span></a></li>
+      <li><a href="#src-hooks">src/hooks <span class="cnt">5</span></a></li>
+      <li><a href="#src-components">src/components <span class="cnt">5</span></a></li>
+      <li><a href="#src-pages">src/pages + routing <span class="cnt">3</span></a></li>
+      <li><a href="#pwa-config">PWA / service worker <span class="cnt">8</span></a></li>
+      <li><a href="#scripts">scripts/ <span class="cnt">4</span></a></li>
+      <li><a href="#e2e">e2e/ <span class="cnt">7</span></a></li>
+      <li><a href="#docs">docs/ <span class="cnt">9</span></a></li>
+      <li><a href="#content-config">content config <span class="cnt">8</span></a></li>
+      <li><a href="#root-config">root config <span class="cnt">6</span></a></li>
+    </ol>
+    <a class="starthere" href="#start-here">↑ Start here</a>
+  </nav>
+
+  <main>
+    <div class="callout" id="start-here">
+      <h2>Start here — highest-impact items</h2>
+      <ol>
+        <li><a href="#route-collision">Content pages can silently shadow <code>/events</code>, <code>/debug</code>, <code>/reset</code></a> <span class="why">— no build error, just a dead nav link</span></li>
+        <li><a href="#room-dedupe">Duplicate room in a "ROOMS:" cell breaks the schedule build confusingly</a> <span class="why">— self-referential error, or a duplicate card</span></li>
+        <li><a href="#e2e-falsepass">An e2e test would pass even if every event card failed to render</a> <span class="why">— it checks the date heading, not the events</span></li>
+        <li><a href="#text-size-fouc">Saved text-size preference flashes to normal size on every load</a> <span class="why">— missed <code>useLayoutEffect</code>, fixed elsewhere in this repo already</span></li>
+        <li><a href="#manifest-todo">The PWA install dialog shows a literal "TODO" description</a> <span class="why">— verified in every shipped manifest, including a real event</span></li>
+        <li><a href="#config-silent-mask">Malformed <code>config.yaml</code> values are silently replaced with defaults</a> <span class="why">— five separate spots, same pattern</span></li>
+        <li><a href="#reserved-names">A content set named "reset" would shadow the real <code>/reset</code> route</a> <span class="why">— the reserved-name list wasn't updated when that route was added</span></li>
+        <li><a href="#schedulelist-key">Two same-time events can duplicate or drop each other in the list</a> <span class="why">— confirmed live in the component's own test</span></li>
+        <li><a href="#icon-crop">A non-square event icon is silently center-cropped</a> <span class="why">— no warning, despite documented square guidance</span></li>
+        <li><a href="#docs-drift">Nine design-doc claims no longer match what the code does</a> <span class="why">— one doc even contradicts another</span></li>
+      </ol>
+    </div>
+
+    <section class="area" id="claude-conventions">
+      <div class="area-head"><h2>CLAUDE.md conventions</h2><span class="area-count">6 findings</span></div>
+      <p class="area-note">Checked the repo against its own written conventions — exports, colocated tests/styles, naming, file scope.</p>
+
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Cleanup</span><span class="loc">src/components/StickyScrollGrid.tsx:5</span></div>
+        <div class="summary">Imports CSS classes from <code>DanceScheduleGrid.module.css</code> instead of its own colocated module.</div>
+        <div class="scenario">No <code>StickyScrollGrid.module.css</code> exists. Anyone editing <code>DanceScheduleGrid.module.css</code> thinking it's scoped to one component unknowingly affects this shared shell's three consumers too.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Convention</span><span class="loc">content/MotivateToSeattle/pages/22 Restaurants.md</span></div>
+        <div class="summary">Filename isn't kebab-case, unlike every sibling in the same directory and every other content set.</div>
+        <div class="scenario">Breaks the one naming rule every other content page follows consistently; a future case-sensitive tooling change could turn this into a real bug, not just a style nit.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge coverage">No test</span><span class="loc">src/components/UpdatePrompt.tsx</span></div>
+        <div class="summary">No colocated test, unlike its three sibling "ephemeral UI chrome" examples named directly in CLAUDE.md.</div>
+        <div class="scenario">This is the PWA update-flow UI — its timeout/de-dupe logic (visibilitychange listener, recheck interval, Safari fallback) can regress silently with zero coverage.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Convention</span><span class="loc">.github/workflows/ci.yml:81</span></div>
+        <div class="summary"><code>npx playwright install --with-deps chromium</code> instead of the pnpm-based invocation every other CI step uses.</div>
+        <div class="scenario">Minor in practice — a one-off binary download, not a dependency install — but it's the single inconsistent line in an otherwise scrupulously pnpm-only CI file.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Convention</span><span class="loc">src/index.css:78–97</span></div>
+        <div class="summary">Table styling rules live in the global stylesheet, which CLAUDE.md reserves for font stack, resets, and tokens only.</div>
+        <div class="scenario">Defensible today since no component "owns" raw markdown tables — but it's a design decision sitting in the one file meant to stay content-free, and it sets precedent for further scope creep.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Convention</span><span class="loc">src/types/virtual-*.d.ts (4 files)</span></div>
+        <div class="summary">Ambient module declarations use <code>export default</code> — an undocumented second exception to the named-exports rule.</div>
+        <div class="scenario">The only carved-out exception in CLAUDE.md is the route-file wrapper pattern. Low-cost to leave as-is since it mirrors what the Vite plugins actually emit at runtime.</div>
+      </div>
+    </section>
+
+    <section class="area" id="wrapper-delegation">
+      <div class="area-head"><h2>Wrapper / delegation correctness</h2><span class="area-count">3 findings</span></div>
+      <p class="area-note">Checked that every documented "single source of truth" (storage, RUM, image gallery, text size) is actually used everywhere, with no bypasses. All clean except:</p>
+
+      <div class="finding" id="mailto-online">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/lib/mailtoDiagnostics.ts:58</span><span class="verified">Cross-confirmed twice</span></div>
+        <div class="summary">Reads <code>navigator.onLine</code> directly instead of the app's reactive <code>useOnlineStatus()</code> hook.</div>
+        <div class="scenario"><code>BuildInfo.tsx</code> uses the reactive hook for exactly this reason — online status needs the event subscription to stay live. A mailto link rendered once bakes in "Online" at render time; if connectivity drops before the visitor clicks — plausibly the very reason they're emailing support — the diagnostics block misreports the one thing most relevant to their complaint. This directory's own review, run separately, hit the same file independently.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/App.tsx:31–33 (MdxH1)</span></div>
+        <div class="summary">Drops every prop except <code>children</code>, unlike the sibling <code>img</code>/<code>a</code> overrides which spread the rest.</div>
+        <div class="scenario">Latent today — no plugin attaches heading props. But a future addition like <code>rehype-slug</code> for deep-linkable sections would silently lose every heading's <code>id</code>, breaking anchor links with no visible symptom.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/App.tsx:62–71 (MdxA, mailto branch)</span></div>
+        <div class="summary">The rest-prop spread lands <em>after</em> the tracking <code>onClick</code>, so a future caller-supplied handler would silently clobber RUM tracking.</div>
+        <div class="scenario">Not reachable today — plain markdown can't produce this — but it's a latent trap for the first content-authoring change that lets a handler flow through.</div>
+      </div>
+    </section>
+
+    <section class="area" id="src-lib">
+      <div class="area-head"><h2>src/lib</h2><span class="area-count">3 findings</span></div>
+      <p class="area-note">Parsing and layout math — the highest correctness risk in the codebase. Held up well; two real bugs found in the schedule-grid algorithms.</p>
+
+      <div class="finding" id="room-dedupe">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/lib/parseDanceScheduleSheet.ts:512</span></div>
+        <div class="summary">Room-booking conflict check doesn't dedupe rooms the way the caller-booking loop just above it does.</div>
+        <div class="scenario">The caller loop explicitly guards with <code>new Set(session.callers)</code>. The room loop doesn't. A <code>"ROOMS: Ballroom A, Ballroom A"</code> typo produces a nonsensical self-referential "already booked" build error — or, if that check were skipped, a duplicate rendered card in the grid.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/lib/computeDanceScheduleCallerLayout.ts:241</span></div>
+        <div class="summary">A "free" floating entry only clips against another entry that starts strictly <em>after</em> it — a same-start neighbor never triggers a clip.</div>
+        <div class="scenario">A break card and a real session starting at the identical time: the break renders full-width overlapping the real session for its whole span. An existing test exercises this exact coincident-start case but only asserts lane/columnSpan, not the row span that would catch it.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge coverage">No test</span><span class="loc">src/lib/assignLanes.ts</span></div>
+        <div class="summary">The shared greedy lane-assignment algorithm used by both dance-schedule layout files has no colocated unit test.</div>
+        <div class="scenario">Unlike nearly every other file in the directory. Only exercised indirectly through two much larger consumer suites, so a regression here is easy to misattribute.</div>
+      </div>
+    </section>
+
+    <section class="area" id="src-hooks">
+      <div class="area-head"><h2>src/hooks</h2><span class="area-count">5 findings</span></div>
+      <p class="area-note">Comparatively mature and well-tested — most stateful logic is both carefully commented and covered by regression tests that name the bug they prevent.</p>
+
+      <div class="finding" id="text-size-fouc">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/hooks/useTextSizePreference.ts:39</span></div>
+        <div class="summary">Applies the stored text-size preference via a plain <code>useEffect</code> — after first paint, not before.</div>
+        <div class="scenario">A returning visitor with a saved "large" or "x-large" preference sees a visible flash to normal size on every page load, then a correction. This repo already fixed this exact class of bug elsewhere with <code>useLayoutEffect</code> — just not here, on the setting most likely to matter to the accessibility-motivated users who set a non-default size.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/hooks/useLastPagePersistence.ts:31</span></div>
+        <div class="summary">The "is this the initial render" guard is a per-instance ref, not module-level, so StrictMode's dev-only double-invoke defeats it.</div>
+        <div class="scenario">On a cold launch with a stored redirect target, the second StrictMode invocation clobbers the just-read value back to <code>/</code> in storage — self-corrects once real navigation fires, so it's dev-only and transient, but confusing to debug locally.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge coverage">No test</span><span class="loc">src/hooks/useDismissableMenu.ts</span></div>
+        <div class="summary">No colocated test, unlike 14 of the other 16 hooks in this directory.</div>
+        <div class="scenario">Owns real interaction logic — Escape-to-close, outside-pointerdown, dual root/portal containment — used by both the desktop nav dropdown and the mobile menu. The easiest kind of logic here to regress silently.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge efficiency">Efficiency</span><span class="loc">src/hooks/useFirstLaunchHint.ts:105</span></div>
+        <div class="summary"><code>getSnapshot</code> passed to <code>useSyncExternalStore</code> is a fresh closure every render instead of stable.</div>
+        <div class="scenario">Causes extra defensive re-invocation and localStorage reads on hot-render paths like the dance-schedule filter slider. Not incorrect — the sibling <code>subscribe</code> argument on the line above is already memoized correctly.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Cleanup</span><span class="loc">src/hooks/useFirstLaunchHint.ts:25</span></div>
+        <div class="summary">The module-level subscriber map never removes an id's entry once its set is empty.</div>
+        <div class="scenario">Unbounded in principle; low impact today given the small, fixed set of hint ids in use.</div>
+      </div>
+    </section>
+
+    <section class="area" id="src-components">
+      <div class="area-head"><h2>src/components</h2><span class="area-count">5 findings</span></div>
+      <p class="area-note">35 files read in full, cross-checked against their CSS modules and consuming lib functions.</p>
+
+      <div class="finding" id="schedulelist-key">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/components/ScheduleList.tsx:34</span><span class="verified">Verified live</span></div>
+        <div class="summary">List key <code>event.startTime.toISOString()</code> isn't unique when two events share a start time.</div>
+        <div class="scenario">Running the component's own existing test fixture — two events with the same default start time — reproduces React's duplicate-key warning today, live.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/components/RawDanceScheduleTable.tsx:82</span></div>
+        <div class="summary">The debug "Hours by caller" table never reads the <code>groupBoundary</code> field it's given.</div>
+        <div class="scenario">That field was computed specifically to split headline callers from GCA-showcase-only callers, with dedicated logic and tests elsewhere. The one consumer of this data renders every caller in one undifferentiated block, defeating the reason the field exists.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/components/ZoomableImage.tsx:56</span><span class="verified">Verified via repro</span></div>
+        <div class="summary"><code>token in SIZE_CLASSES</code> matches inherited <code>Object.prototype</code> properties, not just the six real size keywords.</div>
+        <div class="scenario">A markdown image caption whose title happens to contain the word "constructor" is misclassified as a size directive — the caption is silently dropped and the resulting class name is broken.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Cleanup</span><span class="loc">src/components/DanceScheduleGrid.tsx:23</span></div>
+        <div class="summary">A column-width constant, with its full rationale comment, is duplicated verbatim across all three grid components.</div>
+        <div class="scenario">The comment itself references a past px→rem migration lesson about exactly this kind of value needing to stay in sync. <code>StickyScrollGrid.tsx</code> — already the shared shell for this trio — is the natural single owner.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Cleanup</span><span class="loc">src/components/DanceScheduleGrid.tsx:78</span></div>
+        <div class="summary">The "no sessions match the current filters" empty-state block is copy-pasted near-identically across the same three grid components.</div>
+        <div class="scenario">A wording or behavior fix to that message now has to be applied three times and can silently drift between views.</div>
+      </div>
+    </section>
+
+    <section class="area" id="src-pages">
+      <div class="area-head"><h2>src/pages + App.tsx + routing</h2><span class="area-count">3 findings</span></div>
+
+      <div class="finding" id="route-collision">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/App.tsx:89</span></div>
+        <div class="summary">No collision guard between content-page routes and hardcoded utility routes like <code>/events</code>, <code>/debug</code>, <code>/reset</code>.</div>
+        <div class="scenario">A future content page literally named <code>events.md</code> or <code>reset.md</code> would silently win the route (array-order tie-break) with no build error, breaking the real feature everywhere it's linked. This codebase enforces exactly this class of invariant loudly elsewhere — just not here.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/App.tsx:31 (MdxH1)</span></div>
+        <div class="summary">Wraps every rendered markdown <code>h1</code> in a full page header with no guard against more than one per page.</div>
+        <div class="scenario">A page with two top-level headings would render two duplicate navigation landmarks and menu toggles mid-page. No current content page triggers this, but nothing enforces or warns about it either.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge efficiency">Efficiency</span><span class="loc">src/components/Nav.tsx:17</span></div>
+        <div class="summary">The nav tree is rebuilt from scratch on every render, in two components, from an input that's static after module load.</div>
+        <div class="scenario">Wasted work on a hot render path (resize/scroll-driven re-renders) — low impact given the small route count, but a one-time computation would avoid it entirely.</div>
+      </div>
+    </section>
+
+    <section class="area" id="pwa-config">
+      <div class="area-head"><h2>PWA / service worker config</h2><span class="area-count">8 findings</span></div>
+      <p class="area-note">No <code>src/sw</code> directory exists — this project uses <code>vite-plugin-pwa</code>'s <code>generateSW</code> strategy, so this covers the manifest/icon pipeline and update-prompt client code instead.</p>
+
+      <div class="finding" id="manifest-todo">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">vite.config.ts:198</span><span class="verified">Verified in dist/</span></div>
+        <div class="summary">The PWA manifest's <code>description</code> field is a hardcoded literal TODO placeholder.</div>
+        <div class="scenario">Confirmed in the actual build output for every content set — including a real, currently-deployed event — the install/app-info dialog shows <em>"TODO: one-line description of what this app does."</em> verbatim.</div>
+      </div>
+      <div class="finding" id="icon-crop">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">content-icons.ts:37</span><span class="verified">Verified via repro</span></div>
+        <div class="summary">A non-square source icon is silently center-cropped into every generated size, with no validation it's square.</div>
+        <div class="scenario">CLAUDE.md and the design docs recommend a square source icon, but nothing enforces it. A rectangular photo dropped in as an event's icon gets a silently mis-cropped app/home-screen icon with no warning.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">vite.config.ts:36</span></div>
+        <div class="summary">Each content set's build timestamp is computed independently, since the build orchestrator runs one <code>vite build</code> subprocess per set sequentially with no shared time passed through.</div>
+        <div class="scenario">Two sets published from the exact same <code>pnpm build</code> invocation can show visibly different build times in the diagnostics UI, undermining the "which deploy is this" purpose that field exists for.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">index.html:15</span></div>
+        <div class="summary">The browser tab title is hardcoded "Dance Schedule" for every content set, never customized per event.</div>
+        <div class="scenario">The manifest name/icon were already made per-set specifically to fix installed-app identity confusion — but the plain, not-yet-installed browser tab (arguably the more common case) still shows the generic title.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">DX</span><span class="loc">content-icons.ts:35</span></div>
+        <div class="summary">A malformed/non-image <code>icon.png</code> throws a raw internal library error instead of a clear, named one.</div>
+        <div class="scenario">Breaks this codebase's usual fail-loud-with-actionable-message convention — a content author who mislabels an unrelated file gets a confusing stack trace instead of a message pointing at the real problem.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge efficiency">Efficiency</span><span class="loc">content-icons.ts:60</span></div>
+        <div class="summary">Three independent icon-generation steps run as sequential awaits instead of in parallel.</div>
+        <div class="scenario">None depends on another's output — all derive from the same source buffer. This runs once per sequential build subprocess, so the serialization compounds across every content set in a release.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">src/components/UpdatePrompt.tsx:80</span></div>
+        <div class="summary">A visibility listener and interval, both tied to a service-worker registration closure, are never removed.</div>
+        <div class="scenario">Currently masked because the component mounts once for the app's whole lifetime — latent rather than active, but would leak indefinitely if that ever changed.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge efficiency">Efficiency</span><span class="loc">content-icons.ts:42</span></div>
+        <div class="summary">The source icon file is read from disk twice for the same operation.</div>
+        <div class="scenario">A metadata check and a buffer read each independently hit the filesystem when one read could be reused for both. Minor for typical icon sizes.</div>
+      </div>
+    </section>
+
+    <section class="area" id="scripts">
+      <div class="area-head"><h2>scripts/</h2><span class="area-count">4 findings</span></div>
+
+      <div class="finding" id="reserved-names">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">scripts/build-content-sets.mjs:38</span></div>
+        <div class="summary">The reserved-content-set-names list omits <code>"reset"</code>, even though <code>/reset</code> is a real hardcoded route.</div>
+        <div class="scenario">A content set literally named "reset" would silently shadow the app's real reset route in production with no build error — the exact failure class this list exists to prevent for "debug"/"clear-storage"/"events". Both docs that describe this list are equally stale, confirming the omission wasn't intentional.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">scripts/build-content-sets.mjs:109</span></div>
+        <div class="summary">A content set named <code>"__root__"</code> would collide with the internal directory name used for the default set's unprefixed mirror build.</div>
+        <div class="scenario">Would crash the publish step with a confusing missing-directory error instead of a named validation error, once that build step tries to merge a directory another step already moved away.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">scripts/generate-amplify-rewrites.mjs:44</span></div>
+        <div class="summary">A content-set name is interpolated unescaped into a regex-syntax hosting rewrite rule, with no validation it's regex-safe.</div>
+        <div class="scenario">The naming convention ("lowercase letters, digits, hyphens only") isn't actually enforced anywhere in the pipeline — and is already violated today by one real content set's name. A future name containing a regex metacharacter would produce a broken rewrite rule with no error raised.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge efficiency">Efficiency</span><span class="loc">scripts/build-content-sets.mjs:108</span></div>
+        <div class="summary">Every content set's build runs strictly sequentially, even though each targets a fully isolated output directory.</div>
+        <div class="scenario">Publish time grows linearly with content-set count for no correctness reason, since the builds share no mutable state.</div>
+      </div>
+    </section>
+
+    <section class="area" id="e2e">
+      <div class="area-head"><h2>e2e/</h2><span class="area-count">7 findings</span></div>
+      <p class="area-note">All 5 Playwright spec files, checked for tests that wouldn't actually catch the regression they claim to guard against.</p>
+
+      <div class="finding" id="e2e-falsepass">
+        <div class="finding-head"><span class="badge bug">Test bug</span><span class="loc">e2e/app.spec.ts:118, 133</span></div>
+        <div class="summary">A test named "renders events" asserts on the first list item — which is the date heading, not an event card.</div>
+        <div class="scenario">This exact same file's own later test explicitly avoids this locator for this exact reason. If every event card failed to render while the date heading itself still existed, this test would still pass.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Test bug</span><span class="loc">e2e/content-sets.spec.ts:29</span></div>
+        <div class="summary">A content-set name is interpolated unescaped into a regex used for a heading match.</div>
+        <div class="scenario">Same unescaped-name-into-regex class of bug as the Amplify rewrite finding above. A set name with a regex metacharacter could make the assertion throw or match the wrong thing.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Duplication</span><span class="loc">e2e/app.spec.ts:62</span></div>
+        <div class="summary">The service-worker-ready → offline-toggle test sequence is duplicated near-verbatim four times across three files.</div>
+        <div class="scenario">Past this project's own stated threshold ("three similar call sites is fine, a fourth needs a helper") — one copy has already drifted from the others in how it reaches its route.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Duplication</span><span class="loc">e2e/app.spec.ts:152</span></div>
+        <div class="summary">The "no horizontal overflow" check is copy-pasted five times across two files.</div>
+        <div class="scenario">A future change to how overflow should be measured needs five manual edits, with real risk one copy gets missed.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Duplication</span><span class="loc">e2e/app.spec.ts:182</span></div>
+        <div class="summary">The mobile-viewport device setup is duplicated three times, including its explanatory comment.</div>
+        <div class="scenario">Each copy re-derives the same field list; a shared fixture would keep the three mobile blocks in sync if that list ever changes.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Fragile</span><span class="loc">e2e/room-schedule.spec.ts:10</span></div>
+        <div class="summary">Nearly every test locator reaches directly into CSS-module class names by substring match instead of a stable test hook.</div>
+        <div class="scenario">A substring collision already nearly exists today — one selector also matches an unrelated component's class, only avoided because a saved browser state happens to pre-dismiss that component globally. An unrelated future rename would break tests with a confusing "not found" instead of a meaningful failure.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Stale comment</span><span class="loc">e2e/app.spec.ts:140</span></div>
+        <div class="summary">A comment cites a 640px breakpoint that the actual CSS now defines as 641px.</div>
+        <div class="scenario">Doesn't affect either current test's outcome, but could mislead a future viewport choice right at that boundary.</div>
+      </div>
+    </section>
+
+    <section class="area" id="docs">
+      <div class="area-head"><h2>docs/</h2><span class="area-count">9 findings</span></div>
+      <p class="area-note">All nine are the same shape: a design doc making a claim the current code no longer backs up. Checked against git history and source, not prose style.</p>
+
+      <div class="finding" id="docs-drift">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/ops.md:108</span></div>
+        <div class="summary">Describes a monitoring call pattern the code no longer uses — it was deliberately restructured, with a comment explaining why.</div>
+        <div class="scenario">An operator debugging a missing attribute would search for code that no longer exists.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/design/monitoring.md:208</span></div>
+        <div class="summary">Still claims several deploy scripts need root credentials — a separate doc marks this fixed, and this doc was itself edited after that fix.</div>
+        <div class="scenario">Someone planning infra work would believe a resolved problem is still open, or unnecessarily avoid running scripts locally.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/design/content-config.md:58</span></div>
+        <div class="summary">Names the fallback default content set incorrectly — the set was renamed, and a sibling doc correctly describes the rename while this one doesn't.</div>
+        <div class="scenario">A content author following only this doc would expect a build fallback to a set name that no longer exists in the repo.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/design/onboarding-hints.md:440</span></div>
+        <div class="summary">Describes a screen-dimming technique that was replaced specifically because it hid the control being highlighted — the replacement's own code comment explains why.</div>
+        <div class="scenario">A developer following this doc could reintroduce the exact bug the code was already changed to fix.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/design/dance-schedule-mobile-scroll.md:278</span></div>
+        <div class="summary">Describes a fixed-pixel column width; the code now uses a rem-based value in a different file, deliberately changed to scale with the text-size preference feature.</div>
+        <div class="scenario">A developer following the doc's guidance to change this value would edit the wrong file with the wrong unit, breaking the scaling behavior that motivated the change.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/design/dance-schedule-mobile-scroll.md:99</span></div>
+        <div class="summary">Walks through scroll-sync logic as if it still lives inline in one component; it was extracted into a shared hook and shell component, and a second design doc says so correctly.</div>
+        <div class="scenario">The two design docs now disagree with each other about where this logic lives.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/design/schedule-page.md:171 + docs/adding-a-new-event.md:220</span></div>
+        <div class="summary">Both describe time-range inference as working in only one direction; the parser and its tests also support the reverse direction.</div>
+        <div class="scenario">An event organizer using a real, tested shorthand the docs don't mention would have no way to learn it's supported.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/testing.md:15, 84</span></div>
+        <div class="summary">The summary table undercounts both the root-level test exceptions and the e2e spec files — by nearly half, in the e2e case — contradicting the same doc's own later, correct section.</div>
+        <div class="scenario">Someone auditing e2e coverage from the summary table alone would miss the specs that already cover the gaps the doc claims to still have.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">docs/testing.md:96</span></div>
+        <div class="summary">Lists a component as a known test-coverage gap; a substantive test file for it already exists.</div>
+        <div class="scenario">A contributor deciding where to add coverage would skip it, thinking it's still uncovered.</div>
+      </div>
+    </section>
+
+    <section class="area" id="content-config">
+      <div class="area-head"><h2>content/ config schema</h2><span class="area-count">8 findings</span></div>
+      <p class="area-note">Not the markdown content itself — the <code>config.yaml</code> parsing and validation code. A repeated pattern: a malformed or wrongly-typed value is silently masked by a default instead of raising the fail-loud error this pipeline uses everywhere else.</p>
+
+      <div class="finding" id="config-silent-mask">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">vite-plugin-content-config.ts:127</span><span class="verified">Verified via repro</span></div>
+        <div class="summary">A YAML section that should be a mapping is cast to an object type without checking it actually is one.</div>
+        <div class="scenario">A scalar value where a nested section was expected (e.g. a forgotten indent) silently falls through to defaults with no build error — a real event's intended config gets silently ignored.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">content-config.ts:69</span><span class="verified">Verified via repro</span></div>
+        <div class="summary">An empty-string default content-set name isn't rejected, because it resolves to the content directory itself, which always exists.</div>
+        <div class="scenario">Would pass validation and fail much later with a confusing raw "file not found" deep in an unrelated plugin, instead of the named error this exact function exists to give.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">vite-plugin-content-config.ts:24</span><span class="verified">Verified via repro</span></div>
+        <div class="summary">Default-value fallbacks also silently mask an explicit-but-blank YAML value, not just a genuinely absent key.</div>
+        <div class="scenario">A config key left blank mid-edit (or after a merge conflict) silently takes the default with no error, the same way a wrong-typed value would — except the wrong-typed case one line later does throw.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">content-config.ts:123</span></div>
+        <div class="summary">The PWA app name is validated only for being a string, not for being non-empty.</div>
+        <div class="scenario">An explicit empty string from a bad template fill-in ships as the blank app name on a real event's installed PWA, with no build error.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">content-config.ts:40</span></div>
+        <div class="summary">One code path — config file entirely missing — skips the validation every other path through the same function enforces.</div>
+        <div class="scenario">If the fallback default set were ever renamed or deleted, this path alone would surface the failure much later and more confusingly than the named error the other paths give.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge efficiency">Efficiency</span><span class="loc">vite-plugin-content-sets.ts:89</span></div>
+        <div class="summary">The same per-set config file is read from disk and parsed up to four times per build.</div>
+        <div class="scenario">Wasted I/O and CPU that scales with content-set count, with no correctness benefit — a single shared parse would do.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge cleanup">Duplication</span><span class="loc">content-config.ts:110</span></div>
+        <div class="summary">The "read file, parse YAML, wrap the error" block is duplicated verbatim four times across two files.</div>
+        <div class="scenario">A future change to error format or wrapping has to be made in four places by hand — exactly the kind of edit that's easy to apply to three and miss on the fourth.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">vite-plugin-content-config.ts:100</span></div>
+        <div class="summary">A comma-separated environment-variable override silently drops empty entries instead of treating them as malformed.</div>
+        <div class="scenario">A stray double or trailing comma silently produces one fewer room than intended, with no error — even though the all-empty case one branch away does throw.</div>
+      </div>
+    </section>
+
+    <section class="area" id="root-config">
+      <div class="area-head"><h2>Root config + CLAUDE.md itself</h2><span class="area-count">6 findings</span></div>
+      <p class="area-note">The last chunk — package.json, tsconfig, eslint config, the rest of vite.config.ts, amplify.yml, and CLAUDE.md's own accuracy.</p>
+
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Tooling gap</span><span class="loc">tsconfig.json:22</span><span class="verified">Verified via tsc --listFiles</span></div>
+        <div class="summary">Three root-level test files are outside the TypeScript <code>include</code> list, so they're never type-checked.</div>
+        <div class="scenario">Vitest still runs them via a transform-only pass with no type-checking, so a type error introduced in any of the three passes typecheck, build, and the pre-commit hook silently.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Tooling</span><span class="loc">package.json:67</span></div>
+        <div class="summary">The pinned package-manager version doesn't match what CI and the deploy config actually use — and a CI comment incorrectly claims they match.</div>
+        <div class="scenario">A contributor doing a plain local install gets a different pnpm version than the one that generates and validates the committed lockfile in CI and production.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Tooling gap</span><span class="loc">eslint.config.js:11</span><span class="verified">Verified via --print-config</span></div>
+        <div class="summary">All real lint rules are scoped to TypeScript files only, so the build-orchestration scripts get zero active rules despite being linted.</div>
+        <div class="scenario">An unused variable or undefined reference in a build script passes lint and pre-commit silently, with nothing else exercising these files except manually running a full build.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">amplify.yml:24</span></div>
+        <div class="summary">A comment's example output path names a content set that was renamed away and no longer exists.</div>
+        <div class="scenario">Same stale name as the content-config.md drift found earlier — now leaked into a deploy config's own comment.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge bug">Bug</span><span class="loc">vite.config.ts:242</span></div>
+        <div class="summary">A content-set name is built directly into a regular expression for the production service-worker build, with no escaping.</div>
+        <div class="scenario">Same unescaped-name-into-regex class of bug found twice elsewhere in this review. A future set name with a regex metacharacter could break the default production build outright.</div>
+      </div>
+      <div class="finding">
+        <div class="finding-head"><span class="badge docs">Docs</span><span class="loc">CLAUDE.md:29</span></div>
+        <div class="summary">The Commands section omits the coverage command CI's "Unit tests (with coverage)" step actually runs.</div>
+        <div class="scenario">CLAUDE.md says its own instructions override default behavior, yet leaves out the one command needed to reproduce CI's coverage step locally.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  Generated across 12 review passes at <code>high</code> effort (not <code>max</code> — two whole-repo <code>max</code> attempts exhausted their session budget before finishing). Full working notes and the chunk-by-chunk plan live in <code>.code-review-progress.md</code> at the repo root.
+</footer>

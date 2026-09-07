@@ -13,11 +13,13 @@ export interface TopLevelContentConfig {
 export interface ContentManifestStrings {
   name: string
   shortName: string
+  description: string
 }
 
 const DEFAULT_MANIFEST_STRINGS: ContentManifestStrings = {
   name: 'Dance Schedule',
   shortName: 'Dance Schedule',
+  description: 'Schedule, room assignments, and callers for this dance weekend — installable and works offline.',
 }
 
 // Directory (relative to `root`) a content set name resolves to — mirrors
@@ -91,8 +93,9 @@ export function listContentSets(root: string): string[] {
     .sort()
 }
 
-// Reads content/<set>/config.yaml's `manifest.name`/`manifest.shortName` — a
-// sibling of that file's existing `features:` key (vite-plugin-content-config.ts).
+// Reads content/<set>/config.yaml's `manifest.name`/`manifest.shortName`/
+// `manifest.description` — a sibling of that file's existing `features:` key
+// (vite-plugin-content-config.ts).
 // Kept as a separate plain Node function rather than folded into that plugin's
 // virtual:content-config module on purpose: these strings are only ever needed at
 // build time to construct vite.config.ts's VitePWA({ manifest }) object, never by
@@ -119,6 +122,7 @@ export function loadContentManifestStrings(root: string, contentDir: string): Co
   const manifest = (parsed as Record<string, unknown> | null)?.manifest ?? {}
   const name = (manifest as Record<string, unknown>).name ?? DEFAULT_MANIFEST_STRINGS.name
   const shortName = (manifest as Record<string, unknown>).shortName ?? DEFAULT_MANIFEST_STRINGS.shortName
+  const description = (manifest as Record<string, unknown>).description ?? DEFAULT_MANIFEST_STRINGS.description
 
   if (typeof name !== 'string') {
     throw new Error(`${configFile}'s "manifest.name" must be a string, got ${JSON.stringify(name)}`)
@@ -126,8 +130,11 @@ export function loadContentManifestStrings(root: string, contentDir: string): Co
   if (typeof shortName !== 'string') {
     throw new Error(`${configFile}'s "manifest.shortName" must be a string, got ${JSON.stringify(shortName)}`)
   }
+  if (typeof description !== 'string') {
+    throw new Error(`${configFile}'s "manifest.description" must be a string, got ${JSON.stringify(description)}`)
+  }
 
-  return { name, shortName }
+  return { name, shortName, description }
 }
 
 // Reads content/<set>/config.yaml's top-level `testFixture` — a sibling of
