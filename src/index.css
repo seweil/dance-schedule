@@ -6,6 +6,17 @@
 body {
   margin: 0;
   padding: 0 var(--space-sm);
+  /* Unlike padding-bottom below, no max() with a minimum — env() resolving to 0
+     (no safe area, or an unsupporting browser) should mean no extra top space at
+     all, matching the explicit 0 above. Without this, standalone-mode content
+     (viewport-fit=cover, see index.html) starts flush at the very top of the
+     screen, underneath the status bar/notch — confirmed live (iOS PWA, installed):
+     whatever renders first there (on phone, Nav is hidden — see Nav.module.css's
+     `@media (--phone)` — so it's UpdatePrompt.tsx's banner) got iOS's own
+     status-bar vibrancy/blur effect painted over it, since that's the area iOS
+     applies it to. Pushing content down clear of the status bar avoids sitting in
+     that zone in the first place, rather than fighting the effect with CSS. */
+  padding-top: env(safe-area-inset-top);
   /* max(), not env() alone — a device with no safe area at all (env() resolves to
      0, or the browser doesn't support it) still gets --space-md of breathing room
      at the bottom of every page, same reasoning as the explicit top/side padding
