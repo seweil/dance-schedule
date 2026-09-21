@@ -101,6 +101,33 @@ test('desktop: shows a right-edge scroll cue that flips to the left edge once fu
   }).toPass()
 })
 
+test("desktop: the left-edge scroll cue starts after the time column, not over it", async ({
+  page,
+}) => {
+  // Regression test for a real bug: the time column is sticky-pinned and never
+  // itself scrolls, so a left-edge fade that starts at the panel's true left
+  // edge (x: 0) fades the time column instead of the actual scrollable room/
+  // level/caller cells beside it — the cue should start where the time column
+  // ENDS.
+  await page.goto('/automated-testing/room-schedule')
+  const panel = page.locator('[class*="panelWrapper"]')
+  await panel.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+  })
+  await expect(panel).toHaveAttribute('data-can-scroll-left', 'true')
+
+  const timeLabelBox = await page.locator('[class*="timeLabel"]').first().boundingBox()
+  const edgeLeftBox = await panel.evaluate((el) => {
+    const edge = el.querySelector('[class*="edgeLeft"]') as HTMLElement
+    const rect = edge.getBoundingClientRect()
+    return { x: rect.x, right: rect.right }
+  })
+  expect(edgeLeftBox.x).toBeGreaterThanOrEqual(timeLabelBox?.x ?? 0)
+  expect(Math.abs(edgeLeftBox.x - (timeLabelBox?.width ?? 0) - (timeLabelBox?.x ?? 0))).toBeLessThan(
+    2,
+  )
+})
+
 test('changing the date select swaps the grid to that date', async ({ page }) => {
   await page.goto('/automated-testing/room-schedule')
   await expect(page.getByText('All Callers Dance')).not.toBeVisible()
@@ -394,6 +421,34 @@ test.describe('mobile viewport', () => {
           expect(await edgeOpacity('edgeLeft')).toBe('1')
           expect(await edgeOpacity('edgeRight')).toBe('0')
         }).toPass()
+      })
+
+      test('the left-edge scroll cue starts after the time column, not over it', async ({
+        page,
+      }) => {
+        // Regression test for a real bug: the time column is sticky-pinned and
+        // never itself scrolls, so a left-edge fade that starts at the panel's
+        // true left edge (x: 0) fades the time column instead of the actual
+        // scrollable room/level/caller cells beside it — the cue should start
+        // where the time column ENDS.
+        await page.goto('/automated-testing/room-schedule')
+        const panel = page.locator('[class*="panelWrapper"]')
+        const body = page.locator('[class*="bodyWrapper"]')
+        await body.evaluate((el) => {
+          el.scrollLeft = el.scrollWidth
+        })
+        await expect(panel).toHaveAttribute('data-can-scroll-left', 'true')
+
+        const timeLabelBox = await page.locator('[class*="timeLabel"]').first().boundingBox()
+        const edgeLeftBox = await panel.evaluate((el) => {
+          const edge = el.querySelector('[class*="edgeLeft"]') as HTMLElement
+          const rect = edge.getBoundingClientRect()
+          return { x: rect.x, right: rect.right }
+        })
+        expect(edgeLeftBox.x).toBeGreaterThanOrEqual(timeLabelBox?.x ?? 0)
+        expect(
+          Math.abs(edgeLeftBox.x - (timeLabelBox?.width ?? 0) - (timeLabelBox?.x ?? 0)),
+        ).toBeLessThan(2)
       })
 
       test('switching date resets horizontal scroll position', async ({ page }) => {

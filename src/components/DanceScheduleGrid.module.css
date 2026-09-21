@@ -47,6 +47,19 @@
    paint order, which the hint's explicit z-index always beats — regardless of
    whether the underlying compositing quirk is ever otherwise understood. */
 .panelWrapper {
+  /* Duplicated from the .tsx TIME_COLUMN_WIDTH constant (DanceScheduleGrid.tsx/
+     DanceScheduleLevelGrid.tsx/DanceScheduleCallerGrid.tsx all define the same
+     '4.375rem' independently — no shared JS/CSS token pipeline exists to read
+     one from the other) — a real limit, not one this custom property removes,
+     but it at least gives the CSS SIDE of that duplication (.edgeLeft below,
+     .roomlessCardContent further down) one definition to share instead of
+     three-plus copies of the bare value drifting out of sync with each other,
+     the way .roomlessCardContent's own literal 70px already had (see its
+     comment) before this replaced it. Declared here (not :root) so it
+     inherits down through this file's whole subtree via normal custom-
+     property inheritance, same as var(--color-border) below already relies
+     on from a global stylesheet. */
+  --time-column-width: 4.375rem;
   position: relative;
   overflow: auto;
   isolation: isolate;
@@ -103,8 +116,15 @@
   pointer-events: none;
 }
 
+/* --time-column-width (.panelWrapper's own custom property, above), not 0 —
+   the time column itself is ALSO sticky-pinned to this same left edge and
+   never itself scrolls, so fading it along with the actual scrollable day/
+   level/caller cells beside it would read as "you can scroll the time
+   column too," which isn't true. Starting the fade band here instead, right
+   where the time column ends, puts it over the column that actually does
+   scroll. */
 .edgeLeft {
-  left: 0;
+  left: var(--time-column-width);
 }
 
 .edgeRight {
@@ -425,9 +445,12 @@
    verified across the full scroll range via getBoundingClientRect at several
    scrollLeft values.
 
-   left is 70px (TIME_COLUMN_WIDTH, duplicated from the .tsx constant — no
-   shared CSS variable exists for it, same duplication this file already has
-   elsewhere) plus --space-sm, not plain 0 — .timeLabel is ALSO sticky-pinned to
+   left is --time-column-width (.panelWrapper's own custom property — this
+   used to be a hardcoded 70px here, silently out of sync with the real,
+   rem-based column width, e.g. it stopped matching once the text-size
+   preference grew every rem-based row and this stayed pixel-fixed; sharing
+   the same custom property .edgeLeft also uses now keeps the two from ever
+   drifting apart again) plus --space-sm, not plain 0 — .timeLabel is ALSO sticky-pinned to
    the scrollport's true left edge with its own opaque background and
    z-index: 1, so a plain left: 0 here let the two collide once left-clamped:
    confirmed live (scrolled to the end of the range), the sticky time label
@@ -438,7 +461,7 @@
    right keeps the same --space-sm breathing room against the opposite edge. */
 .roomlessCardContent {
   position: sticky;
-  left: calc(70px + var(--space-sm));
+  left: calc(var(--time-column-width) + var(--space-sm));
   right: var(--space-sm);
   width: fit-content;
 }
