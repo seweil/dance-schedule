@@ -3,6 +3,45 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
+## UpdatePrompt.tsx banner still renders blurred on iOS, second fix attempt also unconfirmed
+
+**Found:** reported live on an installed iOS standalone PWA; still open as of
+2026-09-21.
+
+Two fix attempts so far, neither confirmed working on-device:
+
+- **Attempt 1** (`2b63b0c`, 2026-09-18): diagnosed as content rendering under
+  the status bar with no safe-area padding; added
+  `padding-top: env(safe-area-inset-top)` to `body` (`src/index.css`).
+  Reported unsuccessful.
+- **Attempt 2** (`8908a2b`, deployed via empty-commit trigger `8c4927d`):
+  re-diagnosed via web research as iOS 26/27's "Liquid Glass" redesign — a
+  translucent standalone-PWA status bar gets a progressive blur fading out
+  ~35pt past `env(safe-area-inset-top)` itself, so no amount of top padding
+  clears it; iOS 26 rendered it low-contrast enough to go unnoticed, iOS 27
+  turned the contrast up. Added `apple-mobile-web-app-capable` +
+  `apple-mobile-web-app-status-bar-style: black` to `index.html`
+  (theory: an opaque/reserved status bar removes the shared translucent
+  region entirely), plus a regression test (`e2e/app.spec.ts`, "declares an
+  opaque iOS status bar, not translucent") that only checks the meta tags
+  are present — it can't verify actual on-device rendering. **User tested on
+  a real iOS 27 device and reported "no better" — looks identical to
+  before.**
+
+**Not yet ruled out:** whether that "no better" test was against a genuinely
+fresh build — the user wasn't sure they'd force-quit/reinstalled the PWA
+first, and iOS PWA icon/service-worker caching can be sticky. Next step when
+picking this back up: confirm build freshness first (delete + re-add the PWA
+from the home screen, then check the build hash/time in the Home page's fine
+print or a `mailto:` link's diagnostics block —
+`src/lib/mailtoDiagnostics.ts`). If confirmed fresh and still broken, the
+translucent-status-bar/Liquid-Glass diagnosis itself may be wrong — consider
+(a) whether iOS 27 now applies this blur unconditionally regardless of
+`apple-mobile-web-app-status-bar-style`, (b) whether it's actually this app's
+own CSS (grep for `backdrop-filter`/`blur(`) rather than OS chrome at all,
+and (c) get a screenshot before attempting a third fix — not obtained either
+time so far, and I have no iOS device of my own to verify against.
+
 ## Full-repo audit (2026-09-07): 67 findings, being worked through
 
 `docs/dance-schedule-audit.html` — a full read-through of every directory in
