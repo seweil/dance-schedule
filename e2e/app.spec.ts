@@ -20,6 +20,26 @@ test('web app manifest does not lock orientation', async ({ page }) => {
   expect(['any', undefined]).toContain(manifest.orientation)
 })
 
+test('declares an opaque iOS status bar, not translucent', async ({ page }) => {
+  // Regression test for a real bug: without apple-mobile-web-app-capable,
+  // apple-mobile-web-app-status-bar-style has no effect at all (a long-
+  // standing Apple requirement) — iOS then falls back to a translucent status
+  // bar given viewport-fit=cover (index.html), which is exactly the
+  // configuration iOS 26/27's Liquid Glass redesign paints a progressive blur
+  // into over standalone-PWA content. See index.html's own comment on these
+  // two meta tags for the full story — this only checks the tags are still
+  // present and correct, not the actual on-device rendering, which can't be
+  // verified outside a real iOS device.
+  await page.goto('/automated-testing/')
+  await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute(
+    'content',
+    'yes',
+  )
+  await expect(
+    page.locator('meta[name="apple-mobile-web-app-status-bar-style"]'),
+  ).toHaveAttribute('content', 'black')
+})
+
 test('nav links to a page generated from a content file', async ({ page }) => {
   await page.goto('/automated-testing/')
   // Scoped to the nav — the home page's own body text also links to

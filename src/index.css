@@ -8,14 +8,18 @@ body {
   padding: 0 var(--space-sm);
   /* Unlike padding-bottom below, no max() with a minimum — env() resolving to 0
      (no safe area, or an unsupporting browser) should mean no extra top space at
-     all, matching the explicit 0 above. Without this, standalone-mode content
-     (viewport-fit=cover, see index.html) starts flush at the very top of the
-     screen, underneath the status bar/notch — confirmed live (iOS PWA, installed):
-     whatever renders first there (on phone, Nav is hidden — see Nav.module.css's
-     `@media (--phone)` — so it's UpdatePrompt.tsx's banner) got iOS's own
-     status-bar vibrancy/blur effect painted over it, since that's the area iOS
-     applies it to. Pushing content down clear of the status bar avoids sitting in
-     that zone in the first place, rather than fighting the effect with CSS. */
+     all, matching the explicit 0 above. This alone turned out NOT to fix the
+     underlying problem it was written for (a blurred UpdatePrompt.tsx banner in
+     standalone iOS PWAs, on phone where Nav is hidden and it's the first real
+     content — see Nav.module.css's `@media (--phone)`): iOS's Liquid Glass blur
+     fades out well past the safe-area boundary itself, so pushing content down
+     by exactly env(safe-area-inset-top) still left it inside the fade zone —
+     see index.html's apple-mobile-web-app-status-bar-style comment for the real
+     fix (an opaque, non-translucent status bar, which removes the shared region
+     between OS chrome and page content that the blur needs in the first place).
+     Left in place regardless — with that meta tag doing its job, env() here
+     should simply resolve to ~0 (nothing left to pad around), so this is now
+     inert defense-in-depth rather than a conflicting second fix. */
   padding-top: env(safe-area-inset-top);
   /* max(), not env() alone — a device with no safe area at all (env() resolves to
      0, or the browser doesn't support it) still gets --space-md of breathing room

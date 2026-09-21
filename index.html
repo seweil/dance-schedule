@@ -8,6 +8,40 @@
          padding-bottom rule, which is what that value drives. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
+    <!-- The actual fix for the blurred-top-banner bug src/index.css's own
+         safe-area padding-top attempted (and didn't fully solve) — these two
+         meta tags together are what iOS actually keys off for standalone
+         status-bar treatment, independent of the Web App Manifest's own
+         display: standalone (vite.config.ts), which iOS honors for
+         installability but not for this. Without apple-mobile-web-app-
+         status-bar-style set explicitly, iOS falls back to its
+         "black-translucent" treatment given viewport-fit=cover above: the
+         status bar becomes transparent and the webview's own content
+         extends underneath it, which is exactly the configuration iOS
+         26/27's "Liquid Glass" redesign paints a progressive blur into (a
+         blur that starts at the status bar and fades out roughly 35pt
+         further down the page, well past env(safe-area-inset-top) itself —
+         so no fixed amount of extra top padding chases it away for good;
+         iOS 27 simply made that blur's contrast high enough to actually
+         notice, whereas iOS 26 rendered the identical layout with a barely-
+         visible version of the same effect). "black" here instead makes the
+         status bar a solid, opaque bar iOS reserves and draws ITSELF, with
+         the webview naturally inset below it — no shared/translucent region
+         between OS chrome and page content for Liquid Glass to paint into
+         at all. apple-mobile-web-app-status-bar-style has no effect without
+         apple-mobile-web-app-capable also present (a long-standing Apple
+         requirement, unrelated to and not superseded by the manifest's own
+         display mode). src/index.css's padding-top: env(safe-area-inset-top)
+         is left in place rather than removed — with the status bar now
+         reserved/opaque, that env() value should simply resolve to ~0 there
+         (nothing left for the page to pad around), so it's inert rather
+         than in conflict, and still covers any device/OS combination that
+         doesn't fully honor these meta tags. NOT verified live on a real
+         iOS 27 device yet — flagging that explicitly since the previous
+         attempt at this same bug was "confirmed live" and still didn't hold
+         up; this needs the same real-device check before calling it fixed. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icons/icon-192.png" />
     <link rel="apple-touch-icon" href="%BASE_URL%icons/icon-192.png" />
     <!-- vite-plugin-pwa injects <link rel="manifest"> itself now that vite.config.ts's
