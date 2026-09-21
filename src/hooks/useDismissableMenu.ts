@@ -1,5 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
 
+// Module-level, not per-hook-instance — mirrors HintBalloon.tsx's own
+// pendingClickSwallow/ensureClickSwallowListenerInstalled mechanism exactly
+// (see that component's comment for the full "why," including two earlier,
+// real-device-failing attempts at cleaning this listener up on a timer
+// instead of a fixed, always-installed one). The tap that dismisses an open
+// menu via an outside pointerdown still goes on to fire its own 'click' on
+// whatever was underneath (e.g. a ZoomableImage) — reported live, that click
+// opened the lightbox right as the menu covering it closed. A separate
+// module-level flag from HintBalloon's own, not a shared one: the two
+// mechanisms are otherwise unrelated (dismissing a menu vs. dismissing a
+// hint balloon), and keeping them independent means neither can accidentally
+// swallow a click meant for the other.
+let pendingClickSwallow = false
+let clickSwallowListenerInstalled = false
+
+function ensureClickSwallowListenerInstalled() {
+  if (clickSwallowListenerInstalled) {
+    return
+  }
+  clickSwallowListenerInstalled = true
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (pendingClickSwallow) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      pendingClickSwallow = false
+    },
+    { capture: true },
+  )
+}
+
 export interface DismissableMenu<
   Root extends HTMLElement,
   Toggle extends HTMLElement,
@@ -62,12 +95,18 @@ export function useDismissableMenu<
       return
     }
 
+    ensureClickSwallowListenerInstalled()
+
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       if (rootRef.current?.contains(target) || portalRef.current?.contains(target)) {
         return
       }
       setIsOpen(false)
+      // See the module-level comment above — the 'click' completing this same
+      // tap still fires on `target` right after this, and should just be the
+      // thing that dismissed the menu, not also activate whatever it landed on.
+      pendingClickSwallow = true
     }
 
     document.addEventListener('pointerdown', handlePointerDown)

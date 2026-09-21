@@ -283,4 +283,35 @@ describe('PageMenu', () => {
     await user.click(screen.getByRole('button', { name: /outside/i }))
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
   })
+
+  // Regression test for a real bug: dismissing the menu with an outside tap
+  // (e.g. an image on the page underneath it) shouldn't ALSO trigger that
+  // element's own click action (e.g. opening ZoomableImage's lightbox) —
+  // the tap should just close the menu, the same way an outside tap that
+  // dismisses HintBalloon swallows its own follow-up click too (see that
+  // component's own comment on the mechanism this mirrors).
+  it("closes the menu on an outside click without also triggering that element's own click handler", async () => {
+    dismissKebabHint()
+    const user = userEvent.setup()
+    const onOutsideClick = vi.fn()
+    render(
+      <MemoryRouter initialEntries={['/installation']}>
+        <TextSizeProvider>
+          <PageMenu />
+          <button type="button" onClick={onOutsideClick}>
+            Outside
+          </button>
+        </TextSizeProvider>
+      </MemoryRouter>,
+    )
+    const toggle = getToggle()
+
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(screen.getByRole('button', { name: /outside/i }))
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(onOutsideClick).not.toHaveBeenCalled()
+  })
 })

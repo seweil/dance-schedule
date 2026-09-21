@@ -79,8 +79,13 @@ test('desktop: shows a right-edge scroll cue that flips to the left edge once fu
 
   await expect(panel).toHaveAttribute('data-can-scroll-left', 'false')
   await expect(panel).toHaveAttribute('data-can-scroll-right', 'true')
-  expect(await edgeOpacity('edgeLeft')).toBe('0')
-  expect(await edgeOpacity('edgeRight')).toBe('1')
+  // Same 0.15s transition as below — the right-edge cue fades in from the
+  // page's very first paint (data-can-scroll-right is already true on mount),
+  // so this initial read can land mid-fade too, not just the post-scroll one.
+  await expect(async () => {
+    expect(await edgeOpacity('edgeLeft')).toBe('0')
+    expect(await edgeOpacity('edgeRight')).toBe('1')
+  }).toPass()
 
   await panel.evaluate((el) => {
     el.scrollLeft = el.scrollWidth
@@ -368,8 +373,14 @@ test.describe('mobile viewport', () => {
 
         await expect(panel).toHaveAttribute('data-can-scroll-left', 'false')
         await expect(panel).toHaveAttribute('data-can-scroll-right', 'true')
-        expect(await edgeOpacity('edgeLeft')).toBe('0')
-        expect(await edgeOpacity('edgeRight')).toBe('1')
+        // Same 0.15s transition as below — the right-edge cue fades in from the
+        // page's very first paint (data-can-scroll-right is already true on
+        // mount), so this initial read can land mid-fade too, not just the
+        // post-scroll one.
+        await expect(async () => {
+          expect(await edgeOpacity('edgeLeft')).toBe('0')
+          expect(await edgeOpacity('edgeRight')).toBe('1')
+        }).toPass()
 
         await body.evaluate((el) => {
           el.scrollLeft = el.scrollWidth
