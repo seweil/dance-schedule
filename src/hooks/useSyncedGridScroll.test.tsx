@@ -2,14 +2,30 @@ import { describe, expect, it } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import { useSyncedGridScroll } from './useSyncedGridScroll'
 
-function Harness({ resetKey, showBody = true }: { resetKey: unknown; showBody?: boolean }) {
-  const { headerRef, setBodyRef } = useSyncedGridScroll(resetKey)
+function Harness({
+  resetKey,
+  showBody = true,
+  panelOverflowX = 'auto',
+}: {
+  resetKey: unknown
+  showBody?: boolean
+  panelOverflowX?: 'auto' | 'visible'
+}) {
+  const { panelRef, headerRef, setBodyRef } = useSyncedGridScroll(resetKey)
   return (
     <div>
+      <div data-testid="panel" ref={panelRef} style={{ overflowX: panelOverflowX }} />
       <div data-testid="header" ref={headerRef} />
       {showBody && <div data-testid="body" ref={setBodyRef} />}
     </div>
   )
+}
+
+// scrollWidth/clientWidth are always 0 in jsdom (no real layout) — stub them per
+// element the way tests elsewhere in this repo fake scroll geometry.
+function mockScrollMetrics(el: HTMLElement, { scrollWidth, clientWidth }: { scrollWidth: number; clientWidth: number }) {
+  Object.defineProperty(el, 'scrollWidth', { value: scrollWidth, configurable: true })
+  Object.defineProperty(el, 'clientWidth', { value: clientWidth, configurable: true })
 }
 
 describe('useSyncedGridScroll', () => {
@@ -61,5 +77,46 @@ describe('useSyncedGridScroll', () => {
     fireEvent.scroll(body)
 
     expect(header.scrollLeft).toBe(17)
+  })
+
+  it('flags both scroll edges on panelWrapper when it is the scrolling element (desktop)', () => {
+    const { getByTestId } = render(<Harness resetKey="a" panelOverflowX="auto" />)
+    const panel = getByTestId('panel') as HTMLDivElement
+    mockScrollMetrics(panel, { scrollWidth: 1000, clientWidth: 400 })
+
+    fireEvent.scroll(panel)
+    expect(panel.dataset.canScrollLeft).toBe('false')
+    expect(panel.dataset.canScrollRight).toBe('true')
+
+    panel.scrollLeft = 600
+    fireEvent.scroll(panel)
+    expect(panel.dataset.canScrollLeft).toBe('true')
+    expect(panel.dataset.canScrollRight).toBe('false')
+  })
+
+  it('reads scroll edges off bodyWrapper instead, but still flags them on panelWrapper (mobile)', () => {
+    const { getByTestId } = render(<Harness resetKey="a" panelOverflowX="visible" />)
+    const panel = getByTestId('panel') as HTMLDivElement
+    const body = getByTestId('body') as HTMLDivElement
+    mockScrollMetrics(body, { scrollWidth: 1000, clientWidth: 400 })
+
+    fireEvent.scroll(body)
+
+    expect(panel.dataset.canScrollLeft).toBe('false')
+    expect(panel.dataset.canScrollRight).toBe('true')
+  })
+
+  it('clears both scroll-edge flags when resetKey changes to a set of columns that fits', () => {
+    const { getByTestId, rerender } = render(<Harness resetKey="a" panelOverflowX="auto" />)
+    const panel = getByTestId('panel') as HTMLDivElement
+    mockScrollMetrics(panel, { scrollWidth: 1000, clientWidth: 400 })
+    fireEvent.scroll(panel)
+    expect(panel.dataset.canScrollRight).toBe('true')
+
+    mockScrollMetrics(panel, { scrollWidth: 400, clientWidth: 400 })
+    rerender(<Harness resetKey="b" panelOverflowX="auto" />)
+
+    expect(panel.dataset.canScrollLeft).toBe('false')
+    expect(panel.dataset.canScrollRight).toBe('false')
   })
 })

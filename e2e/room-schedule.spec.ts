@@ -64,6 +64,38 @@ test('desktop: the panel itself scrolls both directions, unaffected by the mobil
   expect(docScrollHeight - docClientHeight).toBeLessThan(40)
 })
 
+test('desktop: shows a right-edge scroll cue that flips to the left edge once fully scrolled', async ({
+  page,
+}) => {
+  await page.goto('/automated-testing/room-schedule')
+  const panel = page.locator('[class*="panelWrapper"]')
+  // The cue's actual paint lives on the ::before of .edgeLeft/.edgeRight, not the
+  // (zero-height) elements themselves — see DanceScheduleGrid.module.css.
+  const edgeOpacity = (edgeClass: 'edgeLeft' | 'edgeRight') =>
+    panel.evaluate((el, cls) => {
+      const edge = el.querySelector(`[class*="${cls}"]`) as HTMLElement
+      return getComputedStyle(edge, '::before').opacity
+    }, edgeClass)
+
+  await expect(panel).toHaveAttribute('data-can-scroll-left', 'false')
+  await expect(panel).toHaveAttribute('data-can-scroll-right', 'true')
+  expect(await edgeOpacity('edgeLeft')).toBe('0')
+  expect(await edgeOpacity('edgeRight')).toBe('1')
+
+  await panel.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+  })
+
+  await expect(panel).toHaveAttribute('data-can-scroll-left', 'true')
+  await expect(panel).toHaveAttribute('data-can-scroll-right', 'false')
+  // The opacity swap has its own 0.15s transition (DanceScheduleGrid.module.css) —
+  // give it a moment to settle rather than sampling mid-fade.
+  await expect(async () => {
+    expect(await edgeOpacity('edgeLeft')).toBe('1')
+    expect(await edgeOpacity('edgeRight')).toBe('0')
+  }).toPass()
+})
+
 test('changing the date select swaps the grid to that date', async ({ page }) => {
   await page.goto('/automated-testing/room-schedule')
   await expect(page.getByText('All Callers Dance')).not.toBeVisible()
@@ -317,6 +349,40 @@ test.describe('mobile viewport', () => {
         // The room header moved with its column (not left in place like nav/filters) —
         // this is what keeps a header aligned with the cells underneath it.
         expect(firstHeaderAfter?.x).not.toBe(firstHeaderBefore?.x)
+      })
+
+      test('shows a right-edge scroll cue on the grid body that flips to the left edge once fully scrolled', async ({
+        page,
+      }) => {
+        await page.goto('/automated-testing/room-schedule')
+        const panel = page.locator('[class*="panelWrapper"]')
+        const body = page.locator('[class*="bodyWrapper"]')
+        // bodyWrapper, not panelWrapper, is the element that actually scrolls below
+        // this breakpoint — the cue's data attributes still live on panelWrapper
+        // regardless (see useSyncedGridScroll.ts).
+        const edgeOpacity = (edgeClass: 'edgeLeft' | 'edgeRight') =>
+          panel.evaluate((el, cls) => {
+            const edge = el.querySelector(`[class*="${cls}"]`) as HTMLElement
+            return getComputedStyle(edge, '::before').opacity
+          }, edgeClass)
+
+        await expect(panel).toHaveAttribute('data-can-scroll-left', 'false')
+        await expect(panel).toHaveAttribute('data-can-scroll-right', 'true')
+        expect(await edgeOpacity('edgeLeft')).toBe('0')
+        expect(await edgeOpacity('edgeRight')).toBe('1')
+
+        await body.evaluate((el) => {
+          el.scrollLeft = el.scrollWidth
+        })
+
+        await expect(panel).toHaveAttribute('data-can-scroll-left', 'true')
+        await expect(panel).toHaveAttribute('data-can-scroll-right', 'false')
+        // The opacity swap has its own 0.15s transition (DanceScheduleGrid.module.css)
+        // — give it a moment to settle rather than sampling mid-fade.
+        await expect(async () => {
+          expect(await edgeOpacity('edgeLeft')).toBe('1')
+          expect(await edgeOpacity('edgeRight')).toBe('0')
+        }).toPass()
       })
 
       test('switching date resets horizontal scroll position', async ({ page }) => {

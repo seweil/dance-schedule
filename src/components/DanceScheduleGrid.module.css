@@ -47,6 +47,7 @@
    paint order, which the hint's explicit z-index always beats — regardless of
    whether the underlying compositing quirk is ever otherwise understood. */
 .panelWrapper {
+  position: relative;
   overflow: auto;
   isolation: isolate;
   max-height: 70vh;
@@ -54,6 +55,105 @@
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
+}
+
+/* Signals there's more to see past the horizontal edge — otherwise a room
+   column simply runs off the side with nothing to say more are there. A
+   narrow band, not the panel's own background: fading to a fully-transparent
+   endpoint (or to the panel's white) barely reads against the mostly-white
+   grid beneath it, so this fades to a low-alpha black instead, the same
+   rgb(0 0 0 / n%) hairline style .emptyCellTop/.emptyCellLeft already use
+   below, just strong enough to read as "more content" rather than a hard
+   drop-shadow.
+   The anchor (.edgeLeft/.edgeRight themselves) and the visible band (their
+   ::before) are deliberately split in two:
+   - height: 0 on the anchor — position: sticky still participates in normal
+     flow (unlike absolute/fixed), so a real-height sticky child here would
+     add its own height to panelWrapper's scrollable content on TOP of the
+     header+body rows already accounting for all of it — confirmed live, it
+     silently forced panelWrapper into needing a second, vertical scrollbar
+     it never needed before. Zero height sidesteps that entirely.
+   - ::before then carries the actual paintable area, sized via the
+     --panel-visible-height custom property (set to panelWrapper's own
+     clientHeight by useSyncedGridScroll.ts) rather than `height: 100%` —
+     percentage heights need a "specified", not merely max-height-clamped,
+     containing-block height to resolve against, and panelWrapper only ever
+     has the latter; confirmed live, `height: 100%` silently resolved as 0.
+     A pixel custom property has no such requirement.
+   position: sticky (not absolute) on the anchor — panelWrapper is the actual
+   scrolling element above the phone/short-landscape breakpoint (see its own
+   comment above), so a plain absolutely-positioned child would scroll away
+   with the rest of the panel's content; sticky keeps it pinned to the
+   visible edge as panelWrapper itself scrolls both directions. z-index above
+   every sticky grid furniture (.corner/.headerWrapper/.roomHeader top out at
+   4) so the cue paints over them at the edge instead of being hidden
+   underneath. pointer-events: none — purely a visual cue, never a hit
+   target. Below the breakpoint the anchor switches to position: absolute
+   against a non-scrolling panelWrapper instead — see its override; sticky
+   would otherwise try to pin it against the page's own vertical scroll
+   there, which isn't what's wanted once panelWrapper itself never scrolls. */
+.edgeLeft,
+.edgeRight {
+  position: sticky;
+  top: 0;
+  height: 0;
+  width: 24px;
+  overflow: visible;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.edgeLeft {
+  left: 0;
+}
+
+.edgeRight {
+  /* margin-left: auto — sticky only ever pulls a box back INTO bounds as
+     scrolling would carry it out past the given inset; it doesn't reposition
+     an otherwise-flush-left block box over to the right on its own the way
+     `position: absolute; right: 0` would. margin-left: auto gives it the
+     same "flush right" natural/static position .corner's flush-left one
+     already gets for free from normal block flow, so sticky's right: 0 has
+     a real edge to hold it against at every scroll position, including 0
+     (confirmed live — without this, .edgeRight rendered stacked flush-left,
+     right on top of .edgeLeft). */
+  right: 0;
+  margin-left: auto;
+}
+
+.edgeLeft::before,
+.edgeRight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--panel-visible-height, 100%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.edgeLeft::before {
+  background: linear-gradient(to left, transparent, rgb(0 0 0 / 14%));
+}
+
+.edgeRight::before {
+  background: linear-gradient(to right, transparent, rgb(0 0 0 / 14%));
+}
+
+.panelWrapper[data-can-scroll-left='true'] .edgeLeft::before {
+  opacity: 1;
+}
+
+.panelWrapper[data-can-scroll-right='true'] .edgeRight::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edgeLeft::before,
+  .edgeRight::before {
+    transition: none;
+  }
 }
 
 /* Sticky at every size — see .panelWrapper's comment above for why. */
@@ -122,6 +222,20 @@
 
   .bodyWrapper {
     overflow-x: auto;
+  }
+
+  /* panelWrapper is no longer the scrolling element here (bodyWrapper is,
+     above) — sticky would instead try to pin the anchor against the PAGE's
+     own vertical scroll (the nearest actual scrolling ancestor once
+     panelWrapper stops being one), which isn't what's wanted; a plain
+     absolutely-positioned anchor against panelWrapper's own (non-scrolling,
+     but still position: relative) box already stays fixed at its edge for
+     free as the page scrolls past it. Everything else — the zero-height
+     anchor, the ::before doing the actual painting at the JS-measured
+     height — is unchanged; see .edgeLeft/.edgeRight's own comment above. */
+  .edgeLeft,
+  .edgeRight {
+    position: absolute;
   }
 }
 

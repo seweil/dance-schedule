@@ -44,10 +44,20 @@ export function StickyScrollGrid({
   resetKey,
   children,
 }: StickyScrollGridProps) {
-  const { headerRef, setBodyRef } = useSyncedGridScroll(resetKey)
+  const { panelRef, headerRef, setBodyRef } = useSyncedGridScroll(resetKey)
 
   return (
-    <div className={styles.panelWrapper}>
+    <div className={styles.panelWrapper} ref={panelRef}>
+      {/* First children, not last — position: sticky only holds an element within
+          the viewport once scrolling would otherwise carry its own natural (static)
+          position past the sticky threshold. Placed after headerWrapper/bodyWrapper
+          (which, between them, are the tallest thing on the page), their natural
+          position starts far below the visible area, so top: 0 sticky never has
+          anything to pull back into view — confirmed live, they silently never
+          appeared. Leading with a zero-height natural position instead means they
+          start already inside the viewport, exactly where sticky needs them. */}
+      <div className={styles.edgeLeft} aria-hidden="true" />
+      <div className={styles.edgeRight} aria-hidden="true" />
       <div className={styles.headerWrapper} ref={headerRef}>
         <div className={styles.grid} style={{ gridTemplateColumns }}>
           <div className={styles.corner} style={{ gridRow: 1, gridColumn: 1 }} />
@@ -104,6 +114,8 @@ export function StickyScrollGrid({
           {children}
         </div>
       </div>
+      <div className={styles.edgeLeft} aria-hidden="true" />
+      <div className={styles.edgeRight} aria-hidden="true" />
     </div>
   )
 }
