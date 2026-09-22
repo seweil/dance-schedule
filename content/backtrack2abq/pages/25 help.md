@@ -10,7 +10,9 @@ available even when you don't have a signal or Wi-Fi.
 
 1. Open [sqdance.app](https://sqdance.app) in **Safari** (no other browser
    will work).
-2. Tap the **••• (more)** button to the right of the address bar.
+2. Tap the menu button next to the address bar — a hamburger icon on the
+   **left** on newer versions of iOS, or a **•••** button on the **right**
+   on older ones.
 3. Tap **Share** in the menu that opens.
 4. Scroll down and tap **Add to Home Screen**. If you don't see it, tap
    **View More** at the bottom of the list first.
