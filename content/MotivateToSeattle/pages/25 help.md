@@ -13,7 +13,7 @@ available even when you don't have a signal or Wi-Fi.
 2. Tap the menu button next to the address bar — a hamburger icon
    ![](./assets/icon-safari-hamburger.svg "icon no-zoom") on the **left** on
    newer versions of iOS, or a **•••** button
-   ![](./assets/icon-safari-more.svg "icon no-zoom") on the **right** on
+  on the **right** on
    older ones.
 3. Tap **Share** ![](./assets/icon-share.svg "icon no-zoom") in the menu that
    opens.
