@@ -10,3 +10,10 @@ Meet the callers of Motivate to Seattle.
 | **Ray Brendzy** | **Rob French** |
 | ![Vic Ceder](./assets/caller-vic-ceder.jpg "thumbnail") |  |
 | **Vic Ceder** |  |
+
+
+---
+#### Help support Sandie Bryant's recovery and travel home
+[US Go Fund Me](https://www.gofundme.com/f/stand-with-sandie)  
+[EU Go Fund Me](https://www.gofundme.com/f/stand-with-sandie-eur-currency-sepa)
+![Sandie](./assets/sandie.webp)
