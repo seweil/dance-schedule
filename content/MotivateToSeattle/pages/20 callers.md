@@ -16,4 +16,5 @@ Meet the callers of Motivate to Seattle.
 #### Help support Sandie Bryant's recovery and travel home
 [US Go Fund Me](https://www.gofundme.com/f/stand-with-sandie)  
 [EU Go Fund Me](https://www.gofundme.com/f/stand-with-sandie-eur-currency-sepa)
+
 ![Sandie](./assets/sandie.webp)
