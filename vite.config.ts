@@ -113,6 +113,7 @@ export default defineConfig(async () => {
     define: {
       __BUILD_NUMBER__: JSON.stringify(BUILD_NUMBER),
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+      __CONTENT_SET__: JSON.stringify(CONTENT_SET),
     },
     server: {
       watch: {

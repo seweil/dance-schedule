@@ -38,9 +38,12 @@ export function initRum(): void {
     // phone or desktop (an iPad in its default browsing mode is
     // indistinguishable from a Mac by UA string alone) — see
     // src/lib/deviceFormFactor.ts and docs/design/monitoring.md.
+    // contentSet: every set shares one app monitor, and metadata.pageId can't
+    // tell the default set's unprefixed "/" mirror apart by URL alone.
     sessionAttributes: {
       displayMode: isStandalonePwa() ? 'standalone' : 'browser',
       isTablet: isTabletDevice(),
+      contentSet: __CONTENT_SET__,
     },
   }
 

@@ -7,6 +7,10 @@
 // build's compile time (ISO string), baked in at build time.
 declare const __BUILD_NUMBER__: string
 declare const __BUILD_TIME__: string
+// The content set this build was compiled for (vite.config.ts's CONTENT_SET) —
+// the same name for a set's own "/<set>/" build and the default set's
+// unprefixed "/" mirror.
+declare const __CONTENT_SET__: string
 
 // Set as Amplify build-time environment variables when infra/monitoring.yaml
 // is deployed — see infra/README.md and src/lib/rum.ts. Absent (undefined)

@@ -554,6 +554,21 @@ SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
 | sort views desc
 ```
 
+**Sessions by content set** — pinned beside Pages Viewed. Every content
+set reports to the same app monitor, so this is how to tell an event's own
+traffic apart from fixture-set or past-event visits. `metadata.contentSet`
+is a session attribute (`src/lib/rum.ts`), the build's own content set name,
+so the default set's unprefixed `/` mirror counts under its real name too.
+Sessions from builds before 2026-10-08 have no attribute and show as
+`(unknown)`:
+
+```
+SOURCE dataSource(['amazon_cloudwatch.rum_app_monitor'])
+| fields coalesce(metadata.contentSet, "(unknown)") as contentSet, user_details.sessionId as sessionId
+| stats count_distinct(sessionId) as sessions by contentSet
+| sort sessions desc
+```
+
 **Font size** — no dashboard equivalent as a widget query text (it's
 pinned as "Font" on the dashboard itself), by session same as everything
 else on this page except Traffic/Pages Viewed/Request Rate — this event
