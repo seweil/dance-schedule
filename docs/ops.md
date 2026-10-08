@@ -190,7 +190,7 @@ the fourth, `mailto_link_clicked`, added in `App.tsx`'s `MdxA`):
 | Event type | Fires when | Payload |
 | --- | --- | --- |
 | `dance_schedule_date_selected` | User picks a date on any dance-schedule-family page | `{ date: "YYYY-MM-DD" }` |
-| `dance_schedule_level_range` | On every page load, and on every subsequent change the user actually makes (slider drag, tick click, or "Show all levels") — NOT when switching to a date whose present range happens to trim the view; see `useDanceScheduleFilters.ts`'s userMin/MaxLevelIndex vs. minLevelIndex/maxLevelIndex split | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
+| `dance_schedule_level_range` | On every page load, and on every subsequent change the user actually makes (slider drag, tick click, or "Show all levels") — NOT when switching to a date whose present range happens to trim the view; see `useDanceScheduleFilters.ts`'s userMin/MaxLevelIndex vs. minLevelIndex/maxLevelIndex split. Values are clamped to the levels actually present in that event's schedule, so an untouched default reports the event's own lowest and highest levels (e.g. `"A2"` for an A2-and-up event), not the app-wide `"SSD"`. Data recorded before 2026-10-08 reports `"SSD"` for any untouched minimum | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
 | `text_size_preference` | On every page load, and on every subsequent change | `{ textSize: "normal" \| "large" \| "x-large" }` |
 | `mailto_link_clicked` | User clicks any `mailto:` link in content (e.g. a page's "Email us" link) — every content set's markdown links go through the same `MdxA` override, so this covers any future mailto link, not just today's one address | `{ address: "help@sqdance.app" }` |
 

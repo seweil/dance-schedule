@@ -169,12 +169,23 @@ export function useDanceScheduleFilters(
   // user drags the slider (unlike setSelectedDate's tracking above) — same
   // rationale as useTextSizePreference's trackEvent: a stored-from-last-visit
   // setting is just as useful a signal as an in-session change.
+  //
+  // Clamped to the EVENT-wide present range before reporting (not per-day — that
+  // would reintroduce the date-switch noise above). Without this, a first-time
+  // visitor's untouched default (the full slots range, index 0 = SSD) gets reported
+  // as "min: SSD" even for an event whose lowest level is A2 — the slider never
+  // showed SSD, so the dashboard would be counting a level nobody could pick.
+  const { minIndex: eventMinLevelIndex, maxIndex: eventMaxLevelIndex } = useMemo(
+    () => getPresentLevelIndexRange(sessions, slots),
+    [sessions, slots],
+  )
   useEffect(() => {
+    const eventRange = { minIndex: eventMinLevelIndex, maxIndex: eventMaxLevelIndex }
     trackEvent('dance_schedule_level_range', {
-      min: slots[userMinLevelIndex]?.label,
-      max: slots[userMaxLevelIndex]?.label,
+      min: slots[clampLevelIndex(userMinLevelIndex, eventRange)]?.label,
+      max: slots[clampLevelIndex(userMaxLevelIndex, eventRange)]?.label,
     })
-  }, [userMinLevelIndex, userMaxLevelIndex, slots])
+  }, [userMinLevelIndex, userMaxLevelIndex, eventMinLevelIndex, eventMaxLevelIndex, slots])
 
   const hasGcaOnSelectedDate = useMemo(
     () => dateSessions.some((session) => session.kind === 'structured' && !!session.gca),

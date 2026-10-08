@@ -1,9 +1,12 @@
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDanceScheduleFilters } from './useDanceScheduleFilters'
 import { LEVEL_ORDER, getLevelSlots, labelSlotsByPresence } from '../lib/levelOrder'
 import { loadStoredDanceScheduleFilters } from '../lib/danceScheduleFiltersStorage'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
+
+const { trackEvent } = vi.hoisted(() => ({ trackEvent: vi.fn() }))
+vi.mock('../lib/rum', () => ({ trackEvent }))
 
 function located(...rooms: string[]): SessionLocation {
   return { kind: 'located', rooms }
@@ -269,6 +272,40 @@ describe('useDanceScheduleFilters', () => {
 
       act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
       expect(result.current.hasGcaOnSelectedDate).toBe(false)
+    })
+  })
+
+  describe('dance_schedule_level_range tracking', () => {
+    beforeEach(() => trackEvent.mockClear())
+
+    function lastLevelRangeEvent(): unknown {
+      return trackEvent.mock.calls.filter(([type]) => type === 'dance_schedule_level_range').at(-1)?.[1]
+    }
+
+    it('reports an untouched default as the event-wide present range, not the full slots range', () => {
+      const a2Session = makeSession(
+        '2026-07-02T00:00:00.000Z',
+        '2026-07-02T13:00:00.000Z',
+        '2026-07-02T14:00:00.000Z',
+        located('Ballroom Centre'),
+        { levels: ['A2'] },
+      )
+      const c2Session = makeSession(
+        '2026-07-03T00:00:00.000Z',
+        '2026-07-03T13:00:00.000Z',
+        '2026-07-03T14:00:00.000Z',
+        located('Ballroom Centre'),
+        { levels: ['C2'] },
+      )
+      renderHook(() => useDanceScheduleFilters([a2Session, c2Session], false, false))
+      expect(lastLevelRangeEvent()).toEqual({ min: 'A2', max: 'C2' })
+    })
+
+    it('does not fire again on a date switch', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+      trackEvent.mockClear()
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+      expect(lastLevelRangeEvent()).toBeUndefined()
     })
   })
 })
