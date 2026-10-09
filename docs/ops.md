@@ -182,10 +182,11 @@ count" as a literal, complete count of app usage.
 
 ### Events tab — custom, app-specific events
 
-Search by event type. Four exist today (three added in
+Search by event type. Five exist today (three added in
 `useDanceScheduleFilters.ts` and `useTextSizePreference.ts` — see
 `docs/design/monitoring.md`'s custom-events decision for the full rationale;
-the fourth, `mailto_link_clicked`, added in `App.tsx`'s `MdxA`):
+the fourth, `mailto_link_clicked`, added in `App.tsx`'s `MdxA`; the fifth,
+`stale_chunk_reload`, in `src/lib/staleChunkReload.ts`):
 
 | Event type | Fires when | Payload |
 | --- | --- | --- |
@@ -193,6 +194,7 @@ the fourth, `mailto_link_clicked`, added in `App.tsx`'s `MdxA`):
 | `dance_schedule_level_range` | On every page load, and on every subsequent change the user actually makes (slider drag, tick click, or "Show all levels") — NOT when switching to a date whose present range happens to trim the view; see `useDanceScheduleFilters.ts`'s userMin/MaxLevelIndex vs. minLevelIndex/maxLevelIndex split. Values are clamped to the levels actually present in that event's schedule, so an untouched default reports the event's own lowest and highest levels (e.g. `"A2"` for an A2-and-up event), not the app-wide `"SSD"`. Data recorded before 2026-10-08 reports `"SSD"` for any untouched minimum | `{ min: "<slot label>", max: "<slot label>" }` (e.g. `"A2"`, `"C3B+"`) |
 | `text_size_preference` | On every page load, and on every subsequent change | `{ textSize: "normal" \| "large" \| "x-large" }` |
 | `mailto_link_clicked` | User clicks any `mailto:` link in content (e.g. a page's "Email us" link) — every content set's markdown links go through the same `MdxA` override, so this covers any future mailto link, not just today's one address | `{ address: "help@sqdance.app" }` |
+| `stale_chunk_reload` | A tab still running a previous build failed to load a route's JS chunk (deleted by a newer deploy), so `src/lib/staleChunkReload.ts` reloaded the page once to pick up the new build. Skipped while `navigator.onLine` is false (the reload itself couldn't load). At most one reload per tab per 10s; a repeat failure inside that window is left to surface as a normal `js_error_event`. Sent just before the reload, so an occasional event may be lost in flight | `{ message: "Failed to fetch dynamically imported module: …" }` |
 
 `mailto_link_clicked` fires on the browser opening a mail client (`<a>`'s own
 click), not on the email actually being sent — someone can still cancel or
