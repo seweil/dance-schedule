@@ -258,6 +258,24 @@ Resources:
                 # QueryDefinition resources have no ARN to scope to either
                 # (they're identified by a generated queryDefinitionId, not
                 # a name CloudFormation can predict before creation).
+              # Added 2026-10-09 for monitoring.yaml's JsErrorMetricFilter (the
+              # JS-error alarm's noise-filtered metric). Scoped to RUM's own
+              # vended log group for this app monitor.
+              - Sid: LogsMetricFilters
+                Effect: Allow
+                Action:
+                  - logs:PutMetricFilter
+                  - logs:DeleteMetricFilter
+                Resource:
+                  - !Sub 'arn:aws:logs:us-east-2:${AWS::AccountId}:log-group:/aws/vendedlogs/RUMService_dance-schedule*'
+                  - !Sub 'arn:aws:logs:us-east-2:${AWS::AccountId}:log-group:/aws/vendedlogs/RUMService_dance-schedule*:*'
+              # Read-only and account-wide by design: a describe call without
+              # a log group name can't be scoped to one.
+              - Sid: LogsDescribeMetricFilters
+                Effect: Allow
+                Action:
+                  - logs:DescribeMetricFilters
+                Resource: '*'
 
 Outputs:
   GitHubActionsDeployRoleArn:

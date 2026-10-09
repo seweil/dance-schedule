@@ -229,7 +229,8 @@ See `docs/design/alerting.md` for the full rationale. Console: **CloudWatch
 | The underlying data | The dashboard's own "## Errors" widgets, or the `JsErrorRateQuery`/`JsErrorsQuery` saved queries below | A rate graph plus a table of individual errors (message, filename/line, page) — see the "Retention and aggregate reporting" queries below for the exact query text. |
 
 **Live-testing the alarm end to end** — confirms the whole pipeline (RUM →
-the `AWS/RUM` `JsErrorCount` metric → alarm → SNS → email) still actually
+RUM's CloudWatch Logs copy → `JsErrorMetricFilter` → the
+`DanceSchedule/FilteredJsErrorCount` metric → alarm → SNS → email) still actually
 works, not just that the config looks right on paper. There's a built-in
 trigger for exactly this — no devtools console needed:
 

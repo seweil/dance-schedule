@@ -247,6 +247,51 @@ step-by-step (where to click, how long to wait between clicks, what to
 watch for) — this entry is the why, not the how, and the two shouldn't
 drift: if the button's own behavior ever changes, update both.
 
+### Noise-filtered metric from RUM's CloudWatch Logs copy, not `AWS/RUM`'s `JsErrorCount`
+**Why:** During the Motivate to Seattle weekend (2026-10-09), 12 of 13 JS
+errors in 72h were `"Script error."` with no filename/line: cross-origin
+errors the browser redacts, which this app can't produce itself since it
+loads no third-party scripts. All came from iOS browser tabs (extensions or
+content blockers), across four builds. `AWS/RUM`'s `JsErrorCount` can't be
+filtered by message, so the alarm was mostly measuring Safari extensions.
+
+**Chosen:** an `AWS::Logs::MetricFilter` on RUM's CloudWatch Logs copy
+(`RetainTelemetryBeyond30Days=true`), publishing
+`DanceSchedule/FilteredJsErrorCount` for every `js_error_event` except
+excluded messages; the alarm watches that, with the same thresholds and
+M-of-N logic. Filter pattern verified with `aws logs test-metric-filter`
+against real events: all 12 `"Script error."` and page views excluded, the
+real `Failed to fetch dynamically imported module` error and a synthetic
+`TypeError` counted.
+
+**Supersedes part of the first decision above**, whose premise was that the
+RUM log group's name isn't predictable. It is, by convention: `RUMService_`
++ app monitor name + the first 8 characters of the monitor ID, under
+`/aws/vendedlogs/` (verified live: `dance-scheduleaa6d911d` ↔ ID
+`aa6d911d-…`), built in the template from `!GetAtt RumAppMonitor.Id`. This
+is RUM's convention rather than a documented guarantee — if AWS ever
+changes it, the deploy fails on a missing log group rather than silently.
+
+**Rejected:**
+- Filtering in the client (aws-rum-web's `errors` `ignore` option) — drops
+  the events from RUM entirely, so they'd vanish from the dashboard too, and
+  every new exclusion needs an app deploy. Filtering at the alarm keeps the
+  raw data and changes with an infra-only deploy.
+- RUM extended metrics (`MetricDestinations` with an `EventPattern`) — the
+  vended `JsErrorCount` can only filter on `metadata.*`, not
+  `event_details.message`, and couldn't be tested against real events the
+  way `test-metric-filter` can.
+
+**Trade-offs:** the alarm now depends on CloudWatch Logs delivery being on —
+enforced by the template's `RequireCwLogsForAlarm` rule, so a deploy with
+`RetainTelemetryBeyond30Days=false` fails instead of silently disabling the
+alarm. Log-based metrics also land a minute or two later than `AWS/RUM`'s,
+which doesn't matter for a 5-minute, 3-of-5 alarm. The deploy role
+(`infra/github-oidc.yaml`) needed `logs:PutMetricFilter`/
+`DeleteMetricFilter`/`DescribeMetricFilters` added, applied by hand via
+`./infra/deploy-github-oidc.sh` like every other change to that bootstrap
+stack.
+
 ## Open questions
 
 - **Uptime/availability monitoring** — the original ask's other half ("how

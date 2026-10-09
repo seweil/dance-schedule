@@ -75,6 +75,16 @@ Parameters:
 Conditions:
   EnableCwLogs: !Equals [!Ref RetainTelemetryBeyond30Days, 'true']
 
+Rules:
+  # JsErrorAlarm's metric comes from RUM's CloudWatch Logs copy (see
+  # JsErrorMetricFilter) — without it the alarm would silently never fire.
+  RequireCwLogsForAlarm:
+    Assertions:
+      - Assert: !Equals [!Ref RetainTelemetryBeyond30Days, 'true']
+        AssertDescription: >-
+          RetainTelemetryBeyond30Days must be true — the JS-error alarm's
+          metric filter reads RUM's CloudWatch Logs copy.
+
 Resources:
   RumIdentityPool:
     Type: AWS::Cognito::IdentityPool
@@ -187,18 +197,20 @@ Resources:
   # a device erroring continuously still breaches M of N just like real
   # spreading traffic would. See docs/design/alerting.md's "M out of N"
   # decision for the alternatives considered and rejected.
+  #
+  # Since 2026-10-09 the alarm watches FilteredJsErrorCount (JsErrorMetricFilter
+  # below) instead of AWS/RUM's JsErrorCount, which can't be filtered by
+  # message. See docs/design/alerting.md's "Noise-filtered metric" decision.
   JsErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmName: !Sub '${AppMonitorName}-js-errors'
       AlarmDescription: !Sub >-
-        JS errors recorded by RUM app monitor ${AppMonitorName} — a broken
-        deploy or client-side bug affecting real visitors.
-      Namespace: AWS/RUM
-      MetricName: JsErrorCount
-      Dimensions:
-        - Name: application_name
-          Value: !Ref AppMonitorName
+        JS errors recorded by RUM app monitor ${AppMonitorName}, excluding
+        known third-party noise (see JsErrorMetricFilter) — a broken deploy
+        or client-side bug affecting real visitors.
+      Namespace: DanceSchedule
+      MetricName: FilteredJsErrorCount
       Statistic: Sum
       Period: 300
       EvaluationPeriods: !Ref JsErrorAlarmEvaluationPeriods
@@ -210,6 +222,30 @@ Resources:
         - !Ref AlertsTopic
       OKActions:
         - !Ref AlertsTopic
+
+  # Counts RUM js_error_events from the CloudWatch Logs copy of RUM's data,
+  # minus known noise, into DanceSchedule/FilteredJsErrorCount for the alarm
+  # above. Excluded today: "Script error." — a cross-origin error with no
+  # message/filename, which this app can't produce itself (it loads no
+  # third-party scripts); seen only from iOS browser tabs, i.e. extensions or
+  # content blockers. Add further exclusions as more `&& $.event_details.message
+  # != "..."` clauses.
+  #
+  # The log group name is RUM's own convention — RUMService_ + app monitor name
+  # + the first 8 characters of its ID (verified against the live monitor,
+  # 2026-10-09). RUM creates it only when CwLogEnabled is on, hence the
+  # RequireCwLogsForAlarm rule below.
+  JsErrorMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Sub
+        - '/aws/vendedlogs/RUMService_${AppMonitorName}${IdPrefix}'
+        - IdPrefix: !Select [0, !Split ['-', !GetAtt RumAppMonitor.Id]]
+      FilterPattern: '{ $.event_type = "com.amazon.rum.js_error_event" && $.event_details.message != "Script error." }'
+      MetricTransformations:
+        - MetricNamespace: DanceSchedule
+          MetricName: FilteredJsErrorCount
+          MetricValue: '1'
 
   # Saved CloudWatch Logs Insights queries (docs/ops.md's own "Retention and
   # aggregate reporting" section — this mirrors that doc's query text

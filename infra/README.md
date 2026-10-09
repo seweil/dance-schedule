@@ -262,8 +262,8 @@ repeatedly, doesn't break the page. The alarm now needs
 `JsErrorAlarmDatapointsToAlarm` breaching 5-minute windows (default 3 of
 the last `JsErrorAlarmEvaluationPeriods`, i.e. 5) before it actually fires
 — see docs/design/alerting.md's "M out of N" decision — so a single click
-alone won't trip it. The metric (`JsErrorCount`, dimensioned only by
-`application_name`) sums errors across *all* sessions in each 5-minute
+alone won't trip it. The metric (`DanceSchedule/FilteredJsErrorCount`,
+from `monitoring.yaml`'s `JsErrorMetricFilter`, no dimensions) sums errors across *all* sessions in each 5-minute
 window — it isn't per-session, so what matters is **spreading clicks
 across 3+ separate 5-minute windows**, not opening multiple tabs/sessions
 (several sessions clicking within the same window still only breaches
@@ -291,9 +291,8 @@ Check the alarm's state in the CloudWatch console (**Alarms** →
 `dance-schedule-js-errors`) — the confirmed email address should get a
 notification once it moves to `ALARM`. Move it back to `OK` by waiting out
 a window with no further errors (or just confirm the metric shows a data
-point — `aws cloudwatch get-metric-statistics --namespace AWS/RUM
---metric-name JsErrorCount --dimensions
-Name=application_name,Value=dance-schedule --start-time <recent> --end-time
+point — `aws cloudwatch get-metric-statistics --namespace DanceSchedule
+--metric-name FilteredJsErrorCount --start-time <recent> --end-time
 now --period 300 --statistics Sum --region us-east-2`).
 
 To change the sensitivity later: `./infra/deploy.sh JsErrorAlarmThreshold=3`
