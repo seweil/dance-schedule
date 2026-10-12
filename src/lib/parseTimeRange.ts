@@ -3,7 +3,7 @@
 const TIME_PATTERN = /^(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?m?\.?)?$/i
 const RANGE_SEPARATOR = /\s*(?:-|–|—|\bto\b)\s*/i
 
-interface ParsedTimeOfDay {
+export interface ParsedTimeOfDay {
   hour24: number
   minutes: number
   hasMeridiem: boolean
@@ -17,7 +17,8 @@ function applyMeridiem(hour12: number, isPM: boolean): number {
   return isPM ? base + 12 : base
 }
 
-function parseTimeOfDay(raw: string): ParsedTimeOfDay {
+// Also reused for the `?now=` time override (nowOverride.ts).
+export function parseTimeOfDay(raw: string): ParsedTimeOfDay {
   const trimmed = raw.trim()
   const match = TIME_PATTERN.exec(trimmed)
   if (!match) {

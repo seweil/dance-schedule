@@ -4,6 +4,9 @@ import { getUserLocales } from './userLocale'
 export interface TimeMark {
   rowStart: number
   label: string
+  // The tick's own (UTC-anchored, wall-clock) time — what `label` displays. Lets a
+  // consumer locate an arbitrary time between two marks (computeNowLinePosition.ts).
+  time: Date
 }
 
 export interface DanceScheduleTimeAxis {
@@ -19,6 +22,12 @@ export interface DanceScheduleTimeAxis {
   // this value + 1.
   rowStartFor: (time: Date) => number
   rowSpanFor: (start: Date, end: Date) => number
+}
+
+// The time-axis label format — also used for the current-time badge
+// (StickyScrollGrid.tsx), so "now" reads exactly like the labels around it.
+export function createAxisTimeFormatter(): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat(getUserLocales(), { timeStyle: 'short', timeZone: 'UTC' })
 }
 
 // True if `sortedIndices` (ascending, deduped) form one unbroken run — shared by the
@@ -71,11 +80,12 @@ export function computeDanceScheduleTimeAxis(
   // so it's not reconstructed on every render) rather than as a module-level const,
   // so it reflects the viewer's own locale (getUserLocales) rather than a fixed one
   // — unlike this file's UTC pin, which must never vary by viewer.
-  const hourFormatter = new Intl.DateTimeFormat(getUserLocales(), { timeStyle: 'short', timeZone: 'UTC' })
+  const hourFormatter = createAxisTimeFormatter()
 
   const timeMarks: TimeMark[] = tickTimes.map((t, index) => ({
     rowStart: index + 1,
     label: hourFormatter.format(new Date(t)),
+    time: new Date(t),
   }))
 
   return { totalRows: tickTimes.length - 1, timeMarks, rowStartFor, rowSpanFor }

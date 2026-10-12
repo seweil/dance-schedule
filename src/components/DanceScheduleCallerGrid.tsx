@@ -33,13 +33,15 @@ function SessionCard({
   const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, floatKind } = placement
   const isFloating = floatKind !== null
   const isBusy = floatKind === 'busy'
+  const backgroundColor = isFloating ? undefined : colorForSession(session)
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
     // already 1-based for the axis's first row (see computeDanceScheduleTimeAxis.ts
     // and docs/design/dance-schedule-mobile-scroll.md).
     gridRow: `${rowStart} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
-    backgroundColor: isFloating ? undefined : colorForSession(session),
+    backgroundColor,
+    '--card-bg': backgroundColor,
   }
 
   // A laneCount > 1 placement shares its column with another entry overlapping it in

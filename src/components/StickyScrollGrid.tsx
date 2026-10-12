@@ -1,7 +1,11 @@
-import type { ReactNode } from 'react'
+import { useMemo, useRef, type ReactNode } from 'react'
 import type { EmptyGridCell } from '../lib/computeEmptyGridCells'
-import type { TimeMark } from '../lib/computeDanceScheduleTimeAxis'
+import { createAxisTimeFormatter, type TimeMark } from '../lib/computeDanceScheduleTimeAxis'
+import { computeNowLinePosition } from '../lib/computeNowLinePosition'
+import { nowForOverride, parseNowOverride } from '../lib/nowOverride'
+import { useLabelsCoveredByBadge } from '../hooks/useLabelsCoveredByBadge'
 import { useSyncedGridScroll } from '../hooks/useSyncedGridScroll'
+import { useWallClockNow } from '../hooks/useWallClockNow'
 import styles from './DanceScheduleGrid.module.css'
 
 export interface StickyScrollGridColumn {
@@ -45,6 +49,23 @@ export function StickyScrollGrid({
   children,
 }: StickyScrollGridProps) {
   const { panelRef, headerRef, setBodyRef } = useSyncedGridScroll(resetKey)
+  const clockNow = useWallClockNow()
+  // Read per render rather than memoized: cheap, and it picks up a changed URL on
+  // the next re-render. See nowOverride.ts for the `?now=` format.
+  const nowOverride = parseNowOverride(window.location.search)
+  const now = nowOverride ? nowForOverride(timeMarks, nowOverride) : clockNow
+  const nowTime = now?.getTime()
+  const nowLine = useMemo(
+    () => (nowTime === undefined ? null : computeNowLinePosition(timeMarks, new Date(nowTime))),
+    [timeMarks, nowTime],
+  )
+  const nowLabel = useMemo(
+    () => (nowTime === undefined ? '' : createAxisTimeFormatter().format(new Date(nowTime))),
+    [nowTime],
+  )
+  const bodyGridRef = useRef<HTMLDivElement>(null)
+  const nowBadgeRef = useRef<HTMLDivElement>(null)
+  const coveredLabelRows = useLabelsCoveredByBadge(bodyGridRef, nowBadgeRef, nowLine)
 
   return (
     <div className={styles.panelWrapper} ref={panelRef}>
@@ -75,6 +96,7 @@ export function StickyScrollGrid({
       </div>
       <div className={styles.bodyWrapper} ref={setBodyRef}>
         <div
+          ref={bodyGridRef}
           className={styles.grid}
           style={{
             gridTemplateColumns,
@@ -105,13 +127,52 @@ export function StickyScrollGrid({
           {timeMarks.map((mark) => (
             <div
               key={mark.rowStart}
-              className={styles.timeLabel}
+              className={
+                coveredLabelRows.has(mark.rowStart)
+                  ? `${styles.timeLabel} ${styles.timeLabelCovered}`
+                  : styles.timeLabel
+              }
               style={{ gridRow: mark.rowStart, gridColumn: 1 }}
+              data-time-label-row={mark.rowStart}
             >
               {mark.label}
             </div>
           ))}
+          {/* Current-time line + badge: overlays spanning the grid rows between the
+              two labels surrounding "now", each offset by the interpolated
+              fraction — so the browser's own (content-sized) row heights do the
+              scaling, with no DOM measurement. The line covers the session
+              columns and is deliberately rendered BEFORE the cards: it shares a
+              stacking level with the (position: relative) card text, so tree
+              order puts it above card backgrounds but under their text — see
+              .nowRow in the CSS module. The badge is its own time-column item so
+              it can stay sticky-pinned left like .timeLabel. */}
+          {nowLine && (
+            <div
+              className={styles.nowRow}
+              style={{ gridRow: `${nowLine.rowStart} / ${nowLine.rowEnd}`, gridColumn: '2 / -1' }}
+              data-testid="now-line"
+              aria-hidden="true"
+            >
+              <div className={styles.nowLine} style={{ top: `${nowLine.fraction * 100}%` }} />
+            </div>
+          )}
           {children}
+          {nowLine && (
+            <div
+              className={styles.nowBadgeRow}
+              style={{ gridRow: `${nowLine.rowStart} / ${nowLine.rowEnd}`, gridColumn: 1 }}
+            >
+              <div
+                ref={nowBadgeRef}
+                className={styles.nowBadge}
+                style={{ top: `${nowLine.fraction * 100}%` }}
+                data-testid="now-badge"
+              >
+                {nowLabel}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <div className={styles.edgeLeft} aria-hidden="true" />

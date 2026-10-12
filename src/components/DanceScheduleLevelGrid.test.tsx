@@ -59,9 +59,9 @@ function makeLayout(overrides: Partial<DanceScheduleLevelLayout> = {}): DanceSch
     columnWidthsRem: [9.375],
     totalRows: 8,
     timeMarks: [
-      { rowStart: 1, label: '12:00 PM' },
-      { rowStart: 3, label: '12:30 PM' },
-      { rowStart: 5, label: '1:00 PM' },
+      { rowStart: 1, label: '12:00 PM', time: new Date('2026-07-02T12:00:00.000Z') },
+      { rowStart: 3, label: '12:30 PM', time: new Date('2026-07-02T12:30:00.000Z') },
+      { rowStart: 5, label: '1:00 PM', time: new Date('2026-07-02T13:00:00.000Z') },
     ],
     placements: [placement()],
     ...overrides,

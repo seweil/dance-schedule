@@ -45,8 +45,8 @@ describe('computeDanceScheduleLayout', () => {
 
     // Exactly its own start/end — no clock-grid rounding, no in-between marks.
     expect(layout.timeMarks).toEqual([
-      { rowStart: 1, label: '12:15 PM' },
-      { rowStart: 2, label: '12:45 PM' },
+      { rowStart: 1, label: '12:15 PM', time: new Date('2026-07-02T12:15:00.000Z') },
+      { rowStart: 2, label: '12:45 PM', time: new Date('2026-07-02T12:45:00.000Z') },
     ])
     expect(layout.totalRows).toBe(1)
   })

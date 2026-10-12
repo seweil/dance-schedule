@@ -342,6 +342,14 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* A time label the current-time badge actually covers on screen
+   (useLabelsCoveredByBadge.ts). Only the text goes — the cell's own background
+   and border-top row marker stay, and it doesn't shift layout, so the
+   measurement that decided this stays valid. */
+.timeLabelCovered {
+  color: transparent;
+}
+
 /* Very subtle background gridlines — one small border per genuinely EMPTY grid
    cell only (computeEmptyGridCells.ts, one div per cell, positioned inline via
    gridRow/gridColumn in DanceScheduleGrid.tsx/DanceScheduleLevelGrid.tsx), never
@@ -409,6 +417,9 @@
   padding: var(--space-sm);
   border-radius: 4px;
   background: rgb(0 0 0 / 6%);
+  /* Opaque equivalent of the background above over the white grid — for the
+     text halo (.levels/.details/.gca below), which needs a solid color. */
+  --card-bg: #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -429,6 +440,7 @@
    one kind of roomless card — so this class is unused there. */
 .busyFloatingCard {
   background: #ffe0cc;
+  --card-bg: #ffe0cc;
 }
 
 /* A roomless session (e.g. a meal break) spans every visible room/level column
@@ -522,6 +534,35 @@
   text-overflow: ellipsis;
 }
 
+/* position: relative (z-index auto) on every card text line puts it in the same
+   stacking layer as the current-time line (.nowRow below), which renders earlier
+   in the DOM — so tree order paints the line over card backgrounds but under the
+   text. Still below the sticky .timeLabel (z-index 1), so card text can't bleed
+   over the time column while scrolling sideways.
+   text-shadow: a tight halo in the card's own color (--card-bg, set inline per
+   card or by .roomlessCard/.busyFloatingCard), so where the line passes through
+   a line of text it visibly stops around each glyph instead of showing between
+   letters like an underline/strikethrough. Invisible everywhere else, since it
+   matches the background it sits on. */
+.levels,
+.details,
+.gca {
+  position: relative;
+  /* Eight unblurred 1px offsets (a crisp outline) rather than a blur — blurred
+     shadows fade to near-transparent at the edge, too faint to actually cut
+     through the line (confirmed live). */
+  --halo: var(--card-bg, transparent);
+  text-shadow:
+    1px 0 0 var(--halo),
+    -1px 0 0 var(--halo),
+    0 1px 0 var(--halo),
+    0 -1px 0 var(--halo),
+    1px 1px 0 var(--halo),
+    -1px -1px 0 var(--halo),
+    1px -1px 0 var(--halo),
+    -1px 1px 0 var(--halo);
+}
+
 .empty {
   padding: var(--space-md);
 }
@@ -537,4 +578,58 @@
   color: var(--color-accent);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Current-time line + badge (StickyScrollGrid.tsx). Each *Row wrapper spans the
+   grid rows between the two labels surrounding "now"; the line/badge inside sits
+   at the interpolated fraction of that span's height. Stacking: the line has no
+   z-index of its own — positioned, it paints above the (non-positioned) card
+   backgrounds, and since it precedes the cards in the DOM, the card text
+   (.levels/.details/.gca, also positioned) paints over it. It's alpha-blended so
+   it tints rather than covers what's under it. Below the sticky .timeLabel (1);
+   the badge (3) sits above that; both stay below the pinned header
+   (.headerWrapper, 4) so they slide under it when scrolled. The accent color is
+   deliberately not one of the level colors (levelColors.ts). */
+.nowRow {
+  position: relative;
+  pointer-events: none;
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform: translateY(-50%);
+  background: color-mix(in srgb, var(--color-accent) 65%, transparent);
+}
+
+/* Sticky left, same as .timeLabel, so the badge stays in view while the grid
+   scrolls sideways (the line itself scrolls with the columns, which is fine — it
+   spans all of them). */
+.nowBadgeRow {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* right + horizontal padding sum to .timeLabel's own right padding
+   (--space-sm), and font-size/weight match .timeLabel's, so the badge's time
+   text ends at exactly the same x as every axis label's — one aligned column
+   of times. */
+.nowBadge {
+  --badge-padding-x: 0.25rem;
+  position: absolute;
+  right: calc(var(--space-sm) - var(--badge-padding-x));
+  transform: translateY(-50%);
+  padding: 1px var(--badge-padding-x);
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px #fff;
 }

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleGrid } from './DanceScheduleGrid'
 import type { DanceScheduleLayout } from '../lib/computeDanceScheduleLayout'
 import { colorForSession, NEUTRAL_CARD_COLOR } from '../lib/levelColors'
@@ -35,9 +35,9 @@ function makeLayout(overrides: Partial<DanceScheduleLayout> = {}): DanceSchedule
     visibleRooms: ['Ballroom Centre'],
     totalRows: 8,
     timeMarks: [
-      { rowStart: 1, label: '12:00 PM' },
-      { rowStart: 3, label: '12:30 PM' },
-      { rowStart: 5, label: '1:00 PM' },
+      { rowStart: 1, label: '12:00 PM', time: new Date('2026-07-02T12:00:00.000Z') },
+      { rowStart: 3, label: '12:30 PM', time: new Date('2026-07-02T12:30:00.000Z') },
+      { rowStart: 5, label: '1:00 PM', time: new Date('2026-07-02T13:00:00.000Z') },
     ],
     placements: [
       { session: STRUCTURED_SESSION, rowStart: 3, rowSpan: 4, columnStart: 0, columnSpan: 1 },
@@ -308,5 +308,73 @@ describe('DanceScheduleGrid', () => {
       />,
     )
     expect(screen.getAllByText('Ted Lizotte')).toHaveLength(2)
+  })
+
+  describe('current-time line', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    // Local-field constructor — the line compares the device's LOCAL wall-clock
+    // time against the schedule's UTC-anchored wall-clock values, so this holds in
+    // any runner TZ.
+    function setLocalTime(day: number, hours: number, minutes: number) {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(2026, 6, day, hours, minutes))
+    }
+
+    it('spans the rows between the two surrounding labels, offset by the interpolated fraction', () => {
+      setLocalTime(2, 12, 15)
+      render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
+      const nowRow = screen.getByTestId('now-line')
+      // 12:15 sits halfway between the 12:00 (row 1) and 12:30 (row 3) labels.
+      expect(nowRow.style.gridRow).toBe('1 / 3')
+      expect((nowRow.firstElementChild as HTMLElement).style.top).toBe('50%')
+    })
+
+    it('shows a badge with the current time, formatted like the axis labels, at the same offset', () => {
+      setLocalTime(2, 12, 15)
+      render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
+      const badge = screen.getByTestId('now-badge')
+      expect(badge).toHaveTextContent('12:15 PM')
+      expect(badge.style.top).toBe('50%')
+      expect((badge.parentElement as HTMLElement).style.gridRow).toBe('1 / 3')
+    })
+
+    it('moves as the clock advances a minute', () => {
+      setLocalTime(2, 12, 45)
+      render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
+      const line = () => screen.getByTestId('now-line').firstElementChild as HTMLElement
+      expect(line().style.top).toBe('50%')
+
+      act(() => {
+        vi.advanceTimersByTime(60_000)
+      })
+      expect(screen.getByTestId('now-line').style.gridRow).toBe('3 / 5')
+      expect(parseFloat(line().style.top)).toBeCloseTo((16 / 30) * 100)
+    })
+
+    it('uses a ?now= override on the displayed date instead of the device clock', () => {
+      setLocalTime(9, 8, 0) // a different day entirely
+      window.history.replaceState(null, '', '/?now=12:45')
+      try {
+        render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
+        expect(screen.getByTestId('now-line').style.gridRow).toBe('3 / 5')
+        expect(screen.getByTestId('now-badge')).toHaveTextContent('12:45 PM')
+      } finally {
+        window.history.replaceState(null, '', '/')
+      }
+    })
+
+    it.each([
+      ['before the first label', 2, 11, 59],
+      ['after the last label', 2, 13, 1],
+      ['on a different day', 3, 12, 15],
+    ])('is not rendered %s', (_name, day, hours, minutes) => {
+      setLocalTime(day, hours, minutes)
+      render(<DanceScheduleGrid layout={makeLayout()} showGca onShowAllLevels={() => {}} />)
+      expect(screen.queryByTestId('now-line')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('now-badge')).not.toBeInTheDocument()
+    })
   })
 })

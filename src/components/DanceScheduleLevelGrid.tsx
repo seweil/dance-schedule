@@ -36,15 +36,17 @@ function SessionCard({
 }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
   const isRoomless = session.location.kind === 'roomless'
+  // Roomless cards keep their own neutral/centered treatment from the CSS module —
+  // only room cards are colored by level.
+  const backgroundColor = isRoomless ? undefined : colorForSession(session)
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
     // already 1-based for the axis's first row (see computeDanceScheduleTimeAxis.ts
     // and docs/design/dance-schedule-mobile-scroll.md).
     gridRow: `${rowStart} / span ${rowSpan}`,
     gridColumn: `${columnStart + 2} / span ${columnSpan}`,
-    // Roomless cards keep their own neutral/centered treatment from the CSS module —
-    // only room cards are colored by level.
-    backgroundColor: isRoomless ? undefined : colorForSession(session),
+    backgroundColor,
+    '--card-bg': backgroundColor,
   }
 
   // A laneCount > 1 placement shares its column with other sessions overlapping it

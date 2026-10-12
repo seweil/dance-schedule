@@ -602,7 +602,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout(only, only)
 
       const trailing = layout.timeMarks[layout.timeMarks.length - 1]
-      expect(trailing).toEqual({ rowStart: 5, label: '1:00 PM' })
+      expect(trailing).toMatchObject({ rowStart: 5, label: '1:00 PM' })
     })
 
     it('keeps a row occupied by only one of several visible callers, not empty in every column', () => {

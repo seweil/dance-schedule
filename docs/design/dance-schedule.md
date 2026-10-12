@@ -61,6 +61,8 @@ separate, later phase.
       tabs — removed, see that entry's own superseded note)
 - [x] Making the "Type - " portion of a cell optional for plain dancing —
       see Decisions
+- [x] A current-time line on the grids when the displayed day is today —
+      see Decisions
 
 ## Decisions
 
@@ -1607,6 +1609,78 @@ existing `{room && <p>...}` conditional simply never renders anything for
 it. The room/columns view (`DanceScheduleGrid.tsx`) never had this problem —
 it has no room line of its own at all, roomless or not, since the room IS
 the column being scanned.
+
+### Current-time line: wall-clock "now," interpolated per segment, as a grid-row overlay
+
+All three grids (room/level/caller) draw a horizontal line at the current time
+when it falls within the displayed day's labelled range — implemented once in
+`StickyScrollGrid.tsx`, so no per-view code. Event Schedule (a flat list, no
+time axis) doesn't get one.
+
+- **"Now" is the device's local wall clock, re-encoded as UTC**
+  (`toWallClockUtc` in `computeNowLinePosition.ts`). Schedule times are
+  wall-clock values stored as UTC-anchored Dates, so comparing the raw instant
+  would be off by the viewer's UTC offset. Each `TimeMark` now carries its own
+  `time`, and since those are full datetimes, "is the displayed day today"
+  needs no separate check: another day's "now" is just out of range.
+- **Linear interpolation only within the segment between the two surrounding
+  labels** (`computeNowLinePosition`). The axis isn't a clock (see "The axis is
+  not a clock" above), so a global scale would be meaningless. In the
+  caller-columns view, `compressToOccupiedRows` can drop a label entirely, so a
+  segment there may span a compressed idle gap. The line still interpolates
+  linearly between the labels that remain, which is all a reader can see anyway.
+- **Positioned by the grid, not measured.** The line is an overlay spanning the
+  grid rows between the two labels (`gridRow: start / end`, all columns), with the
+  line itself at `top: fraction%` of that overlay. Rows are content-sized, so
+  letting the browser's own track sizing do the scaling keeps it correct across
+  text-size changes and card growth with no `ResizeObserver`/DOM measurement.
+- **Visuals: an accent-colored line plus a time badge in the time column.** The
+  first placeholder (a thin red line across every column, time column included)
+  read as strikethrough on card text, nearly vanished on the pink/red level
+  colors, and gave no hint of what it meant. Now the line uses `--color-accent`
+  (not one of the level colors) with a faint white halo, and covers only the
+  session columns. The meaning comes from a filled pill in the time column
+  showing the current time in the axis labels' own format
+  (`createAxisTimeFormatter`). The pill is its own time-column grid item,
+  sticky-pinned left like `.timeLabel`, so it stays visible when scrolling
+  sideways. The line is semi-transparent (65% accent) and sits between each
+  card's background and its text. That way it stays continuous across a busy
+  row but never covers what people are reading, which on top had looked like
+  strikethrough. This uses plain CSS stacking with no z-index juggling: the
+  line renders before the cards in the DOM, and card text lines are
+  `position: relative`, so tree order paints the text over it. They still sit
+  below the sticky `.timeLabel`, so text can't bleed over the time column.
+  Card text also has a crisp 1px halo in the card's own colour: eight
+  unblurred `text-shadow` offsets, via a `--card-bg` custom property set
+  inline per card, or by `.roomlessCard`/`.busyFloatingCard` for the
+  uncoloured cards. Without it, the line showed between the letters and still
+  read like strikethrough; with it, the line visibly stops around each letter.
+  A blurred shadow was tried first and was too faint to cut through.
+- **The badge's text lines up with the axis labels.** The badge is inset, and
+  uses the labels' font size and weight, so its time ends at the same x as
+  every label.
+- **A label the badge covers loses its text, but only on real overlap.**
+  `useLabelsCoveredByBadge` measures the badge against each label's *text*
+  extent (via a `Range`, since a `.timeLabel` cell stretches its whole row).
+  `findOverlappedLabels` hides a label only when they overlap by more than
+  2px, so a label that's merely near the badge stays readable. This is
+  measured rather than a minutes threshold because rows are content-sized:
+  how close counts as "too close" is a pixel question. Hidden labels keep
+  their cell and row border, and only the text goes transparent, so layout
+  doesn't shift. It re-measures when the badge moves and via a
+  `ResizeObserver` on the grid (text size changes, card growth).
+- **`?now=<time>` override for previewing** (`nowOverride.ts`), e.g.
+  `/room-schedule?now=3:20pm`. It's a clock time only, applied to whichever
+  date the grid is showing, so any day can be checked without faking the
+  device clock. It accepts the spreadsheet's own forgiving time formats
+  (`parseTimeOfDay`; a bare hour with no am/pm is 24-hour). If the day runs
+  past midnight, it tries the day's last date too, so `?now=0:30` lands on the
+  tail. It's a fixed time that doesn't tick, and an invalid value falls back to
+  the real clock. It's left enabled in production too: it's read-only and
+  harmless, and organizers can use it to preview on a real phone.
+- **Refresh:** `useWallClockNow` re-renders on each minute boundary (re-aligned
+  each tick, so drift doesn't accumulate) and immediately on `visibilitychange`,
+  since a backgrounded tab or installed PWA may have its timers throttled.
 
 ## Open questions
 

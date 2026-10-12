@@ -70,8 +70,8 @@ describe('computeDanceScheduleTimeAxis', () => {
     // inserted marks at every hour/half-hour in between; this doesn't, because
     // nothing else happens at those in-between times.
     expect(axis?.timeMarks).toEqual([
-      { rowStart: 1, label: '12:15 PM' },
-      { rowStart: 2, label: '2:45 PM' },
+      { rowStart: 1, label: '12:15 PM', time: new Date('2026-07-02T12:15:00.000Z') },
+      { rowStart: 2, label: '2:45 PM', time: new Date('2026-07-02T14:45:00.000Z') },
     ])
     expect(axis?.totalRows).toBe(1)
   })
