@@ -1,7 +1,8 @@
 import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
 import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
-import { LEVEL_CODES, type LevelCode, type DanceSessionData, type SessionLocation } from '../types/danceSchedule'
+import { isLevelCode, normalizeLevelCode } from './levelCodes'
+import type { LevelCode, DanceSessionData, SessionLocation } from '../types/danceSchedule'
 
 const WEEKDAY_PREFIX = /^\w+day,?\s+/i
 const LEVEL_SEPARATOR = /[&/]/
@@ -29,25 +30,13 @@ export function isNonScheduleSheetName(sheetName: string): boolean {
 
 export interface ParseDanceScheduleSheetResult {
   sessions: DanceSessionData[]
+  // Parallel to `sessions` (same index): where each one came from, as
+  // 'Sheet "…", cell X (time "…", room "…")' — the prefix the shared validator
+  // (validateDanceSessions.ts) puts on any error about that session. Kept as a
+  // parallel array, not wrapped into each session, so `sessions` stays exactly the
+  // data model.
+  sources: string[]
   errors: string[]
-}
-
-function isValidLevel(value: string): value is LevelCode {
-  return (LEVEL_CODES as readonly string[]).includes(value)
-}
-
-// "Advanced" isn't a real level of its own (see LEVEL_CODES's own comment) — it's a
-// common informal way organizers write A2 in a proposal spreadsheet, since "Advanced"
-// dancing without further qualification is assumed to mean the fuller A1+A2 track,
-// not A1 alone. Normalized here, before isValidLevel is ever consulted, so an author
-// can write either one; write "A1" explicitly (not "Advanced") for a session that's
-// specifically A1, not A2.
-const LEVEL_ALIASES: Record<string, LevelCode> = {
-  Advanced: 'A2',
-}
-
-function normalizeLevel(value: string): string {
-  return LEVEL_ALIASES[value] ?? value
 }
 
 // Sheet names are like "Thursday July 2" — weekday + month + day, no year. Strip the
@@ -151,46 +140,6 @@ interface ParsedCell {
   hasExplicitRooms: boolean
 }
 
-// One already-recorded booking of a caller's or a room's time, for the
-// double-booking check below — cellRef/timeRangeRaw are carried along purely so a
-// conflict error can point back at the earlier cell, not just state that a conflict
-// exists.
-interface Booking {
-  startTime: Date
-  endTime: Date
-  cellRef: string
-  timeRangeRaw: string
-}
-
-// Half-open interval overlap — a session ending exactly when another starts is not
-// a conflict (same convention as the lane-assignment overlap check the rendering
-// layer uses, see assignLanes.ts).
-function overlapsBooking(booking: Booking, startTime: Date, endTime: Date): boolean {
-  return booking.startTime < endTime && startTime < booking.endTime
-}
-
-// Records a new booking against `key` in `bookings`, returning the first existing
-// booking it conflicts with (if any) — checked before the new booking is added, so
-// a booking never "conflicts" with itself.
-function checkAndRecordBooking(
-  bookings: Map<string, Booking[]>,
-  key: string,
-  startTime: Date,
-  endTime: Date,
-  cellRef: string,
-  timeRangeRaw: string,
-): Booking | undefined {
-  const existing = bookings.get(key)
-  const conflict = existing?.find((booking) => overlapsBooking(booking, startTime, endTime))
-  const booking: Booking = { startTime, endTime, cellRef, timeRangeRaw }
-  if (existing) {
-    existing.push(booking)
-  } else {
-    bookings.set(key, [booking])
-  }
-  return conflict
-}
-
 function parseCell(
   cellText: string,
   context: { date: Date; startTime: Date; endTime: Date; room: string; allRooms: string[] },
@@ -239,9 +188,9 @@ function parseCell(
   const levelPortion = mainText.slice(0, colonIndex).trim()
   const rest = mainText.slice(colonIndex + 1).trim()
 
-  const levels = levelPortion.split(LEVEL_SEPARATOR).map((level) => normalizeLevel(level.trim()))
+  const levels = levelPortion.split(LEVEL_SEPARATOR).map((level) => normalizeLevelCode(level.trim()))
   for (const level of levels) {
-    if (!isValidLevel(level)) {
+    if (!isLevelCode(level)) {
       throw new Error(`Unrecognized level code ${JSON.stringify(level)} in ${JSON.stringify(trimmed)}`)
     }
   }
@@ -299,10 +248,11 @@ export function parseDanceScheduleSheet(
 ): ParseDanceScheduleSheetResult {
   const [headerRow, ...dataRows] = rows
   const sessions: DanceSessionData[] = []
+  const sources: string[] = []
   const errors: string[] = []
 
   if (!headerRow) {
-    return { sessions, errors: [`Sheet "${sheetName}" has no header row`] }
+    return { sessions, sources, errors: [`Sheet "${sheetName}" has no header row`] }
   }
 
   // Rejected up front (rather than left as a literal "undefined"/"null" room name,
@@ -330,20 +280,10 @@ export function parseDanceScheduleSheet(
     return room
   })
   if (headerErrors.length > 0) {
-    return { sessions, errors: headerErrors }
+    return { sessions, sources, errors: headerErrors }
   }
 
   const date = parseSheetDate(sheetName, referenceDate)
-
-  // Accumulated across every row of this sheet (a day), keyed by caller name / room
-  // name — a real person or room can't be in two places on the same day at
-  // overlapping times, whether the conflict is between two different rows or two
-  // cells in the same row. Never checked across sheets (different days can't
-  // conflict with each other). Scoped to headline callers (`session.callers`), not
-  // `gca` — a GCA credit is a subordinate role, not a second place someone is
-  // simultaneously calling from.
-  const callerBookings = new Map<string, Booking[]>()
-  const roomBookings = new Map<string, Booking[]>()
 
   dataRows.forEach((row, rowIdx) => {
     const excelRow = rowIdx + 2 // +1 for the header row, +1 for 1-based Excel rows
@@ -364,10 +304,12 @@ export function parseDanceScheduleSheet(
     }
 
     const cellRef = (roomIdx: number) => `${columnLetter(roomIdx + 1)}${excelRow}`
+    // The one label for "this cell", shared by this parser's own errors and the
+    // `sources` entry the shared validator prefixes its errors with.
+    const cellSource = (roomIdx: number, room: string) =>
+      `Sheet "${sheetName}", cell ${cellRef(roomIdx)} (time "${timeRangeRaw}", room "${room}")`
     const rowError = (roomIdx: number, room: string, message: string) => {
-      errors.push(
-        `Sheet "${sheetName}", cell ${cellRef(roomIdx)} (time "${timeRangeRaw}", room "${room}"): ${message}`,
-      )
+      errors.push(`${cellSource(roomIdx, room)}: ${message}`)
     }
 
     // A data row with more filled cells than the header row is wide would otherwise
@@ -453,86 +395,16 @@ export function parseDanceScheduleSheet(
       target.session.location.rooms.push(cellKind.room)
     })
 
-    // Fourth pass: for an explicit multi-room "ROOMS:" list, every other named room's
-    // cell in this row must be genuinely blank — not content, not a ditto. Tracked in
-    // `conflictedRoomsThisRow` so the fifth pass's own (more general, cross-row)
-    // conflict check doesn't also re-report the exact same same-row clash under a
-    // second, redundant message.
-    const conflictedRoomsThisRow = new Set<string>()
+    // No double-booking checks here: a caller or room booked twice at overlapping
+    // times (including a "ROOMS:" line claiming a room whose own cell isn't blank —
+    // that's the same room booked twice) is a data-model rule, enforced once for
+    // every input format by validateDanceSessions.ts. This parser only enforces its
+    // own format's rules.
     parsed.forEach((result, roomIdx) => {
-      if (!result.hasExplicitRooms || result.session.location.kind !== 'located') {
-        return
-      }
-      for (const room of result.session.location.rooms) {
-        if (room === result.room) {
-          continue
-        }
-        const otherRoomIdx = rooms.indexOf(room)
-        if (cellKinds[otherRoomIdx]?.type !== 'empty') {
-          rowError(
-            roomIdx,
-            result.room,
-            `"ROOMS:" claims room ${JSON.stringify(room)}, but its cell (${cellRef(otherRoomIdx)}) isn't blank`,
-          )
-          conflictedRoomsThisRow.add(room)
-        }
-      }
-    })
-
-    // Fifth pass: no caller or room may be booked twice at overlapping times, whether
-    // the conflict is with an earlier cell in this same row (identical time, e.g. a
-    // copy-paste duplicate) or a cell from an earlier row (an overlapping, not
-    // necessarily identical, time range). A room already flagged by the fourth pass
-    // is skipped here — same underlying same-row clash, already reported with a more
-    // specific message there; everything else (including a cell that has some other,
-    // unrelated error) still gets its own conflict check.
-    parsed.forEach((result, roomIdx) => {
-      const { session } = result
-      if (session.kind === 'structured') {
-        for (const caller of new Set(session.callers)) {
-          const conflict = checkAndRecordBooking(
-            callerBookings,
-            caller,
-            startTime,
-            endTime,
-            cellRef(roomIdx),
-            timeRangeRaw,
-          )
-          if (conflict) {
-            rowError(
-              roomIdx,
-              result.room,
-              `caller ${JSON.stringify(caller)} is already booked in cell ${conflict.cellRef} (time "${conflict.timeRangeRaw}")`,
-            )
-          }
-        }
-      }
-
-      if (session.location.kind === 'located') {
-        for (const room of new Set(session.location.rooms)) {
-          const conflict = checkAndRecordBooking(
-            roomBookings,
-            room,
-            startTime,
-            endTime,
-            cellRef(roomIdx),
-            timeRangeRaw,
-          )
-          if (conflict && !conflictedRoomsThisRow.has(room)) {
-            rowError(
-              roomIdx,
-              result.room,
-              `room ${JSON.stringify(room)} is already booked in cell ${conflict.cellRef} (time "${conflict.timeRangeRaw}")`,
-            )
-          }
-        }
-      }
-    })
-
-    parsed.forEach((result) => {
       sessions.push(result.session)
+      sources.push(cellSource(roomIdx, result.room))
     })
   })
 
-  return { sessions, errors }
+  return { sessions, sources, errors }
 }

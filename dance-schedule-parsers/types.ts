@@ -1,11 +1,16 @@
-import type { DanceSessionData } from '../src/types/danceSchedule'
+import type { SourcedDanceSession } from '../src/lib/validateDanceSessions'
 
 // Every dance-schedule input format produces this same data model, so nothing
 // downstream of parsing (buildDanceSchedule, the grids, the dump) knows or cares
 // which format a content set was authored in. See docs/design/dance-schedule.md's
 // "Pluggable parsers" decision.
 export interface DanceScheduleParseResult {
-  sessions: DanceSessionData[]
+  // Each session with a required source location (where the parser found it), so
+  // the shared validator's errors can point back into the source file. The parser
+  // only enforces its own format's rules; data-model rules (double-booking, level
+  // codes) are enforced for every format by validateDanceSessions, run by the
+  // loader.
+  sessions: SourcedDanceSession[]
   // Human-readable, pinpointed in the parser's own terms (sheet + cell, line
   // number, ...). Returned rather than thrown, so the shared loader
   // (loadDanceScheduleData) reports every parser's errors in one consistent,

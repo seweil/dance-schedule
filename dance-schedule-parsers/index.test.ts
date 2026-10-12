@@ -21,6 +21,15 @@ const SESSION: DanceSessionData = {
   location: { kind: 'roomless' },
   description: 'Lunch',
 }
+const SOURCED = { session: SESSION, source: 'row 1' }
+
+// Two sessions in the same room at overlapping times — a room double-booking the
+// shared validator must catch, whatever parser produced them.
+const IN_BALLROOM: DanceSessionData = { ...SESSION, location: { kind: 'located', rooms: ['Ballroom'] } }
+const OVERLAPPING = [
+  { session: IN_BALLROOM, source: 'row 1' },
+  { session: { ...IN_BALLROOM, startTime: '2026-07-04T12:30:00.000Z' }, source: 'row 2' },
+]
 
 function stubParser(format: string, result: DanceScheduleParseResult): DanceScheduleParser & { calls: string[] } {
   const calls: string[] = []
@@ -82,7 +91,7 @@ describe('resolveDanceScheduleSource', () => {
 describe('loadDanceScheduleData', () => {
   it("returns the selected parser's sessions, having passed it the resolved source file", async () => {
     writeConfig('danceSchedule:\n  format: other\n')
-    const parser = stubParser('other', { sessions: [SESSION], errors: [] })
+    const parser = stubParser('other', { sessions: [SOURCED], errors: [] })
     const sessions = await loadDanceScheduleData(contentDir, new Map([['other', parser]]))
     expect(sessions).toEqual([SESSION])
     expect(parser.calls).toEqual([path.join(contentDir, 'data', 'other.src')])
@@ -90,10 +99,19 @@ describe('loadDanceScheduleData', () => {
 
   it("aggregates every one of a parser's errors into a single thrown message", async () => {
     writeConfig('danceSchedule:\n  format: other\n')
-    const parser = stubParser('other', { sessions: [SESSION], errors: ['first problem', 'second problem'] })
+    const parser = stubParser('other', { sessions: [SOURCED], errors: ['first problem', 'second problem'] })
     const sourceFile = path.join(contentDir, 'data', 'other.src')
     await expect(loadDanceScheduleData(contentDir, new Map([['other', parser]]))).rejects.toThrow(
       `Failed to parse ${sourceFile} — 2 error(s):\n\n  first problem\n\n  second problem`,
+    )
+  })
+
+  it("runs the shared validator over any parser's output, after the parser's own errors", async () => {
+    writeConfig('danceSchedule:\n  format: other\n')
+    const parser = stubParser('other', { sessions: OVERLAPPING, errors: ['a parse problem'] })
+    const sourceFile = path.join(contentDir, 'data', 'other.src')
+    await expect(loadDanceScheduleData(contentDir, new Map([['other', parser]]))).rejects.toThrow(
+      `Failed to parse ${sourceFile} — 2 error(s):\n\n  a parse problem\n\n  row 2: room "Ballroom" is already booked by row 1`,
     )
   })
 })

@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { DanceSessionData } from '../src/types/danceSchedule'
+import { validateDanceSessions } from '../src/lib/validateDanceSessions'
 import { loadDanceScheduleFormat } from '../vite-plugin-content-config'
 import { roomGridParser } from './roomGrid'
 import type { DanceScheduleParser } from './types'
@@ -55,12 +56,17 @@ export async function loadDanceScheduleData(
   parsers: ReadonlyMap<string, DanceScheduleParser> = DANCE_SCHEDULE_PARSERS,
 ): Promise<DanceSessionData[]> {
   const { parser, sourceFile } = resolveDanceScheduleSource(contentDir, parsers)
-  const { sessions, errors } = await parser.parse(sourceFile)
+  const { sessions, errors: parseErrors } = await parser.parse(sourceFile)
+
+  // Data-model rules, enforced once here for every format. A cell/row that failed
+  // to parse never made it into `sessions`, so it can't cause a knock-on conflict.
+  const errors = [...parseErrors, ...validateDanceSessions(sessions)]
 
   if (errors.length > 0) {
     const details = errors.map((error) => `  ${error}`).join('\n\n')
     throw new Error(`Failed to parse ${sourceFile} — ${errors.length} error(s):\n\n${details}`)
   }
 
-  return sessions
+  // Source locations are build-time only — never shipped in virtual:dance-schedule.
+  return sessions.map(({ session }) => session)
 }

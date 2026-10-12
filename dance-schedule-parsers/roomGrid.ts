@@ -1,6 +1,6 @@
 import readExcelFile from 'read-excel-file/node'
 import { isNonScheduleSheetName, parseDanceScheduleSheet } from '../src/lib/parseDanceScheduleSheet'
-import type { DanceSessionData } from '../src/types/danceSchedule'
+import type { SourcedDanceSession } from '../src/lib/validateDanceSessions'
 import type { DanceScheduleParser } from './types'
 
 // The original format: an .xlsx workbook with one sheet per day (sheet name =
@@ -16,7 +16,7 @@ export const roomGridParser: DanceScheduleParser = {
     // fit read-excel-file's row-per-object schema model, so we get the raw grid
     // and parse it ourselves.
     const sheets = await readExcelFile(sourceFile)
-    const sessions: DanceSessionData[] = []
+    const sessions: SourcedDanceSession[] = []
     const errors: string[] = []
     for (const sheet of sheets) {
       // Skips any sheet deliberately opted out of day-sheet parsing (see
@@ -26,7 +26,9 @@ export const roomGridParser: DanceScheduleParser = {
         continue
       }
       const result = parseDanceScheduleSheet(sheet.sheet, sheet.data)
-      sessions.push(...result.sessions)
+      result.sessions.forEach((session, index) => {
+        sessions.push({ session, source: result.sources[index]! })
+      })
       errors.push(...result.errors)
     }
     return { sessions, errors }

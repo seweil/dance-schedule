@@ -2,7 +2,7 @@
 // actual data — included preemptively since it's part of the same taxonomy; trivial
 // to remove if it turns out to be unused. "Advanced" is NOT one of these codes,
 // deliberately — it isn't a real level of its own, just a common informal way
-// organizers write A2 (see parseDanceScheduleSheet.ts's LEVEL_ALIASES, which
+// organizers write A2 (see src/lib/levelCodes.ts's LEVEL_ALIASES, which
 // normalizes it to 'A2' before this list is ever consulted — write "A1" explicitly
 // if that's what's actually meant).
 export const LEVEL_CODES = [

@@ -11,7 +11,8 @@ describe('roomGridParser', () => {
     const { sessions, errors } = await roomGridParser.parse(sourceFile)
     expect(errors).toEqual([])
     expect(sessions.length).toBeGreaterThan(0)
+    expect(sessions.every(({ source }) => source.startsWith('Sheet "'))).toBe(true)
     // One sheet per day — the sample event spans several.
-    expect(new Set(sessions.map((session) => session.date)).size).toBeGreaterThan(1)
+    expect(new Set(sessions.map(({ session }) => session.date)).size).toBeGreaterThan(1)
   })
 })

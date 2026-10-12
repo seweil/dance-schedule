@@ -120,8 +120,9 @@ taxonomy did) meant it behaved like `Intro`/`Various`: always visible
 regardless of the level slider, its own always-there color, its own bucket
 in the hour-summary/room-order/level-columns "unordered" handling —
 none of which is true of what "Advanced" actually means. `LEVEL_ALIASES`
-(`parseDanceScheduleSheet.ts`) normalizes the literal text `"Advanced"` to
-`'A2'` *before* `isValidLevel` is ever consulted, so it never exists as a
+(now in `src/lib/levelCodes.ts`, applied by `normalizeLevelCode`) normalizes
+the literal text `"Advanced"` to `'A2'` *before* `isLevelCode` is ever
+consulted, so it never exists as a
 distinct value anywhere downstream — `LEVEL_CODES` itself doesn't include
 it at all. A session that's specifically A1 (not A2) must be written as
 `A1` explicitly; "Advanced" always means A2, never A1. This only affects
@@ -233,12 +234,35 @@ intentional test fixtures, and were corrected directly in all three
 `dance-schedule-dump.md` diff afterward, showing only the two corrected
 rows changed.
 
-A same-row conflict from an explicit multi-room `"ROOMS:"` claim (the
-claimed room's cell isn't actually blank) is still reported by that
-check's own, more specific message ("claims room X, but its cell isn't
-blank") — the new cross-row check recognizes when a room was already
-flagged that way this row and skips re-reporting the identical clash under
-a second, more generic message.
+**Superseded 2026-10-11: moved out of the parser into one shared
+validator.** Once parsing became pluggable (see "Pluggable parsers" below),
+these rules had to stop living inside one format's parser. Otherwise every
+new format would silently skip them, or duplicate them and drift.
+`src/lib/validateDanceSessions.ts` now enforces them once, over any
+parser's output. `loadDanceScheduleData` runs it after the parser, and its
+errors join the parser's own in the one aggregated build error.
+
+- **Absolute times, not per sheet.** Two different days still can't
+  conflict, because the times carry dates. A session running past midnight
+  is now checked against the next day's early sessions, which the per-sheet
+  check couldn't do.
+- **Source order:** the first booking wins, and the conflict is reported on
+  the later session, as before.
+- **Both ends named in full.** Messages read
+  `<later source>: caller "X" is already booked by <earlier source>`. Each
+  source is the parser's own label, e.g. `Sheet "Thursday July 2", cell B2
+  (time "12:30p-1:30p", room "Ballroom Centre")`. That's format-neutral, and
+  still unambiguous if a conflict ever spans two sheets.
+- **The grid-only "`ROOMS:` claims room X, but its cell isn't blank" check
+  was dropped** (decided with the product owner). That clash is the same
+  room booked twice, so it's now an ordinary room conflict, reported on the
+  claimed cell. The old suppression logic is gone with it: the parser used to
+  skip re-reporting that clash as a second, generic room conflict, and
+  nothing like that is needed between parser and validator any more.
+- **Level codes:** the validator also re-checks every level against
+  `LEVEL_CODES`, as a safety net for a parser that casts. The room-grid
+  parser still rejects an unknown level itself, as a syntax error for that
+  cell, through the same shared `src/lib/levelCodes.ts` helper.
 
 ### Where the code lives
 - `src/types/danceSchedule.ts` — `LEVEL_CODES`/`LevelCode`, the
@@ -249,7 +273,14 @@ a second, more generic message.
   `room: string` field.
 - `src/lib/parseDanceScheduleSheet.ts` (+ colocated test, using real
   examples from the actual cell catalog) — the pure matrix-walking
-  parser for one sheet.
+  parser for one sheet. It enforces only its own format's rules, and
+  returns a source label per session for the validator's errors.
+- `src/lib/validateDanceSessions.ts` (+ test) — the shared data-model
+  rules (caller and room double-booking, level codes) over any parser's
+  output. See "Double-booking" above.
+- `src/lib/levelCodes.ts` (+ test) — `isLevelCode` and
+  `normalizeLevelCode` (the `Advanced` → `A2` alias): the one definition
+  of a valid level, shared by parsers and the validator.
 - `src/lib/buildDanceSchedule.ts` (+ test) — converts ISO-string data
   to Date objects, sorted chronologically; mirrors `buildSchedule.ts`'s
   pattern exactly.
@@ -1642,10 +1673,15 @@ the grids, the debug dump) knows which format a set was authored in.
   same way. A parser throws only if its file can't be read at all.
 - **`room-grid`** is the name for the original format: one sheet per day,
   rooms as columns, time slots as rows.
-- **Known gap (urgent):** format-independent validation (caller and room
-  double-booking) still lives inside the room-grid parser. See
-  `docs/known-issues.md`. It has to move to one shared post-parse validator
-  before or alongside the second parser.
+- **Every parsed session carries a required `source`**
+  (`SourcedDanceSession`): where the parser found it, in the format's own
+  terms. A parser enforces only its own format's rules. The loader then runs
+  the shared data-model validator (`validateDanceSessions`, see
+  "Double-booking" above), whose errors use those labels to point back into
+  the file. `source` is stripped before the data leaves the loader, so it
+  never reaches the client. (Until 2026-10-11 the validation lived inside
+  the room-grid parser; that was recorded as an urgent known issue and
+  resolved by this split.)
 - **`roomOrder: spreadsheet`** really means "source order", which applies
   to any format. The value keeps its original name for now.
 
