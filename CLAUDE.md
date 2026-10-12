@@ -135,7 +135,9 @@ dance-schedule-parsers/   # pluggable dance-schedule input formats (Node-side, b
                           # time): types.ts (the DanceScheduleParser interface),
                           # roomGrid.ts (the original xlsx grid), index.ts (registry
                           # + loadDanceScheduleData, the one loader every build path
-                          # uses). See docs/design/dance-schedule.md "Pluggable parsers"
+                          # uses). See docs/design/dance-schedule.md "Pluggable parsers";
+                          # docs/adding-a-dance-schedule-parser.md is the step-by-step
+                          # procedure for supporting a new organizer's spreadsheet
 scripts/
   build-content-sets.mjs  # `pnpm build` orchestrator — runs one `vite build` per
                           # content set (plus one extra for the default set's

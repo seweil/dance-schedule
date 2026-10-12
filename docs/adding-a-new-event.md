@@ -193,6 +193,10 @@ danceSchedule:
 A misspelled format name fails the build, with a message listing the valid
 ones.
 
+If your schedule comes in a layout that isn't listed here, it can usually be
+supported without asking you to re-key it. A developer follows
+`docs/adding-a-dance-schedule-parser.md` to add a parser for it.
+
 ## Step 3: The simple event list (`event-schedule.xlsx`) — optional
 
 This is a flat, one-row-per-event spreadsheet for the "Event Schedule" page
