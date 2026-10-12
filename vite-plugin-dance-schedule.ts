@@ -1,74 +1,37 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import type { Plugin } from 'vite'
-import readExcelFile from 'read-excel-file/node'
-import { isNonScheduleSheetName, parseDanceScheduleSheet } from './src/lib/parseDanceScheduleSheet'
 import { buildDanceSchedule } from './src/lib/buildDanceSchedule'
 import { formatDanceScheduleMarkdown } from './src/lib/formatDanceScheduleMarkdown'
 import { validateRoomOrderConfig } from './src/lib/deriveRoomOrder'
 import { loadContentConfigData } from './vite-plugin-content-config'
-import type { DanceSessionData } from './src/types/danceSchedule'
+import { loadDanceScheduleData, resolveDanceScheduleSource } from './dance-schedule-parsers'
 
 export const DANCE_SCHEDULE_VIRTUAL_MODULE_ID = 'virtual:dance-schedule'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + DANCE_SCHEDULE_VIRTUAL_MODULE_ID
-const DANCE_SCHEDULE_FILE_NAME = 'dance-schedule.xlsx'
 const DANCE_SCHEDULE_DUMP_FILE_NAME = 'dance-schedule-dump.md'
 const CONTENT_CONFIG_FILE_NAME = 'config.yaml'
 
 export interface DanceSchedulePluginOptions {
-  // Directory (relative to the Vite project root) holding dance-schedule.xlsx (and
-  // where dance-schedule-dump.md is (re)written) for the active content set — e.g.
-  // "content/automated-testing/data". See docs/design/content-sets.md.
+  // Directory (relative to the Vite project root) where dance-schedule-dump.md is
+  // (re)written for the active content set — e.g. "content/automated-testing/data".
+  // See docs/design/content-sets.md.
   dataDir: string
-  // The content set's own root (sibling of dataDir, holds config.yaml) — needed
-  // only to cross-check danceSchedule.roomOrder (if set) against this file's own
-  // room names; see validateRoomOrderConfig below. Same value contentConfigPlugin
-  // itself receives as its own dataDir. See docs/design/content-config.md.
+  // The content set's own root (sibling of dataDir, holds config.yaml) — which
+  // parser and source file to use come from here (resolveDanceScheduleSource),
+  // as does danceSchedule.roomOrder for the cross-check below. Same value
+  // contentConfigPlugin itself receives as its own dataDir. See
+  // docs/design/content-config.md.
   contentDir: string
 }
 
-// Exported so vite-plugin-content-sets.ts can reuse the exact same read-and-
-// parse-and-aggregate-errors pipeline the real build runs (for its own
-// dateRange field), rather than a reimplementation that could silently drift
-// from it.
-export async function loadDanceScheduleData(danceScheduleFile: string): Promise<DanceSessionData[]> {
-  // Reads every sheet (one per day) via the default export — this file's matrix
-  // shape (rooms as columns, time slots as rows) doesn't fit read-excel-file's
-  // row-per-object schema model, so we get the raw grid and parse it ourselves.
-  const sheets = await readExcelFile(danceScheduleFile)
-
-  const sessions: DanceSessionData[] = []
-  const errors: string[] = []
-
-  for (const sheet of sheets) {
-    // Skips any sheet deliberately opted out of day-sheet parsing (see
-    // isNonScheduleSheetName's own comment) — e.g. a hand-added notes tab.
-    // Every other sheet is still assumed to be a real schedule day and
-    // parsed/validated as one.
-    if (isNonScheduleSheetName(sheet.sheet)) {
-      continue
-    }
-    const result = parseDanceScheduleSheet(sheet.sheet, sheet.data)
-    sessions.push(...result.sessions)
-    errors.push(...result.errors)
-  }
-
-  if (errors.length > 0) {
-    const details = errors.map((error) => `  ${error}`).join('\n\n')
-    throw new Error(
-      `Failed to parse ${danceScheduleFile} — ${errors.length} error(s):\n\n${details}`,
-    )
-  }
-
-  return sessions
-}
-
-// Resolves virtual:dance-schedule to the data parsed from
-// <dataDir>/dance-schedule.xlsx at build time — mirrors vite-plugin-schedule.ts's
-// schedulePlugin() (build-time only, watches the source file in dev), extended to
-// read every sheet in the file rather than a single schema-mapped one.
+// Resolves virtual:dance-schedule to the sessions parsed (by whichever parser the
+// content set's danceSchedule.format selects — see dance-schedule-parsers/) at
+// build time — mirrors vite-plugin-schedule.ts's schedulePlugin() (build-time
+// only, watches the source file in dev).
 export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin {
-  let danceScheduleFile = path.resolve(process.cwd(), options.dataDir, DANCE_SCHEDULE_FILE_NAME)
+  let contentDir = path.resolve(process.cwd(), options.contentDir)
+  let danceScheduleFile = resolveDanceScheduleSource(contentDir).sourceFile
   let danceScheduleDumpFile = path.resolve(
     process.cwd(),
     options.dataDir,
@@ -79,7 +42,8 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
   return {
     name: 'dance-schedule',
     configResolved(config) {
-      danceScheduleFile = path.resolve(config.root, options.dataDir, DANCE_SCHEDULE_FILE_NAME)
+      contentDir = path.resolve(config.root, options.contentDir)
+      danceScheduleFile = resolveDanceScheduleSource(contentDir).sourceFile
       danceScheduleDumpFile = path.resolve(
         config.root,
         options.dataDir,
@@ -94,9 +58,12 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
     },
     async load(id) {
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
+        // Re-resolved on every load: an edited danceSchedule.format can point at a
+        // different source file than the one resolved at startup.
+        danceScheduleFile = resolveDanceScheduleSource(contentDir).sourceFile
         this.addWatchFile(danceScheduleFile)
         this.addWatchFile(contentConfigFile)
-        const sessions = await loadDanceScheduleData(danceScheduleFile)
+        const sessions = await loadDanceScheduleData(contentDir)
         const builtSessions = buildDanceSchedule(sessions)
 
         // Cross-check an explicit danceSchedule.roomOrder (content/<set>/config.yaml)
@@ -121,6 +88,16 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
       server.watcher.on('change', (changedFile) => {
         const resolved = path.resolve(changedFile)
         if (resolved === danceScheduleFile || resolved === contentConfigFile) {
+          if (resolved === contentConfigFile) {
+            // A changed danceSchedule.format may name a different source file —
+            // start watching it too. An invalid format is left for load() to
+            // report as a proper build error rather than thrown from a watcher.
+            try {
+              server.watcher.add(resolveDanceScheduleSource(contentDir).sourceFile)
+            } catch {
+              // reported by load() on the reload below
+            }
+          }
           const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID)
           if (mod) {
             server.moduleGraph.invalidateModule(mod)

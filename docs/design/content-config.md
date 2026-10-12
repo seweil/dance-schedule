@@ -380,6 +380,26 @@ before this existed — there was no need to gate this behind `NODE_ENV`/
 `import.meta.env.DEV` or restrict it to specific content sets. See
 `docs/testing.md` for the practical usage example.
 
+### `danceSchedule.format` — which parser reads a set's dance schedule (build-time only)
+
+Selects one of the pluggable dance-schedule input formats
+(`dance-schedule-parsers/`). It's optional and defaults to `room-grid`, the
+original `dance-schedule.xlsx` grid, so no existing set needed an edit. Full
+rationale is in `docs/design/dance-schedule.md`'s "Pluggable parsers" decision.
+
+- **Read by its own function, `loadDanceScheduleFormat`**
+  (`vite-plugin-content-config.ts`), **not** added to `ContentConfigData` or
+  `virtual:content-config`. Only the build needs to know which parser ran, and
+  the client never should.
+- **Validation is split in two.** Shape is checked here: a non-empty string,
+  using the same `asConfigSection` guard as `roomOrder`. Whether the value is a
+  *known* format is checked by the parser registry
+  (`getDanceScheduleParser`), the one place that knows which formats exist. That
+  mirrors how `roomOrder`'s shape is checked here, but its completeness against
+  real room names is checked where the schedule data is.
+- **No dev-only env override**, unlike `features.*` and `roomOrder`. There's only
+  one format so far, so there's nothing to preview yet.
+
 ## Open questions
 
 - Should there be more feature flags of this shape in the future, and if

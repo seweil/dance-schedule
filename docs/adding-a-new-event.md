@@ -176,6 +176,23 @@ danceSchedule:
 A room not scheduled on a particular day is simply skipped that day — the
 list is one event-wide setting, not one per day.
 
+### Dance-schedule input format (`danceSchedule.format`)
+
+Also optional, and you can ignore it for now. It says which format your
+dance schedule is written in. There's only one so far, `room-grid`: the
+`dance-schedule.xlsx` grid described in Step 4. It's the default, so you
+never need to write it out. Other formats are planned for organizers who keep
+their schedule differently. Each one will be listed here, along with the file
+name it reads from `data/`.
+
+```yaml
+danceSchedule:
+  format: room-grid   # the default — the same as leaving this line out
+```
+
+A misspelled format name fails the build, with a message listing the valid
+ones.
+
 ## Step 3: The simple event list (`event-schedule.xlsx`) — optional
 
 This is a flat, one-row-per-event spreadsheet for the "Event Schedule" page
@@ -234,7 +251,8 @@ This spreadsheet drives the richer "Room Schedule", "Dance Schedule", and
 "Caller Schedule" pages — multiple rooms running in parallel, dance programs,
 named callers.
 It's laid out as a **grid**, one sheet per day, matching how these are
-usually already kept in practice.
+usually already kept in practice. (This is the `room-grid` format, the
+default; see "Dance-schedule input format" in Step 2.)
 
 ### Sheet structure
 

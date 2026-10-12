@@ -3,6 +3,35 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
+## Urgent: dance-schedule validation lives inside the room-grid parser, not in one shared place
+
+**Found 2026-10-11**, while making dance-schedule parsing pluggable
+(`dance-schedule-parsers/`; see `docs/design/dance-schedule.md`'s "Pluggable
+parsers" decision). Some rules are about the data model, not the input
+format, but today they're only enforced inside the original format's parser
+(`src/lib/parseDanceScheduleSheet.ts`):
+
+- **No caller and no room double-booked** at overlapping times
+  (`checkAndRecordBooking`, `callerBookings`/`roomBookings`). This also runs
+  only *per sheet*, so it relies on that format's one-sheet-per-day layout to
+  scope its checks.
+- **Every level is a known `LEVEL_CODES` value** (`isValidLevel`, after alias
+  normalization). The normalization is format-specific; the check itself
+  isn't.
+
+**Why urgent:** any new parser added before this is fixed will silently skip
+these rules unless it duplicates them, and duplicates drift. The `room-grid`
+format is the only one so far, so nothing is broken *yet*.
+
+**Planned fix:** one shared validator over the parsed `DanceSessionData[]`,
+run by `loadDanceScheduleData` after every parser, with its errors joining
+the parser's own in the one aggregated build error. To keep messages
+pinpointed (today's say exactly which spreadsheet cell), each parsed session
+needs an optional, parser-supplied source location (e.g. `Sheet "Friday",
+cell C7`). That location is build-time only and must not leak into the
+`virtual:dance-schedule` payload. This must land **before or alongside the
+second parser**.
+
 ## UpdatePrompt.tsx banner still renders blurred on iOS, second fix attempt also unconfirmed
 
 **Found:** reported live on an installed iOS standalone PWA; still open as of

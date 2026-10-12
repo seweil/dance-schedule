@@ -3,7 +3,7 @@ import type { Plugin } from 'vite'
 import { isTestFixtureContentSet, listContentSets, loadContentManifestStrings } from './content-config'
 import { formatDanceScheduleDateRange } from './src/lib/formatDanceScheduleDateRange'
 import type { ContentSetInfo, ContentSetsData } from './src/types/contentSets'
-import { loadDanceScheduleData } from './vite-plugin-dance-schedule'
+import { loadDanceScheduleData } from './dance-schedule-parsers'
 
 export const CONTENT_SETS_VIRTUAL_MODULE_ID = 'virtual:content-sets'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + CONTENT_SETS_VIRTUAL_MODULE_ID
@@ -89,8 +89,7 @@ export function contentSetsPlugin(options: ContentSetsPluginOptions): Plugin {
             const testFixture = isTestFixtureContentSet(root, contentDir)
             let dateRange: string | null = null
             if (!testFixture) {
-              const danceScheduleFile = path.resolve(root, contentDir, 'data/dance-schedule.xlsx')
-              const sessions = await loadDanceScheduleData(danceScheduleFile)
+              const sessions = await loadDanceScheduleData(path.resolve(root, contentDir))
               dateRange = formatDanceScheduleDateRange(sessions.map((session) => new Date(session.date)))
             }
             return {

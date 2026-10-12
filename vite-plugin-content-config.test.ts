@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadContentConfigData } from './vite-plugin-content-config'
+import { loadContentConfigData, loadDanceScheduleFormat } from './vite-plugin-content-config'
 
 const OVERRIDE_ENV_VARS = ['COMBINE_A1A2', 'COMBINE_C3BC4', 'DANCE_SCHEDULE_ROOM_ORDER'] as const
 
@@ -210,5 +210,31 @@ describe('loadContentConfigData', () => {
       process.env.DANCE_SCHEDULE_ROOM_ORDER = ',,,'
       expect(() => loadContentConfigData(configFile)).toThrow(/DANCE_SCHEDULE_ROOM_ORDER must be/)
     })
+  })
+})
+
+describe('loadDanceScheduleFormat', () => {
+  it('is undefined when config.yaml is missing', () => {
+    expect(loadDanceScheduleFormat(configFile)).toBeUndefined()
+  })
+
+  it('is undefined when danceSchedule.format is absent', () => {
+    writeConfig('danceSchedule:\n  roomOrder: spreadsheet\n')
+    expect(loadDanceScheduleFormat(configFile)).toBeUndefined()
+  })
+
+  it('reads an explicit value, trimmed', () => {
+    writeConfig('danceSchedule:\n  format: " room-grid "\n')
+    expect(loadDanceScheduleFormat(configFile)).toBe('room-grid')
+  })
+
+  it.each([['42'], ['""'], ['[room-grid]']])('rejects a non-string or empty value: %s', (value) => {
+    writeConfig(`danceSchedule:\n  format: ${value}\n`)
+    expect(() => loadDanceScheduleFormat(configFile)).toThrow(/"danceSchedule.format" must be a non-empty string/)
+  })
+
+  it('leaves loadContentConfigData unaffected (build-time only)', () => {
+    writeConfig('danceSchedule:\n  format: room-grid\n')
+    expect(loadContentConfigData(configFile).danceSchedule).toBeUndefined()
   })
 })

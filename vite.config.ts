@@ -335,8 +335,9 @@ export default defineConfig(async () => {
       // vite-plugin-content-config.ts) — vite-plugin-schedule.ts/
       // vite-plugin-dance-schedule.ts/vite-plugin-content-sets.ts have no tests of
       // their own (covered live via pnpm build/pnpm dev:test instead), so this
-      // doesn't pick up anything unexpected.
-      include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts'],
+      // doesn't pick up anything unexpected. The third is the dance-schedule
+      // parser registry/implementations (Node-side, see dance-schedule-parsers/).
+      include: ['src/**/*.{test,spec}.{ts,tsx}', '*.test.ts', 'dance-schedule-parsers/**/*.test.ts'],
       css: true,
       // Informational only (pnpm test:coverage) — nothing enforces a threshold, and
       // CI just uploads the html report as an artifact rather than failing a build
@@ -349,8 +350,9 @@ export default defineConfig(async () => {
       coverage: {
         provider: 'v8' as const,
         reporter: ['text', 'html'],
-        include: ['src/**/*.{ts,tsx}', '*.ts'],
+        include: ['src/**/*.{ts,tsx}', '*.ts', 'dance-schedule-parsers/**/*.ts'],
         exclude: [
+          'dance-schedule-parsers/**/*.test.ts',
           'src/**/*.{test,spec}.{ts,tsx}',
           'src/**/*.d.ts',
           'src/main.tsx',

@@ -128,6 +128,37 @@ function readRoomOrderOverride(current: DanceScheduleRoomOrder | undefined): Dan
   return rooms
 }
 
+// `danceSchedule.format` — which parser (dance-schedule-parsers/index.ts) reads
+// this set's dance schedule. Build-time only, so deliberately not part of
+// ContentConfigData / virtual:content-config: the client never needs it.
+// Undefined when the file or key is absent; the registry applies the default and
+// rejects an unknown value (this file has no knowledge of which formats exist).
+export function loadDanceScheduleFormat(configFile: string): string | undefined {
+  if (!fs.existsSync(configFile)) {
+    return undefined
+  }
+  let parsed: unknown
+  try {
+    parsed = parse(fs.readFileSync(configFile, 'utf-8'))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
+  }
+  const danceSchedule = asConfigSection(
+    configFile,
+    'danceSchedule',
+    (parsed as Record<string, unknown> | null)?.danceSchedule,
+  )
+  const value = danceSchedule.format
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${configFile}'s "danceSchedule.format" must be a non-empty string, got ${JSON.stringify(value)}`)
+  }
+  return value.trim()
+}
+
 export function loadContentConfigData(configFile: string): ContentConfigData {
   let combineA1A2 = true
   let combineC3BC4 = true

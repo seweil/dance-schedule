@@ -253,14 +253,18 @@ a second, more generic message.
 - `src/lib/buildDanceSchedule.ts` (+ test) — converts ISO-string data
   to Date objects, sorted chronologically; mirrors `buildSchedule.ts`'s
   pattern exactly.
-- `vite-plugin-dance-schedule.ts` — resolves `virtual:dance-schedule`
-  (typed via `src/types/virtual-dance-schedule.d.ts`) by reading
+- `dance-schedule-parsers/` — the pluggable input formats (see "Pluggable
+  parsers" below). `roomGrid.ts` is the original format. It reads
   **every sheet** via `read-excel-file`'s default export (`readExcelFile`,
   not the schema-based `readSheet` — this file's matrix shape doesn't
   fit the row-per-object schema model the simple schedule uses) and
-  calling `parseDanceScheduleSheet` per sheet. Mirrors
-  `vite-plugin-schedule.ts`'s build-time-only, dev-file-watching
-  structure. Registered in `vite.config.ts` alongside `schedulePlugin()`.
+  calls `parseDanceScheduleSheet` per sheet. `index.ts` is the registry
+  plus `loadDanceScheduleData`, the one loader every build path uses.
+- `vite-plugin-dance-schedule.ts` — resolves `virtual:dance-schedule`
+  (typed via `src/types/virtual-dance-schedule.d.ts`) from
+  `loadDanceScheduleData`. Mirrors `vite-plugin-schedule.ts`'s
+  build-time-only, dev-file-watching structure. Registered in
+  `vite.config.ts` alongside `schedulePlugin()`.
 
 **Verified end-to-end** (not just unit tests): the real
 `data/dance-schedule.xlsx` parses all real session cells with
@@ -1609,6 +1613,41 @@ existing `{room && <p>...}` conditional simply never renders anything for
 it. The room/columns view (`DanceScheduleGrid.tsx`) never had this problem —
 it has no room line of its own at all, roomless or not, since the room IS
 the column being scanned.
+
+### Pluggable parsers: several input formats, one data model
+
+Not every organizer will author their schedule in the original spreadsheet
+format. Parsing is therefore an interface (`dance-schedule-parsers/types.ts`),
+with one implementation per input format. All of them produce the same
+`DanceSessionData[]`, so nothing downstream of parsing (`buildDanceSchedule`,
+the grids, the debug dump) knows which format a set was authored in.
+
+- **Selection is an explicit `config.yaml` key:** `danceSchedule.format`.
+  When it's absent, the default is `room-grid`, the original format, so every
+  existing set works unchanged. An unknown value fails the build, listing the
+  valid formats. The key is read at build time only
+  (`loadDanceScheduleFormat`) and never reaches the client. An explicit key
+  was chosen over detecting the format from whichever file exists, because two
+  formats can share a file extension and the key makes it obvious which parser
+  ran.
+- **Each parser declares its own `sourceFileName`** inside `data/`, and owns
+  its own file I/O, because formats differ in how they're read (xlsx, csv, …).
+  `resolveDanceScheduleSource` is the single place a set's parser and file get
+  decided. Loading and dev-server file watching both use it, so they can't
+  disagree.
+- **Parsers return errors rather than throwing them.** Each error is
+  pinpointed in the parser's own terms (sheet and cell, line number, …).
+  `loadDanceScheduleData` aggregates them into the one "Failed to parse … N
+  error(s)" message, so every format reports every problem at once, in the
+  same way. A parser throws only if its file can't be read at all.
+- **`room-grid`** is the name for the original format: one sheet per day,
+  rooms as columns, time slots as rows.
+- **Known gap (urgent):** format-independent validation (caller and room
+  double-booking) still lives inside the room-grid parser. See
+  `docs/known-issues.md`. It has to move to one shared post-parse validator
+  before or alongside the second parser.
+- **`roomOrder: spreadsheet`** really means "source order", which applies
+  to any format. The value keeps its original name for now.
 
 ### Current-time line: wall-clock "now," interpolated per segment, as a grid-row overlay
 
