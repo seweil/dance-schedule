@@ -48,6 +48,13 @@ Note: Vite's dev server does not register the service worker the same way produc
 does. Always verify PWA behavior (offline mode, install prompt, update flow) against
 `pnpm build && pnpm preview`, not `pnpm dev`.
 
+Run `pnpm test:e2e` as a bare command (extra Playwright args like
+`--reporter=dot` or a spec path are fine) — no pipe, `&&`/`;` chain, or `>`
+redirect. `.claude/settings.json`'s sandbox `excludedCommands` only matches it
+standalone; otherwise it stays sandboxed and Chromium dies at launch
+(`bootstrap_check_in ... MachPortRendezvousServer: Permission denied`), failing
+every test at `browserType.launch` for no app-related reason.
+
 `pnpm install` activates a Husky pre-commit hook (`.husky/pre-commit`) that runs
 `pnpm typecheck && pnpm lint && pnpm test` before every commit — it aborts the
 commit if any of them fail. This only runs locally; it isn't a substitute for

@@ -41,9 +41,15 @@ test('the Dance Schedule gets a phase slider and phase columns, with each teach 
   await expect(columnHeaders(page).filter({ hasText: /^Ph 4$/ })).toBeVisible()
   await expect(page.getByText('Teach Ph 5 -')).toBeVisible()
 
-  // Dragging the max thumb all the way down pins the range to phase 1 alone.
-  await page.getByRole('slider', { name: 'Maximum phase' }).focus()
-  await page.keyboard.press('Home')
+  // Stepping the max thumb all the way down pins the range to phase 1 alone. Not
+  // Home: Radix's Home always moves the FIRST thumb to the minimum, whichever
+  // thumb has focus, so on the max thumb it's a no-op here.
+  const maxThumb = page.getByRole('slider', { name: 'Maximum phase' })
+  await maxThumb.focus()
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press('ArrowLeft')
+  }
+  await expect(maxThumb).toHaveAttribute('aria-valuenow', '0')
   await expect(page.getByText('Teach Ph 2 -')).toBeVisible()
   await expect(page.getByText('Teach Ph 5 -')).toHaveCount(0)
   // Square dancing is untouched by the phase slider.
