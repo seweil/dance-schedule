@@ -290,16 +290,16 @@ as published.
 **Decision:** a round-dance "Teach Ph N" is filtered as phase N-1, except
 "Teach Ph 1", which stays phase 1. Its event type keeps the printed text
 ("Teach Ph 5"), so the card still says what's taught. A square-dance
-"Intro to X" is filtered at the level below X in `LEVEL_ORDER`, whatever
-column it's printed in. "Intro to A" and "Intro to Advanced" mean A1. So
-"Intro to A", printed in the A2 column, is Plus, and "Intro to Plus" is
-MSX. An intro naming nothing with a level below it fails the build.
+"Intro to X" is filtered at the base level below X, plus any optional
+level (MSX) between it and X, whatever column it's printed in. "Intro to
+A" and "Intro to Advanced" mean A1. So "Intro to A", printed in the A2
+column, is Plus, and "Intro to Plus" is MS and MSX. An intro naming nothing with a level below it fails the build.
 "Intro to Rounds" has no phase and is unaffected.
 **Why:** the organizer's meaning. A teach or intro is for dancers who don't
 dance that phase or level yet, so the slider should show it to them, not to
-those who already do. "Intro to Plus" goes to MSX rather than MS because
-MSX is the next step in `LEVEL_ORDER`. Revisit if MS dancers should see it
-too.
+those who already do. MS dancers can learn Plus too, not only MS
+Extended ones (confirmed 2026-11-18), so an optional level doesn't hide an
+intro from the base level under it.
 
 ## Open questions
 

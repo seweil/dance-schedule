@@ -243,17 +243,17 @@ describe('parseProgramGridPdf', () => {
   })
 
   it.each([
-    ['Intro to Plus', 'MSX'],
-    ['Intro to A', 'Plus'],
-    ['Intro to Advanced', 'Plus'],
-    ['Intro to A2', 'A1'],
-  ])('files %j at the level below the one it introduces, %j', (text, level) => {
+    ['Intro to Plus', ['MS', 'MSX']],
+    ['Intro to A', ['Plus']],
+    ['Intro to Advanced', ['Plus']],
+    ['Intro to A2', ['A1']],
+  ])('files %j at the level(s) below the one it introduces, %j', (text, levels) => {
     const session = only({
       programs: [PLUS],
       rows: [{ day: 'Saturday', time: '10:00-11:00 AM' }],
       cells: [{ program: PLUS.name, column: 'Event', row: 0, text }],
     })
-    expect(session).toMatchObject({ levels: [level], eventType: text })
+    expect(session).toMatchObject({ levels, eventType: text })
   })
 
   it('rejects an intro to something that isn\'t a level with one below it', () => {

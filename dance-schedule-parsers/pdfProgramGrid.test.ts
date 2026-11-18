@@ -59,7 +59,7 @@ describe('pdfProgramGridParser', () => {
     expect(structured.some((session) => session.callers.includes('Mike Kious'))).toBe(false)
     expect(structured.filter((session) => session.callers.includes('Michael Kious')).length).toBeGreaterThan(1)
     expect(structured.find((session) => session.eventType === 'Intro to A')).toMatchObject({ levels: ['Plus'] })
-    expect(structured.find((session) => session.eventType === 'Intro to Plus')).toMatchObject({ levels: ['MSX'] })
+    expect(structured.find((session) => session.eventType === 'Intro to Plus')).toMatchObject({ levels: ['MS', 'MSX'] })
     expect(structured.find((session) => session.eventType === 'Teach Ph 5')).toMatchObject({ phases: [4] })
   })
 })

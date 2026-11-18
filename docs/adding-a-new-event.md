@@ -191,8 +191,8 @@ dance schedule is written in:
   it. Co-callers are separated by `/`. A Round Dance event like `Ph 3-5`
   sets its phases. A teach is for the dancers one phase below it, so
   `Teach Ph 4` is filtered as phase 3. Likewise an intro to a square-dance
-  level is for the level below it, so `Intro to Plus` is filtered as MS
-  Extended, whatever column it's printed in. Anyone a program's cells never
+  level is for the level below it, so `Intro to Plus` is filtered as MS and
+  MS Extended, whatever column it's printed in. Anyone a program's cells never
   name can be credited with `programStaff`. A person printed under two names
   can be merged into one with `staffAliases`. Both are shown in the example
   below. The full rules are in `docs/design/midwinter-festival-2027.md`.

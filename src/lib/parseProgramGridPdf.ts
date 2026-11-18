@@ -1,5 +1,5 @@
 import { normalizeLevelCode, isLevelCode } from './levelCodes'
-import { LEVEL_ORDER, isOrderedLevel } from './levelOrder'
+import { BASE_LEVEL_ORDER, LEVEL_ORDER, isOrderedLevel } from './levelOrder'
 import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
 import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
@@ -566,7 +566,7 @@ export function parseProgramGridPdf(
       } else if (kind.form === 'clogging') {
         push({ kind: 'structured', ...base, levels: [], eventType: eventText, ...staff, danceForm: 'clogging' })
       } else {
-        let level = EVENT_LEVEL_OVERRIDES[eventKey] ?? kind.level
+        let levels: LevelCode[] = [EVENT_LEVEL_OVERRIDES[eventKey] ?? kind.level]
         const introMatch = INTRO_EVENT.exec(eventText)
         if (introMatch) {
           const target = introMatch[1]!.trim()
@@ -576,11 +576,14 @@ export function parseProgramGridPdf(
             errors.push(`${source}: ${JSON.stringify(eventText)} doesn't name a level with one below it`)
             continue
           }
-          level = LEVEL_ORDER[index - 1]!
+          // From the base level below through any optional one in between: MS
+          // dancers learn Plus as well as MS Extended ones.
+          const below = LEVEL_ORDER.slice(0, index)
+          levels = below.slice(below.findLastIndex((candidate) => BASE_LEVEL_ORDER.includes(candidate)))
         }
         const isPlainDance = PLAIN_DANCE_EVENTS.has(eventKey) || eventKey === normalizeHeader(program.name)
         const eventType = isPlainDance || eventKey === '' ? DEFAULT_EVENT_TYPE : eventText
-        push({ kind: 'structured', ...base, levels: [level], eventType, ...staff })
+        push({ kind: 'structured', ...base, levels, eventType, ...staff })
       }
     }
   }
