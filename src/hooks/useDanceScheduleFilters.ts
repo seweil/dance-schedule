@@ -3,9 +3,11 @@ import {
   loadStoredDanceScheduleFilters,
   resolveStoredDate,
   resolveStoredLevelRange,
+  resolveStoredPhaseRange,
   resolveStoredShowGca,
   saveDanceScheduleFilters,
 } from '../lib/danceScheduleFiltersStorage'
+import { PHASES, PHASE_LABELS, getPresentPhaseIndexRange, usesPhases } from '../lib/phaseOrder'
 import { filterDanceSessions } from '../lib/filterDanceSessions'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
 import { trackEvent } from '../lib/rum'
@@ -17,6 +19,7 @@ import {
   usesOptionalLevels,
   type LevelSlot,
 } from '../lib/levelOrder'
+import type { PhaseSliderProps } from '../components/DanceScheduleFilters'
 import type { DanceSession } from '../types/danceSchedule'
 
 export interface UseDanceScheduleFiltersResult {
@@ -33,6 +36,24 @@ export interface UseDanceScheduleFiltersResult {
   // low end. See getPresentLevelIndexRange (levelOrder.ts).
   minPresentLevelIndex: number
   maxPresentLevelIndex: number
+  // The round-dance phase slider's counterparts of the level fields above
+  // (phaseOrder.ts), over the fixed phase scale `phaseLabels`.
+  // hasPhasesOnSelectedDate omits that slider on a day (or event) with no
+  // phased round dancing.
+  phaseLabels: readonly string[]
+  minPhaseIndex: number
+  maxPhaseIndex: number
+  setPhaseRange: (minPhaseIndex: number, maxPhaseIndex: number) => void
+  minPresentPhaseIndex: number
+  maxPresentPhaseIndex: number
+  hasPhasesOnSelectedDate: boolean
+  // The fields above, shaped as DanceScheduleFilters's `phases` prop — undefined
+  // on a day with no phased round dancing, which omits the phase slider (and the
+  // level-columns view's phase columns).
+  phaseSlider: PhaseSliderProps | undefined
+  // Both sliders back to the selected day's full present range — the grids'
+  // "Show all levels" empty-state link.
+  showAllLevels: () => void
   showGca: boolean
   setShowGca: (showGca: boolean) => void
   // Whether any session on the selected date has a GCA caller-credit line — lets the
@@ -52,14 +73,15 @@ export interface UseDanceScheduleFiltersResult {
 // CLAUDE.md's "push data-fetching and side effects into hooks" convention. Shared by
 // both pages (same localStorage-persisted state, via danceScheduleFiltersStorage.ts)
 // so switching between the room-columns and level-columns views keeps the same
-// date/level-range/GCA selection rather than resetting it. `combineA1A2`/
-// `combineC3BC4` (from the active content set's config.yaml, via
-// virtual:content-config) are build-time-constant feature flags, not expected to
-// change within a session — see docs/design/dance-schedule.md.
+// date/level-range/phase-range/GCA selection rather than resetting it.
+// `combineA1A2`/`combineC3BC4`/`combineAdvancedC1` (from the active content set's
+// config.yaml, via virtual:content-config) are build-time-constant feature flags,
+// not expected to change within a session — see docs/design/dance-schedule.md.
 export function useDanceScheduleFilters(
   sessions: DanceSession[],
   combineA1A2: boolean,
   combineC3BC4: boolean,
+  combineAdvancedC1 = false,
 ): UseDanceScheduleFiltersResult {
   const groups = useMemo(() => groupDanceSessionsByDate(sessions), [sessions])
   const dates = useMemo(() => groups.map((group) => group.date), [groups])
@@ -68,8 +90,15 @@ export function useDanceScheduleFilters(
   // stays stable across date switches instead of flickering with whichever day
   // happens to be selected. Optional levels (MSX) are likewise decided event-wide.
   const slots = useMemo(
-    () => labelSlotsByPresence(getLevelSlots(combineA1A2, combineC3BC4, usesOptionalLevels(sessions)), sessions),
-    [combineA1A2, combineC3BC4, sessions],
+    () =>
+      labelSlotsByPresence(
+        getLevelSlots(combineA1A2, combineC3BC4, {
+          includeOptionalLevels: usesOptionalLevels(sessions),
+          combineAdvancedC1,
+        }),
+        sessions,
+      ),
+    [combineA1A2, combineC3BC4, combineAdvancedC1, sessions],
   )
 
   // Read once, at mount — a stable lazy useState initializer, not a plain call, so
@@ -115,6 +144,12 @@ export function useDanceScheduleFilters(
   const [userMaxLevelIndex, setUserMaxLevelIndex] = useState(
     () => resolveStoredLevelRange(initialStoredFilters, slots.length).maxLevelIndex,
   )
+  const [userMinPhaseIndex, setUserMinPhaseIndex] = useState(
+    () => resolveStoredPhaseRange(initialStoredFilters, PHASES.length).minPhaseIndex,
+  )
+  const [userMaxPhaseIndex, setUserMaxPhaseIndex] = useState(
+    () => resolveStoredPhaseRange(initialStoredFilters, PHASES.length).maxPhaseIndex,
+  )
   const [showGca, setShowGca] = useState(() => resolveStoredShowGca(initialStoredFilters))
 
   // The effective range for the selected date — userMin/MaxLevelIndex trimmed into
@@ -147,6 +182,22 @@ export function useDanceScheduleFilters(
     setUserMaxLevelIndex(max)
   }
 
+  // The phase slider's counterpart of everything above for the level slider —
+  // the same SET-vs-SHOWN split, trimmed per day the same way.
+  const { minIndex: minPresentPhaseIndex, maxIndex: maxPresentPhaseIndex } = useMemo(
+    () => getPresentPhaseIndexRange(dateSessions),
+    [dateSessions],
+  )
+  const presentPhaseRange = { minIndex: minPresentPhaseIndex, maxIndex: maxPresentPhaseIndex }
+  const minPhaseIndex = clampLevelIndex(userMinPhaseIndex, presentPhaseRange)
+  const maxPhaseIndex = clampLevelIndex(userMaxPhaseIndex, presentPhaseRange)
+  const setPhaseRange = (min: number, max: number) => {
+    setUserMinPhaseIndex(min)
+    setUserMaxPhaseIndex(max)
+  }
+  const hasPhases = useMemo(() => usesPhases(sessions), [sessions])
+  const hasPhasesOnSelectedDate = useMemo(() => usesPhases(dateSessions), [dateSessions])
+
   // Persists the SETTING (userMin/MaxLevelIndex), not the per-day effective view —
   // otherwise a narrower day's trimmed range would overwrite the user's original
   // selection in storage too, the same bug the split above fixes, just one layer
@@ -158,9 +209,11 @@ export function useDanceScheduleFilters(
       selectedDateISO: selectedDate.toISOString(),
       minLevelIndex: userMinLevelIndex,
       maxLevelIndex: userMaxLevelIndex,
+      minPhaseIndex: userMinPhaseIndex,
+      maxPhaseIndex: userMaxPhaseIndex,
       showGca,
     })
-  }, [selectedDate, userMinLevelIndex, userMaxLevelIndex, showGca])
+  }, [selectedDate, userMinLevelIndex, userMaxLevelIndex, userMinPhaseIndex, userMaxPhaseIndex, showGca])
 
   // Tracks userMin/MaxLevelIndex (the persisted setting), not minLevelIndex/
   // maxLevelIndex (the per-day derived view) — otherwise every date switch that
@@ -188,14 +241,33 @@ export function useDanceScheduleFilters(
     })
   }, [userMinLevelIndex, userMaxLevelIndex, eventMinLevelIndex, eventMaxLevelIndex, slots])
 
+  // Same as dance_schedule_level_range above, for the phase slider — only at an
+  // event that has one.
+  const { minIndex: eventMinPhaseIndex, maxIndex: eventMaxPhaseIndex } = useMemo(
+    () => getPresentPhaseIndexRange(sessions),
+    [sessions],
+  )
+  useEffect(() => {
+    if (!hasPhases) return
+    const eventRange = { minIndex: eventMinPhaseIndex, maxIndex: eventMaxPhaseIndex }
+    trackEvent('dance_schedule_phase_range', {
+      min: PHASE_LABELS[clampLevelIndex(userMinPhaseIndex, eventRange)],
+      max: PHASE_LABELS[clampLevelIndex(userMaxPhaseIndex, eventRange)],
+    })
+  }, [hasPhases, userMinPhaseIndex, userMaxPhaseIndex, eventMinPhaseIndex, eventMaxPhaseIndex])
+
   const hasGcaOnSelectedDate = useMemo(
     () => dateSessions.some((session) => session.kind === 'structured' && !!session.gca),
     [dateSessions],
   )
 
   const visibleSessions = useMemo(
-    () => filterDanceSessions(sessions, selectedDate, minLevelIndex, maxLevelIndex, slots),
-    [sessions, selectedDate, minLevelIndex, maxLevelIndex, slots],
+    () =>
+      filterDanceSessions(sessions, selectedDate, minLevelIndex, maxLevelIndex, slots, {
+        minPhaseIndex,
+        maxPhaseIndex,
+      }),
+    [sessions, selectedDate, minLevelIndex, maxLevelIndex, slots, minPhaseIndex, maxPhaseIndex],
   )
 
   return {
@@ -208,6 +280,27 @@ export function useDanceScheduleFilters(
     setLevelRange,
     minPresentLevelIndex,
     maxPresentLevelIndex,
+    phaseLabels: PHASE_LABELS,
+    minPhaseIndex,
+    maxPhaseIndex,
+    setPhaseRange,
+    minPresentPhaseIndex,
+    maxPresentPhaseIndex,
+    hasPhasesOnSelectedDate,
+    phaseSlider: hasPhasesOnSelectedDate
+      ? {
+          labels: PHASE_LABELS,
+          minPhaseIndex,
+          maxPhaseIndex,
+          onPhaseRangeChange: setPhaseRange,
+          minPresentPhaseIndex,
+          maxPresentPhaseIndex,
+        }
+      : undefined,
+    showAllLevels: () => {
+      setLevelRange(minPresentLevelIndex, maxPresentLevelIndex)
+      setPhaseRange(minPresentPhaseIndex, maxPresentPhaseIndex)
+    },
     showGca,
     setShowGca,
     hasGcaOnSelectedDate,

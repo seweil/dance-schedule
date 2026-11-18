@@ -79,6 +79,19 @@ describe('filterDanceSessions', () => {
     expect(result.map((s) => (s.kind === 'structured' ? s.eventType : null))).toEqual(['Match'])
   })
 
+  it('filters round sessions by the phase range and square sessions by the level range only', () => {
+    const date = new Date('2026-07-02T00:00:00.000Z')
+    const plus = makeSession({ levels: ['Plus'], eventType: 'Plus' })
+    const phase2 = makeSession({ levels: [], danceForm: 'round', phases: [2], eventType: 'Ph2' })
+    const phase5 = makeSession({ levels: [], danceForm: 'round', phases: [5], eventType: 'Ph5' })
+    const noPhase = makeSession({ levels: [], danceForm: 'round', eventType: 'NoPhase' })
+    const result = filterDanceSessions([plus, phase2, phase5, noPhase], date, ...FULL_RANGE, BASE_SLOTS, {
+      minPhaseIndex: 3,
+      maxPhaseIndex: 5,
+    })
+    expect(result.map((s) => (s.kind === 'structured' ? s.eventType : null))).toEqual(['Plus', 'Ph5', 'NoPhase'])
+  })
+
   it('returns an empty array when nothing matches the date', () => {
     const sessions = [makeSession({ date: new Date('2026-07-02T00:00:00.000Z') })]
     const result = filterDanceSessions(sessions, new Date('2026-07-05T00:00:00.000Z'), ...FULL_RANGE, BASE_SLOTS)

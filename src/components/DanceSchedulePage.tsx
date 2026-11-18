@@ -24,6 +24,8 @@ export function DanceSchedulePage() {
     setLevelRange,
     minPresentLevelIndex,
     maxPresentLevelIndex,
+    phaseSlider,
+    showAllLevels,
     showGca,
     setShowGca,
     hasGcaOnSelectedDate,
@@ -32,6 +34,7 @@ export function DanceSchedulePage() {
     sessions,
     contentConfig.features.combineA1A2,
     contentConfig.features.combineC3BC4,
+    contentConfig.features.combineAdvancedC1,
   )
 
   // `sessions` (every date), not the hook's per-date `dateSessions` — room order is
@@ -56,15 +59,12 @@ export function DanceSchedulePage() {
         onLevelRangeChange={setLevelRange}
         minPresentLevelIndex={minPresentLevelIndex}
         maxPresentLevelIndex={maxPresentLevelIndex}
+        phases={phaseSlider}
         showGca={showGca}
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
       />
-      <DanceScheduleGrid
-        layout={layout}
-        showGca={showGca}
-        onShowAllLevels={() => setLevelRange(minPresentLevelIndex, maxPresentLevelIndex)}
-      />
+      <DanceScheduleGrid layout={layout} showGca={showGca} onShowAllLevels={showAllLevels} />
     </>
   )
 }

@@ -296,6 +296,25 @@ describe('labelSlotsByPresence', () => {
   })
 })
 
+describe('combineAdvancedC1', () => {
+  it('folds C1 into the combined A1/A2 slot', () => {
+    const slots = getLevelSlots(true, false, { combineAdvancedC1: true })
+    expect(slots.map((slot) => slot.label)).toEqual(['SSD', 'MS', 'Plus', 'A1/A2/C1', 'C2', 'C3A', 'C3B', 'C4'])
+    expect(slots[3]!.levels).toEqual(['A1', 'A2', 'C1'])
+  })
+
+  it('folds C1 into A2 alone when A1/A2 aren\'t combined', () => {
+    const labels = getLevelSlots(false, false, { combineAdvancedC1: true }).map((slot) => slot.label)
+    expect(labels).toEqual(['SSD', 'MS', 'Plus', 'A1', 'A2/C1', 'C2', 'C3A', 'C3B', 'C4'])
+  })
+
+  it('labels the three-level merge by just the levels present', () => {
+    const slots = getLevelSlots(true, false, { combineAdvancedC1: true })
+    const relabeled = labelSlotsByPresence(slots, [makeStructured(['A2']), makeStructured(['C1'])])
+    expect(relabeled[3]).toMatchObject({ label: 'A2/C1', levels: ['A1', 'A2', 'C1'] })
+  })
+})
+
 describe('optional levels (MSX)', () => {
   it('leaves MSX off the slider by default, so other events keep their slots', () => {
     expect(getLevelSlots(false, false).map((slot) => slot.label)).toEqual([...BASE_LEVEL_ORDER])
@@ -303,8 +322,9 @@ describe('optional levels (MSX)', () => {
   })
 
   it('puts MSX between MS and Plus when included', () => {
-    const labels = getLevelSlots(false, false, true).map((slot) => slot.label)
-    expect(labels.slice(0, 4)).toEqual(['SSD', 'MS', 'MSX', 'Plus'])
+    const slots = getLevelSlots(false, false, { includeOptionalLevels: true })
+    expect(slots.slice(0, 4).map((slot) => slot.label)).toEqual(['SSD', 'MS', 'MS Ext', 'Plus'])
+    expect(slots[2]!.levels).toEqual(['MSX'])
   })
 
   it('reports whether any session uses an optional level', () => {

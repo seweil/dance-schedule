@@ -316,6 +316,39 @@ describe('DanceScheduleFilters', () => {
     expect(screen.queryByRole('checkbox', { name: /gca callers/i })).not.toBeInTheDocument()
   })
 
+  describe('phase slider', () => {
+    const PHASE_LABELS = ['Ph 1', 'Ph 2', 'Ph 3', 'Ph 4', 'Ph 5', 'Ph 6']
+
+    it('is omitted without phase props', () => {
+      renderFilters()
+      expect(screen.queryByRole('slider', { name: 'Minimum phase' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Ph 3' })).not.toBeInTheDocument()
+    })
+
+    it("renders its own thumbs and ticks for the day's present phases, separate from the level slider", () => {
+      const onPhaseRangeChange = vi.fn()
+      const { onLevelRangeChange } = renderFilters({
+        phases: {
+          labels: PHASE_LABELS,
+          minPhaseIndex: 2,
+          maxPhaseIndex: 3,
+          onPhaseRangeChange,
+          minPresentPhaseIndex: 1,
+          maxPresentPhaseIndex: 4,
+        },
+      })
+      expect(screen.getByRole('slider', { name: 'Minimum phase' })).toHaveAttribute('aria-valuenow', '2')
+      expect(screen.getByRole('slider', { name: 'Maximum phase' })).toHaveAttribute('aria-valuenow', '3')
+      expect(screen.queryByRole('button', { name: 'Ph 1' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Ph 2' })).toHaveAttribute('data-in-range', 'false')
+      expect(screen.getByRole('button', { name: 'Ph 3' })).toHaveAttribute('data-in-range', 'true')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ph 5' }))
+      expect(onPhaseRangeChange).toHaveBeenCalledWith(2, 4)
+      expect(onLevelRangeChange).not.toHaveBeenCalled()
+    })
+  })
+
   describe('level-slider onboarding hint', () => {
     function getLevelField() {
       return document.querySelector('[class*="levelField"]') as HTMLElement

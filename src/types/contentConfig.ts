@@ -9,6 +9,10 @@ export interface ContentFeatures {
   // Same mechanism, for C3B and C4 — merged slot is labeled "C3B+" (square-dance
   // convention for "C3B and above"), not "C3B/C4". See docs/design/dance-schedule.md.
   combineC3BC4: boolean
+  // Folds C1 into the Advanced slot as well, for an event with a lone Challenge
+  // session. Defaults to false, unlike the two above — see
+  // docs/design/midwinter-festival-2027.md.
+  combineAdvancedC1: boolean
 }
 
 // content/<set>/config.yaml's `danceSchedule.roomOrder` — see
@@ -20,6 +24,11 @@ export type DanceScheduleRoomOrder = 'spreadsheet' | readonly string[]
 
 export interface DanceScheduleConfig {
   roomOrder?: DanceScheduleRoomOrder
+  // `danceSchedule.featuredStaff` — when set, the staff (caller-columns) view
+  // shows only these callers and cuers, in this order, instead of every caller.
+  // Each must appear in the schedule (checked at build time). See
+  // docs/design/midwinter-festival-2027.md.
+  featuredStaff?: readonly string[]
 }
 
 export interface ContentConfigData {

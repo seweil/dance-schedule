@@ -96,7 +96,12 @@ needs them split, so omitting `config.yaml` (an explicitly encouraged
 shortcut) doesn't silently produce the opposite of that recommendation (see
 `docs/known-issues.md`'s now-resolved "combineA1A2 silently defaults to
 false" item). Malformed, or either `features.combineA1A2`/
-`features.combineC3BC4` not a boolean → throws.
+`features.combineC3BC4` not a boolean → throws. A third flag,
+`features.combineAdvancedC1` (2026-11-18, for MidWinter2027's lone Challenge
+session), defaults to **false** instead: folding C1 into Advanced is right
+only for an event with almost no Challenge, so it's opt-in. The same
+section also carries `danceSchedule.featuredStaff` to the client (the Caller
+Schedule's columns) — see `docs/design/midwinter-festival-2027.md`.
 
 ### `content/automated-testing/config.yaml` and `content/test/config.yaml` both combine both pairs — the *uncombined* case is unit-test-only
 **Why:** Every real content set (including `automated-testing`, which despite

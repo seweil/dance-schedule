@@ -7,6 +7,7 @@ import {
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent } from '../lib/danceScheduleCardContent'
 import {
+  formatSessionCuers,
   formatSessionGca,
   formatSessionLevels,
   formatSessionTimeRange,
@@ -46,6 +47,7 @@ function SessionCard({
   const levels = formatSessionLevels(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
+  const cuers = isRoomless ? '' : formatSessionCuers(session)
   // Most roomless cards omit their time range — see isRegistrationSession's own
   // comment for why Registration is the one exception that keeps it.
   const showTimeRange = isRoomless && isRegistrationSession(session)
@@ -56,6 +58,7 @@ function SessionCard({
         {levels && <p className={styles.levels}>{levels}</p>}
         <p className={styles.details}>{detailsContent(session)}</p>
         {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
+        {cuers && <p className={styles.gca}>Cuer: {cuers}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>

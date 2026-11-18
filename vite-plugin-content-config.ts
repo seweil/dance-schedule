@@ -2,7 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
 import { parse } from 'yaml'
-import type { ContentConfigData, DanceScheduleRoomOrder } from './src/types/contentConfig'
+import type {
+  ContentConfigData,
+  ContentFeatures,
+  DanceScheduleConfig,
+  DanceScheduleRoomOrder,
+} from './src/types/contentConfig'
 
 export const CONTENT_CONFIG_VIRTUAL_MODULE_ID = 'virtual:content-config'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + CONTENT_CONFIG_VIRTUAL_MODULE_ID
@@ -19,13 +24,14 @@ export interface ContentConfigPluginOptions {
 function readBooleanFeatureFlag(
   configFile: string,
   features: Record<string, unknown>,
-  key: 'combineA1A2' | 'combineC3BC4',
+  key: keyof ContentFeatures,
+  defaultValue = true,
 ): boolean {
   // Only a genuinely absent key (undefined) gets the default — an explicit
   // `null` (e.g. a key present but left blank mid-edit) falls through to the
   // type check below and throws, the same as any other wrong-typed value,
   // rather than silently taking the default too.
-  const value = features[key] === undefined ? true : features[key]
+  const value = features[key] === undefined ? defaultValue : features[key]
   if (typeof value !== 'boolean') {
     throw new Error(`${configFile}'s "features.${key}" must be a boolean, got ${JSON.stringify(value)}`)
   }
@@ -70,6 +76,25 @@ function readRoomOrder(
   throw new Error(
     `${configFile}'s "danceSchedule.roomOrder" must be the string "spreadsheet" or an array of room names, got ${JSON.stringify(value)}`,
   )
+}
+
+// Shape-only, like readRoomOrder above — whether each name is really in the
+// schedule is a build-time cross-check in vite-plugin-dance-schedule.ts.
+function readFeaturedStaff(configFile: string, danceSchedule: Record<string, unknown>): string[] | undefined {
+  const value = danceSchedule.featuredStaff
+  if (value === undefined) {
+    return undefined
+  }
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((name) => typeof name !== 'string' || name.trim() === '')
+  ) {
+    throw new Error(
+      `${configFile}'s "danceSchedule.featuredStaff" must be a non-empty list of names, got ${JSON.stringify(value)}`,
+    )
+  }
+  return value.map((name: string) => name.trim())
 }
 
 const COMBINE_A1A2_ENV_VAR = 'COMBINE_A1A2'
@@ -204,7 +229,9 @@ export function loadDanceScheduleStaffAliases(configFile: string): Record<string
 export function loadContentConfigData(configFile: string): ContentConfigData {
   let combineA1A2 = true
   let combineC3BC4 = true
+  let combineAdvancedC1 = false
   let roomOrder: DanceScheduleRoomOrder | undefined
+  let featuredStaff: string[] | undefined
 
   if (fs.existsSync(configFile)) {
     const raw = fs.readFileSync(configFile, 'utf-8')
@@ -219,6 +246,7 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
     const features = asConfigSection(configFile, 'features', (parsed as Record<string, unknown> | null)?.features)
     combineA1A2 = readBooleanFeatureFlag(configFile, features, 'combineA1A2')
     combineC3BC4 = readBooleanFeatureFlag(configFile, features, 'combineC3BC4')
+    combineAdvancedC1 = readBooleanFeatureFlag(configFile, features, 'combineAdvancedC1', false)
 
     const danceSchedule = asConfigSection(
       configFile,
@@ -226,6 +254,7 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
       (parsed as Record<string, unknown> | null)?.danceSchedule,
     )
     roomOrder = readRoomOrder(configFile, danceSchedule)
+    featuredStaff = readFeaturedStaff(configFile, danceSchedule)
   }
 
   // Applied last, after the file-or-default values are fully resolved, so an
@@ -235,9 +264,13 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
   combineC3BC4 = readBooleanOverride(COMBINE_C3BC4_ENV_VAR, combineC3BC4)
   roomOrder = readRoomOrderOverride(roomOrder)
 
+  const danceSchedule: DanceScheduleConfig = {
+    ...(roomOrder === undefined ? {} : { roomOrder }),
+    ...(featuredStaff === undefined ? {} : { featuredStaff }),
+  }
   return {
-    features: { combineA1A2, combineC3BC4 },
-    danceSchedule: roomOrder === undefined ? undefined : { roomOrder },
+    features: { combineA1A2, combineC3BC4, combineAdvancedC1 },
+    danceSchedule: Object.keys(danceSchedule).length === 0 ? undefined : danceSchedule,
   }
 }
 

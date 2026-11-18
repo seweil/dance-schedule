@@ -3,6 +3,7 @@ import {
   loadStoredDanceScheduleFilters,
   resolveStoredDate,
   resolveStoredLevelRange,
+  resolveStoredPhaseRange,
   resolveStoredShowGca,
   saveDanceScheduleFilters,
 } from './danceScheduleFiltersStorage'
@@ -19,12 +20,16 @@ describe('loadStoredDanceScheduleFilters / saveDanceScheduleFilters', () => {
       selectedDateISO: '2026-07-04T00:00:00.000Z',
       minLevelIndex: 1,
       maxLevelIndex: 5,
+      minPhaseIndex: 2,
+      maxPhaseIndex: 4,
       showGca: false,
     })
     expect(loadStoredDanceScheduleFilters()).toEqual({
       selectedDateISO: '2026-07-04T00:00:00.000Z',
       minLevelIndex: 1,
       maxLevelIndex: 5,
+      minPhaseIndex: 2,
+      maxPhaseIndex: 4,
       showGca: false,
     })
   })
@@ -92,6 +97,23 @@ describe('resolveStoredLevelRange', () => {
     expect(resolveStoredLevelRange({ minLevelIndex: 1.5, maxLevelIndex: 7 }, 10)).toEqual({
       minLevelIndex: 0,
       maxLevelIndex: 9,
+    })
+  })
+})
+
+describe('resolveStoredPhaseRange', () => {
+  it('returns the stored phase range when valid, else the full scale', () => {
+    expect(resolveStoredPhaseRange({ minPhaseIndex: 2, maxPhaseIndex: 4 }, 6)).toEqual({
+      minPhaseIndex: 2,
+      maxPhaseIndex: 4,
+    })
+    expect(resolveStoredPhaseRange({ minLevelIndex: 2, maxLevelIndex: 4 }, 6)).toEqual({
+      minPhaseIndex: 0,
+      maxPhaseIndex: 5,
+    })
+    expect(resolveStoredPhaseRange({ minPhaseIndex: 4, maxPhaseIndex: 9 }, 6)).toEqual({
+      minPhaseIndex: 0,
+      maxPhaseIndex: 5,
     })
   })
 })

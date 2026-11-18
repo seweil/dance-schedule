@@ -1,3 +1,4 @@
+import { formatLevel } from './levelCodes'
 import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
 import type { DanceSession } from '../types/danceSchedule'
 
@@ -37,7 +38,7 @@ export function formatSessionLevels(session: DanceSession): string {
   if (session.danceForm === 'clogging') {
     return 'Clogging'
   }
-  return session.levels.join(', ')
+  return session.levels.map(formatLevel).join(', ')
 }
 
 // The event type + caller(s), or the freeform description — without any "(freeform)"
@@ -71,8 +72,25 @@ export function formatSessionEventTypePrefix(session: DanceSession): string {
   return `${session.eventType} - `
 }
 
+// The session's bold, primary name(s) on a card: its callers, or — for a session
+// led by cuers alone (round dancing) — its cuers.
 export function formatSessionCallers(session: DanceSession): string {
-  return session.kind === 'structured' ? session.callers.join(' & ') : ''
+  if (session.kind !== 'structured') {
+    return ''
+  }
+  const leaders = session.callers.length > 0 ? session.callers : (session.cuers ?? [])
+  return leaders.join(' & ')
+}
+
+// A card's secondary "Cuer:" line, like its GCA line — only when the session also
+// has callers; otherwise the cuers are already its primary names (see
+// formatSessionCallers). See docs/design/midwinter-festival-2027.md's "A
+// session's cuer shares its card, like GCA".
+export function formatSessionCuers(session: DanceSession): string {
+  if (session.kind !== 'structured' || session.callers.length === 0) {
+    return ''
+  }
+  return (session.cuers ?? []).join(' & ')
 }
 
 export function formatSessionGca(session: DanceSession): string {

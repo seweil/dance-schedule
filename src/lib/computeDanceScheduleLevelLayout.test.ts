@@ -491,6 +491,42 @@ describe('computeDanceScheduleLevelLayout', () => {
     })
   })
 
+  describe('phase columns', () => {
+    const PLUS_INDEX = SLOTS.findIndex((slot) => slot.label === 'Plus')
+    const round = (phases: number[], start = '2026-07-02T13:00:00.000Z', end = '2026-07-02T14:00:00.000Z') =>
+      makeSession(start, end, 'Room 3/4', { levels: [], danceForm: 'round', phases, callers: [] } as Partial<DanceSession>)
+
+    it('adds one column per phase in range after the level columns, and spans a contiguous phase range', () => {
+      const plus = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Hall C', { levels: ['Plus'] })
+      const phase3to5 = round([3, 4, 5])
+      const layout = computeDanceScheduleLevelLayout([plus, phase3to5], SLOTS, PLUS_INDEX, PLUS_INDEX, {
+        minPhaseIndex: 2,
+        maxPhaseIndex: 5,
+      })
+
+      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 3', 'Ph 4', 'Ph 5', 'Ph 6'])
+      expect(layout.placements.find((p) => p.session === phase3to5)).toMatchObject({ columnStart: 1, columnSpan: 3 })
+    })
+
+    it('drops phases outside the range and sends a round session with no phase to Other', () => {
+      const phase2to3 = round([2, 3])
+      const noPhase = round([], '2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z')
+      const layout = computeDanceScheduleLevelLayout([phase2to3, noPhase], SLOTS, PLUS_INDEX, PLUS_INDEX, {
+        minPhaseIndex: 2,
+        maxPhaseIndex: 3,
+      })
+
+      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 3', 'Ph 4', 'Other'])
+      expect(layout.placements.find((p) => p.session === phase2to3)).toMatchObject({ columnStart: 1, columnSpan: 1 })
+      expect(layout.placements.find((p) => p.session === noPhase)).toMatchObject({ columnStart: 3 })
+    })
+
+    it('shows no phase columns without a phase range, the round session going to Other', () => {
+      const layout = computeDanceScheduleLevelLayout([round([3])], SLOTS, PLUS_INDEX, PLUS_INDEX)
+      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Other'])
+    })
+  })
+
   it('sorts placements by rowStart then columnStart', () => {
     const later = makeSession('2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z', 'Room B', {
       levels: ['C2'],

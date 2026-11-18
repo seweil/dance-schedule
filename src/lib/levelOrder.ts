@@ -1,3 +1,4 @@
+import { formatLevel } from './levelCodes'
 import type { DanceSession, LevelCode } from '../types/danceSchedule'
 
 // The real square-dance skill progression — distinct from LEVEL_CODES's declared
@@ -66,7 +67,7 @@ function buildLevelSlots(levelOrder: readonly OrderedLevelCode[], merges: readon
       slots.push({ label: merge.label, levels: merge.levels })
       i += merge.levels.length
     } else {
-      slots.push({ label: levelOrder[i]!, levels: [levelOrder[i]!] })
+      slots.push({ label: formatLevel(levelOrder[i]!), levels: [levelOrder[i]!] })
       i += 1
     }
   }
@@ -92,6 +93,12 @@ export function usesOptionalLevels(sessions: readonly DanceSession[]): boolean {
   )
 }
 
+export interface LevelSlotOptions {
+  // From usesOptionalLevels, event-wide.
+  includeOptionalLevels?: boolean
+  combineAdvancedC1?: boolean
+}
+
 // The slider's positions, in order, depending on the combineA1A2/combineC3BC4
 // feature flags (content/<set>/config.yaml, threaded down via
 // virtual:content-config). When combined, a merge's levels resolve to one shared
@@ -99,14 +106,22 @@ export function usesOptionalLevels(sessions: readonly DanceSession[]): boolean {
 // resolve to that same slot index, a real merge for filtering purposes, not just a
 // display relabel. combineC3BC4's merged slot is labeled "C3B+" (not "C3B/C4"),
 // matching square-dance convention for "C3B and above."
+//
+// `combineAdvancedC1` (features.combineAdvancedC1) folds C1 into the Advanced
+// slot too, for an event with a lone Challenge session that doesn't justify a
+// slot of its own (docs/design/midwinter-festival-2027.md).
 export function getLevelSlots(
   combineA1A2: boolean,
   combineC3BC4: boolean,
-  includeOptionalLevels = false,
+  { includeOptionalLevels = false, combineAdvancedC1 = false }: LevelSlotOptions = {},
 ): readonly LevelSlot[] {
   const merges: LevelMerge[] = []
-  if (combineA1A2) {
+  if (combineA1A2 && combineAdvancedC1) {
+    merges.push({ label: 'A1/A2/C1', levels: ['A1', 'A2', 'C1'] })
+  } else if (combineA1A2) {
     merges.push({ label: 'A1/A2', levels: ['A1', 'A2'] })
+  } else if (combineAdvancedC1) {
+    merges.push({ label: 'A2/C1', levels: ['A2', 'C1'] })
   }
   if (combineC3BC4) {
     merges.push({ label: 'C3B+', levels: ['C3B', 'C4'] })
@@ -126,8 +141,8 @@ export function getLevelSlots(
 // `slot.levels` itself is left untouched either way (still both member codes) —
 // this only changes the label; filtering/index-lookup behavior can't meaningfully
 // differ when one of the two never occurs regardless. A slot with zero or both
-// members present keeps its original merge label — only the exactly-one-of-two case
-// changes.
+// members present keeps its original merge label. A three-level merge (A1/A2/C1)
+// with only some present is labeled by those, joined the same way ("A2/C1").
 export function labelSlotsByPresence(
   slots: readonly LevelSlot[],
   sessions: readonly DanceSession[],
@@ -145,7 +160,9 @@ export function labelSlotsByPresence(
       return slot
     }
     const present = slot.levels.filter((level) => presentLevels.has(level))
-    return present.length === 1 ? { ...slot, label: present[0]! } : slot
+    return present.length > 0 && present.length < slot.levels.length
+      ? { ...slot, label: present.map(formatLevel).join('/') }
+      : slot
   })
 }
 

@@ -3,6 +3,7 @@ import {
   callerColumnWidthRem,
   CALLER_COLUMN_WIDTH_REM,
   computeDanceScheduleCallerLayout,
+  validateFeaturedStaffConfig,
 } from './computeDanceScheduleCallerLayout'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
@@ -617,6 +618,70 @@ describe('computeDanceScheduleCallerLayout', () => {
 
       expect(layout.totalRows).toBe(4)
       expect(layout.placements).toHaveLength(8)
+    })
+  })
+
+  describe('featuredStaff', () => {
+    const FEATURED = ['Ted Lizotte', 'Pam & Jeff Johnson']
+
+    it('gives columns only to featured callers and cuers, in the configured order', () => {
+      const sessions = [
+        makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Ted Lizotte'], {
+          cuers: ['Judy Russell'],
+        } as Partial<DanceSession>),
+        makeSession('2026-07-02T10:00:00.000Z', '2026-07-02T11:00:00.000Z', [], {
+          levels: [],
+          danceForm: 'round',
+          phases: [3],
+          cuers: ['Pam & Jeff Johnson'],
+        } as Partial<DanceSession>),
+        makeSession('2026-07-02T11:00:00.000Z', '2026-07-02T12:00:00.000Z', ['Allan Hurst']),
+      ]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, FEATURED)
+
+      expect(layout.visibleCallers).toEqual(['Ted Lizotte', 'Pam & Jeff Johnson'])
+      // Allan Hurst's session has nobody featured, so it's not on the page at all.
+      expect(layout.placements.map((p) => [p.session, p.columnStart])).toEqual([
+        [sessions[0], 0],
+        [sessions[1], 1],
+      ])
+    })
+
+    it('puts a session in both a featured caller\'s and a featured cuer\'s column', () => {
+      const shared = makeSession('2026-07-02T19:00:00.000Z', '2026-07-02T20:00:00.000Z', ['Ted Lizotte'], {
+        cuers: ['Pam & Jeff Johnson'],
+      } as Partial<DanceSession>)
+      const layout = computeDanceScheduleCallerLayout([shared], [shared], FEATURED)
+      expect(layout.placements.map((p) => p.columnStart)).toEqual([0, 1])
+    })
+
+    it('still floats a freeform session across the featured columns', () => {
+      const sessions = [
+        makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Ted Lizotte']),
+        makeFreeform('2026-07-02T10:00:00.000Z', '2026-07-02T11:00:00.000Z'),
+      ]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, FEATURED)
+      expect(layout.placements[1]).toMatchObject({ floatKind: 'free', columnSpan: 1 })
+    })
+  })
+
+  describe('validateFeaturedStaffConfig', () => {
+    const sessions = [
+      makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Ted Lizotte'], {
+        cuers: ['Pam & Jeff Johnson'],
+      } as Partial<DanceSession>),
+    ]
+
+    it('accepts featured callers and cuers who are in the schedule, or no list at all', () => {
+      const featured = ['Ted Lizotte', 'Pam & Jeff Johnson']
+      expect(() => validateFeaturedStaffConfig(sessions, featured, 'config.yaml')).not.toThrow()
+      expect(() => validateFeaturedStaffConfig(sessions, undefined, 'config.yaml')).not.toThrow()
+    })
+
+    it('rejects a featured name nobody in the schedule has', () => {
+      expect(() => validateFeaturedStaffConfig(sessions, ['Ted Lizzote'], 'config.yaml')).toThrow(
+        /"danceSchedule.featuredStaff" names "Ted Lizzote", who isn't a caller or cuer/,
+      )
     })
   })
 })

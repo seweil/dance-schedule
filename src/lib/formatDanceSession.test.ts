@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatSessionCallerDetails,
   formatSessionCallers,
+  formatSessionCuers,
   formatSessionEventTypePrefix,
   formatSessionGca,
   formatSessionLevels,
@@ -47,6 +48,10 @@ describe('formatSessionLevels', () => {
   it('is empty for a freeform session', () => {
     expect(formatSessionLevels(FREEFORM)).toBe('')
   })
+
+  it('shows MSX by its label, "MS Ext"', () => {
+    expect(formatSessionLevels(makeStructured({ levels: ['MS', 'MSX'] }))).toBe('MS, MS Ext')
+  })
 })
 
 describe('formatSessionCallerDetails', () => {
@@ -88,6 +93,22 @@ describe('formatSessionCallers', () => {
 
   it('is empty for a freeform session', () => {
     expect(formatSessionCallers(FREEFORM)).toBe('')
+  })
+
+  it('falls back to the cuers for a session with no caller (round dancing)', () => {
+    expect(formatSessionCallers(makeStructured({ callers: [], cuers: ['Pam & Jeff Johnson'] }))).toBe('Pam & Jeff Johnson')
+  })
+})
+
+describe('formatSessionCuers', () => {
+  it("lists a square session's cuers for its secondary line", () => {
+    expect(formatSessionCuers(makeStructured({ cuers: ['Judy Russell'] }))).toBe('Judy Russell')
+  })
+
+  it('is empty when the cuers are already the primary names, or there are none', () => {
+    expect(formatSessionCuers(makeStructured({ callers: [], cuers: ['Pam & Jeff Johnson'] }))).toBe('')
+    expect(formatSessionCuers(makeStructured())).toBe('')
+    expect(formatSessionCuers(FREEFORM)).toBe('')
   })
 })
 

@@ -308,4 +308,54 @@ describe('useDanceScheduleFilters', () => {
       expect(lastLevelRangeEvent()).toBeUndefined()
     })
   })
+
+  describe('phase slider', () => {
+    const round = (phases: number[], date = '2026-07-02') =>
+      makeSession(`${date}T00:00:00.000Z`, `${date}T15:00:00.000Z`, `${date}T16:00:00.000Z`, located('Room 3/4'), {
+        levels: [],
+        danceForm: 'round',
+        phases,
+        callers: [],
+        cuers: ['Pam & Jeff Johnson'],
+      } as Partial<DanceSession>)
+
+    beforeEach(() => trackEvent.mockClear())
+
+    it('is absent at an event with no phased round dancing, and never reported', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
+      expect(result.current.phaseSlider).toBeUndefined()
+      expect(trackEvent.mock.calls.some(([type]) => type === 'dance_schedule_phase_range')).toBe(false)
+    })
+
+    it("trims to the day's present phases and is absent on a day with none", () => {
+      // Chronological, like buildDanceSchedule's output (groupDanceSessionsByDate
+      // relies on it).
+      const sessions = [day1Session, day1AdvancedSession, round([3, 4, 5]), round([2]), day2Session]
+      const { result } = renderHook(() => useDanceScheduleFilters(sessions, false, false))
+      expect(result.current.phaseSlider).toMatchObject({
+        minPhaseIndex: 1,
+        maxPhaseIndex: 4,
+        minPresentPhaseIndex: 1,
+        maxPresentPhaseIndex: 4,
+      })
+
+      act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
+      expect(result.current.phaseSlider).toBeUndefined()
+    })
+
+    it('filters round sessions by phase without touching square sessions, and persists the range', () => {
+      const phase2 = round([2])
+      const phase5 = round([5])
+      const sessions = [day1Session, day1AdvancedSession, phase2, phase5, day2Session]
+      const { result } = renderHook(() => useDanceScheduleFilters(sessions, false, false))
+
+      act(() => result.current.phaseSlider!.onPhaseRangeChange(3, 4))
+      expect(result.current.visibleSessions).toEqual([day1Session, day1AdvancedSession, phase5])
+      expect(loadStoredDanceScheduleFilters()).toMatchObject({ minPhaseIndex: 3, maxPhaseIndex: 4 })
+      expect(trackEvent).toHaveBeenLastCalledWith('dance_schedule_phase_range', { min: 'Ph 4', max: 'Ph 5' })
+
+      act(() => result.current.showAllLevels())
+      expect(result.current.visibleSessions).toEqual([day1Session, day1AdvancedSession, phase2, phase5])
+    })
+  })
 })

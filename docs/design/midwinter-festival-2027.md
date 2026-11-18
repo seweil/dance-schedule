@@ -35,7 +35,6 @@ and new features:
 
 - [x] Source format: PDF vs. re-entry — see Decisions
 - [x] Who appears in the staff (caller-columns) view — see Decisions
-      (featured-staff detection still open, below)
 - [x] How a session shows its cuer — see Decisions
 - [x] MS vs. MS Extended — see Decisions
 - [x] Round-dance phase filtering — see Decisions
@@ -64,9 +63,11 @@ and new features:
       Schedule") — per-set or global
 - [x] Dump: cuers and phases — see Decisions (hour summary still counts
       only square-dance levels and callers)
-- [ ] Page UI: cuer line on cards, second (phase) slider and phase columns,
+- [x] Page UI: cuer line on cards, second (phase) slider and phase columns,
       featured-only staff view, Challenge grouped with Advanced, MSX label
-      "MS Ext", round/clogging card colors — decided above, not built yet
+      "MS Ext", round/clogging card colors — see "Page UI as built"
+- [ ] Hands-on testing of the two sliders and phase columns, especially on
+      a phone — flagged by the user, see the level-columns decision
 - [x] Data questions found while parsing — see "Answers to the data
       questions" and "Teaches and intros are for the level below"
 - [ ] Content pages (Callers & Cuers, Information,
@@ -198,6 +199,43 @@ especially how phase columns and two sliders fit on a phone.
 ### Names (2026-11-18)
 **Decision:** MS Extended's level code is `MSX`, labeled "MS Ext". The
 content set is `content/MidWinter2027/`.
+
+### Page UI as built (2026-11-18)
+**Decision:** how each decided feature landed:
+- **Cuers on cards.** A square session with a cuer gets a "Cuer: ..." line
+  under its caller line, styled like the GCA line but not hidden by "Show
+  GCA callers". A session with cuers and no caller (round dancing) bolds
+  the cuers in the caller's place instead, with no "Cuer:" line
+  (`formatSessionCallers`/`formatSessionCuers`). A card that names nobody
+  drops the dangling " - " after its event type.
+- **Phase slider.** `phaseOrder.ts` is the phase scale's counterpart of
+  `levelOrder.ts`. The slider is the level slider's own component
+  (`RangeSliderField` in `DanceScheduleFilters.tsx`), shown only on a day
+  with phased round dancing, trimmed to that day's phases. Its range is
+  persisted alongside the level range. `filterDanceSessions` requires both
+  ranges, and each passes every session that isn't its own kind, which is
+  "matches either" for every session so far. "Show all levels" resets both.
+- **Phase columns.** In the level-columns view, one column per phase in the
+  slider's range, between the level columns and "Other". A multi-phase
+  session spans its phases' columns like a multi-level one does. A round
+  session with no phase (Review Teaches) goes to "Other", with clogging.
+- **Featured staff.** `danceSchedule.featuredStaff` (client-visible
+  config) makes the caller-columns view show just those people, callers
+  and cuers alike, in config order. Sessions with nobody featured are left
+  out entirely, not floated. A card in a cuer's column names the caller
+  ("Caller: ..."), and in a caller's column, the cuer. The build fails on a
+  featured name that isn't in the schedule. Trevor DeWitt is featured
+  alongside Ted Lizotte and Pam & Jeff Johnson, per the festival site.
+- **Challenge.** `features.combineAdvancedC1` (default false) merges C1
+  into the Advanced slot, `A1/A2/C1` with combineA1A2. Partial presence
+  labels a slot by the levels it has, so this event's reads "A2/C1".
+- **MS Ext and colors.** `formatLevel` (`levelCodes.ts`) gives MSX its
+  label everywhere it's shown: slider, column header, card level line, and
+  the dump. MSX is a shade darker than MS. Round dancing and clogging get a
+  color each, distinct from every level's.
+**Why:** each follows the decision above it. The only new mechanism is the
+second slider's state, which copies the level slider's set-vs-shown split
+rather than inventing a different one.
 
 ### The parser: `pdf-program-grid` (2026-11-18)
 **Decision:** `dance-schedule-parsers/pdfProgramGrid.ts` reads

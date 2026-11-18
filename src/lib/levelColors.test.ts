@@ -68,4 +68,19 @@ describe('colorForSession', () => {
     }
     expect(colorForSession(freeform)).toBe(NEUTRAL_CARD_COLOR)
   })
+
+  it('gives round dancing and clogging colors of their own, distinct from every level and each other', () => {
+    const round = colorForSession(makeStructured([], { danceForm: 'round', phases: [3] }))
+    const clogging = colorForSession(makeStructured([], { danceForm: 'clogging' }))
+    const levels: LevelCode[] = ['SSD', 'MS', 'MSX', 'Plus', 'A1', 'C1', 'C2', 'C3A', 'C3B', 'C4']
+    const levelColors = new Set(levels.map((level) => colorForSession(makeStructured([level]))))
+    expect(round).not.toBe(clogging)
+    expect(levelColors.has(round)).toBe(false)
+    expect(levelColors.has(clogging)).toBe(false)
+    expect(round).not.toBe(NEUTRAL_CARD_COLOR)
+  })
+
+  it('tells MS and MS Ext apart', () => {
+    expect(colorForSession(makeStructured(['MSX']))).not.toBe(colorForSession(makeStructured(['MS'])))
+  })
 })
