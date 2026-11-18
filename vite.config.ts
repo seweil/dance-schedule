@@ -282,6 +282,12 @@ export default defineConfig(async () => {
         },
         includeAssets: ['icons/*.png'],
         workbox: {
+          // Workbox's default (js/wasm/css/html) plus content images, so a page's
+          // photos and maps show offline too — a festival hall often has no
+          // signal, and a venue map is exactly what's needed there. Workbox's
+          // default 2 MB per-file cap still applies: a bigger image is left out
+          // (with a build warning) rather than bloating every visitor's install.
+          globPatterns: ['**/*.{js,wasm,css,html,png,jpg,jpeg,webp,gif,svg}'],
           // No navigateFallback override here — vite-plugin-pwa's own default
           // ('index.html', relative) resolves correctly against each build's own
           // `base`/scope. An absolute '/index.html' would incorrectly fall back to

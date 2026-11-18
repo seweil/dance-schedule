@@ -213,7 +213,10 @@ picks up the `.md` extension.
   rewrites relative paths into real Vite asset imports so they're hashed/optimized in
   the build (required for the PWA precache to work correctly). Content images live in
   that content set's `pages/assets/`, referenced with a `./assets/` prefix from each
-  markdown file.
+  markdown file. Every content image is precached, so it shows offline
+  (`vite.config.ts`'s `workbox.globPatterns`), which means a single image over
+  Workbox's 2 MB per-file limit **fails the build**. Resize it first, keeping the
+  original in that set's `scratch/`.
 - **Image zoom**: every rendered `<img>` is automatically replaced with
   `src/components/ZoomableImage.tsx` (a `yet-another-react-lightbox` wrapper) via a
   global `MDXProvider` override in `App.tsx` — content authors don't add any markup
