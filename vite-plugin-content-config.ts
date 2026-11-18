@@ -159,6 +159,39 @@ export function loadDanceScheduleFormat(configFile: string): string | undefined 
   return value.trim()
 }
 
+// `danceSchedule.programStaff` — staff to credit on a pdf-program-grid session
+// whose own cell names nobody, keyed by program header, e.g.
+// `{ Clogging: [Trevor DeWitt] }` for an instructor the PDF never names (see
+// docs/design/midwinter-festival-2027.md). Build-time only, like `format`.
+export function loadDanceScheduleProgramStaff(configFile: string): Record<string, string[]> {
+  if (!fs.existsSync(configFile)) {
+    return {}
+  }
+  let parsed: unknown
+  try {
+    parsed = parse(fs.readFileSync(configFile, 'utf-8'))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
+  }
+  const danceSchedule = asConfigSection(
+    configFile,
+    'danceSchedule',
+    (parsed as Record<string, unknown> | null)?.danceSchedule,
+  )
+  const programStaff = asConfigSection(configFile, 'danceSchedule.programStaff', danceSchedule.programStaff)
+  const result: Record<string, string[]> = {}
+  for (const [program, names] of Object.entries(programStaff)) {
+    if (!Array.isArray(names) || names.some((name) => typeof name !== 'string' || name.trim() === '')) {
+      throw new Error(
+        `${configFile}'s "danceSchedule.programStaff.${program}" must be a list of names, got ${JSON.stringify(names)}`,
+      )
+    }
+    result[program] = names.map((name: string) => name.trim())
+  }
+  return result
+}
+
 export function loadContentConfigData(configFile: string): ContentConfigData {
   let combineA1A2 = true
   let combineC3BC4 = true

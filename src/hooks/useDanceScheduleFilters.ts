@@ -14,6 +14,7 @@ import {
   getLevelSlots,
   getPresentLevelIndexRange,
   labelSlotsByPresence,
+  usesOptionalLevels,
   type LevelSlot,
 } from '../lib/levelOrder'
 import type { DanceSession } from '../types/danceSchedule'
@@ -65,9 +66,9 @@ export function useDanceScheduleFilters(
   // labelSlotsByPresence runs against the FULL, event-wide `sessions` — not
   // dateSessions/visibleSessions — so a merged slot's label ("A1/A2" vs. just "A2")
   // stays stable across date switches instead of flickering with whichever day
-  // happens to be selected.
+  // happens to be selected. Optional levels (MSX) are likewise decided event-wide.
   const slots = useMemo(
-    () => labelSlotsByPresence(getLevelSlots(combineA1A2, combineC3BC4), sessions),
+    () => labelSlotsByPresence(getLevelSlots(combineA1A2, combineC3BC4, usesOptionalLevels(sessions)), sessions),
     [combineA1A2, combineC3BC4, sessions],
   )
 

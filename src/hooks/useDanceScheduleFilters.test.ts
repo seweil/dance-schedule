@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDanceScheduleFilters } from './useDanceScheduleFilters'
-import { LEVEL_ORDER, getLevelSlots, labelSlotsByPresence } from '../lib/levelOrder'
+import { BASE_LEVEL_ORDER, getLevelSlots, labelSlotsByPresence } from '../lib/levelOrder'
 import { loadStoredDanceScheduleFilters } from '../lib/danceScheduleFiltersStorage'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
 
@@ -65,7 +65,7 @@ describe('useDanceScheduleFilters', () => {
     ])
     expect(result.current.selectedDate).toEqual(new Date('2026-07-02T00:00:00.000Z'))
     expect(result.current.minLevelIndex).toBe(0)
-    expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.length - 1)
+    expect(result.current.maxLevelIndex).toBe(BASE_LEVEL_ORDER.length - 1)
     expect(result.current.showGca).toBe(true)
   })
 
@@ -85,10 +85,10 @@ describe('useDanceScheduleFilters', () => {
   it('narrows visibleSessions (but not dateSessions) when the level range narrows', () => {
     const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
-    act(() => result.current.setLevelRange(LEVEL_ORDER.indexOf('SSD'), LEVEL_ORDER.indexOf('Plus')))
+    act(() => result.current.setLevelRange(BASE_LEVEL_ORDER.indexOf('SSD'), BASE_LEVEL_ORDER.indexOf('Plus')))
 
-    expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
-    expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.indexOf('Plus'))
+    expect(result.current.minLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('SSD'))
+    expect(result.current.maxLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('Plus'))
     expect(result.current.visibleSessions).toEqual([day1Session])
     expect(result.current.dateSessions).toEqual([day1Session, day1AdvancedSession])
   })
@@ -104,7 +104,7 @@ describe('useDanceScheduleFilters', () => {
   it('exposes the base (uncombined) slots when both flags are false', () => {
     const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
     expect(result.current.slots).toEqual(getLevelSlots(false, false))
-    expect(result.current.slots).toHaveLength(LEVEL_ORDER.length)
+    expect(result.current.slots).toHaveLength(BASE_LEVEL_ORDER.length)
   })
 
   it('exposes the merged slots and a smaller full-range default when combineA1A2 is true', () => {
@@ -143,13 +143,13 @@ describe('useDanceScheduleFilters', () => {
 
     it('exposes minPresentLevelIndex/maxPresentLevelIndex for the (full-range) default day', () => {
       const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
-      expect(result.current.minPresentLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
-      expect(result.current.maxPresentLevelIndex).toBe(LEVEL_ORDER.indexOf('C4'))
+      expect(result.current.minPresentLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('SSD'))
+      expect(result.current.maxPresentLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('C4'))
     })
 
     it('clamps the initial minLevelIndex/maxLevelIndex to the earliest date\'s own present range, not the full slots range', () => {
       const { result } = renderHook(() => useDanceScheduleFilters(NARROW_FIRST_SESSIONS, false, false))
-      const plusIndex = LEVEL_ORDER.indexOf('Plus')
+      const plusIndex = BASE_LEVEL_ORDER.indexOf('Plus')
       expect(result.current.minPresentLevelIndex).toBe(plusIndex)
       expect(result.current.maxPresentLevelIndex).toBe(plusIndex)
       expect(result.current.minLevelIndex).toBe(plusIndex)
@@ -161,7 +161,7 @@ describe('useDanceScheduleFilters', () => {
 
       act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
 
-      const ssdIndex = LEVEL_ORDER.indexOf('SSD')
+      const ssdIndex = BASE_LEVEL_ORDER.indexOf('SSD')
       expect(result.current.minPresentLevelIndex).toBe(ssdIndex)
       expect(result.current.maxPresentLevelIndex).toBe(ssdIndex)
       expect(result.current.minLevelIndex).toBe(ssdIndex)
@@ -171,10 +171,10 @@ describe('useDanceScheduleFilters', () => {
     it('does not fight a manual in-day level-range narrowing', () => {
       const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
-      act(() => result.current.setLevelRange(LEVEL_ORDER.indexOf('SSD'), LEVEL_ORDER.indexOf('Plus')))
+      act(() => result.current.setLevelRange(BASE_LEVEL_ORDER.indexOf('SSD'), BASE_LEVEL_ORDER.indexOf('Plus')))
 
-      expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
-      expect(result.current.maxLevelIndex).toBe(LEVEL_ORDER.indexOf('Plus'))
+      expect(result.current.minLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('SSD'))
+      expect(result.current.maxLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('Plus'))
     })
 
     // Regression test: the per-day trim above must be a VIEW, not a setting change —
@@ -183,14 +183,14 @@ describe('useDanceScheduleFilters', () => {
     it('restores the user-set range after switching to a narrower day and back', () => {
       const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
-      const a2Index = LEVEL_ORDER.indexOf('A2')
-      const c4Index = LEVEL_ORDER.indexOf('C4')
+      const a2Index = BASE_LEVEL_ORDER.indexOf('A2')
+      const c4Index = BASE_LEVEL_ORDER.indexOf('C4')
       act(() => result.current.setLevelRange(a2Index, c4Index))
       expect(result.current.minLevelIndex).toBe(a2Index)
       expect(result.current.maxLevelIndex).toBe(c4Index)
 
       // day2 only has an SSD session, so the effective range narrows to fit it.
-      const ssdIndex = LEVEL_ORDER.indexOf('SSD')
+      const ssdIndex = BASE_LEVEL_ORDER.indexOf('SSD')
       act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
       expect(result.current.minLevelIndex).toBe(ssdIndex)
       expect(result.current.maxLevelIndex).toBe(ssdIndex)
@@ -205,13 +205,13 @@ describe('useDanceScheduleFilters', () => {
     it('persists the user-set range, not the day-narrowed view, to storage', () => {
       const { result } = renderHook(() => useDanceScheduleFilters(ALL_SESSIONS, false, false))
 
-      const a2Index = LEVEL_ORDER.indexOf('A2')
-      const c4Index = LEVEL_ORDER.indexOf('C4')
+      const a2Index = BASE_LEVEL_ORDER.indexOf('A2')
+      const c4Index = BASE_LEVEL_ORDER.indexOf('C4')
       act(() => result.current.setLevelRange(a2Index, c4Index))
 
       // Switching to day2 narrows the effective/shown range to SSD-only...
       act(() => result.current.setSelectedDate(new Date('2026-07-03T00:00:00.000Z')))
-      expect(result.current.minLevelIndex).toBe(LEVEL_ORDER.indexOf('SSD'))
+      expect(result.current.minLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('SSD'))
 
       // ...but storage must still reflect the original A2..C4 setting, not the
       // narrowed view, or a fresh launch on day2 would lose the user's real intent.

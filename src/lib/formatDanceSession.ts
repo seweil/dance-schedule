@@ -12,8 +12,32 @@ export function formatSessionTimeRange(session: DanceSession): string {
   return `${timeFormatter.format(session.startTime)} – ${timeFormatter.format(session.endTime)}`
 }
 
+// Round-dance phases print as one "Ph" range when contiguous ("Ph 3-5"), which is
+// how every real schedule writes them.
+function formatPhases(phases: number[]): string {
+  if (phases.length === 0) {
+    return ''
+  }
+  const first = phases[0]!
+  const last = phases[phases.length - 1]!
+  const isContiguous = last - first === phases.length - 1
+  if (!isContiguous) {
+    return `Ph ${phases.join(', ')}`
+  }
+  return first === last ? `Ph ${first}` : `Ph ${first}-${last}`
+}
+
 export function formatSessionLevels(session: DanceSession): string {
-  return session.kind === 'structured' ? session.levels.join(', ') : ''
+  if (session.kind !== 'structured') {
+    return ''
+  }
+  if (session.danceForm === 'round') {
+    return ['Rounds', formatPhases(session.phases ?? [])].filter(Boolean).join(' ')
+  }
+  if (session.danceForm === 'clogging') {
+    return 'Clogging'
+  }
+  return session.levels.join(', ')
 }
 
 // The event type + caller(s), or the freeform description — without any "(freeform)"
@@ -23,7 +47,13 @@ export function formatSessionCallerDetails(session: DanceSession): string {
   if (session.kind === 'freeform') {
     return session.description
   }
-  return `${session.eventType} - ${session.callers.join(' & ')}`
+  // A round-dance session has a cuer but no caller — "Teach (cuer: ...)", not
+  // "Teach -  (cuer: ...)".
+  const leaders =
+    session.callers.length > 0 || !session.cuers?.length
+      ? `${session.eventType} - ${session.callers.join(' & ')}`
+      : session.eventType
+  return session.cuers?.length ? `${leaders} (cuer: ${session.cuers.join(' & ')})` : leaders
 }
 
 // Used by the real display page's session cards (DanceScheduleGrid.tsx), not the

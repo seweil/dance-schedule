@@ -76,7 +76,7 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
         // Debug output: a normalized, human-readable dump of how the spreadsheet was
         // interpreted, regenerated on every parse so it's always in sync — committed
         // to the repo so a spreadsheet change shows up as a reviewable diff.
-        const markdown = formatDanceScheduleMarkdown(builtSessions)
+        const markdown = formatDanceScheduleMarkdown(builtSessions, path.basename(danceScheduleFile))
         await fs.writeFile(danceScheduleDumpFile, markdown + '\n')
 
         return `export default ${JSON.stringify(sessions)}`

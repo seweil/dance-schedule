@@ -9,6 +9,7 @@ import type { DanceSession, LevelCode } from '../types/danceSchedule'
 const LEVEL_COLORS: Record<LevelCode, string> = {
   SSD: '#c8e6c9',
   MS: '#c8e6c9',
+  MSX: '#c8e6c9',
   Intro: '#c8e6c9',
   Various: '#c8e6c9',
   Plus: '#bbdefb',
@@ -45,10 +46,12 @@ function lowestLevel(levels: LevelCode[]): LevelCode {
  *   "A2 : Intro to C1 - ...") rather than the bare `Intro` tag, so the normal
  *   per-level lookup already colors those correctly; the bare `Intro` tag itself
  *   (introducing square dancing with no lower rung to defer to) floors to SSD/MS.
- * - A freeform or roomless session (no level at all) gets a neutral gray.
+ * - A freeform or roomless session (no level at all) gets a neutral gray, and so
+ *   (for now) does a round-dance or clogging session, which has no square-dance
+ *   level either — see docs/design/midwinter-festival-2027.md.
  */
 export function colorForSession(session: DanceSession): string {
-  if (session.kind !== 'structured') {
+  if (session.kind !== 'structured' || session.levels.length === 0) {
     return NEUTRAL_CARD_COLOR
   }
 

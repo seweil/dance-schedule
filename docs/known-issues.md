@@ -422,6 +422,15 @@ combined-mode array per flag/flag-combination — see
 `docs/design/dance-schedule.md`'s "second merge flag" decision. The
 broader hardcoded-taxonomy issue above is unaffected by this fix.
 
+**Partially resolved (2026-11-18):** round dancing and clogging can now be
+represented, as a session `danceForm` with round-dance `phases` 1–6 kept
+separate from square-dance `levels`, rather than as more level codes (see
+`docs/design/midwinter-festival-2027.md`). Only the `pdf-program-grid`
+parser produces them so far; `room-grid` cells still accept square-dance
+levels only. The page UI doesn't use phases yet either (no phase slider, and
+round/clogging cards are neutral gray). The taxonomy is still not
+config-driven.
+
 ## Dance-schedule time range with no AM/PM on either side isn't cross-checked
 
 **Found:** 2026-07-29, deep code review for correctness/generality bugs.

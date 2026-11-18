@@ -133,7 +133,10 @@ src/
   types/          # shared TypeScript types
 dance-schedule-parsers/   # pluggable dance-schedule input formats (Node-side, build
                           # time): types.ts (the DanceScheduleParser interface),
-                          # roomGrid.ts (the original xlsx grid), index.ts (registry
+                          # roomGrid.ts (the original xlsx grid), pdfProgramGrid.ts
+                          # (a one-page PDF with programs as column groups — reads
+                          # gridlines + text via pdfjs-dist, pinned exactly; layout
+                          # rules in src/lib/parseProgramGridPdf.ts), index.ts (registry
                           # + loadDanceScheduleData, the one loader every build path
                           # uses). See docs/design/dance-schedule.md "Pluggable parsers";
                           # docs/adding-a-dance-schedule-parser.md is the step-by-step

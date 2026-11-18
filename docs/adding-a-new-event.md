@@ -179,15 +179,30 @@ list is one event-wide setting, not one per day.
 ### Dance-schedule input format (`danceSchedule.format`)
 
 Also optional, and you can ignore it for now. It says which format your
-dance schedule is written in. There's only one so far, `room-grid`: the
-`dance-schedule.xlsx` grid described in Step 4. It's the default, so you
-never need to write it out. Other formats are planned for organizers who keep
-their schedule differently. Each one will be listed here, along with the file
-name it reads from `data/`.
+dance schedule is written in:
+
+- **`room-grid`** (the default, so you never need to write it out): the
+  `dance-schedule.xlsx` grid described in Step 4.
+- **`pdf-program-grid`**: a one-page PDF schedule, `data/dance-schedule.pdf`,
+  laid out like the 2027 Oregon Mid-Winter Festival's: programs (MS, Plus,
+  Advanced, Round Dance, Clogging, ...) as column groups, each with its room
+  in the row under its name and Event / Caller / Cuer columns, and one row
+  per Day + Times. Use the organizer's PDF exactly as published; don't edit
+  it. Co-callers are separated by `/`. A Round Dance event like `Ph 3-5` or
+  `Teach Ph 4` sets its phases. Anyone a program's cells never name can be
+  credited with `programStaff`, as in the example below. The full rules are
+  in `docs/design/midwinter-festival-2027.md`.
 
 ```yaml
 danceSchedule:
   format: room-grid   # the default — the same as leaving this line out
+```
+
+```yaml
+danceSchedule:
+  format: pdf-program-grid
+  programStaff:              # optional, keyed by program name as printed
+    Clogging: [Trevor DeWitt]
 ```
 
 A misspelled format name fails the build, with a message listing the valid

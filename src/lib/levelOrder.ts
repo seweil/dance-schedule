@@ -7,6 +7,7 @@ import type { DanceSession, LevelCode } from '../types/danceSchedule'
 export const LEVEL_ORDER = [
   'SSD',
   'MS',
+  'MSX',
   'Plus',
   'A1',
   'A2',
@@ -47,13 +48,13 @@ interface LevelMerge {
   levels: readonly [OrderedLevelCode, ...OrderedLevelCode[]]
 }
 
-function buildLevelSlots(merges: readonly LevelMerge[]): readonly LevelSlot[] {
+function buildLevelSlots(levelOrder: readonly OrderedLevelCode[], merges: readonly LevelMerge[]): readonly LevelSlot[] {
   const slots: LevelSlot[] = []
   let i = 0
-  while (i < LEVEL_ORDER.length) {
-    const merge = merges.find((m) => m.levels[0] === LEVEL_ORDER[i])
+  while (i < levelOrder.length) {
+    const merge = merges.find((m) => m.levels[0] === levelOrder[i])
     if (merge) {
-      const matched = LEVEL_ORDER.slice(i, i + merge.levels.length)
+      const matched = levelOrder.slice(i, i + merge.levels.length)
       const isContiguousMatch =
         matched.length === merge.levels.length &&
         matched.every((level, offset) => level === merge.levels[offset])
@@ -65,11 +66,30 @@ function buildLevelSlots(merges: readonly LevelMerge[]): readonly LevelSlot[] {
       slots.push({ label: merge.label, levels: merge.levels })
       i += merge.levels.length
     } else {
-      slots.push({ label: LEVEL_ORDER[i]!, levels: [LEVEL_ORDER[i]!] })
+      slots.push({ label: levelOrder[i]!, levels: [levelOrder[i]!] })
       i += 1
     }
   }
   return slots
+}
+
+// Levels only some events have at all, so they get a slider stop only when
+// `includeOptionalLevels` says the event uses them — otherwise every other event
+// would get a dead stop mid-slider, which getPresentLevelIndexRange's end-trimming
+// can't remove. MSX (Mainstream – Extended Application) is the one so far
+// (docs/design/midwinter-festival-2027.md).
+const OPTIONAL_LEVELS: ReadonlySet<OrderedLevelCode> = new Set(['MSX'])
+
+// The slider's level order at an event that uses no optional level — every event
+// before MidWinter2027.
+export const BASE_LEVEL_ORDER: readonly OrderedLevelCode[] = LEVEL_ORDER.filter((level) => !OPTIONAL_LEVELS.has(level))
+
+// Whether any session uses an optional level — the `includeOptionalLevels`
+// argument for getLevelSlots, computed event-wide.
+export function usesOptionalLevels(sessions: readonly DanceSession[]): boolean {
+  return sessions.some(
+    (session) => session.kind === 'structured' && session.levels.some((level) => OPTIONAL_LEVELS.has(level as OrderedLevelCode)),
+  )
 }
 
 // The slider's positions, in order, depending on the combineA1A2/combineC3BC4
@@ -79,7 +99,11 @@ function buildLevelSlots(merges: readonly LevelMerge[]): readonly LevelSlot[] {
 // resolve to that same slot index, a real merge for filtering purposes, not just a
 // display relabel. combineC3BC4's merged slot is labeled "C3B+" (not "C3B/C4"),
 // matching square-dance convention for "C3B and above."
-export function getLevelSlots(combineA1A2: boolean, combineC3BC4: boolean): readonly LevelSlot[] {
+export function getLevelSlots(
+  combineA1A2: boolean,
+  combineC3BC4: boolean,
+  includeOptionalLevels = false,
+): readonly LevelSlot[] {
   const merges: LevelMerge[] = []
   if (combineA1A2) {
     merges.push({ label: 'A1/A2', levels: ['A1', 'A2'] })
@@ -87,7 +111,7 @@ export function getLevelSlots(combineA1A2: boolean, combineC3BC4: boolean): read
   if (combineC3BC4) {
     merges.push({ label: 'C3B+', levels: ['C3B', 'C4'] })
   }
-  return buildLevelSlots(merges)
+  return buildLevelSlots(includeOptionalLevels ? LEVEL_ORDER : BASE_LEVEL_ORDER, merges)
 }
 
 // A merge's own label (e.g. "A1/A2") implies both member levels actually occur

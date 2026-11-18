@@ -1684,6 +1684,11 @@ the grids, the debug dump) knows which format a set was authored in.
   resolved by this split.)
 - **`roomOrder: spreadsheet`** really means "source order", which applies
   to any format. The value keeps its original name for now.
+- **Second format (2026-11-18): `pdf-program-grid`**, a one-page PDF with
+  programs as column groups, for the 2027 Oregon Mid-Winter Festival. It
+  added `parse()`'s `configFile` argument (for its own `programStaff`
+  setting) and the cuer/round-dance/clogging data-model fields. Mapping and
+  layout rules: `docs/design/midwinter-festival-2027.md`.
 
 ### Current-time line: wall-clock "now," interpolated per segment, as a grid-row overlay
 

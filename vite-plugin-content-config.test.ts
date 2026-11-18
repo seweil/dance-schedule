@@ -2,7 +2,11 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadContentConfigData, loadDanceScheduleFormat } from './vite-plugin-content-config'
+import {
+  loadContentConfigData,
+  loadDanceScheduleFormat,
+  loadDanceScheduleProgramStaff,
+} from './vite-plugin-content-config'
 
 const OVERRIDE_ENV_VARS = ['COMBINE_A1A2', 'COMBINE_C3BC4', 'DANCE_SCHEDULE_ROOM_ORDER'] as const
 
@@ -236,5 +240,30 @@ describe('loadDanceScheduleFormat', () => {
   it('leaves loadContentConfigData unaffected (build-time only)', () => {
     writeConfig('danceSchedule:\n  format: room-grid\n')
     expect(loadContentConfigData(configFile).danceSchedule).toBeUndefined()
+  })
+})
+
+describe('loadDanceScheduleProgramStaff', () => {
+  it('is empty when config.yaml or the key is missing', () => {
+    expect(loadDanceScheduleProgramStaff(configFile)).toEqual({})
+    writeConfig('danceSchedule:\n  format: pdf-program-grid\n')
+    expect(loadDanceScheduleProgramStaff(configFile)).toEqual({})
+  })
+
+  it('reads names per program, trimmed', () => {
+    writeConfig('danceSchedule:\n  programStaff:\n    Clogging: [" Trevor DeWitt "]\n')
+    expect(loadDanceScheduleProgramStaff(configFile)).toEqual({ Clogging: ['Trevor DeWitt'] })
+  })
+
+  it.each([['Trevor DeWitt'], ['[42]'], ['[""]']])('rejects a value that isn\'t a list of names: %s', (value) => {
+    writeConfig(`danceSchedule:\n  programStaff:\n    Clogging: ${value}\n`)
+    expect(() => loadDanceScheduleProgramStaff(configFile)).toThrow(
+      /"danceSchedule.programStaff.Clogging" must be a list of names/,
+    )
+  })
+
+  it('rejects a programStaff that isn\'t a mapping', () => {
+    writeConfig('danceSchedule:\n  programStaff: Trevor DeWitt\n')
+    expect(() => loadDanceScheduleProgramStaff(configFile)).toThrow(/"danceSchedule.programStaff" must be a mapping/)
   })
 })

@@ -121,4 +121,31 @@ describe('formatSessionRoom', () => {
   it('renders an em dash for a roomless session', () => {
     expect(formatSessionRoom(makeStructured({ location: { kind: 'roomless' } }))).toBe('—')
   })
+
+  describe('round dancing and clogging', () => {
+    it.each([
+      [[3, 4, 5], 'Rounds Ph 3-5'],
+      [[3], 'Rounds Ph 3'],
+      [[2, 4], 'Rounds Ph 2, 4'],
+      [[], 'Rounds'],
+    ])('formats round-dance phases %j as %j', (phases, expected) => {
+      expect(formatSessionLevels(makeStructured({ levels: [], danceForm: 'round', phases }))).toBe(expected)
+    })
+
+    it('formats a clogging session as Clogging', () => {
+      expect(formatSessionLevels(makeStructured({ levels: [], danceForm: 'clogging' }))).toBe('Clogging')
+    })
+
+    it('appends the cuer to a square dance\'s caller details', () => {
+      expect(formatSessionCallerDetails(makeStructured({ cuers: ['Pam & Jeff Johnson'] }))).toBe(
+        'Dancing - Ted Lizotte (cuer: Pam & Jeff Johnson)',
+      )
+    })
+
+    it('drops the empty caller part for a session with only a cuer', () => {
+      expect(
+        formatSessionCallerDetails(makeStructured({ eventType: 'Teach', callers: [], cuers: ['Pam & Jeff Johnson'] })),
+      ).toBe('Teach (cuer: Pam & Jeff Johnson)')
+    })
+  })
 })
