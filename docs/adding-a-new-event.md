@@ -91,7 +91,9 @@ needed.
   and 14 are reserved for the automatically-generated "Event Schedule" (see
   step 3), "Dance Schedule", "Room Schedule", and "Caller Schedule" (step 4)
   pages respectively. Those four pages appear in your nav automatically; you
-  don't create them. Below 10, any number works for any page — there's no
+  don't create them. ("Caller Schedule" is called "Staff Schedule" instead
+  when your schedule has round dancing or clogging as well as square
+  dancing; that's automatic too.) Below 10, any number works for any page — there's no
   fixed assignment of, say, "2" to any particular page; use whatever order
   makes sense for your event.
 

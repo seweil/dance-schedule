@@ -59,8 +59,8 @@ and new features:
 - [ ] Off-site rooms: Advanced is at the Holiday Inn and Clogging at Comfort
       Suites — different buildings, not halls at the fairgrounds. Show a
       venue/address anywhere?
-- [ ] Staff view label ("By staff" / "Staff Schedule" vs. "Caller
-      Schedule") — per-set or global
+- [x] Staff view label ("By staff" / "Staff Schedule" vs. "Caller
+      Schedule") — per-set or global — see Decisions
 - [x] Dump: cuers and phases — see Decisions (hour summary still counts
       only square-dance levels and callers)
 - [x] Page UI: cuer line on cards, second (phase) slider and phase columns,
@@ -338,6 +338,20 @@ dance that phase or level yet, so the slider should show it to them, not to
 those who already do. MS dancers can learn Plus too, not only MS
 Extended ones (confirmed 2026-11-18), so an optional level doesn't hide an
 intro from the base level under it.
+
+### Staff view label follows the schedule's dance forms (2026-11-18)
+**Decision:** the staff-columns page is "Caller Schedule" when the schedule
+has only square dancing, "Staff Schedule" once it has any round-dance or
+clogging session (`src/lib/staffScheduleLabel.ts`). Derived from the data,
+not a `config.yaml` key; the route stays `/caller-schedule` either way.
+**Why:** per direct product decision — at a square-only event every column
+is a caller, so "Caller" is the precise word; once cuers and instructors
+appear it isn't. Keeping the URL fixed means bookmarks, last-page
+persistence and analytics don't vary by event.
+**How:** `danceSchedulePlugin` serves a second, tiny virtual module,
+`virtual:dance-schedule-meta`, with the label, so the nav (main bundle) can
+read it without importing the whole session list; `buildNavTree` takes an
+href → label override map (`src/lib/navLabelOverrides.ts`).
 
 ## Open questions
 

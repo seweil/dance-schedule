@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import danceSessionsData from 'virtual:dance-schedule'
+import danceScheduleMeta from 'virtual:dance-schedule-meta'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
 import { computeDanceScheduleCallerLayout } from '../lib/computeDanceScheduleCallerLayout'
@@ -53,7 +54,7 @@ export function DanceScheduleCallersPage() {
 
   return (
     <>
-      <PageHeader title="Caller Schedule" />
+      <PageHeader title={danceScheduleMeta.staffScheduleLabel} />
       <RotateDeviceBanner />
       <DanceScheduleFilters
         dates={dates}

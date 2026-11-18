@@ -297,7 +297,9 @@ The short version:
   (`src/pages/10 event-schedule.tsx`, `12 dance-schedule.tsx`,
   `13 room-schedule.tsx`, `14 caller-schedule.tsx` — nav labels "Event
   Schedule", "Dance Schedule", "Room Schedule", "Caller Schedule"
-  respectively) are reserved for those auto-generated pages. A content page
+  respectively — the last becomes "Staff Schedule", same route, when the
+  schedule has round dancing or clogging; see `src/lib/staffScheduleLabel.ts`)
+  are reserved for those auto-generated pages. A content page
   should use a prefix below `10` (any
   number in that range — nothing about which specific single-digit number
   goes with which page is fixed) so it sorts before all of them; a future

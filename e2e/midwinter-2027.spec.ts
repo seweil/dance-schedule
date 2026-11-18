@@ -73,6 +73,17 @@ test('the Caller Schedule shows only the featured staff, cuers included', async 
   await expect(page.getByText('Caller: Ted Lizotte').first()).toBeVisible()
 })
 
+test('the staff page is "Staff Schedule" at an event with round dancing, "Caller Schedule" at a square-only one', async ({
+  page,
+}) => {
+  await page.goto(`${SET}/caller-schedule`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Staff Schedule' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Staff Schedule', exact: true })).toBeVisible()
+
+  await page.goto('/automated-testing/caller-schedule')
+  await expect(page.getByRole('heading', { level: 1, name: 'Caller Schedule' })).toBeVisible()
+})
+
 test('the phase slider is absent at an event with no round dancing', async ({ page }) => {
   await page.goto('/automated-testing/dance-schedule')
   await expect(page.getByRole('slider', { name: 'Minimum level' })).toBeVisible()
