@@ -72,7 +72,8 @@ and new features:
       questions" and "Teaches and intros are for the level below"
 - [x] Content pages (Callers & Cuers, Information,
       Dining & Lodging, Youth, ...) — see Decisions
-- [ ] Making it `defaultContentSet` (changes what the bare domain serves)
+- [x] Making it `defaultContentSet` (changes what the bare domain serves)
+      — done 2026-11-18, per direct product decision
 - [x] Keeping `docs/adding-a-new-event.md` in sync — its "Dance-schedule
       input format" section lists `pdf-program-grid`
 
@@ -341,9 +342,9 @@ Extended ones (confirmed 2026-11-18), so an optional level doesn't hide an
 intro from the base level under it.
 
 ### Content pages, from the festival website (2026-11-18)
-**Decision:** eight pages rewritten from
+**Decision:** seven pages rewritten from
 <https://midwinterfestival.org/2027/> (crawled 2026-11-18): Featured Staff,
-Venue, Dining, Lodging, Things to Do, Youth, Clothing Resale, Contacts, plus
+Venue, Dining, Things to Do, Youth, Clothing Resale, Contacts, plus
 the shared Help page. Numbered 20–29 so they sort after the schedule pages,
 as MotivateToSeattle's do. The festival logo, flattened onto white and
 squared, is the set's `icon.png`; originals are in `scratch/site-images/`.
@@ -351,6 +352,11 @@ squared, is the set's `icon.png`; originals are in `scratch/site-images/`.
 program → room → building table, and the two hotels' addresses with map
 links. A grid card already names its room ("Holiday Inn"), and an address
 on every card would crowd them for two programs out of six.
+**Audience: dancers already at the event, not planning a trip** (per
+direct product decision, same day). So there's no Lodging page (hotel
+rates, booking, RV parks), and Clothing Resale keeps only the at-event
+details (drop-off times, the youth outfit), not the pre-submission
+deadlines.
 **Left out:** restaurant logos, the chair's photo, and the site's
 "Information" page's history of each dance form. That last one is
 background reading, not something a dancer needs at the event.

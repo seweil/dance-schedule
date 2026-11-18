@@ -24,8 +24,7 @@ Meet them on the [Featured Staff](/featured-staff) page.
 - [Staff Schedule](/caller-schedule) — when to find the featured staff
 - [Venue](/venue) — which hall is where, including the two off-site
   programs: Advanced at the Holiday Inn Express, Clogging at Comfort Suites
-- [Dining](/dining), [Lodging](/lodging), and
-  [Things to Do](/things-to-do) in Albany
+- [Dining](/dining) and [Things to Do](/things-to-do) in Albany
 - [Youth](/youth) activities, [Clothing Resale](/clothing-resale), and
   festival [Contacts](/contacts)
 
