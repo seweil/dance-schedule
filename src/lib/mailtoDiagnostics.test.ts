@@ -14,6 +14,10 @@ describe('withDiagnostics', () => {
     expect(withDiagnostics('https://example.com')).toBe('https://example.com')
   })
 
+  it("leaves a mailto: link to anyone but the app's own support address unchanged", () => {
+    expect(withDiagnostics('mailto:chair@example.org?subject=Hi')).toBe('mailto:chair@example.org?subject=Hi')
+  })
+
   it('appends a build + client diagnostics block to a bare mailto: href', () => {
     const result = withDiagnostics('mailto:help@sqdance.app')
     expect(result).toMatch(/^mailto:help@sqdance\.app\?body=/)

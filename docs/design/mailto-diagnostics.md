@@ -121,6 +121,16 @@ bug is fixed. This leaves real headroom (310 vs. the 395 ceiling) for a
 longer page URL or build string before risking the failing zone again,
 but **no code enforces that budget** — see Open questions.
 
+### Diagnostics only on links to the app's own support address (2026-11-18)
+**Decision:** `withDiagnostics` adds the block only to a `mailto:` address
+ending in `@sqdance.app`; any other address is left as a plain link. The
+`mailto_link_clicked` RUM event still fires for every address.
+**Why:** MidWinter2027 is the first content set to link third-party
+addresses (the festival chair, youth and resale volunteers). They're asked
+about the event, not the app, and a block of build hashes and user agents in
+their inbox is noise at best. The app's own "Email us" link is still
+automatic, with no per-link markup, which was the point of the blanket rule.
+
 ## Open questions
 
 - **Nothing currently guards against the diagnostics block silently

@@ -10,6 +10,8 @@ const buildTimeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZoneName: 'short',
 })
 
+const DIAGNOSTICS_DOMAIN = '@sqdance.app'
+
 // Appends a build + client diagnostics block to a mailto: link's body, so
 // someone reporting a problem via a content page's "Email us" link doesn't
 // have to separately dig up and paste in which build/browser/state they were
@@ -17,9 +19,12 @@ const buildTimeFormatter = new Intl.DateTimeFormat('en-US', {
 // CLAUDE.md's "Compilation" note — so this runs generically against every
 // mailto: href via App.tsx's MdxA override rather than requiring each
 // content author to hand-author query params. Any non-mailto: href (or
-// undefined) is returned unchanged.
+// undefined) is returned unchanged — and so is a mailto: link to anyone but
+// the app's own support address (DIAGNOSTICS_DOMAIN): an event's own
+// organizers (e.g. MidWinter2027's contacts page) are volunteers asked about
+// the event, not the app, and shouldn't receive a block of build details.
 export function withDiagnostics(href: string): string {
-  if (!href.startsWith('mailto:')) {
+  if (!href.startsWith('mailto:') || !mailtoAddress(href).toLowerCase().endsWith(DIAGNOSTICS_DOMAIN)) {
     return href
   }
 

@@ -233,7 +233,9 @@ picks up the `.md` extension.
   the zoom/lightbox behavior entirely and out of the page's shared image gallery
   (`ImageGallery.tsx`), so it never becomes a next/prev stop for the page's other,
   real photos either (`ZoomableImage.tsx`'s `NO_ZOOM_TOKEN`).
-- **Email links**: every rendered `mailto:` link (e.g.
+- **Email links**: every rendered `mailto:` link to the app's own
+  `@sqdance.app` address (links to anyone else, e.g. an event's organizers,
+  are left plain — see `docs/design/mailto-diagnostics.md`) (e.g.
   `[Email us](mailto:help@sqdance.app)`) automatically gets a build + client
   diagnostics block folded into its body — build hash/time, current page URL,
   online/installed status, user agent — via `src/lib/mailtoDiagnostics.ts`,
