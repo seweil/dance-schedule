@@ -84,6 +84,24 @@ test('the staff page is "Staff Schedule" at an event with round dancing, "Caller
   await expect(page.getByRole('heading', { level: 1, name: 'Caller Schedule' })).toBeVisible()
 })
 
+test('the venue page names both off-site hotels, reachable from the nav', async ({ page }) => {
+  await page.goto(`${SET}/`)
+  await page.getByRole('link', { name: 'Venue', exact: true }).first().click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Venue' })).toBeVisible()
+  await expect(page.getByText('Holiday Inn Express, 105 Opal Ct NE')).toBeVisible()
+  await expect(page.getByText('Comfort Suites, 100 Opal Ct NE')).toBeVisible()
+})
+
+test("an organizer's email link carries no app diagnostics; the app's own help link does", async ({ page }) => {
+  await page.goto(`${SET}/contacts`)
+  await expect(page.getByRole('link', { name: 'davison.brooke.77@gmail.com' })).toHaveAttribute(
+    'href',
+    'mailto:davison.brooke.77@gmail.com',
+  )
+  await page.goto(`${SET}/help`)
+  await expect(page.getByRole('link', { name: 'Email us' })).toHaveAttribute('href', /^mailto:help@sqdance\.app\?body=/)
+})
+
 test('the phase slider is absent at an event with no round dancing', async ({ page }) => {
   await page.goto('/automated-testing/dance-schedule')
   await expect(page.getByRole('slider', { name: 'Minimum level' })).toBeVisible()

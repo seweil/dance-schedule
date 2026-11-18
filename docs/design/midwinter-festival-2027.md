@@ -56,9 +56,9 @@ and new features:
 - [x] Clogging instructor attribution — see Decisions
 - [x] Level-columns view and round-dance phases — see Decisions
 - [x] Names: MS Extended code, content set — see Decisions
-- [ ] Off-site rooms: Advanced is at the Holiday Inn and Clogging at Comfort
+- [x] Off-site rooms: Advanced is at the Holiday Inn and Clogging at Comfort
       Suites — different buildings, not halls at the fairgrounds. Show a
-      venue/address anywhere?
+      venue/address anywhere? — see Decisions ("Content pages")
 - [x] Staff view label ("By staff" / "Staff Schedule" vs. "Caller
       Schedule") — per-set or global — see Decisions
 - [x] Dump: cuers and phases — see Decisions (hour summary still counts
@@ -70,8 +70,9 @@ and new features:
       a phone — flagged by the user, see the level-columns decision
 - [x] Data questions found while parsing — see "Answers to the data
       questions" and "Teaches and intros are for the level below"
-- [ ] Content pages (Callers & Cuers, Information,
-      Dining & Lodging, Youth, ...), making it `defaultContentSet`
+- [x] Content pages (Callers & Cuers, Information,
+      Dining & Lodging, Youth, ...) — see Decisions
+- [ ] Making it `defaultContentSet` (changes what the bare domain serves)
 - [x] Keeping `docs/adding-a-new-event.md` in sync — its "Dance-schedule
       input format" section lists `pdf-program-grid`
 
@@ -338,6 +339,27 @@ dance that phase or level yet, so the slider should show it to them, not to
 those who already do. MS dancers can learn Plus too, not only MS
 Extended ones (confirmed 2026-11-18), so an optional level doesn't hide an
 intro from the base level under it.
+
+### Content pages, from the festival website (2026-11-18)
+**Decision:** eight pages rewritten from
+<https://midwinterfestival.org/2027/> (crawled 2026-11-18): Featured Staff,
+Venue, Dining, Lodging, Things to Do, Youth, Clothing Resale, Contacts, plus
+the shared Help page. Numbered 20–29 so they sort after the schedule pages,
+as MotivateToSeattle's do. The festival logo, flattened onto white and
+squared, is the set's `icon.png`; originals are in `scratch/site-images/`.
+**Off-site rooms:** answered on the Venue page, not in the grids: a
+program → room → building table, and the two hotels' addresses with map
+links. A grid card already names its room ("Holiday Inn"), and an address
+on every card would crowd them for two programs out of six.
+**Left out:** restaurant logos, the chair's photo, and the site's
+"Information" page's history of each dance form. That last one is
+background reading, not something a dancer needs at the event.
+**Source discrepancies found:** the Youth page gives Julia Buchheit's email
+as buchheitfarmkm@gmail.com and the Contacts page as Jbuchheit19@gmail.com
+(pages here use the Contacts one for her, the Youth one for Karyn);
+Elmer's phone is listed as Brick & Mortar Cafe's number, so it's omitted;
+the fairgrounds map's key marks a hall "Advanced and new dancers", though
+Advanced is at the Holiday Inn this year (the Venue page says so).
 
 ### Staff view label follows the schedule's dance forms (2026-11-18)
 **Decision:** the staff-columns page is "Caller Schedule" when the schedule
