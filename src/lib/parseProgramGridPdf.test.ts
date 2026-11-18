@@ -242,6 +242,54 @@ describe('parseProgramGridPdf', () => {
     ])
   })
 
+  it.each([
+    ['Intro to Plus', 'MSX'],
+    ['Intro to A', 'Plus'],
+    ['Intro to Advanced', 'Plus'],
+    ['Intro to A2', 'A1'],
+  ])('files %j at the level below the one it introduces, %j', (text, level) => {
+    const session = only({
+      programs: [PLUS],
+      rows: [{ day: 'Saturday', time: '10:00-11:00 AM' }],
+      cells: [{ program: PLUS.name, column: 'Event', row: 0, text }],
+    })
+    expect(session).toMatchObject({ levels: [level], eventType: text })
+  })
+
+  it('rejects an intro to something that isn\'t a level with one below it', () => {
+    const { errors } = parse({
+      programs: [PLUS],
+      rows: [{ day: 'Saturday', time: '10:00-11:00 AM' }],
+      cells: [{ program: PLUS.name, column: 'Event', row: 0, text: 'Intro to Clogging' }],
+    })
+    expect(errors).toEqual([expect.stringMatching(/"Intro to Clogging" doesn't name a level with one below it/)])
+  })
+
+  it('maps a configured alias to its one name, for callers and cuers alike', () => {
+    const { sessions, errors } = parse(
+      {
+        programs: [PLUS],
+        rows: [
+          { day: 'Friday', time: '7:30-8:30 PM' },
+          { day: 'Saturday', time: '7:30-8:30 PM' },
+        ],
+        cells: [
+          { program: PLUS.name, column: 'Caller', row: 0, text: 'Mike Kious' },
+          { program: PLUS.name, column: 'Event', row: 0, text: 'Dance' },
+          { program: PLUS.name, column: 'Caller', row: 1, text: 'Michael Kious' },
+          { program: PLUS.name, column: 'Event', row: 1, text: 'Dance' },
+          { program: PLUS.name, column: 'Cuer', row: 1, text: 'Jeff J.' },
+        ],
+      },
+      { staffAliases: { 'Mike Kious': 'Michael Kious', 'Jeff J.': 'Jeff Johnson' } },
+    )
+    expect(errors).toEqual([])
+    expect(sessions).toEqual([
+      expect.objectContaining({ callers: ['Michael Kious'] }),
+      expect.objectContaining({ callers: ['Michael Kious'], cuers: ['Jeff Johnson'] }),
+    ])
+  })
+
   it('makes a non-dance event freeform, joined with its Caller cell text', () => {
     const relaxed = { name: 'Relaxed Mainstream - Standard Application', room: 'Room 1', columns: ['Event', 'Caller'] }
     const session = only({
@@ -291,7 +339,8 @@ describe('parseProgramGridPdf', () => {
 
   it.each([
     ['ph 3-4', 'Dancing', [3, 4]],
-    ['Teach ph 3', 'Teach', [3]],
+    ['Teach ph 3', 'Teach ph 3', [2]],
+    ['Teach Ph 1', 'Teach Ph 1', [1]],
     ['Ph 4-6', 'Dancing', [4, 5, 6]],
     ['Intro to\nRounds', 'Intro to Rounds', []],
   ])('reads round-dance event %j as type %j, phases %j', (text, eventType, phases) => {

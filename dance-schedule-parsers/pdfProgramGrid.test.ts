@@ -52,4 +52,14 @@ describe('pdfProgramGridParser', () => {
       endTime: '2027-01-30T22:00:00.000Z',
     })
   })
+
+  it('applies the config\'s alias and the intro/teach level rules', async () => {
+    const { sessions } = await parse()
+    const structured = sessions.flatMap(({ session }) => (session.kind === 'structured' ? [session] : []))
+    expect(structured.some((session) => session.callers.includes('Mike Kious'))).toBe(false)
+    expect(structured.filter((session) => session.callers.includes('Michael Kious')).length).toBeGreaterThan(1)
+    expect(structured.find((session) => session.eventType === 'Intro to A')).toMatchObject({ levels: ['Plus'] })
+    expect(structured.find((session) => session.eventType === 'Intro to Plus')).toMatchObject({ levels: ['MSX'] })
+    expect(structured.find((session) => session.eventType === 'Teach Ph 5')).toMatchObject({ phases: [4] })
+  })
 })

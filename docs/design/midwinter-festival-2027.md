@@ -67,7 +67,8 @@ and new features:
 - [ ] Page UI: cuer line on cards, second (phase) slider and phase columns,
       featured-only staff view, Challenge grouped with Advanced, MSX label
       "MS Ext", round/clogging card colors — decided above, not built yet
-- [ ] Confirm the data questions in "Open questions" with the organizer
+- [x] Data questions found while parsing — see "Answers to the data
+      questions" and "Teaches and intros are for the level below"
 - [ ] Content pages (Callers & Cuers, Information,
       Dining & Lodging, Youth, ...), making it `defaultContentSet`
 - [x] Keeping `docs/adding-a-new-event.md` in sync — its "Dance-schedule
@@ -275,18 +276,32 @@ as before. One session naming the same person in both roles isn't a
 conflict.
 **Why:** a cuer is really present in the room, unlike a GCA credit.
 
-## Open questions
+### Answers to the data questions (2026-11-18)
+**Decision:** "Michael Kious" and "Mike Kious" are one person. Config
+`danceSchedule.staffAliases` maps `Mike Kious` to `Michael Kious`, applied
+to every Caller and Cuer cell before anything else reads the names. The
+2-hour "Teach Ph 5" and "Showcase of Rounds" in Hall C stay as printed.
+"Workshop" vs. "WorkShop" also stays as printed.
+**Why:** an alias in config fixes the staff view and the double-booking
+check without editing the organizer's PDF. The other items are plausible
+as published.
 
-- **Data questions for the organizer**, found while parsing:
-  - "Michael Kious" (Plus, Fri 3:00 and Sun 11:00) and "Mike Kious" (MS, Sat
-    7:30) — probably one person. Left as printed, but the staff view and the
-    double-booking check treat them as two people.
-  - Round Dance "Teach Ph 5" (Sat 10:00) is a merged cell spanning 10:00
-    AM–12:00 PM, a 2-hour teach. Is that intended?
-  - "Showcase of Rounds" (Sat 6:00–7:30 PM) is printed in the Plus columns,
-    so it's placed in Willamette North (Hall C), while the green band runs
-    across every program. Is it in Hall C?
-  - Clogging spells both "Workshop" and "WorkShop"; kept as printed.
+### Teaches and intros are for the level below (2026-11-18)
+**Decision:** a round-dance "Teach Ph N" is filtered as phase N-1, except
+"Teach Ph 1", which stays phase 1. Its event type keeps the printed text
+("Teach Ph 5"), so the card still says what's taught. A square-dance
+"Intro to X" is filtered at the level below X in `LEVEL_ORDER`, whatever
+column it's printed in. "Intro to A" and "Intro to Advanced" mean A1. So
+"Intro to A", printed in the A2 column, is Plus, and "Intro to Plus" is
+MSX. An intro naming nothing with a level below it fails the build.
+"Intro to Rounds" has no phase and is unaffected.
+**Why:** the organizer's meaning. A teach or intro is for dancers who don't
+dance that phase or level yet, so the slider should show it to them, not to
+those who already do. "Intro to Plus" goes to MSX rather than MS because
+MSX is the next step in `LEVEL_ORDER`. Revisit if MS dancers should see it
+too.
+
+## Open questions
 
 - Two sliders and either-range matching — revisit after hands-on testing
   (see the level-columns decision above).

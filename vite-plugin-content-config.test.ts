@@ -6,6 +6,7 @@ import {
   loadContentConfigData,
   loadDanceScheduleFormat,
   loadDanceScheduleProgramStaff,
+  loadDanceScheduleStaffAliases,
 } from './vite-plugin-content-config'
 
 const OVERRIDE_ENV_VARS = ['COMBINE_A1A2', 'COMBINE_C3BC4', 'DANCE_SCHEDULE_ROOM_ORDER'] as const
@@ -265,5 +266,25 @@ describe('loadDanceScheduleProgramStaff', () => {
   it('rejects a programStaff that isn\'t a mapping', () => {
     writeConfig('danceSchedule:\n  programStaff: Trevor DeWitt\n')
     expect(() => loadDanceScheduleProgramStaff(configFile)).toThrow(/"danceSchedule.programStaff" must be a mapping/)
+  })
+})
+
+describe('loadDanceScheduleStaffAliases', () => {
+  it('is empty when config.yaml or the key is missing', () => {
+    expect(loadDanceScheduleStaffAliases(configFile)).toEqual({})
+    writeConfig('danceSchedule:\n  format: pdf-program-grid\n')
+    expect(loadDanceScheduleStaffAliases(configFile)).toEqual({})
+  })
+
+  it('reads each alias and its name, trimmed', () => {
+    writeConfig('danceSchedule:\n  staffAliases:\n    Mike Kious: " Michael Kious "\n')
+    expect(loadDanceScheduleStaffAliases(configFile)).toEqual({ 'Mike Kious': 'Michael Kious' })
+  })
+
+  it.each([['[Michael Kious]'], ['42'], ['""']])('rejects a name that isn\'t a string: %s', (value) => {
+    writeConfig(`danceSchedule:\n  staffAliases:\n    Mike Kious: ${value}\n`)
+    expect(() => loadDanceScheduleStaffAliases(configFile)).toThrow(
+      /"danceSchedule.staffAliases.Mike Kious" must be a name/,
+    )
   })
 })

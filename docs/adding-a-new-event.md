@@ -188,10 +188,14 @@ dance schedule is written in:
   Advanced, Round Dance, Clogging, ...) as column groups, each with its room
   in the row under its name and Event / Caller / Cuer columns, and one row
   per Day + Times. Use the organizer's PDF exactly as published; don't edit
-  it. Co-callers are separated by `/`. A Round Dance event like `Ph 3-5` or
-  `Teach Ph 4` sets its phases. Anyone a program's cells never name can be
-  credited with `programStaff`, as in the example below. The full rules are
-  in `docs/design/midwinter-festival-2027.md`.
+  it. Co-callers are separated by `/`. A Round Dance event like `Ph 3-5`
+  sets its phases. A teach is for the dancers one phase below it, so
+  `Teach Ph 4` is filtered as phase 3. Likewise an intro to a square-dance
+  level is for the level below it, so `Intro to Plus` is filtered as MS
+  Extended, whatever column it's printed in. Anyone a program's cells never
+  name can be credited with `programStaff`. A person printed under two names
+  can be merged into one with `staffAliases`. Both are shown in the example
+  below. The full rules are in `docs/design/midwinter-festival-2027.md`.
 
 ```yaml
 danceSchedule:
@@ -203,6 +207,8 @@ danceSchedule:
   format: pdf-program-grid
   programStaff:              # optional, keyed by program name as printed
     Clogging: [Trevor DeWitt]
+  staffAliases:              # optional, each other spelling → the name to show
+    Mike Kious: Michael Kious
 ```
 
 A misspelled format name fails the build, with a message listing the valid

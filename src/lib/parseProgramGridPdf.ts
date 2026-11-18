@@ -1,4 +1,5 @@
 import { normalizeLevelCode, isLevelCode } from './levelCodes'
+import { LEVEL_ORDER, isOrderedLevel } from './levelOrder'
 import { parseEventDate } from './parseEventDate'
 import { parseTimeRange } from './parseTimeRange'
 import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
@@ -40,6 +41,9 @@ export interface ParseProgramGridOptions {
   // header — e.g. a clogging instructor the PDF never names
   // (config.yaml `danceSchedule.programStaff`).
   programStaff?: Readonly<Record<string, readonly string[]>>
+  // One person printed under more than one name, mapped to the name to show
+  // ("Mike Kious" → "Michael Kious"; config.yaml `danceSchedule.staffAliases`).
+  staffAliases?: Readonly<Record<string, string>>
 }
 
 export interface ParseProgramGridResult {
@@ -92,6 +96,17 @@ const PLAIN_DANCE_EVENTS = new Set(['dance', 'featured'])
 // in the Advanced column. Labeled C1, still grouped with Advanced by the level
 // slider (docs/design/midwinter-festival-2027.md).
 const EVENT_LEVEL_OVERRIDES: Record<string, LevelCode> = { challenge: 'C1' }
+
+// "Intro to Plus" is for the dancers who don't dance Plus yet, so it's filtered at
+// the level below the one it names (whatever column it's printed in).
+const INTRO_EVENT = /^intro(?:duction)?\s+to\s+(.+)$/i
+// Level names an intro might use beyond what normalizeLevelCode recognizes. Keys
+// are normalizeHeader()ed. An intro to Advanced is an intro to A1, its first part.
+const INTRO_LEVELS: Record<string, LevelCode> = { a: 'A1', advanced: 'A1' }
+
+// A round-dance teach of phase N is for phase N-1 dancers learning it, so it's
+// filtered a phase lower. Lowercased.
+const TEACH_EVENT = 'teach'
 
 // A slot nobody uses, printed in the grid rather than left blank.
 const CLOSED_EVENT = 'closed'
@@ -434,8 +449,9 @@ export function parseProgramGridPdf(
       errors.push(`Text ${JSON.stringify(item.text)} at (${Math.round(item.x)}, ${Math.round(item.y)}) isn't in any program's column`)
     }
   }
+  const namesIn = (text: string) => splitNames(text).map((name) => options.staffAliases?.[name] ?? name)
   const knownCuers = new Set(
-    [...cellsByProgram.values()].flat().filter((cell) => cell.role === 'cuer').flatMap((cell) => splitNames(cell.text)),
+    [...cellsByProgram.values()].flat().filter((cell) => cell.role === 'cuer').flatMap((cell) => namesIn(cell.text)),
   )
 
   for (const program of programs) {
@@ -513,8 +529,8 @@ export function parseProgramGridPdf(
       }
 
       const callers: string[] = []
-      const cuers = splitNames(cuerText)
-      for (const name of splitNames(callerText)) {
+      const cuers = namesIn(cuerText)
+      for (const name of namesIn(callerText)) {
         if (knownCuers.has(name)) {
           if (!cuers.includes(name)) cuers.push(name)
         } else {
@@ -538,14 +554,30 @@ export function parseProgramGridPdf(
             errors.push(`${source}: phase range ${JSON.stringify(eventText)} runs backwards`)
             continue
           }
-          for (let phase = low; phase <= high; phase++) phases.push(phase)
-          eventType = phaseMatch[1] ?? DEFAULT_EVENT_TYPE
+          const isTeach = phaseMatch[1]?.toLowerCase() === TEACH_EVENT
+          // A phase 1 teach is for newcomers to rounds; there's no phase below it.
+          const shift = isTeach && low > 1 ? 1 : 0
+          for (let phase = low; phase <= high; phase++) phases.push(phase - shift)
+          // A teach keeps the phase it teaches in its name, since its phases now
+          // say who it's for.
+          eventType = isTeach ? eventText : (phaseMatch[1] ?? DEFAULT_EVENT_TYPE)
         }
         push({ kind: 'structured', ...base, levels: [], eventType, ...staff, danceForm: 'round', phases })
       } else if (kind.form === 'clogging') {
         push({ kind: 'structured', ...base, levels: [], eventType: eventText, ...staff, danceForm: 'clogging' })
       } else {
-        const level = EVENT_LEVEL_OVERRIDES[eventKey] ?? kind.level
+        let level = EVENT_LEVEL_OVERRIDES[eventKey] ?? kind.level
+        const introMatch = INTRO_EVENT.exec(eventText)
+        if (introMatch) {
+          const target = introMatch[1]!.trim()
+          const introduced = INTRO_LEVELS[normalizeHeader(target)] ?? normalizeLevelCode(target)
+          const index = isLevelCode(introduced) && isOrderedLevel(introduced) ? LEVEL_ORDER.indexOf(introduced) : -1
+          if (index < 1) {
+            errors.push(`${source}: ${JSON.stringify(eventText)} doesn't name a level with one below it`)
+            continue
+          }
+          level = LEVEL_ORDER[index - 1]!
+        }
         const isPlainDance = PLAIN_DANCE_EVENTS.has(eventKey) || eventKey === normalizeHeader(program.name)
         const eventType = isPlainDance || eventKey === '' ? DEFAULT_EVENT_TYPE : eventText
         push({ kind: 'structured', ...base, levels: [level], eventType, ...staff })

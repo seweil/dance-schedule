@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { loadDanceScheduleProgramStaff } from '../vite-plugin-content-config'
+import { loadDanceScheduleProgramStaff, loadDanceScheduleStaffAliases } from '../vite-plugin-content-config'
 import {
   parseProgramGridPdf,
   type PdfLineSegment,
@@ -120,8 +120,10 @@ export const pdfProgramGridParser: DanceScheduleParser = {
     } catch (error) {
       return { sessions: [], errors: [`${error instanceof Error ? error.message : String(error)}`] }
     }
-    const programStaff = loadDanceScheduleProgramStaff(configFile)
-    const result = parseProgramGridPdf(page, { programStaff })
+    const result = parseProgramGridPdf(page, {
+      programStaff: loadDanceScheduleProgramStaff(configFile),
+      staffAliases: loadDanceScheduleStaffAliases(configFile),
+    })
     return {
       sessions: result.sessions.map((session, index) => ({ session, source: result.sources[index]! })),
       errors: result.errors,

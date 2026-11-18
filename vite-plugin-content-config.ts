@@ -128,12 +128,9 @@ function readRoomOrderOverride(current: DanceScheduleRoomOrder | undefined): Dan
   return rooms
 }
 
-// `danceSchedule.format` — which parser (dance-schedule-parsers/index.ts) reads
-// this set's dance schedule. Build-time only, so deliberately not part of
-// ContentConfigData / virtual:content-config: the client never needs it.
-// Undefined when the file or key is absent; the registry applies the default and
-// rejects an unknown value (this file has no knowledge of which formats exist).
-export function loadDanceScheduleFormat(configFile: string): string | undefined {
+// The `danceSchedule` section, for the build-time-only keys below. Undefined when
+// config.yaml itself is absent.
+function readDanceScheduleSection(configFile: string): Record<string, unknown> | undefined {
   if (!fs.existsSync(configFile)) {
     return undefined
   }
@@ -144,12 +141,16 @@ export function loadDanceScheduleFormat(configFile: string): string | undefined 
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
   }
-  const danceSchedule = asConfigSection(
-    configFile,
-    'danceSchedule',
-    (parsed as Record<string, unknown> | null)?.danceSchedule,
-  )
-  const value = danceSchedule.format
+  return asConfigSection(configFile, 'danceSchedule', (parsed as Record<string, unknown> | null)?.danceSchedule)
+}
+
+// `danceSchedule.format` — which parser (dance-schedule-parsers/index.ts) reads
+// this set's dance schedule. Build-time only, so deliberately not part of
+// ContentConfigData / virtual:content-config: the client never needs it.
+// Undefined when the file or key is absent; the registry applies the default and
+// rejects an unknown value (this file has no knowledge of which formats exist).
+export function loadDanceScheduleFormat(configFile: string): string | undefined {
+  const value = readDanceScheduleSection(configFile)?.format
   if (value === undefined) {
     return undefined
   }
@@ -164,21 +165,10 @@ export function loadDanceScheduleFormat(configFile: string): string | undefined 
 // `{ Clogging: [Trevor DeWitt] }` for an instructor the PDF never names (see
 // docs/design/midwinter-festival-2027.md). Build-time only, like `format`.
 export function loadDanceScheduleProgramStaff(configFile: string): Record<string, string[]> {
-  if (!fs.existsSync(configFile)) {
+  const danceSchedule = readDanceScheduleSection(configFile)
+  if (danceSchedule === undefined) {
     return {}
   }
-  let parsed: unknown
-  try {
-    parsed = parse(fs.readFileSync(configFile, 'utf-8'))
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Failed to parse ${configFile}: ${message}`, { cause: error })
-  }
-  const danceSchedule = asConfigSection(
-    configFile,
-    'danceSchedule',
-    (parsed as Record<string, unknown> | null)?.danceSchedule,
-  )
   const programStaff = asConfigSection(configFile, 'danceSchedule.programStaff', danceSchedule.programStaff)
   const result: Record<string, string[]> = {}
   for (const [program, names] of Object.entries(programStaff)) {
@@ -188,6 +178,25 @@ export function loadDanceScheduleProgramStaff(configFile: string): Record<string
       )
     }
     result[program] = names.map((name: string) => name.trim())
+  }
+  return result
+}
+
+// `danceSchedule.staffAliases` — one person printed under more than one name in a
+// pdf-program-grid PDF, each other spelling mapped to the one to show, e.g.
+// `{ Mike Kious: Michael Kious }`. Build-time only, like `format`.
+export function loadDanceScheduleStaffAliases(configFile: string): Record<string, string> {
+  const danceSchedule = readDanceScheduleSection(configFile)
+  if (danceSchedule === undefined) {
+    return {}
+  }
+  const staffAliases = asConfigSection(configFile, 'danceSchedule.staffAliases', danceSchedule.staffAliases)
+  const result: Record<string, string> = {}
+  for (const [alias, name] of Object.entries(staffAliases)) {
+    if (typeof name !== 'string' || name.trim() === '') {
+      throw new Error(`${configFile}'s "danceSchedule.staffAliases.${alias}" must be a name, got ${JSON.stringify(name)}`)
+    }
+    result[alias.trim()] = name.trim()
   }
   return result
 }

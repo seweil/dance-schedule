@@ -14,6 +14,9 @@ danceSchedule:
   # PDF's Clogging column.
   programStaff:
     Clogging: [Trevor DeWitt]
+  # The PDF prints him both ways; the organizer confirmed it's one person.
+  staffAliases:
+    Mike Kious: Michael Kious
 
 manifest:
   name: Oregon Mid-Winter Festival 2027
