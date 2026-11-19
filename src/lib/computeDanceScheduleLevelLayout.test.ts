@@ -42,7 +42,32 @@ describe('computeDanceScheduleLevelLayout', () => {
       totalRows: 0,
       timeMarks: [],
       placements: [],
+      groupStartColumns: [],
     })
+  })
+
+  it('marks where the phase columns and Other start, for the dividers between groups', () => {
+    const square = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Hall A', {
+      levels: ['MS'],
+    })
+    const round = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Room 3', {
+      levels: [],
+      danceForm: 'round',
+      phases: [3],
+    })
+    const clogging = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Suites', {
+      levels: [],
+      danceForm: 'clogging',
+    })
+    const sessions = [square, round, clogging]
+    const msIndex = SLOTS.findIndex((slot) => slot.label === 'MS')
+    const layout = computeDanceScheduleLevelLayout(sessions, SLOTS, msIndex, msIndex + 1, {
+      minPhaseIndex: 2,
+      maxPhaseIndex: 3,
+    })
+    // [MS, next level] | [Ph 3, Ph 4] | [Other]
+    expect(layout.visibleSlots.map((slot) => slot.label).slice(2)).toEqual(['Ph 3', 'Ph 4', 'Other'])
+    expect(layout.groupStartColumns).toEqual([2, 4])
   })
 
   it('places a single-level session in its slot column', () => {

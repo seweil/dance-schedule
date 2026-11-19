@@ -109,6 +109,10 @@ export interface DanceScheduleLevelLayout {
   // computeDanceScheduleTimeAxis.ts's DanceScheduleTimeAxis.timeMarks.
   timeMarks: TimeMark[]
   placements: DanceLevelSessionPlacement[]
+  // Indices into visibleSlots where a new group of columns starts — the phase
+  // columns after the level columns, and Other after either — each marked by a
+  // dark divider (computeColumnDividers.ts). Empty with only one group.
+  groupStartColumns: number[]
 }
 
 const EMPTY_LEVEL_LAYOUT: DanceScheduleLevelLayout = {
@@ -117,6 +121,7 @@ const EMPTY_LEVEL_LAYOUT: DanceScheduleLevelLayout = {
   totalRows: 0,
   timeMarks: [],
   placements: [],
+  groupStartColumns: [],
 }
 
 // One entry per (session, occupied slot index) pair — always decomposed to this
@@ -336,9 +341,15 @@ export function computeDanceScheduleLevelLayout(
   const phaseSlots: LevelSlot[] = phaseRange
     ? PHASE_LABELS.slice(phaseRange.minPhaseIndex, phaseRange.maxPhaseIndex + 1).map((label) => ({ label, levels: [] }))
     : []
-  const visibleSlots = needsOtherColumn(visibleSessions, phaseRange)
+  const hasOther = needsOtherColumn(visibleSessions, phaseRange)
+  const visibleSlots = hasOther
     ? [...orderedSlots, ...phaseSlots, OTHER_LEVEL_SLOT]
     : [...orderedSlots, ...phaseSlots]
+  const groupStartColumns: number[] = []
+  if (orderedSlots.length > 0 && phaseSlots.length > 0) groupStartColumns.push(orderedSlots.length)
+  if (hasOther && orderedSlots.length + phaseSlots.length > 0) {
+    groupStartColumns.push(orderedSlots.length + phaseSlots.length)
+  }
 
   const rawEntries = buildRawEntries(
     visibleSessions,
@@ -361,5 +372,6 @@ export function computeDanceScheduleLevelLayout(
     totalRows: timeAxis.totalRows,
     timeMarks: timeAxis.timeMarks,
     placements,
+    groupStartColumns,
   }
 }

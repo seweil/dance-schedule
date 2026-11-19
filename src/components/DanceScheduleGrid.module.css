@@ -379,6 +379,26 @@
   border-left: 1px solid rgb(0 0 0 / 5%);
 }
 
+/* The line between groups of columns (levels | phases | Other) — see
+   computeColumnDividers.ts. A zero-width item at its column's left edge,
+   pulled 1px left to straddle the gridline. position: relative with z-index 0
+   paints it over the cards rendered before it (StickyScrollGrid.tsx) but under
+   the sticky .timeLabel (z-index 1) once the body scrolls sideways under it. */
+.columnDivider {
+  position: relative;
+  z-index: 0;
+  justify-self: start;
+  width: 0;
+  margin-left: -1px;
+  border-left: 2px solid rgb(0 0 0 / 60%);
+  pointer-events: none;
+}
+
+/* Above the header cells (.roomHeader, z-index 2), under the corner (3). */
+.headerColumnDivider {
+  z-index: 2;
+}
+
 /* border-box, not the default content-box — .card's own margin+padding needs to be
    INSIDE any explicit width a caller sets for it to mean what it says. Doesn't
    affect the plain (unsized, grid-stretch-filled) case at all — box-sizing is

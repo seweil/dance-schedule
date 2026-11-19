@@ -1,4 +1,5 @@
 import { useMemo, useRef, type ReactNode } from 'react'
+import type { ColumnDivider } from '../lib/computeColumnDividers'
 import type { EmptyGridCell } from '../lib/computeEmptyGridCells'
 import { createAxisTimeFormatter, type TimeMark } from '../lib/computeDanceScheduleTimeAxis'
 import { computeNowLinePosition } from '../lib/computeNowLinePosition'
@@ -23,6 +24,9 @@ export interface StickyScrollGridProps {
   // A fresh reference exactly when the date or level range changes — see
   // useSyncedGridScroll's own comment for why this resets scroll position.
   resetKey: unknown
+  // Dark lines between groups of columns — see computeColumnDividers.ts. Only the
+  // level-columns grid passes any.
+  dividers?: readonly ColumnDivider[]
   // The session cards themselves — the one thing that's genuinely different between
   // the three dance-schedule grids (room/level/caller), since each has its own
   // SessionCard rendering and placement type.
@@ -46,8 +50,10 @@ export function StickyScrollGrid({
   emptyCells,
   timeMarks,
   resetKey,
+  dividers = [],
   children,
 }: StickyScrollGridProps) {
+  const headerDividerColumns = [...new Set(dividers.map((divider) => divider.column))]
   const { panelRef, headerRef, setBodyRef } = useSyncedGridScroll(resetKey)
   const clockNow = useWallClockNow()
   // Read per render rather than memoized: cheap, and it picks up a changed URL on
@@ -91,6 +97,14 @@ export function StickyScrollGrid({
             >
               {column.label}
             </div>
+          ))}
+          {headerDividerColumns.map((column) => (
+            <div
+              key={`divider-${column}`}
+              className={`${styles.columnDivider} ${styles.headerColumnDivider}`}
+              style={{ gridRow: 1, gridColumn: column + 2 }}
+              aria-hidden="true"
+            />
           ))}
         </div>
       </div>
@@ -158,6 +172,16 @@ export function StickyScrollGrid({
             </div>
           )}
           {children}
+          {/* After the cards, so each segment paints over the 1px gap between
+              neighboring cards' edges rather than under them. */}
+          {dividers.map((divider) => (
+            <div
+              key={`divider-${divider.column}-${divider.rowStart}`}
+              className={styles.columnDivider}
+              style={{ gridRow: `${divider.rowStart} / span ${divider.rowSpan}`, gridColumn: divider.column + 2 }}
+              aria-hidden="true"
+            />
+          ))}
           {nowLine && (
             <div
               className={styles.nowBadgeRow}

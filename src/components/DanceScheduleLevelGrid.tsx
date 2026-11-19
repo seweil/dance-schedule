@@ -4,6 +4,7 @@ import {
   type DanceLevelSessionPlacement,
   type DanceScheduleLevelLayout,
 } from '../lib/computeDanceScheduleLevelLayout'
+import { computeColumnDividers } from '../lib/computeColumnDividers'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent } from '../lib/danceScheduleCardContent'
 import {
@@ -153,6 +154,7 @@ export function DanceScheduleLevelGrid({
       : LEVEL_COLUMN_WIDTH
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} ${columnTracks}`
   const emptyCells = computeEmptyGridCells(totalRows, visibleSlots.length, placements)
+  const dividers = computeColumnDividers(layout.groupStartColumns, placements, totalRows)
 
   return (
     <StickyScrollGrid
@@ -162,6 +164,7 @@ export function DanceScheduleLevelGrid({
       emptyCells={emptyCells}
       timeMarks={timeMarks}
       resetKey={layout}
+      dividers={dividers}
     >
       {placements.map((placement, index) => (
         // Placements have no stable id of their own (a non-contiguous multi-
