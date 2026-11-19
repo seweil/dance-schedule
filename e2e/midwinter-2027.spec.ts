@@ -104,6 +104,29 @@ test('the Caller Schedule shows only the featured staff, cuers included', async 
   await expect(markedName(page, 'Caller', 'Ted Lizotte').first()).toBeVisible()
 })
 
+test('"Show more staff" adds a picked caller and cuer after the featured staff, and remembers them', async ({
+  page,
+}) => {
+  await page.goto(`${SET}/caller-schedule`)
+  await selectSaturday(page)
+  await page.getByText('Show more staff').click()
+  await page.getByRole('group', { name: 'Callers' }).getByRole('checkbox', { name: 'Randy Dibble' }).check()
+  await page.getByRole('group', { name: 'Cuers' }).getByRole('checkbox', { name: 'Judy Russell' }).check()
+
+  const featuredThenPicked = ['Ted Lizotte', 'Pam & Jeff Johnson', 'Trevor DeWitt', 'Randy Dibble', 'Judy Russell']
+  await expect(columnHeaders(page)).toHaveText(featuredThenPicked)
+  await expect(page.getByText('Show more staff (2)')).toBeVisible()
+  // A divider before the picked callers, and another before the picked cuers.
+  await expect(page.locator('[class*="headerColumnDivider"]')).toHaveCount(2)
+
+  await page.reload()
+  await expect(columnHeaders(page)).toHaveText(featuredThenPicked)
+
+  await page.getByText('Show more staff (2)').click()
+  await page.getByRole('button', { name: 'Featured staff only' }).click()
+  await expect(columnHeaders(page)).toHaveText(['Ted Lizotte', 'Pam & Jeff Johnson', 'Trevor DeWitt'])
+})
+
 test('the Staff Schedule drops a room activity that starts during a staff session, instead of covering it', async ({
   page,
 }) => {

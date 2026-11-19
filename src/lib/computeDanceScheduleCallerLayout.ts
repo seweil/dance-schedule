@@ -107,6 +107,10 @@ export interface DanceScheduleCallerLayout {
   totalRows: number
   timeMarks: TimeMark[]
   placements: DanceCallerSessionPlacement[]
+  // Indices into visibleCallers where a new staff group starts (featured | picked
+  // callers | picked cuers), each marked by a dark divider
+  // (computeColumnDividers.ts). Empty with only one group shown.
+  groupStartColumns: number[]
 }
 
 const EMPTY_CALLER_LAYOUT: DanceScheduleCallerLayout = {
@@ -115,6 +119,7 @@ const EMPTY_CALLER_LAYOUT: DanceScheduleCallerLayout = {
   totalRows: 0,
   timeMarks: [],
   placements: [],
+  groupStartColumns: [],
 }
 
 // A caller's own given name — the sort key below, per direct product decision
@@ -134,34 +139,62 @@ function firstNameOf(name: string): string {
 // structured session (floatKind !== null — an all-headliners or caller-free-time
 // placeholder) contributes nothing here either, for the same reason: its
 // placeholder name must never appear in visibleCallers.
-function deriveCallerOrder(dateSessions: DanceSession[], featuredStaff: readonly string[] | undefined): string[] {
+function deriveCallerOrder(dateSessions: DanceSession[], shownStaff: readonly string[] | undefined): string[] {
   const callers = new Set<string>()
   for (const session of dateSessions) {
     if (!isEligibleCallerSession(session) || structuredFloatKind(session) !== null) {
       continue
     }
-    for (const caller of staffOf(session, featuredStaff)) {
+    for (const caller of staffOf(session, shownStaff)) {
       callers.add(caller)
     }
   }
-  if (featuredStaff) {
-    return featuredStaff.filter((name) => callers.has(name))
+  if (shownStaff) {
+    return shownStaff.filter((name) => callers.has(name))
   }
-  return Array.from(callers).sort(
-    (a, b) => firstNameOf(a).localeCompare(firstNameOf(b)) || a.localeCompare(b),
-  )
+  return sortByFirstName(callers)
+}
+
+export function sortByFirstName(names: Iterable<string>): string[] {
+  return Array.from(names).sort((a, b) => firstNameOf(a).localeCompare(firstNameOf(b)) || a.localeCompare(b))
 }
 
 // Who gets a column for an ordinary session: its callers, or — at an event with a
-// featuredStaff list (config.yaml `danceSchedule.featuredStaff`) — just the
-// featured ones among its callers AND cuers, since a featured cuer gets a column
-// too. See docs/design/midwinter-festival-2027.md's "Staff view shows only
-// featured callers and cuers".
-function staffOf(session: StructuredSession, featuredStaff: readonly string[] | undefined): string[] {
-  if (!featuredStaff) {
+// featuredStaff list (config.yaml `danceSchedule.featuredStaff`) — just the shown
+// ones (featured, plus anyone the viewer picked) among its callers AND cuers,
+// since a cuer gets a column too. See docs/design/midwinter-festival-2027.md's
+// "Staff view shows only featured callers and cuers".
+function staffOf(session: StructuredSession, shownStaff: readonly string[] | undefined): string[] {
+  if (!shownStaff) {
     return session.callers
   }
-  return [...new Set([...session.callers, ...(session.cuers ?? [])])].filter((name) => featuredStaff.includes(name))
+  return [...new Set([...session.callers, ...(session.cuers ?? [])])].filter((name) => shownStaff.includes(name))
+}
+
+// Everyone on a day who could be added to the page beyond its featured staff, for
+// the "Show more staff" checklist (StaffPicker.tsx): callers and cuers, each
+// sorted by first name like the default columns. Someone who both calls and cues
+// is listed once, under Callers. Floating placeholder names ("GCA Callers", "All
+// Headliners") and GCA Caller Showcase sessions never count, as everywhere else
+// on this page.
+export function listPickableStaff(
+  dateSessions: readonly DanceSession[],
+  featuredStaff: readonly string[],
+): { callers: string[]; cuers: string[] } {
+  const callers = new Set<string>()
+  const cuers = new Set<string>()
+  for (const session of dateSessions) {
+    if (!isEligibleCallerSession(session) || structuredFloatKind(session) !== null) {
+      continue
+    }
+    session.callers.forEach((name) => callers.add(name))
+    session.cuers?.forEach((name) => cuers.add(name))
+  }
+  const isPickable = (name: string) => !featuredStaff.includes(name)
+  return {
+    callers: sortByFirstName([...callers].filter(isPickable)),
+    cuers: sortByFirstName([...cuers].filter((name) => isPickable(name) && !callers.has(name))),
+  }
 }
 
 // Build-time check (vite-plugin-dance-schedule.ts) that every featured name is
@@ -213,7 +246,7 @@ function buildRawEntries(
   visibleCallers: string[],
   rowStartFor: (time: Date) => number,
   rowSpanFor: (start: Date, end: Date) => number,
-  featuredStaff: readonly string[] | undefined,
+  shownStaff: readonly string[] | undefined,
 ): RawEntry[] {
   const entries: RawEntry[] = []
 
@@ -232,7 +265,7 @@ function buildRawEntries(
       continue
     }
 
-    for (const caller of new Set(staffOf(session, featuredStaff))) {
+    for (const caller of new Set(staffOf(session, shownStaff))) {
       const slotIndex = visibleCallers.indexOf(caller)
       if (slotIndex === -1) {
         // Shouldn't happen given this function's documented input contract (every
@@ -465,20 +498,27 @@ function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number)
  * moment anything else starts, even though its own underlying session keeps
  * running the full length. An all-evening "Registration" session overlapping a
  * real caller session partway through is the motivating real example.
+ *
+ * `staffGroups`, at an event with a featuredStaff list, limits the columns to the
+ * people named in it, as ordered groups — [featured, picked callers, picked
+ * cuers] (DanceScheduleCallersPage.tsx) — shown in that order, with a divider
+ * where each group starts (groupStartColumns). Omitted, every caller gets a
+ * column, sorted by first name, as one group.
  */
 export function computeDanceScheduleCallerLayout(
   dateSessions: DanceSession[],
   visibleSessions: DanceSession[],
-  featuredStaff?: readonly string[],
+  staffGroups?: readonly (readonly string[])[],
 ): DanceScheduleCallerLayout {
-  // With a featuredStaff list, an ordinary session with nobody featured in it
-  // isn't on this page at all — not a column, and not floating either.
+  const shownStaff = staffGroups?.flat()
+  // With a staff list, an ordinary session with nobody shown in it isn't on this
+  // page at all — not a column, and not floating either.
   const eligibleVisible = visibleSessions.filter(
     (session) =>
       isEligibleForCallerPage(session) &&
       (session.kind === 'freeform' ||
         structuredFloatKind(session) !== null ||
-        staffOf(session, featuredStaff).length > 0),
+        staffOf(session, shownStaff).length > 0),
   )
 
   const timeAxis = computeDanceScheduleTimeAxis(eligibleVisible)
@@ -487,7 +527,7 @@ export function computeDanceScheduleCallerLayout(
   }
   const { rowStartFor, rowSpanFor } = timeAxis
 
-  const callerOrder = deriveCallerOrder(dateSessions, featuredStaff)
+  const callerOrder = deriveCallerOrder(dateSessions, shownStaff)
 
   // A caller still needs at least one session under the CURRENT date/level filter
   // to show a column at all — an eligible caller (see deriveCallerOrder) with
@@ -498,15 +538,16 @@ export function computeDanceScheduleCallerLayout(
     if (session.kind !== 'structured' || structuredFloatKind(session) !== null) {
       continue
     }
-    for (const caller of staffOf(session, featuredStaff)) {
+    for (const caller of staffOf(session, shownStaff)) {
       visibleCallerSet.add(caller)
     }
   }
 
   const visibleCallers = callerOrder.filter((caller) => visibleCallerSet.has(caller))
+  const groupStartColumns = staffGroups ? computeGroupStartColumns(visibleCallers, staffGroups) : []
 
   const rawEntries = clipFreeFloatingEntries(
-    buildRawEntries(eligibleVisible, visibleCallers, rowStartFor, rowSpanFor, featuredStaff),
+    buildRawEntries(eligibleVisible, visibleCallers, rowStartFor, rowSpanFor, shownStaff),
   )
   assignLanesPerSlot(rawEntries)
 
@@ -532,5 +573,18 @@ export function computeDanceScheduleCallerLayout(
     totalRows: compressed.totalRows,
     timeMarks: compressed.timeMarks,
     placements,
+    groupStartColumns,
   }
+}
+
+// Indices into visibleCallers where a column from a later staff group follows one
+// from an earlier group — one divider per boundary between groups actually shown.
+// A name listed in more than one group counts as its first.
+function computeGroupStartColumns(visibleCallers: readonly string[], staffGroups: readonly (readonly string[])[]): number[] {
+  const groupOf = (name: string) => staffGroups.findIndex((group) => group.includes(name))
+  const starts: number[] = []
+  for (let i = 1; i < visibleCallers.length; i++) {
+    if (groupOf(visibleCallers[i]!) !== groupOf(visibleCallers[i - 1]!)) starts.push(i)
+  }
+  return starts
 }

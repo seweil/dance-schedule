@@ -76,6 +76,7 @@ function makeLayout(overrides: Partial<DanceScheduleCallerLayout> = {}): DanceSc
     visibleCallers: ['Ted Lizotte'],
     columnWidthsRem: [9.375],
     totalRows: 8,
+    groupStartColumns: [],
     timeMarks: [
       { rowStart: 1, label: '12:00 PM', time: new Date('2026-07-02T12:00:00.000Z') },
       { rowStart: 3, label: '12:30 PM', time: new Date('2026-07-02T12:30:00.000Z') },

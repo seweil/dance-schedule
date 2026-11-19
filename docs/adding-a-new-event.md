@@ -190,6 +190,12 @@ out sessions none of them is part of. A cuer's column shows each session
 they cue, naming its caller. The build fails if a name isn't anywhere in the
 schedule, so a typo can't silently drop someone's column.
 
+With this set, the page also gets a "Show more staff" checklist of everyone
+else calling or cuing that day. A dancer can tick anyone to add their column
+after the featured staff (callers, then cuers, each group set off by a dark
+line), and the app remembers their picks on that device. You don't configure
+anything for it.
+
 ```yaml
 danceSchedule:
   featuredStaff: [Ted Lizotte, Pam & Jeff Johnson, Trevor DeWitt]

@@ -3,12 +3,14 @@ import danceSessionsData from 'virtual:dance-schedule'
 import danceScheduleMeta from 'virtual:dance-schedule-meta'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
-import { computeDanceScheduleCallerLayout } from '../lib/computeDanceScheduleCallerLayout'
+import { computeDanceScheduleCallerLayout, listPickableStaff } from '../lib/computeDanceScheduleCallerLayout'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
+import { useExtraStaff } from '../hooks/useExtraStaff'
 import { DanceScheduleCallerGrid } from './DanceScheduleCallerGrid'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { PageHeader } from './PageHeader'
 import { RotateDeviceBanner } from './RotateDeviceBanner'
+import { StaffPicker } from './StaffPicker'
 
 // Computed once at module load — the virtual module's data is static, so there's no
 // need to re-sort on every filter-driven re-render. A third call to
@@ -17,11 +19,17 @@ import { RotateDeviceBanner } from './RotateDeviceBanner'
 // modules; the array contents are identical either way.
 const sessions = buildDanceSchedule(danceSessionsData)
 
+const featuredStaff = contentConfig.danceSchedule?.featuredStaff
+
 // The caller-columns counterpart of DanceSchedulePage/DanceScheduleLevelsPage — same
 // date/level-range/GCA selectors (useDanceScheduleFilters, shared state/localStorage
 // key with the other two pages, so switching between views keeps the same
 // selection), but headline callers become the grid's columns instead of rooms or
 // levels — see docs/design/dance-schedule.md.
+//
+// At an event with a featuredStaff list, the columns are the featured staff, then
+// any callers and cuers the viewer added with "Show more staff" (StaffPicker.tsx),
+// as three groups with a divider between each.
 export function DanceScheduleCallersPage() {
   const {
     dates,
@@ -46,22 +54,31 @@ export function DanceScheduleCallersPage() {
     contentConfig.features.combineC3BC4,
     contentConfig.features.combineAdvancedC1,
   )
+  const { extraStaff, setExtraStaff } = useExtraStaff()
+
+  const pickable = useMemo(
+    () => (featuredStaff ? listPickableStaff(dateSessions, featuredStaff) : undefined),
+    [dateSessions],
+  )
+  const staffGroups = useMemo(
+    () =>
+      featuredStaff && pickable
+        ? [
+            featuredStaff,
+            pickable.callers.filter((name) => extraStaff.includes(name)),
+            pickable.cuers.filter((name) => extraStaff.includes(name)),
+          ]
+        : undefined,
+    [pickable, extraStaff],
+  )
 
   const layout = useMemo(
-    () =>
-      computeDanceScheduleCallerLayout(
-        dateSessions,
-        visibleSessions,
-        contentConfig.danceSchedule?.featuredStaff,
-      ),
-    [dateSessions, visibleSessions],
+    () => computeDanceScheduleCallerLayout(dateSessions, visibleSessions, staffGroups),
+    [dateSessions, visibleSessions, staffGroups],
   )
-  const featuredStaff = contentConfig.danceSchedule?.featuredStaff
   const hasAnythingThisDay = useMemo(
-    () =>
-      computeDanceScheduleCallerLayout(dateSessions, dateSessions, featuredStaff).placements
-        .length > 0,
-    [dateSessions, featuredStaff],
+    () => computeDanceScheduleCallerLayout(dateSessions, dateSessions, staffGroups).placements.length > 0,
+    [dateSessions, staffGroups],
   )
   const emptyDayMessage = hasAnythingThisDay
     ? undefined
@@ -88,6 +105,14 @@ export function DanceScheduleCallersPage() {
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
       />
+      {pickable && (
+        <StaffPicker
+          callers={pickable.callers}
+          cuers={pickable.cuers}
+          selected={extraStaff}
+          onChange={setExtraStaff}
+        />
+      )}
       <DanceScheduleCallerGrid
         layout={layout}
         showGca={showGca}

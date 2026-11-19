@@ -4,6 +4,7 @@ import {
   type DanceCallerSessionPlacement,
   type DanceScheduleCallerLayout,
 } from '../lib/computeDanceScheduleCallerLayout'
+import { computeColumnDividers } from '../lib/computeColumnDividers'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent, detailsWithRoomContent } from '../lib/danceScheduleCardContent'
 import {
@@ -206,6 +207,7 @@ export function DanceScheduleCallerGrid({
       : CALLER_COLUMN_WIDTH
   const gridTemplateColumns = `${TIME_COLUMN_WIDTH} ${columnTracks}`
   const emptyCells = computeEmptyGridCells(totalRows, visibleCallers.length, placements)
+  const dividers = computeColumnDividers(layout.groupStartColumns, placements, totalRows)
 
   return (
     <StickyScrollGrid
@@ -215,6 +217,7 @@ export function DanceScheduleCallerGrid({
       emptyCells={emptyCells}
       timeMarks={timeMarks}
       resetKey={layout}
+      dividers={dividers}
     >
       {placements.map((placement, index) => (
         // Placements have no stable id of their own (a co-taught session

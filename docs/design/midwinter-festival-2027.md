@@ -106,6 +106,20 @@ not every one of the ~30 callers in the PDF.
 **Why:** Direct product decision. It's the question attendees actually ask
 ("when is Ted calling?"), and 30+ columns would be unusable on a phone.
 How "featured" is determined: see "Featured staff come from config" below.
+**Extended (same day): "Show more staff."** Featured stays the default, and a
+`<details>` checklist under the filters (`StaffPicker.tsx`) lists everyone else
+calling or cuing that day, in Callers and Cuers sections sorted by first name
+(`listPickableStaff`). Someone who does both is listed under Callers. Picked
+people get columns after the featured ones, as Featured | picked callers |
+picked cuers, with the dark group divider between groups shown
+(`computeDanceScheduleCallerLayout`'s `staffGroups`/`groupStartColumns`).
+Picks are remembered per device (`extraStaffStorage.ts`) and kept across
+days; a name not on the selected day gets no column. "Featured staff only"
+clears that day's picks. Featured stays one group in config order, not split
+by role. Events without `featuredStaff` show every caller and get no picker.
+**Why:** about 35 people call or cue on Friday or Saturday, far too many
+columns for a phone, but people do look for one particular non-featured
+caller or cuer.
 
 ### A session's cuer shares its card, like GCA (2026-11-18)
 **Decision:** a square-dance session's cuer goes on the same card as its

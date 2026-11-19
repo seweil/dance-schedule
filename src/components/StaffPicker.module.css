@@ -1,0 +1,71 @@
+/* Centered under the filter row, like the filters themselves
+   (DanceScheduleFilters.module.css's .filters). */
+.picker {
+  margin: 0 auto var(--space-md);
+  max-width: 40rem;
+}
+
+.summary {
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-accent);
+}
+
+.panel {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* As many columns as fit, so ~20 names don't make one long list: three on a
+   desktop, two on a phone. 9.5rem fits the longest real names ("Craig
+   Abercrombie", "Stephanie Lozano") with their checkbox, while two columns
+   still fit across a 390px-wide phone. */
+.names {
+  columns: 9.5rem auto;
+  column-gap: var(--space-md);
+}
+
+/* A full-width tap target per name, never split across columns. */
+.name {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0;
+  break-inside: avoid;
+}
+
+.name input {
+  margin: 0;
+}
+
+.clear {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}

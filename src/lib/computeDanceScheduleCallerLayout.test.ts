@@ -3,6 +3,7 @@ import {
   callerColumnWidthRem,
   CALLER_COLUMN_WIDTH_REM,
   computeDanceScheduleCallerLayout,
+  listPickableStaff,
   validateFeaturedStaffConfig,
 } from './computeDanceScheduleCallerLayout'
 import type { DanceSession, SessionLocation } from '../types/danceSchedule'
@@ -74,6 +75,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       totalRows: 0,
       timeMarks: [],
       placements: [],
+      groupStartColumns: [],
     })
   })
 
@@ -650,7 +652,9 @@ describe('computeDanceScheduleCallerLayout', () => {
   })
 
   describe('featuredStaff', () => {
-    const FEATURED = ['Ted Lizotte', 'Pam & Jeff Johnson']
+    const FEATURED_LIST = ['Ted Lizotte', 'Pam & Jeff Johnson']
+    // Featured staff only — the default, before anyone is added with StaffPicker.
+    const FEATURED = [FEATURED_LIST]
 
     it('gives columns only to featured callers and cuers, in the configured order', () => {
       const sessions = [
@@ -690,6 +694,52 @@ describe('computeDanceScheduleCallerLayout', () => {
       ]
       const layout = computeDanceScheduleCallerLayout(sessions, sessions, FEATURED)
       expect(layout.placements[1]).toMatchObject({ floatKind: 'free', columnSpan: 1 })
+    })
+
+    it('adds picked callers, then picked cuers, after the featured staff, with a group start at each', () => {
+      const sessions = [
+        makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Ted Lizotte']),
+        makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Randy Dibble'], {
+          cuers: ['Judy Russell'],
+        } as Partial<DanceSession>),
+        makeSession('2026-07-02T10:00:00.000Z', '2026-07-02T11:00:00.000Z', ['Allan Hurst']),
+      ]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions, [
+        FEATURED_LIST,
+        ['Randy Dibble'],
+        ['Judy Russell'],
+      ])
+
+      // Pam & Jeff has nothing this day, so no column; Allan Hurst wasn't picked.
+      expect(layout.visibleCallers).toEqual(['Ted Lizotte', 'Randy Dibble', 'Judy Russell'])
+      expect(layout.groupStartColumns).toEqual([1, 2])
+      // Randy's session lands in both his column and Judy's.
+      expect(layout.placements.filter((p) => p.session === sessions[1]).map((p) => p.columnStart)).toEqual([1, 2])
+    })
+
+    it('has no group starts with only the featured group shown', () => {
+      const sessions = [makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Ted Lizotte'])]
+      expect(computeDanceScheduleCallerLayout(sessions, sessions, [FEATURED_LIST, [], []]).groupStartColumns).toEqual(
+        [],
+      )
+    })
+  })
+
+  describe('listPickableStaff', () => {
+    it("lists the day's non-featured callers and cuers by first name, someone who does both under Callers", () => {
+      const sessions = [
+        makeSession('2026-07-02T09:00:00.000Z', '2026-07-02T10:00:00.000Z', ['Ted Lizotte'], {
+          cuers: ['Tami Helms'],
+        } as Partial<DanceSession>),
+        makeSession('2026-07-02T10:00:00.000Z', '2026-07-02T11:00:00.000Z', ['Randy Dibble', 'Dean Black'], {
+          cuers: ['Julie Stiers', 'Dean Black'],
+        } as Partial<DanceSession>),
+        makeSession('2026-07-02T11:00:00.000Z', '2026-07-02T12:00:00.000Z', ['GCA Callers']),
+      ]
+      expect(listPickableStaff(sessions, ['Ted Lizotte'])).toEqual({
+        callers: ['Dean Black', 'Randy Dibble'],
+        cuers: ['Julie Stiers', 'Tami Helms'],
+      })
     })
   })
 
