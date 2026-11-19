@@ -36,6 +36,39 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-md);
+  order: -2;
+}
+
+/* The extra control (the Staff Schedule's "Show more staff" button —
+   DanceScheduleFilters.tsx's extraControl) and the phase slider are grouped in
+   one element, which is normally display: contents, so both are plain .filters
+   items: the extra control's order puts it right after .dateGcaRow, on the
+   date's line in phone portrait and in the one row on a desktop. */
+.contents,
+.extraRow {
+  display: contents;
+}
+
+.extraControl {
+  order: -1;
+}
+
+/* A short landscape phone (the same max-height: 500px test as the grid's own
+   phone layout, DanceScheduleGrid.module.css) has room for the date and level
+   slider on the first line but puts the phase slider on a second; the group
+   becomes that second line, so the extra control starts it — under the date,
+   left of the phase slider — instead of trailing the level slider on the first.
+   Only applied when there's a phase slider to share the line with
+   (DanceScheduleFilters.tsx), so on a day without one the control stays by the
+   date. */
+@media (max-height: 500px) {
+  .extraRow {
+    display: flex;
+    flex-basis: 100%;
+    justify-content: center;
+    align-items: center;
+    column-gap: var(--space-md);
+  }
 }
 
 .field {

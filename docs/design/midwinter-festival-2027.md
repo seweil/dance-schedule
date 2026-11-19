@@ -118,7 +118,12 @@ days; a name not on the selected day gets no column. "Featured staff only"
 clears that day's picks. The checklist opens inline, so columns appear as
 names are ticked, and closes on Escape or a tap outside it
 (`useDismissableMenu.ts`, like the page menu). The grid shifts up once when it
-closes, which was preferred over a floating panel that would hide the grid. Featured stays one group in config order, not split
+closes, which was preferred over a floating panel that would hide the grid.
+The "Show more staff" button sits in the filter row rather than on a line of
+its own (`DanceScheduleFilters.tsx`'s `extraControl`): next to the date on a
+phone in portrait and in the single row on desktop; on a short landscape
+phone, under the date at the start of the phase slider's line (`.extraRow`).
+Its panel still opens full-width below the filters. Featured stays one group in config order, not split
 by role. Events without `featuredStaff` show every caller and get no picker.
 **Why:** about 35 people call or cue on Friday or Saturday, far too many
 columns for a phone, but people do look for one particular non-featured

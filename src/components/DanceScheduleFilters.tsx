@@ -81,6 +81,11 @@ export interface DanceScheduleFiltersProps {
   // Omits the "Show GCA callers" checkbox entirely when the selected date has no GCA
   // caller-credit lines for it to toggle.
   hasGcaOnSelectedDate: boolean
+  // One more control placed in the filter row itself (the Staff Schedule's "Show
+  // more staff" button), rather than on a line of its own below it: right after
+  // the date, except on a short landscape phone, where it starts the phase
+  // slider's line instead — see .extraRow in the CSS module.
+  extraControl?: ReactNode
 }
 
 export interface PhaseSliderProps {
@@ -341,6 +346,7 @@ export function DanceScheduleFilters({
   showGca,
   onShowGcaChange,
   hasGcaOnSelectedDate,
+  extraControl,
 }: DanceScheduleFiltersProps) {
   const { textSize } = useTextSize()
   const isNarrowPortrait = useMediaQuery(NARROW_PORTRAIT_QUERY)
@@ -454,19 +460,26 @@ export function DanceScheduleFilters({
         }
       />
 
-      {phases && (
-        <RangeSliderField
-          labels={phases.labels}
-          minIndex={phases.minPhaseIndex}
-          maxIndex={phases.maxPhaseIndex}
-          onRangeChange={phases.onPhaseRangeChange}
-          minPresentIndex={phases.minPresentPhaseIndex}
-          maxPresentIndex={phases.maxPresentPhaseIndex}
-          noun="phase"
-          shortenA1A2Tick={false}
-          supportsHover={supportsHover}
-        />
-      )}
+      {/* The extra control and the phase slider, grouped only so that a short
+          landscape phone can give them a line of their own (.extraRow); everywhere
+          else the group is display: contents, so each is an ordinary .filters item
+          and the extra control sits right after the date (.extraControl's order). */}
+      <div className={extraControl && phases ? styles.extraRow : styles.contents}>
+        {extraControl && <div className={styles.extraControl}>{extraControl}</div>}
+        {phases && (
+          <RangeSliderField
+            labels={phases.labels}
+            minIndex={phases.minPhaseIndex}
+            maxIndex={phases.maxPhaseIndex}
+            onRangeChange={phases.onPhaseRangeChange}
+            minPresentIndex={phases.minPresentPhaseIndex}
+            maxPresentIndex={phases.maxPresentPhaseIndex}
+            noun="phase"
+            shortenA1A2Tick={false}
+            supportsHover={supportsHover}
+          />
+        )}
+      </div>
     </div>
   )
 }

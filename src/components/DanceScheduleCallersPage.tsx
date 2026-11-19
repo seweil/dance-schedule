@@ -1,16 +1,17 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import danceSessionsData from 'virtual:dance-schedule'
 import danceScheduleMeta from 'virtual:dance-schedule-meta'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
 import { computeDanceScheduleCallerLayout, listPickableStaff } from '../lib/computeDanceScheduleCallerLayout'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
+import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useExtraStaff } from '../hooks/useExtraStaff'
 import { DanceScheduleCallerGrid } from './DanceScheduleCallerGrid'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { PageHeader } from './PageHeader'
 import { RotateDeviceBanner } from './RotateDeviceBanner'
-import { StaffPicker } from './StaffPicker'
+import { StaffPickerPanel, StaffPickerToggle } from './StaffPicker'
 
 // Computed once at module load — the virtual module's data is static, so there's no
 // need to re-sort on every filter-driven re-render. A third call to
@@ -55,6 +56,16 @@ export function DanceScheduleCallersPage() {
     contentConfig.features.combineAdvancedC1,
   )
   const { extraStaff, setExtraStaff } = useExtraStaff()
+  // The "Show more staff" button and its panel are placed apart (StaffPicker.tsx),
+  // so their shared open state lives here.
+  const {
+    isOpen: staffPickerOpen,
+    toggle: toggleStaffPicker,
+    rootRef: staffPickerRootRef,
+    toggleRef: staffPickerToggleRef,
+    portalRef: staffPickerPanelRef,
+  } = useDismissableMenu<HTMLSpanElement, HTMLButtonElement, HTMLDivElement>()
+  const staffPickerPanelId = useId()
 
   const pickable = useMemo(
     () => (featuredStaff ? listPickableStaff(dateSessions, featuredStaff) : undefined),
@@ -104,9 +115,26 @@ export function DanceScheduleCallersPage() {
         showGca={showGca}
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
+        extraControl={
+          pickable && (
+            <StaffPickerToggle
+              isOpen={staffPickerOpen}
+              onToggle={toggleStaffPicker}
+              panelId={staffPickerPanelId}
+              rootRef={staffPickerRootRef}
+              toggleRef={staffPickerToggleRef}
+              callers={pickable.callers}
+              cuers={pickable.cuers}
+              selected={extraStaff}
+            />
+          )
+        }
       />
       {pickable && (
-        <StaffPicker
+        <StaffPickerPanel
+          isOpen={staffPickerOpen}
+          panelId={staffPickerPanelId}
+          panelRef={staffPickerPanelRef}
           callers={pickable.callers}
           cuers={pickable.cuers}
           selected={extraStaff}
