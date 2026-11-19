@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, devices, type Page } from '@playwright/test'
 
 // The MidWinter2027-only features against that set's real build: round-dance
 // phases (second slider, phase columns), cuers on cards, MS Ext, Challenge in the
@@ -114,6 +114,32 @@ test('the Staff Schedule says so on a day with no featured staff, instead of bla
   await page.getByLabel('Date').selectOption({ index: 0 })
   await expect(page.getByText('None of the featured staff are scheduled this day.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show all levels' })).toHaveCount(0)
+})
+
+test.describe('phone portrait', () => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 13']
+  test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch })
+
+  test("a full-width banner's label is centered on the visible part of the grid, scrolled or not", async ({
+    page,
+  }) => {
+    await page.goto(`${SET}/caller-schedule`)
+    await selectSaturday(page)
+    const label = page.getByText('Showcase of Rounds')
+    const timeColumnRight = async () => {
+      const box = await page.getByText('9:00 AM').boundingBox()
+      return box!.x + box!.width
+    }
+    const offCenter = async () => {
+      const box = (await label.boundingBox())!
+      const visibleCenter = ((await timeColumnRight()) + viewport.width) / 2
+      return Math.abs(box.x + box.width / 2 - visibleCenter)
+    }
+    // Trevor DeWitt's column is offscreen to the right at scroll 0.
+    expect(await offCenter()).toBeLessThan(16)
+    await page.locator('[class*="bodyWrapper"]').evaluate((el) => (el.scrollLeft = el.scrollWidth))
+    await expect.poll(offCenter).toBeLessThan(16)
+  })
 })
 
 test('the staff page is "Staff Schedule" at an event with round dancing, "Caller Schedule" at a square-only one', async ({

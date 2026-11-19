@@ -230,6 +230,11 @@
     max-width: none;
     margin-left: calc(-1 * var(--space-sm));
     margin-right: calc(-1 * var(--space-sm));
+    /* Lets .roomlessCardContent (below) size itself to the visible width via
+       cqw. Safe only here, where this box's width comes from the viewport —
+       the desktop rule's width: fit-content would collapse to 0 under
+       inline-size containment. */
+    container-type: inline-size;
   }
 
   /* Only meaningful once headerWrapper/bodyWrapper become independently
@@ -476,6 +481,18 @@
   left: calc(var(--time-column-width) + var(--space-sm));
   right: var(--space-sm);
   width: fit-content;
+}
+
+/* Exactly the visible width right of the time column (capped at the card's
+   own), so the sticky pinning above holds the label centered on screen, not
+   merely somewhere on screen — at scroll 0 it used to sit right-pinned,
+   centered under the offscreen columns' midpoint. Phone layout only, where
+   .panelWrapper is the cqw container (see its container-type there). After
+   the rule above, which would otherwise win at equal specificity. */
+@media (--phone), (max-height: 500px) {
+  .roomlessCardContent {
+    width: min(100%, calc(100cqw - var(--time-column-width) - 2 * var(--space-sm)));
+  }
 }
 
 /* overflow-wrap: anywhere, not the default normal — a room name like "Jarry/Joyce"
