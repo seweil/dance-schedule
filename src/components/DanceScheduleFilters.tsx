@@ -155,6 +155,12 @@ function RangeSliderField({
     .map((label, index) => ({ label, index }))
     .filter(({ index }) => index >= minPresentIndex && index <= maxPresentIndex)
 
+  // A day with only one level (or phase) has nothing to filter — a lone thumb
+  // pair on a one-stop track just looks broken, so say what's on instead.
+  if (presentIndexSpan === 0) {
+    return <p className={`${styles.field} ${styles.singleStop}`}>Only {labels[minPresentIndex]} this day</p>
+  }
+
   return (
     <div
       className={`${styles.field} ${styles.levelField}`}

@@ -147,8 +147,14 @@ describe('useDanceScheduleFilters', () => {
       expect(result.current.maxPresentLevelIndex).toBe(BASE_LEVEL_ORDER.indexOf('C4'))
     })
 
-    it('clamps the initial minLevelIndex/maxLevelIndex to the earliest date\'s own present range, not the full slots range', () => {
+    it('opens past a leading one-level day, onto the first date with more than one level', () => {
       const { result } = renderHook(() => useDanceScheduleFilters(NARROW_FIRST_SESSIONS, false, false))
+      expect(result.current.selectedDate).toEqual(new Date('2026-07-02T00:00:00.000Z'))
+    })
+
+    it('clamps minLevelIndex/maxLevelIndex to a one-level date\'s own present range, not the full slots range', () => {
+      const { result } = renderHook(() => useDanceScheduleFilters(NARROW_FIRST_SESSIONS, false, false))
+      act(() => result.current.setSelectedDate(new Date('2026-07-01T00:00:00.000Z')))
       const plusIndex = BASE_LEVEL_ORDER.indexOf('Plus')
       expect(result.current.minPresentLevelIndex).toBe(plusIndex)
       expect(result.current.maxPresentLevelIndex).toBe(plusIndex)

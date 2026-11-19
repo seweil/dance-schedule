@@ -73,6 +73,18 @@ function renderFilters(overrides: Partial<ComponentProps<typeof DanceScheduleFil
 }
 
 describe('DanceScheduleFilters', () => {
+  it('says which level is on, instead of a one-stop slider, on a one-level day', () => {
+    const plusIndex = BASE_SLOTS.findIndex((slot) => slot.label === 'Plus')
+    renderFilters({
+      minLevelIndex: plusIndex,
+      maxLevelIndex: plusIndex,
+      minPresentLevelIndex: plusIndex,
+      maxPresentLevelIndex: plusIndex,
+    })
+    expect(screen.getByText('Only Plus this day')).toBeInTheDocument()
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  })
+
   it('renders a date option per date (short — weekday, month, day, no year), with the selected date chosen', () => {
     renderFilters()
     const select = screen.getByRole('combobox') as HTMLSelectElement

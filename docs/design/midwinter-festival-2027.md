@@ -381,6 +381,16 @@ persistence and analytics don't vary by event.
 read it without importing the whole session list; `buildNavTree` takes an
 href → label override map (`src/lib/navLabelOverrides.ts`).
 
+### Open on today, else the first multi-level day; a one-level day says so (2026-11-18)
+**Decision:** with no stored date, the dance schedule opens on today if it's
+an event date, otherwise on the first date with more than one level
+(`src/lib/pickDefaultDanceScheduleDate.ts`) — Friday here, not Thursday. On a
+day with a single level (or phase), the slider is replaced by "Only MS Ext
+this day". A stored date still wins over both.
+**Why:** found in hands-on testing — Thursday's one MS Ext session made the
+page open on a lone, unmovable slider stop and no phase slider, which read as
+"very broken" rather than "a quiet day."
+
 ## Open questions
 
 - Two sliders and either-range matching — revisit after hands-on testing

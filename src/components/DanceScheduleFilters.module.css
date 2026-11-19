@@ -230,6 +230,13 @@
    checkbox's own UA-default margin (Chrome: ~3px/4px) stays zeroed
    regardless of that override — a plain visual tidy-up, not part of the
    width-recovery trims. */
+/* RangeSliderField's stand-in on a one-level (or one-phase) day. */
+.singleStop {
+  margin: 0;
+  justify-content: center;
+  min-width: 0;
+}
+
 .checkboxField {
   display: flex;
   align-items: center;

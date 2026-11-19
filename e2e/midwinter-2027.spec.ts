@@ -22,6 +22,19 @@ function columnHeaders(page: Page) {
   return page.locator('[class*="roomHeader"]')
 }
 
+test('opens on Friday, past the one-session Thursday, which names its one level instead of a slider', async ({
+  page,
+}) => {
+  await page.goto(`${SET}/dance-schedule`)
+  await expect(page.getByLabel('Date')).toHaveValue('2027-01-29T00:00:00.000Z')
+  await expect(page.getByRole('slider', { name: 'Minimum level' })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'Minimum phase' })).toBeVisible()
+
+  await page.getByLabel('Date').selectOption({ index: 0 })
+  await expect(page.getByText('Only MS Ext this day')).toBeVisible()
+  await expect(page.getByRole('slider')).toHaveCount(0)
+})
+
 test('the level slider shows MS Ext and folds Challenge into the Advanced stop', async ({ page }) => {
   await page.goto(`${SET}/dance-schedule`)
   await selectSaturday(page)

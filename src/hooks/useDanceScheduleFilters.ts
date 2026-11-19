@@ -10,6 +10,7 @@ import {
 import { PHASES, PHASE_LABELS, getPresentPhaseIndexRange, usesPhases } from '../lib/phaseOrder'
 import { filterDanceSessions } from '../lib/filterDanceSessions'
 import { groupDanceSessionsByDate } from '../lib/groupDanceSessionsByDate'
+import { pickDefaultDanceScheduleDate } from '../lib/pickDefaultDanceScheduleDate'
 import { trackEvent } from '../lib/rum'
 import {
   clampLevelIndex,
@@ -107,7 +108,9 @@ export function useDanceScheduleFilters(
   // clamped against the CURRENT dates/slots before being trusted.
   const [initialStoredFilters] = useState(() => loadStoredDanceScheduleFilters())
 
-  const [selectedDate, setSelectedDateState] = useState<Date>(() => resolveStoredDate(initialStoredFilters, dates))
+  const [selectedDate, setSelectedDateState] = useState<Date>(() =>
+    resolveStoredDate(initialStoredFilters, dates, pickDefaultDanceScheduleDate(groups, slots)),
+  )
 
   // Wraps the raw setter (rather than tracking in an effect keyed on
   // selectedDate) so this only fires on a genuine user pick, not on mount.

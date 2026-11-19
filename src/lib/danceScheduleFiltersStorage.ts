@@ -23,10 +23,11 @@ export function saveDanceScheduleFilters(filters: Required<StoredDanceScheduleFi
 // value doesn't parse as a date, or it no longer matches any date in the current
 // schedule (e.g. after a content-set update) — never crashes on stale/malformed
 // localStorage data.
-export function resolveStoredDate(stored: StoredDanceScheduleFilters, dates: Date[]): Date {
+// `fallback` overrides that first-date default (see pickDefaultDanceScheduleDate.ts).
+export function resolveStoredDate(stored: StoredDanceScheduleFilters, dates: Date[], fallback?: Date): Date {
   const storedTime = stored.selectedDateISO ? new Date(stored.selectedDateISO).getTime() : NaN
   const match = Number.isNaN(storedTime) ? undefined : dates.find((date) => date.getTime() === storedTime)
-  return match ?? dates[0] ?? new Date()
+  return match ?? fallback ?? dates[0] ?? new Date()
 }
 
 // Falls back to the full range whenever the stored indices are missing, not

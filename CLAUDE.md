@@ -55,6 +55,9 @@ standalone; otherwise it stays sandboxed and Chromium dies at launch
 (`bootstrap_check_in ... MachPortRendezvousServer: Permission denied`), failing
 every test at `browserType.launch` for no app-related reason.
 
+Work directly on `main`: commit and push there, with no feature branches or PRs
+(per the repo owner). CI still runs on every push.
+
 `pnpm install` activates a Husky pre-commit hook (`.husky/pre-commit`) that runs
 `pnpm typecheck && pnpm lint && pnpm test` before every commit — it aborts the
 commit if any of them fail. This only runs locally; it isn't a substitute for
