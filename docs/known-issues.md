@@ -735,3 +735,38 @@ but it looks noticeably rougher than the rest of the app's polish. Worth a
 real loading UI (matching the app's own type/color, maybe a simple spinner)
 if this turns out to be visible often enough in production to matter —
 not fixed here since it's a minor polish item, not a functional bug.
+
+## Dance Schedule on a phone: a level column with overlapping sessions takes most of the screen
+
+**Found:** 2026-11-18, checking MidWinter2027's Dance Schedule in mobile
+WebKit (iPhone 14 portrait).
+
+When two sessions at the same level overlap in time (Saturday 10:00 at
+MidWinter2027: a Cherie Cox MS+ session and an "Intro to Plus" session that
+is also tagged MS+), the level-columns view puts them side by side in
+lanes, and the column widens by 50% per extra lane
+(`computeDanceScheduleLevelLayout.ts`'s `levelColumnWidthRem`). A CSS Grid
+column has one width for its whole height, so that column stays wide all
+day, even where nothing overlaps. In phone portrait it fills most of the
+screen, so seeing the next column always takes a sideways scroll.
+
+**Impact:** cosmetic; everything is readable and reachable by scrolling,
+and landscape (which the rotate banner already suggests) fits it fine.
+Possible fixes: cap lane widening at phone width, or stack overlapping
+sessions instead of placing them side by side there.
+
+## Dance-schedule grid outline spans the full phone width when the grid is narrower
+
+**Found:** 2026-11-18, same check, on MidWinter2027's Thursday (one MS+
+column).
+
+In the phone layout `.panelWrapper` is `width: auto` with negative margins
+(full-bleed, so the body can scroll sideways within the viewport — see
+`DanceScheduleGrid.module.css`). When the grid's own columns are narrower
+than the screen, the panel's border still runs the full width, leaving an
+empty framed area to the right of the last column. Desktop doesn't have
+this: its panel is `width: fit-content`.
+
+**Impact:** cosmetic only. A fix would size the outline to the grid
+(e.g. the border on the grid itself rather than the panel) without losing
+the phone layout's full-bleed horizontal scrolling.

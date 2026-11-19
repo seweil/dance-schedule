@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { formatLevel } from './levelCodes'
 import {
   BASE_LEVEL_ORDER,
   LEVEL_ORDER,
@@ -323,7 +324,7 @@ describe('optional levels (MSX)', () => {
 
   it('puts MSX between MS and Plus when included', () => {
     const slots = getLevelSlots(false, false, { includeOptionalLevels: true })
-    expect(slots.slice(0, 4).map((slot) => slot.label)).toEqual(['SSD', 'MS', 'MS Ext', 'Plus'])
+    expect(slots.slice(0, 4).map((slot) => slot.label)).toEqual(['SSD', 'MS', formatLevel('MSX'), 'Plus'])
     expect(slots[2]!.levels).toEqual(['MSX'])
   })
 

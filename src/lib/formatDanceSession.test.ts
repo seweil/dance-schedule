@@ -9,6 +9,7 @@ import {
   formatSessionRoom,
   formatSessionTimeRange,
 } from './formatDanceSession'
+import { formatLevel } from './levelCodes'
 import type { DanceSession, StructuredSession } from '../types/danceSchedule'
 
 function makeStructured(overrides: Partial<StructuredSession> = {}): StructuredSession {
@@ -49,8 +50,9 @@ describe('formatSessionLevels', () => {
     expect(formatSessionLevels(FREEFORM)).toBe('')
   })
 
-  it('shows MSX by its label, "MS Ext"', () => {
-    expect(formatSessionLevels(makeStructured({ levels: ['MS', 'MSX'] }))).toBe('MS, MS Ext')
+  it('shows MSX by its display label, not its code', () => {
+    expect(formatSessionLevels(makeStructured({ levels: ['MS', 'MSX'] }))).toBe(`MS, ${formatLevel('MSX')}`)
+    expect(formatLevel('MSX')).not.toBe('MSX')
   })
 })
 

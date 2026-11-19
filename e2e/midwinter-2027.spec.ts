@@ -1,7 +1,8 @@
 import { test, expect, devices, type Page } from '@playwright/test'
+import { formatLevel } from '../src/lib/levelCodes'
 
 // The MidWinter2027-only features against that set's real build: round-dance
-// phases (second slider, phase columns), cuers on cards, MS Ext, Challenge in the
+// phases (second slider, phase columns), cuers on cards, MSX, Challenge in the
 // Advanced slot, and the featured-staff-only Caller Schedule. Unlike the other
 // specs, this asserts against a real event's data (content/MidWinter2027, parsed
 // from the organizer's published PDF) rather than the automated-testing fixture,
@@ -10,6 +11,8 @@ import { test, expect, devices, type Page } from '@playwright/test'
 // docs/design/midwinter-festival-2027.md.
 
 const SET = '/MidWinter2027'
+// Mainstream Extended's display label, from its one definition (levelCodes.ts).
+const MSX = formatLevel('MSX')
 
 // The four dates are Thursday (the pre-event dance), Friday, Saturday, Sunday.
 async function selectSaturday(page: Page) {
@@ -31,16 +34,16 @@ test('opens on Friday, past the one-session Thursday, which names its one level 
   await expect(page.getByRole('slider', { name: 'Minimum phase' })).toBeVisible()
 
   await page.getByLabel('Date').selectOption({ index: 0 })
-  await expect(page.getByText('Only MS Ext this day')).toBeVisible()
+  await expect(page.getByText(`Only ${MSX} this day`)).toBeVisible()
   await expect(page.getByRole('slider')).toHaveCount(0)
 })
 
-test('the level slider shows MS Ext and folds Challenge into the Advanced stop', async ({
+test('the level slider shows MSX by its display label and folds Challenge into the Advanced stop', async ({
   page,
 }) => {
   await page.goto(`${SET}/dance-schedule`)
   await selectSaturday(page)
-  await expect(page.getByRole('button', { name: 'MS Ext' })).toBeVisible()
+  await expect(page.getByRole('button', { name: MSX, exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'A2/C1' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'C1', exact: true })).toHaveCount(0)
 })

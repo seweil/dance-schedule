@@ -80,7 +80,7 @@ describe('colorForSession', () => {
     expect(round).not.toBe(NEUTRAL_CARD_COLOR)
   })
 
-  it('tells MS and MS Ext apart', () => {
+  it('tells MS and MSX apart', () => {
     expect(colorForSession(makeStructured(['MSX']))).not.toBe(colorForSession(makeStructured(['MS'])))
   })
 })

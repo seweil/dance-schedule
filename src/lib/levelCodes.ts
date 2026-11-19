@@ -23,9 +23,11 @@ export function normalizeLevelCode(raw: string): string {
 }
 
 // How a level reads on the page, where it differs from its code — slider ticks,
-// column headers, card level lines.
+// column headers, card level lines, the "Only … this day" note. The one place to
+// rename a level's display label; tests read it through formatLevel rather than
+// repeating the text. MSX (Mainstream Extended) was "MS Ext" until 2026-11-18.
 const LEVEL_LABELS: Partial<Record<LevelCode, string>> = {
-  MSX: 'MS Ext',
+  MSX: 'MS+',
 }
 
 export function formatLevel(level: LevelCode): string {

@@ -216,6 +216,11 @@ divider separates the level, phase and Other column groups
 ### Names (2026-11-18)
 **Decision:** MS Extended's level code is `MSX`, labeled "MS Ext". The
 content set is `content/MidWinter2027/`.
+**Relabeled (same day):** the label is now "MS+", per direct product
+decision. It's defined once, in `levelCodes.ts`'s `LEVEL_LABELS`; tests read
+it through `formatLevel('MSX')` rather than repeating the text, so a future
+rename is a one-line change. Earlier mentions of "MS Ext" in this doc are
+historical.
 
 ### Page UI as built (2026-11-18)
 **Decision:** how each decided feature landed:
