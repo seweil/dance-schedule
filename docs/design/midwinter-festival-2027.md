@@ -204,6 +204,12 @@ and "each slider filters its own kind" give the same result today. They'd
 only diverge for a session that has both, which has never come up. Flagged
 by the user for hands-on testing and further discussion once it's running,
 especially how phase columns and two sliders fit on a phone.
+**Follow-ups from hands-on testing (same day):** a phase column with nothing
+in it is omitted, unlike an empty level column — teaches sit under the phase
+below the one taught, so Saturday had an empty Ph 2 in the middle of its
+range (`computeDanceScheduleLevelLayout.ts`'s `shownPhaseIndices`). A dark
+divider separates the level, phase and Other column groups
+(`computeColumnDividers.ts`).
 
 ### Names (2026-11-18)
 **Decision:** MS Extended's level code is `MSX`, labeled "MS Ext". The

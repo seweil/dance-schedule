@@ -54,6 +54,8 @@ test('the Dance Schedule gets a phase slider and phase columns, with each teach 
   // Saturday's teaches: Ph 2 (for phase 1) and Ph 5 (for phase 4).
   await expect(columnHeaders(page).filter({ hasText: /^Ph 1$/ })).toBeVisible()
   await expect(columnHeaders(page).filter({ hasText: /^Ph 4$/ })).toBeVisible()
+  // Nothing on Saturday is in Ph 2, so it gets no column.
+  await expect(columnHeaders(page).filter({ hasText: /^Ph 2$/ })).toHaveCount(0)
   await expect(page.getByText('Teach Ph 5 -')).toBeVisible()
 
   // Stepping the max thumb all the way down pins the range to phase 1 alone. Not

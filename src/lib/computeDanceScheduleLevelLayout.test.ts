@@ -53,7 +53,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     const round = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Room 3', {
       levels: [],
       danceForm: 'round',
-      phases: [3],
+      phases: [3, 4],
     })
     const clogging = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Suites', {
       levels: [],
@@ -521,7 +521,7 @@ describe('computeDanceScheduleLevelLayout', () => {
     const round = (phases: number[], start = '2026-07-02T13:00:00.000Z', end = '2026-07-02T14:00:00.000Z') =>
       makeSession(start, end, 'Room 3/4', { levels: [], danceForm: 'round', phases, callers: [] } as Partial<DanceSession>)
 
-    it('adds one column per phase in range after the level columns, and spans a contiguous phase range', () => {
+    it('adds one column per occupied phase in range after the level columns, and spans a contiguous phase range', () => {
       const plus = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Hall C', { levels: ['Plus'] })
       const phase3to5 = round([3, 4, 5])
       const layout = computeDanceScheduleLevelLayout([plus, phase3to5], SLOTS, PLUS_INDEX, PLUS_INDEX, {
@@ -529,8 +529,23 @@ describe('computeDanceScheduleLevelLayout', () => {
         maxPhaseIndex: 5,
       })
 
-      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 3', 'Ph 4', 'Ph 5', 'Ph 6'])
+      // Ph 6 is in range but empty, so it gets no column.
+      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 3', 'Ph 4', 'Ph 5'])
       expect(layout.placements.find((p) => p.session === phase3to5)).toMatchObject({ columnStart: 1, columnSpan: 3 })
+    })
+
+    it('omits an empty phase in the middle of the range, placing the phases either side next to each other', () => {
+      // MidWinter2027's Saturday: teaches sit under the phase below, leaving Ph 2 empty.
+      const phase1 = round([1])
+      const phase3 = round([3], '2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z')
+      const layout = computeDanceScheduleLevelLayout([phase1, phase3], SLOTS, PLUS_INDEX, PLUS_INDEX, {
+        minPhaseIndex: 0,
+        maxPhaseIndex: 2,
+      })
+
+      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 1', 'Ph 3'])
+      expect(layout.placements.find((p) => p.session === phase1)).toMatchObject({ columnStart: 1 })
+      expect(layout.placements.find((p) => p.session === phase3)).toMatchObject({ columnStart: 2 })
     })
 
     it('drops phases outside the range and sends a round session with no phase to Other', () => {
@@ -541,9 +556,9 @@ describe('computeDanceScheduleLevelLayout', () => {
         maxPhaseIndex: 3,
       })
 
-      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 3', 'Ph 4', 'Other'])
+      expect(layout.visibleSlots.map((slot) => slot.label)).toEqual(['Plus', 'Ph 3', 'Other'])
       expect(layout.placements.find((p) => p.session === phase2to3)).toMatchObject({ columnStart: 1, columnSpan: 1 })
-      expect(layout.placements.find((p) => p.session === noPhase)).toMatchObject({ columnStart: 3 })
+      expect(layout.placements.find((p) => p.session === noPhase)).toMatchObject({ columnStart: 2 })
     })
 
     it('shows no phase columns without a phase range, the round session going to Other', () => {

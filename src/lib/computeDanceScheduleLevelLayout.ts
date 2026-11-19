@@ -59,28 +59,45 @@ const OTHER_LEVEL_SLOT: LevelSlot = { label: 'Other', levels: [] }
 // empty column. Computed from the same `visibleSessions`/level-range inputs
 // buildRawEntries itself uses, so the two can't disagree about which sessions land
 // in "Other."
-function needsOtherColumn(visibleSessions: DanceSession[], phaseRange: PhaseIndexRange | undefined): boolean {
+function needsOtherColumn(visibleSessions: DanceSession[], shownPhases: readonly number[]): boolean {
   return visibleSessions.some((session) => {
     const orderedLevels = session.kind === 'structured' ? session.levels.filter(isOrderedLevel) : []
     return (
       orderedLevels.length === 0 &&
-      inRangePhaseColumns(session, phaseRange).length === 0 &&
+      inRangePhaseColumns(session, shownPhases).length === 0 &&
       session.location.kind !== 'roomless'
     )
   })
 }
 
-// A round-dance session's phase columns, as offsets into the visible phase columns
-// (see computeDanceScheduleLevelLayout's `phaseRange`). Empty for a session with no
-// stated phase, or when the page shows no phase columns at all.
-function inRangePhaseColumns(session: DanceSession, phaseRange: PhaseIndexRange | undefined): number[] {
-  if (!phaseRange || session.kind !== 'structured') {
+// The phase columns actually shown: each 0-based phase index within the phase
+// slider's range that at least one visible session is in, ascending. Unlike the
+// level columns, a phase with nothing in it gets no column at all — a day's
+// teaches sit under the phase BELOW the one taught ("Teach Ph 2" under Ph 1), so
+// a range with a gap in it is common (MidWinter2027's Saturday has no Ph 2).
+function shownPhaseIndices(visibleSessions: DanceSession[], phaseRange: PhaseIndexRange | undefined): number[] {
+  if (!phaseRange) {
     return []
   }
-  return (session.phases ?? [])
-    .map((phase) => phase - 1)
-    .filter((index) => index >= phaseRange.minPhaseIndex && index <= phaseRange.maxPhaseIndex)
-    .map((index) => index - phaseRange.minPhaseIndex)
+  const shown = new Set<number>()
+  for (const session of visibleSessions) {
+    if (session.kind !== 'structured') continue
+    for (const phase of session.phases ?? []) {
+      const index = phase - 1
+      if (index >= phaseRange.minPhaseIndex && index <= phaseRange.maxPhaseIndex) shown.add(index)
+    }
+  }
+  return [...shown].sort((a, b) => a - b)
+}
+
+// A round-dance session's phase columns, as offsets into the shown phase columns
+// (shownPhaseIndices). Empty for a session with no stated phase, or when the page
+// shows no phase columns at all.
+function inRangePhaseColumns(session: DanceSession, shownPhases: readonly number[]): number[] {
+  if (session.kind !== 'structured') {
+    return []
+  }
+  return (session.phases ?? []).map((phase) => shownPhases.indexOf(phase - 1)).filter((offset) => offset >= 0)
 }
 
 export interface DanceLevelSessionPlacement {
@@ -148,13 +165,13 @@ function buildRawEntries(
   slots: readonly LevelSlot[],
   minLevelIndex: number,
   maxLevelIndex: number,
-  phaseRange: PhaseIndexRange | undefined,
+  shownPhases: readonly number[],
   rowStartFor: (time: Date) => number,
   rowSpanFor: (start: Date, end: Date) => number,
 ): RawEntry[] {
   const entries: RawEntry[] = []
   const levelColumnCount = maxLevelIndex - minLevelIndex + 1
-  const phaseColumnCount = phaseRange ? phaseRange.maxPhaseIndex - phaseRange.minPhaseIndex + 1 : 0
+  const phaseColumnCount = shownPhases.length
 
   for (const session of visibleSessions) {
     const rowStart = rowStartFor(session.startTime)
@@ -162,7 +179,7 @@ function buildRawEntries(
 
     // Phase columns sit right after the level columns, so a contiguous "Ph 3-5"
     // merges into one spanning card the same way a "C1, C2" session does.
-    const phaseColumns = inRangePhaseColumns(session, phaseRange)
+    const phaseColumns = inRangePhaseColumns(session, shownPhases)
     if (phaseColumns.length > 0) {
       for (const offset of phaseColumns) {
         entries.push({ session, rowStart, rowSpan, slotIndex: levelColumnCount + offset, lane: 0, laneCount: 1 })
@@ -319,8 +336,9 @@ function mergeIntoPlacements(
  * computeDanceScheduleCallerLayout.ts).
  *
  * `phaseRange`, passed only on a day with phased round dancing, adds one column per
- * phase in the phase slider's range ("Ph 3", "Ph 4", ...) between the level columns
- * and "Other", so round dancers get the same view square dancers do — see
+ * phase in the phase slider's range ("Ph 3", "Ph 4", ...) that has something in it
+ * (shownPhaseIndices — an empty phase is omitted, unlike an empty level), between
+ * the level columns and "Other", so round dancers get the same view square dancers do — see
  * docs/design/midwinter-festival-2027.md's "Level-columns view gets phase
  * columns". A round session with no stated phase goes to "Other".
  */
@@ -338,10 +356,9 @@ export function computeDanceScheduleLevelLayout(
   const { rowStartFor, rowSpanFor } = timeAxis
 
   const orderedSlots = slots.slice(minLevelIndex, maxLevelIndex + 1)
-  const phaseSlots: LevelSlot[] = phaseRange
-    ? PHASE_LABELS.slice(phaseRange.minPhaseIndex, phaseRange.maxPhaseIndex + 1).map((label) => ({ label, levels: [] }))
-    : []
-  const hasOther = needsOtherColumn(visibleSessions, phaseRange)
+  const shownPhases = shownPhaseIndices(visibleSessions, phaseRange)
+  const phaseSlots: LevelSlot[] = shownPhases.map((index) => ({ label: PHASE_LABELS[index]!, levels: [] }))
+  const hasOther = needsOtherColumn(visibleSessions, shownPhases)
   const visibleSlots = hasOther
     ? [...orderedSlots, ...phaseSlots, OTHER_LEVEL_SLOT]
     : [...orderedSlots, ...phaseSlots]
@@ -356,7 +373,7 @@ export function computeDanceScheduleLevelLayout(
     slots,
     minLevelIndex,
     maxLevelIndex,
-    phaseRange,
+    shownPhases,
     rowStartFor,
     rowSpanFor,
   )
