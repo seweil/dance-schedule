@@ -59,6 +59,8 @@ test('the Dance Schedule gets a phase slider and phase columns, with each teach 
   await expect(columnHeaders(page).filter({ hasText: /^Ph 4$/ })).toBeVisible()
   // Nothing on Saturday is in Ph 2, so it gets no column.
   await expect(columnHeaders(page).filter({ hasText: /^Ph 2$/ })).toHaveCount(0)
+  // A dark divider before the first phase column, and another before Other.
+  await expect(page.locator('[class*="headerColumnDivider"]')).toHaveCount(2)
   await expect(page.getByText('Teach Ph 5 -')).toBeVisible()
 
   // Stepping the max thumb all the way down pins the range to phase 1 alone. Not
@@ -228,6 +230,27 @@ test("an organizer's email link carries no app diagnostics; the app's own help l
     'href',
     /^mailto:help@sqdance\.app\?body=/,
   )
+})
+
+test.describe('tablet held upright', () => {
+  test.use({ viewport: { width: 768, height: 1024 } })
+
+  test('"Show more staff" opens directly under its button, over the phase slider that wraps below it', async ({
+    page,
+  }) => {
+    await page.goto(`${SET}/caller-schedule`)
+    await selectSaturday(page)
+    const button = page.getByRole('button', { name: /Show more staff/ })
+    await button.click()
+    const buttonBox = (await button.boundingBox())!
+    const panelBox = (await page.getByRole('group', { name: 'Callers' }).locator('..').boundingBox())!
+    const phaseSliderBox = (await page.getByRole('slider', { name: 'Minimum phase' }).boundingBox())!
+    // The phase slider wraps below the button at this width; the panel opens
+    // between them, covering it, rather than below it.
+    expect(phaseSliderBox.y).toBeGreaterThan(buttonBox.y + buttonBox.height)
+    expect(panelBox.y).toBeLessThan(phaseSliderBox.y)
+    expect(panelBox.y - (buttonBox.y + buttonBox.height)).toBeLessThan(16)
+  })
 })
 
 test.describe('phone, venue map', () => {

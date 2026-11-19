@@ -61,7 +61,7 @@ export function StaffPickerToggle({
   )
 }
 
-// `overlay` (a phone in portrait): instead of opening inline below the filters —
+// `overlay` (any screen held upright): instead of opening inline below the filters —
 // where the level and phase sliders would sit between it and its button — the
 // panel floats directly under the button, covering the sliders. It's rendered
 // next to the button for that (DanceScheduleCallersPage.tsx) and positioned

@@ -8,7 +8,6 @@ import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useExtraStaff } from '../hooks/useExtraStaff'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { PHONE_MAX_WIDTH_PX } from '../lib/breakpoints'
 import { DanceScheduleCallerGrid } from './DanceScheduleCallerGrid'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { PageHeader } from './PageHeader'
@@ -24,11 +23,13 @@ const sessions = buildDanceSchedule(danceSessionsData)
 
 const featuredStaff = contentConfig.danceSchedule?.featuredStaff
 
-// The filter layout with the sliders on their own lines below the date row
-// (DanceScheduleFilters.module.css): a phone held upright. Not
-// PORTRAIT_PHONE_QUERY, which also requires a touch screen — this is about
-// layout, so a narrow desktop window gets the same treatment.
-const PORTRAIT_PHONE_LAYOUT_QUERY = `(orientation: portrait) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
+// A screen held upright — where the filters wrap so a slider sits on a line below
+// the date and "Show more staff" (DanceScheduleFilters.module.css). On a phone
+// both sliders do; on a tablet (an iPad at 768px) the phase slider still does, so
+// this is any portrait screen, not phone width alone (which left the panel
+// opening below the phase slider on a tablet). Not PORTRAIT_PHONE_QUERY, which
+// also requires a touch screen — this is about layout.
+const PORTRAIT_LAYOUT_QUERY = '(orientation: portrait)'
 
 // The caller-columns counterpart of DanceSchedulePage/DanceScheduleLevelsPage — same
 // date/level-range/GCA selectors (useDanceScheduleFilters, shared state/localStorage
@@ -75,13 +76,13 @@ export function DanceScheduleCallersPage() {
     portalRef: staffPickerPanelRef,
   } = useDismissableMenu<HTMLSpanElement, HTMLButtonElement, HTMLDivElement>()
   const staffPickerPanelId = useId()
-  const isPortraitPhone = useMediaQuery(PORTRAIT_PHONE_LAYOUT_QUERY)
+  const isPortrait = useMediaQuery(PORTRAIT_LAYOUT_QUERY)
 
   const pickable = useMemo(
     () => (featuredStaff ? listPickableStaff(dateSessions, featuredStaff) : undefined),
     [dateSessions],
   )
-  // On a phone in portrait the sliders sit between the button and where the panel
+  // On a screen held upright, sliders sit between the button and where the panel
   // would open inline, so there it floats under the button instead (StaffPicker's
   // `overlay`) — rendered next to the button rather than after the filters.
   const staffPickerPanel = (overlay: boolean) =>
@@ -143,7 +144,10 @@ export function DanceScheduleCallersPage() {
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
         extraControl={
-          pickable && (
+          // Nothing at all on a day with nobody to pick — not even an empty
+          // wrapper, which would still take a slot (and a gap) in the filter row.
+          pickable &&
+          pickable.callers.length + pickable.cuers.length > 0 && (
             <>
               <StaffPickerToggle
                 isOpen={staffPickerOpen}
@@ -155,12 +159,12 @@ export function DanceScheduleCallersPage() {
                 cuers={pickable.cuers}
                 selected={extraStaff}
               />
-              {isPortraitPhone && staffPickerPanel(true)}
+              {isPortrait && staffPickerPanel(true)}
             </>
           )
         }
       />
-      {!isPortraitPhone && staffPickerPanel(false)}
+      {!isPortrait && staffPickerPanel(false)}
       <DanceScheduleCallerGrid
         layout={layout}
         showGca={showGca}

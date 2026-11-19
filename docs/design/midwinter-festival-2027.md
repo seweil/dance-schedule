@@ -123,8 +123,9 @@ The "Show more staff" button sits in the filter row rather than on a line of
 its own (`DanceScheduleFilters.tsx`'s `extraControl`): next to the date on a
 phone in portrait and in the single row on desktop; on a short landscape
 phone, under the date at the start of the phase slider's line (`.extraRow`).
-Its panel opens full-width below the filters, except on a phone in portrait,
-where the sliders would sit between it and the button: there it floats directly
+Its panel opens full-width below the filters, except on any screen held
+upright (a phone, or a tablet, where the phase slider still wraps below), where
+a slider would sit between it and the button: there it floats directly
 under the button, over the sliders (`StaffPicker`'s `overlay`). It has a darker
 border than the grid's hairlines, and a ✕ close button in its upper right. Featured stays one group in config order, not split
 by role. Events without `featuredStaff` show every caller and get no picker.

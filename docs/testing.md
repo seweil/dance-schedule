@@ -80,10 +80,15 @@ under `e2e/`, one file per broad feature area (`app.spec.ts`,
 source tree — a Playwright spec exercises a full user flow across many
 components at once, so component-level colocation doesn't apply.
 
-As of this writing: ~65 unit test files (colocated under `src/`, plus the
-three root-level exceptions above) and 5 e2e spec files
-(`app.spec.ts`, `caller-schedule.spec.ts`, `content-sets.spec.ts`,
-`dance-schedule.spec.ts`, `room-schedule.spec.ts`). Run
+As of this writing (2026-11-18): 86 unit test files (colocated under `src/`,
+plus the root-level exceptions above and `dance-schedule-parsers/`) and 9 e2e
+spec files (`app.spec.ts`, `caller-schedule.spec.ts`, `content-sets.spec.ts`,
+`dance-schedule.spec.ts`, `midwinter-2027.spec.ts`, `now-line.spec.ts`,
+`room-schedule.spec.ts`, `slider-hint.spec.ts`,
+`stale-chunk-reload.spec.ts`). `midwinter-2027.spec.ts` is the one exception
+to asserting against the `automated-testing` fixture: it tests a real event's
+data, for features that fixture can't express (phases, cuers, featured staff).
+Run
 `pnpm test:coverage` for current, real numbers — don't trust a stale count
 here as the codebase grows.
 

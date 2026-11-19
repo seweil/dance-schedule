@@ -83,10 +83,11 @@ export function formatSessionCallers(session: DanceSession): string {
   return leaders.join(' & ')
 }
 
-// A card's secondary "Cuer:" line, like its GCA line — only when the session also
-// has callers; otherwise the cuers are already its primary names (see
-// formatSessionCallers). See docs/design/midwinter-festival-2027.md's "A
-// session's cuer shares its card, like GCA".
+// A card's cuer line — only when the session also has callers; otherwise the
+// cuers are already its primary names (see formatSessionCallers). Shown with
+// equal billing to the caller, not as a small secondary line any more
+// (danceScheduleCardContent.tsx's cuerLineContent); see
+// docs/design/midwinter-festival-2027.md's "A session's cuer shares its card".
 export function formatSessionCuers(session: DanceSession): string {
   if (session.kind !== 'structured' || session.callers.length === 0) {
     return ''

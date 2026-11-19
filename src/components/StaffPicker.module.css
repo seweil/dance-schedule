@@ -33,7 +33,7 @@
   gap: var(--space-sm);
 }
 
-/* A phone in portrait (StaffPicker.tsx's `overlay`): floats under the button,
+/* A screen held upright (StaffPicker.tsx's `overlay`): floats under the button,
    over the sliders, instead of pushing the page down. It's rendered right after
    the button inside .extraControl, with no positioned ancestor until .filters
    (DanceScheduleFilters.module.css), so: left/right 0 span the whole filter

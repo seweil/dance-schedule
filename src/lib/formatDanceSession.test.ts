@@ -7,6 +7,7 @@ import {
   formatSessionGca,
   formatSessionLevels,
   formatSessionRoom,
+  formatSessionRoomLabel,
   formatSessionTimeRange,
 } from './formatDanceSession'
 import { formatLevel } from './levelCodes'
@@ -145,6 +146,27 @@ describe('formatSessionRoom', () => {
     expect(formatSessionRoom(makeStructured({ location: { kind: 'roomless' } }))).toBe('—')
   })
 
+  it('keeps the full name — only the card label abbreviates', () => {
+    expect(formatSessionRoom(makeStructured({ location: { kind: 'located', rooms: ['Conference Room 1'] } }))).toBe(
+      'Conference Room 1',
+    )
+  })
+})
+
+describe('formatSessionRoomLabel', () => {
+  it('abbreviates each room, joined with ", "', () => {
+    const rooms = ['Conference Room 1', 'Willamette South (Hall A)']
+    expect(formatSessionRoomLabel(makeStructured({ location: { kind: 'located', rooms } }))).toBe(
+      'Conf Room 1, Willamette South (Hall A)',
+    )
+  })
+
+  it('renders an em dash for a roomless session', () => {
+    expect(formatSessionRoomLabel(makeStructured({ location: { kind: 'roomless' } }))).toBe('—')
+  })
+})
+
+describe('formatSessionLevels / formatSessionCallerDetails', () => {
   describe('round dancing and clogging', () => {
     it.each([
       [[3, 4, 5], 'Rounds Ph 3-5'],

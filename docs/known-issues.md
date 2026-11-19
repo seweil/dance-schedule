@@ -770,3 +770,19 @@ this: its panel is `width: fit-content`.
 **Impact:** cosmetic only. A fix would size the outline to the grid
 (e.g. the border on the grid itself rather than the panel) without losing
 the phone layout's full-bleed horizontal scrolling.
+
+## E2E tests run in Chromium only, not WebKit (Safari)
+
+**Found:** 2026-11-18, code audit.
+
+`playwright.config.ts` has a single `chromium` project, so every e2e test runs
+in Chromium. The app's users are largely on iPhones (Safari/WebKit), and the
+recent dance-schedule UI work (sticky grid, filter-row layout, the "Show more
+staff" panel, the pinch-zoom lightbox) was checked in WebKit only by one-off
+screenshot scripts, not by the suite. Playwright's WebKit build works here
+(it must be run as a bare `pnpm test:e2e`, like Chromium — see CLAUDE.md).
+
+**Possible fix:** add a `webkit` project (`devices['iPhone 13']`, say) running a
+mobile-focused subset — the `mobile viewport` / `phone` describe blocks — so
+CI catches WebKit-only layout regressions too. Cost: a second browser
+download in CI and roughly double the run time for that subset.

@@ -1482,6 +1482,14 @@ Deliberately doesn't try to "resume" a free entry's span after a later gap
 8:00 PM) — punting on that compound case as "never needed by real data,"
 matching this doc's own precedent elsewhere for a similar simplification (see
 the Open Questions section).
+**Extended (2026-11-18): a free entry with nothing free about it is dropped.**
+When a real or `'busy'` entry is already underway at a free entry's first row
+(starting at the same moment, or earlier and still running), clipping left a
+1-row stub that still covered that session's card across every column —
+found with MidWinter2027's room activities (a meeting starting with a clogging
+workshop, a showcase practice starting mid-workshop). Such a free entry is now
+left off this view entirely; two free entries starting together still
+lane-split side by side.
 
 **`'busy'` entries are never clipped** — only `'free'` ones. A busy claim
 ("everyone's occupied together") has no "the remaining time doesn't count"
