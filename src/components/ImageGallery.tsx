@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import Lightbox from 'yet-another-react-lightbox'
+import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/styles.css'
 import { ImageGalleryContext, type GalleryImage } from '../hooks/useImageGallery'
 
@@ -36,6 +37,14 @@ export function ImageGalleryProvider({ children }: { children: ReactNode }) {
         index={Math.max(index, 0)}
         close={() => setOpenId(null)}
         slides={images.map(({ src, alt }) => ({ src, alt }))}
+        // Pinch, double-tap and scroll-wheel zoom, plus zoom buttons, for every
+        // image — a venue map is the motivating case. maxZoomPixelRatio is how far
+        // zoom may go in image pixels per CSS pixel: the default, 1, stops at the
+        // image's own resolution (measured: ~3.6x for MidWinter2027's 1275px map
+        // on a phone); 2 allows ~7x, enough to read a map's small print, without
+        // the heavily upscaled blur a larger value reaches (4 allowed ~14x).
+        plugins={[Zoom]}
+        zoom={{ maxZoomPixelRatio: 2, scrollToZoom: true }}
       />
     </ImageGalleryContext.Provider>
   )

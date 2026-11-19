@@ -215,6 +215,27 @@ test("an organizer's email link carries no app diagnostics; the app's own help l
   )
 })
 
+test.describe('phone, venue map', () => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 13']
+  test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch })
+
+  test('the venue map opens in a lightbox that zooms to several times the screen width', async ({ page }) => {
+    await page.goto(`${SET}/venue`)
+    await page.getByRole('img', { name: 'Linn County Fairgrounds layout' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    // "Zoom in" stays disabled until the image loads (the zoom plugin needs its
+    // size), so wait for it rather than clicking straight away.
+    const zoomIn = page.getByRole('button', { name: 'Zoom in' })
+    await expect(zoomIn).toBeEnabled()
+    for (let i = 0; i < 3 && (await zoomIn.isEnabled()); i++) {
+      await zoomIn.click()
+    }
+    const map = dialog.getByRole('img', { name: 'Linn County Fairgrounds layout' })
+    await expect.poll(async () => (await map.boundingBox())!.width).toBeGreaterThan(viewport.width * 4)
+  })
+})
+
 test('the venue map still loads offline after the SW takes control', async ({ page, context }) => {
   await page.goto(`${SET}/`)
   // Same register → reload → controlled sequence as app.spec.ts's offline test.
