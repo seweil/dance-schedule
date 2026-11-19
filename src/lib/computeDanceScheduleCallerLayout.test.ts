@@ -418,7 +418,7 @@ describe('computeDanceScheduleCallerLayout', () => {
       expect(layout.visibleCallers).toEqual([])
     })
 
-    it('renders alongside a real caller session sharing the same row without lane-splitting either', () => {
+    it('is dropped when a real caller session starts in the same row, rather than covering its card', () => {
       const padding = padHours('Vic Ceder')
       const real = makeSession('2026-07-02T18:30:00.000Z', '2026-07-02T19:00:00.000Z', ['Vic Ceder'], {
         location: located('Ballroom East'),
@@ -428,9 +428,8 @@ describe('computeDanceScheduleCallerLayout', () => {
       const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
       const realPlacement = layout.placements.find((p) => p.session === real)
-      const floatingPlacement = layout.placements.find((p) => p.session === gcaCallers)
       expect(realPlacement).toMatchObject({ columnStart: 0, columnSpan: 1, lane: 0, laneCount: 1 })
-      expect(floatingPlacement).toMatchObject({ columnStart: 0, columnSpan: 1, lane: 0, laneCount: 1, floatKind: 'free' })
+      expect(layout.placements.find((p) => p.session === gcaCallers)).toBeUndefined()
     })
 
     it('renders alongside an all-headliners ("busy") session on a different row, each keeping its own floatKind', () => {
@@ -501,13 +500,30 @@ describe('computeDanceScheduleCallerLayout', () => {
       expect(allHeadlinersPlacement!.rowSpan).toBeGreaterThan(1)
     })
 
-    it('still lane-splits two floating entries that start at exactly the same time and span the same one row', () => {
-      // A same-start neighbor DOES trigger clipping (see clipFreeFloatingEntries's
-      // own comment) — but clipping floors at 1 row, and both entries here are
-      // already exactly 1 row (an isolated hour with no internal boundary), so
-      // clipping doesn't change either one's rowSpan; they still fully overlap
-      // and the lane-split mechanism (assignLanesPerSlot) is what actually
-      // resolves this defensive, data-entry-error-like case.
+    it('still lane-splits two free entries that start at exactly the same time and span the same one row', () => {
+      // A same-start FREE neighbor only clips (floored at 1 row, a no-op here),
+      // it doesn't drop — the lane-split mechanism (assignLanesPerSlot) puts the
+      // two side by side. MidWinter2027 has two such room meetings at 9:00.
+      const clinic = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', {
+        description: 'Caller Clinic',
+        location: located('Conference Room 1'),
+      })
+      const meeting = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', {
+        description: 'Association Meeting',
+        location: located('Conference Room 3'),
+      })
+      const sessions = [clinic, meeting]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+      const clinicPlacement = layout.placements.find((p) => p.session === clinic)
+      const meetingPlacement = layout.placements.find((p) => p.session === meeting)
+      expect(clinicPlacement).toMatchObject({ laneCount: 2 })
+      expect(meetingPlacement).toMatchObject({ laneCount: 2 })
+      expect(clinicPlacement!.lane).not.toBe(meetingPlacement!.lane)
+    })
+
+    it('drops a free entry that starts at the same moment as a "busy" one', () => {
+      // Everyone being busy together contradicts the break outright.
       const lunch = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T13:00:00.000Z', {
         description: 'Lunch Break',
         location: { kind: 'roomless' },
@@ -518,19 +534,14 @@ describe('computeDanceScheduleCallerLayout', () => {
       const sessions = [lunch, allHeadliners]
       const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
-      const lunchPlacement = layout.placements.find((p) => p.session === lunch)
-      const allHeadlinersPlacement = layout.placements.find((p) => p.session === allHeadliners)
-      expect(lunchPlacement).toMatchObject({ laneCount: 2 })
-      expect(allHeadlinersPlacement).toMatchObject({ laneCount: 2 })
-      expect(lunchPlacement!.lane).not.toBe(allHeadlinersPlacement!.lane)
+      expect(layout.placements.find((p) => p.session === lunch)).toBeUndefined()
+      expect(layout.placements.find((p) => p.session === allHeadliners)).toMatchObject({ laneCount: 1 })
     })
 
-    it('clips a free entry that starts at the same moment as a longer-spanning other entry', () => {
-      // A break and a real session starting at the identical time, but the
-      // break's own span is longer — its "nothing scheduled yet" claim is
-      // false from the very first row, not just once the real session's own
-      // later rows begin, so it should clip down to the 1-row floor
-      // immediately rather than rendering full-width over the real session.
+    it('drops a free entry that starts at the same moment as a real session, rather than covering its card', () => {
+      // A break and a real session starting at the identical time — the
+      // break's "nothing scheduled yet" claim is false from its very first row,
+      // and even a 1-row stub would sit across the real session's card.
       const lunch = makeFreeform('2026-07-02T12:00:00.000Z', '2026-07-02T14:00:00.000Z', {
         description: 'Lunch Break',
         location: { kind: 'roomless' },
@@ -541,8 +552,25 @@ describe('computeDanceScheduleCallerLayout', () => {
       const sessions = [lunch, real]
       const layout = computeDanceScheduleCallerLayout(sessions, sessions)
 
-      const lunchPlacement = layout.placements.find((p) => p.session === lunch)
-      expect(lunchPlacement).toMatchObject({ rowSpan: 1, floatKind: 'free' })
+      expect(layout.placements.find((p) => p.session === lunch)).toBeUndefined()
+      expect(layout.placements.find((p) => p.session === real)).toBeDefined()
+    })
+
+    it('drops a free entry that starts while a real session is still running', () => {
+      // MidWinter2027's "Showcase Practice" at 4:00, mid-way through a 1:30–4:30
+      // clogging workshop — the old clip rule only looked at entries starting
+      // at or after the free one, so it rendered across that card.
+      const workshop = makeSession('2026-07-02T13:30:00.000Z', '2026-07-02T16:30:00.000Z', ['Vic Ceder'], {
+        location: located('Ballroom East'),
+      })
+      const practice = makeFreeform('2026-07-02T16:00:00.000Z', '2026-07-02T17:00:00.000Z', {
+        description: 'Showcase Practice',
+        location: located('Conference Room 3'),
+      })
+      const sessions = [workshop, practice]
+      const layout = computeDanceScheduleCallerLayout(sessions, sessions)
+
+      expect(layout.placements.find((p) => p.session === practice)).toBeUndefined()
     })
 
     it('does not lane-split a floating entry against a real per-caller entry it overlaps', () => {

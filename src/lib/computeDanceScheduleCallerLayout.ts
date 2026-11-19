@@ -268,10 +268,29 @@ function buildRawEntries(
 // else were scheduled 6:30-7:00 but nothing scheduled 7:00-8:00 within a longer
 // break) — simplified rather than fully general, since real data has never
 // needed it: see docs/design/dance-schedule.md.
-function clipFreeFloatingEntries(entries: RawEntry[]): void {
+//
+// A free entry with a non-free entry (a caller's own session, or a "busy"
+// floating one) already underway at its very first row has no "nothing
+// scheduled" portion at all, so it's dropped rather than clipped — it would
+// otherwise cover that session's card across every column. MidWinter2027's
+// room-specific freeform sessions (a meeting, a showcase practice) starting
+// during or alongside a staff session are the real example. A same-start FREE
+// neighbor doesn't drop it: free entries lane-split against each other instead.
+function clipFreeFloatingEntries(entries: RawEntry[]): RawEntry[] {
   const clippedRowSpans = new Map<RawEntry, number>()
+  const dropped = new Set<RawEntry>()
   for (const entry of entries) {
     if (entry.floatKind !== 'free') {
+      continue
+    }
+    const coveredAtStart = entries.some(
+      (other) =>
+        other.floatKind !== 'free' &&
+        other.rowStart <= entry.rowStart &&
+        other.rowStart + other.rowSpan > entry.rowStart,
+    )
+    if (coveredAtStart) {
+      dropped.add(entry)
       continue
     }
     const rowEnd = entry.rowStart + entry.rowSpan
@@ -300,6 +319,7 @@ function clipFreeFloatingEntries(entries: RawEntry[]): void {
   for (const [entry, rowSpan] of clippedRowSpans) {
     entry.rowSpan = rowSpan
   }
+  return entries.filter((entry) => !dropped.has(entry))
 }
 
 // A caller's own sessions are naturally sparse across the day, so unlike the room
@@ -485,8 +505,9 @@ export function computeDanceScheduleCallerLayout(
 
   const visibleCallers = callerOrder.filter((caller) => visibleCallerSet.has(caller))
 
-  const rawEntries = buildRawEntries(eligibleVisible, visibleCallers, rowStartFor, rowSpanFor, featuredStaff)
-  clipFreeFloatingEntries(rawEntries)
+  const rawEntries = clipFreeFloatingEntries(
+    buildRawEntries(eligibleVisible, visibleCallers, rowStartFor, rowSpanFor, featuredStaff),
+  )
   assignLanesPerSlot(rawEntries)
 
   const compressed = compressToOccupiedRows(rawEntries, timeAxis.timeMarks, timeAxis.totalRows)

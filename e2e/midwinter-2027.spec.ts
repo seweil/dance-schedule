@@ -86,6 +86,19 @@ test('the Caller Schedule shows only the featured staff, cuers included', async 
   await expect(page.getByText('Caller: Ted Lizotte').first()).toBeVisible()
 })
 
+test("the Staff Schedule drops a room activity that starts during a staff session, instead of covering it", async ({
+  page,
+}) => {
+  await page.goto(`${SET}/caller-schedule`)
+  await selectSaturday(page)
+  // ORDTA Mtg starts at 9:00 with Trevor's clogging workshop; one Showcase
+  // Practice starts at 4:00 mid-workshop. The 5:00 one, with nothing under it, stays.
+  await expect(page.getByText('Clogging').first()).toBeVisible()
+  await expect(page.getByText('ORDTA Mtg')).toHaveCount(0)
+  await expect(page.getByText('Showcase Practice')).toHaveCount(1)
+  await expect(page.getByText('Showcase of Rounds')).toBeVisible()
+})
+
 test('the staff page is "Staff Schedule" at an event with round dancing, "Caller Schedule" at a square-only one', async ({
   page,
 }) => {
