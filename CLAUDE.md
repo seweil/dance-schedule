@@ -307,7 +307,9 @@ The short version:
   Schedule", "Dance Schedule", "Room Schedule", "Caller Schedule"
   respectively — the last becomes "Staff Schedule", same route, when the
   schedule has round dancing or clogging; see `src/lib/staffScheduleLabel.ts`)
-  are reserved for those auto-generated pages. A content page
+  are reserved for those auto-generated pages. The phone menu
+  (`PageMenu.tsx`) draws a box around every page in the 10–14 range
+  (`buildNavTree.ts`'s `SCHEDULE_ORDER`), so a content page must stay out of it. A content page
   should use a prefix below `10` (any
   number in that range — nothing about which specific single-digit number
   goes with which page is fixed) so it sorts before all of them; a future

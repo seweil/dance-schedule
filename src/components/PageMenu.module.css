@@ -213,6 +213,33 @@
   color: var(--color-accent);
 }
 
+/* The schedule pages, boxed together (PageMenu.tsx). The inner list repeats
+   .list's own right-aligned column and spacing, so the boxed links line up with
+   the unboxed ones; the box's padding pushes them in by the same amount on the
+   right, and a negative right margin pulls the box out by it, keeping its text
+   aligned with the other links. Same darker border as the Staff Schedule's
+   staff checklist. */
+.scheduleGroupItem {
+  margin-right: calc(-1 * var(--space-sm));
+}
+
+.scheduleGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: var(--space-sm);
+  border: 1px solid rgb(0 0 0 / 55%);
+  border-radius: 6px;
+}
+
+/* .list's own Normal-size gap bump, below. */
+:global(html:not([data-text-size])) .scheduleGroup {
+  gap: calc(var(--space-sm) * 1.25);
+}
+
 /* Separated from the page-link items above it — it's an action/toggle, not a
    navigation destination, so it shouldn't read as just another link in the list. */
 .textSizeItem {

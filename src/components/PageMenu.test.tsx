@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
@@ -58,7 +58,16 @@ describe('PageMenu', () => {
     renderPageMenu()
     const toggle = getToggle()
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(toggle).toHaveAttribute('aria-controls', screen.getByRole('list').id)
+    // The outer list — the schedule pages' boxed group is a list nested inside it.
+    expect(toggle).toHaveAttribute('aria-controls', screen.getAllByRole('list')[0]!.id)
+  })
+
+  it('boxes the schedule pages together as one group', () => {
+    renderPageMenu()
+    const group = screen.getByRole('list', { name: 'Schedules' })
+    const links = within(group).getAllByRole('link')
+    expect(links.length).toBeGreaterThan(0)
+    expect(within(group).queryByRole('link', { name: 'Home' })).not.toBeInTheDocument()
   })
 
   it('opens and closes the menu when the toggle is clicked', async () => {

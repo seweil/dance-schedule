@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
-import { buildNavTree } from '../lib/buildNavTree'
+import { buildNavTree, type NavItem } from '../lib/buildNavTree'
 import { NAV_LABEL_OVERRIDES } from '../lib/navLabelOverrides'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
@@ -23,8 +23,20 @@ import styles from './PageMenu.module.css'
 // route is a different React component entirely, per useRoutes), navigating away
 // unmounts this instance outright — the next page's PageMenu always starts closed,
 // the same end result the old pathname-watching effect produced, just for free.
+function navLink(item: NavItem) {
+  return (
+    // end (only for Home): every other route's path starts with "/" too, so
+    // without it NavLink's default prefix-matching would mark Home permanently
+    // "current" no matter which page is actually active.
+    <NavLink to={item.href} end={item.href === '/'} className={styles.link} data-emphasized={item.emphasized}>
+      {item.label}
+    </NavLink>
+  )
+}
+
 export function PageMenu() {
   const items = buildNavTree(routes, NAV_LABEL_OVERRIDES)
+  const scheduleItems = items.filter((item) => item.isSchedule)
   const { isOpen, setIsOpen, toggle, rootRef, toggleRef } = useDismissableMenu<
     HTMLElement,
     HTMLButtonElement
@@ -103,21 +115,22 @@ export function PageMenu() {
           still performs its action" exemption. */}
       {showHint && <HintBalloon message="Tap here for menu" onDismiss={dismissHint} />}
       <ul id={listId} className={styles.list} data-open={isOpen}>
-        {items.map((item) => (
-          <li key={item.href}>
-            {/* end (only for Home): every other route's path starts with "/" too, so
-                without it NavLink's default prefix-matching would mark Home
-                permanently "current" no matter which page is actually active. */}
-            <NavLink
-              to={item.href}
-              end={item.href === '/'}
-              className={styles.link}
-              data-emphasized={item.emphasized}
-            >
-              {item.label}
-            </NavLink>
-          </li>
-        ))}
+        {/* The schedule pages (adjacent, since their order prefixes are reserved
+            and consecutive — buildNavTree.ts's SCHEDULE_ORDER) sit together in a
+            box, rendered where the first of them falls. */}
+        {items.map((item) =>
+          !item.isSchedule ? (
+            <li key={item.href}>{navLink(item)}</li>
+          ) : item === scheduleItems[0] ? (
+            <li key="schedules" className={styles.scheduleGroupItem}>
+              <ul className={styles.scheduleGroup} aria-label="Schedules">
+                {scheduleItems.map((schedule) => (
+                  <li key={schedule.href}>{navLink(schedule)}</li>
+                ))}
+              </ul>
+            </li>
+          ) : null,
+        )}
         <li className={styles.textSizeItem}>
           {/* onSelect: unlike the page links above it, choosing a size doesn't
               navigate anywhere, so nothing else would close this dropdown —

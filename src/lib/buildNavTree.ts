@@ -12,6 +12,10 @@ export interface NavItem {
   // own CSS already handles). Computed here, once, rather than each menu
   // hardcoding its own href check, so the two can't drift.
   emphasized: boolean
+  // One of the generated schedule pages (src/pages/, order prefixes 10–14 —
+  // see SCHEDULE_ORDER below), which PageMenu.tsx's mobile dropdown boxes
+  // together as a group.
+  isSchedule: boolean
 }
 
 // The one nav item that gets the "most important page" treatment above — a
@@ -26,6 +30,11 @@ const EMPHASIZED_HREF = '/dance-schedule'
 // label/route. The remaining name should be kebab-case (hyphens, not spaces);
 // titleCase below splits on hyphens/underscores to build the display label.
 const ORDER_PREFIX = /^(\d+) (.+)$/
+
+// The order prefixes reserved for the generated schedule pages (Event, Dance,
+// Room and Caller/Staff Schedule: 10, 12, 13, 14 — see CLAUDE.md's "Nav ordering
+// convention"); a content page sorts below 10 or from 15 up.
+const SCHEDULE_ORDER = { min: 10, max: 14 }
 
 function parseSegment(segment: string): { order: number | null; slug: string } {
   const match = segment.match(ORDER_PREFIX)
@@ -100,8 +109,9 @@ export function buildNavTree(
         label: labelOverrides[href] ?? (isRoot ? 'Home' : titleCase(slug)),
         href,
         emphasized: href === EMPHASIZED_HREF,
+        isSchedule: order !== null && order >= SCHEDULE_ORDER.min && order <= SCHEDULE_ORDER.max,
       }
     })
     .sort((a, b) => a.sortKey - b.sortKey || a.index - b.index)
-    .map(({ label, href, emphasized }) => ({ label, href, emphasized }))
+    .map(({ label, href, emphasized, isSchedule }) => ({ label, href, emphasized, isSchedule }))
 }

@@ -23,9 +23,27 @@ describe('buildNavTree', () => {
     ])
 
     expect(items).toEqual([
-      { label: 'Home', href: '/', emphasized: false },
-      { label: 'Installation', href: '/installation', emphasized: false },
-      { label: 'About', href: '/about', emphasized: false },
+      { label: 'Home', href: '/', emphasized: false, isSchedule: false },
+      { label: 'Installation', href: '/installation', emphasized: false, isSchedule: false },
+      { label: 'About', href: '/about', emphasized: false, isSchedule: false },
+    ])
+  })
+
+  it('marks the schedule pages (order prefixes 10–14) so the menu can group them', () => {
+    const items = buildNavTree([
+      { path: '9 venue', element: createElement('div') },
+      { path: '12 dance-schedule', element: createElement('div') },
+      { path: '14 caller-schedule', element: createElement('div') },
+      { path: '20 featured-staff', element: createElement('div') },
+      { path: 'about', element: createElement('div') },
+    ])
+
+    expect(items.map(({ href, isSchedule }) => [href, isSchedule])).toEqual([
+      ['/venue', false],
+      ['/dance-schedule', true],
+      ['/caller-schedule', true],
+      ['/featured-staff', false],
+      ['/about', false],
     ])
   })
 
@@ -47,7 +65,7 @@ describe('buildNavTree', () => {
   it('strips a leading "<digits> " order prefix from the label and href', () => {
     const [item] = buildNavTree([{ path: '2 installation', element: createElement('div') }])
 
-    expect(item).toEqual({ label: 'Installation', href: '/installation', emphasized: false })
+    expect(item).toEqual({ label: 'Installation', href: '/installation', emphasized: false, isSchedule: false })
   })
 
   it('marks the Dance Schedule item (and only that one) as emphasized, regardless of its order prefix', () => {
