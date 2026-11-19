@@ -102,6 +102,22 @@ test("an organizer's email link carries no app diagnostics; the app's own help l
   await expect(page.getByRole('link', { name: 'Email us' })).toHaveAttribute('href', /^mailto:help@sqdance\.app\?body=/)
 })
 
+test('the venue map still loads offline after the SW takes control', async ({ page, context }) => {
+  await page.goto(`${SET}/`)
+  // Same register → reload → controlled sequence as app.spec.ts's offline test.
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.reload()
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
+
+  await context.setOffline(true)
+  await page.goto(`${SET}/venue`)
+  const map = page.getByRole('img', { name: 'Linn County Fairgrounds layout' })
+  await expect(map).toBeVisible()
+  // A broken image is still "visible"; naturalWidth is 0 unless it actually loaded.
+  await expect.poll(() => map.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+  await context.setOffline(false)
+})
+
 test('the phase slider is absent at an event with no round dancing', async ({ page }) => {
   await page.goto('/automated-testing/dance-schedule')
   await expect(page.getByRole('slider', { name: 'Minimum level' })).toBeVisible()
