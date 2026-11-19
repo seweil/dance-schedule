@@ -724,6 +724,13 @@ simplification versus the room view (no "hide an empty column" logic needed
 at all) and matches what a level-range selection should mean in this view:
 "show me these levels," not "show me these levels, except any with nothing
 in it."
+**Reversed (2026-11-18), per direct product decision:** a level with nothing
+visible in it on the selected day now gets no column, the same as an empty
+room (`shownLevelIndices`). Found in hands-on testing of MidWinter2027,
+whose phase columns had the same problem first (an empty Ph 2 mid-range,
+see `docs/design/midwinter-festival-2027.md`). A side effect: two levels with
+only empty levels between them are now neighbors, so a session at both
+(e.g. "SSD, C1") merges into one spanning card instead of splitting in two.
 
 **`"Other"` — appended after that range as one more column (see
 below) — is the one exception, and IS data-derived** (`needsOtherColumn`,
