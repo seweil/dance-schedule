@@ -119,6 +119,12 @@ test('"Show more staff" adds a picked caller and cuer after the featured staff, 
   // A divider before the picked callers, and another before the picked cuers.
   await expect(page.locator('[class*="headerColumnDivider"]')).toHaveCount(2)
 
+  // A tap anywhere outside the checklist closes it.
+  const randy = page.getByRole('checkbox', { name: 'Randy Dibble' })
+  await expect(randy).toBeVisible()
+  await page.getByRole('heading', { level: 1 }).click()
+  await expect(randy).toBeHidden()
+
   await page.reload()
   await expect(columnHeaders(page)).toHaveText(featuredThenPicked)
 
