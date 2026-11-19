@@ -55,7 +55,20 @@ export default defineConfig({
       ],
     },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // `chromium` runs every spec except e2e/mobile/ at a desktop size (specs set
+  // their own phone sizes where they need one). The Android projects run
+  // e2e/mobile/ — tests written against whatever phone the project emulates,
+  // never a fixed one — as two real Android profiles: a Pixel 7 (412px) and a
+  // narrower Galaxy S24 (360px, the common budget-Android width, narrower than
+  // any current iPhone). Both are Chromium with an Android user agent, the
+  // same engine as Chrome on Android, so CI needs no extra browser. They can't
+  // fake Android's Roboto font, Chrome's resizing address bar, the system back
+  // gesture or Samsung Internet — see docs/testing.md's manual Android pass.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /mobile\// },
+    { name: 'android-pixel-7', use: { ...devices['Pixel 7'] }, testMatch: /mobile\/.*\.spec\.ts/ },
+    { name: 'android-galaxy-s24', use: { ...devices['Galaxy S24'] }, testMatch: /mobile\/.*\.spec\.ts/ },
+  ],
   webServer: {
     command: 'pnpm build && pnpm preview',
     url: 'http://localhost:4173',

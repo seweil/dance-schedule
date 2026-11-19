@@ -13,7 +13,7 @@ execute the e2e layer directly in this environment.
 | **Lint** (ESLint) | Style/correctness lint rules, unused code, hook-rule violations | — | `pnpm lint` (`pnpm lint:fix` to auto-fix) |
 | **Typecheck** (`tsc --noEmit`) | Type errors across the whole repo | — | `pnpm typecheck` (also the first half of `pnpm build`) |
 | **Unit tests** (Vitest + jsdom) | Logic bugs in pure functions, hooks, and component rendering/interaction | Colocated `*.test.ts`/`*.test.tsx` next to the file under test (plus three root-level exceptions: `content-config.test.ts`, `content-icons.test.ts`, `vite-plugin-content-config.test.ts`) | `pnpm test` (`pnpm test:watch` for watch mode, `pnpm test:coverage` for a coverage report) |
-| **E2E tests** (Playwright) | Real-browser behavior: PWA install/offline/service-worker flow, multi-content-set builds, responsive/mobile layout, full user flows through the real built app | `e2e/*.spec.ts` | `pnpm test:e2e` |
+| **E2E tests** (Playwright) | Real-browser behavior: PWA install/offline/service-worker flow, multi-content-set builds, responsive/mobile layout, full user flows through the real built app; Android phone widths (see "Android coverage") | `e2e/*.spec.ts` (desktop Chrome), `e2e/mobile/*.spec.ts` (Android projects) | `pnpm test:e2e` |
 | **Build-time data validation** (not a "test" file, but functions as one) | A malformed `dance-schedule.xlsx`/`event-schedule.xlsx` row, or an invalid `content/<set>/config.yaml` | `vite-plugin-schedule.ts`, `vite-plugin-dance-schedule.ts`, `vite-plugin-content-config.ts`, `content-config.ts` | Runs automatically inside `pnpm build`/`pnpm dev` — a bad row or config value fails the build/dev-server start with a named error identifying the offending row/field, rather than silently producing wrong output |
 
 E2E tests require a real production build — they run against `pnpm build && pnpm preview`
@@ -81,11 +81,13 @@ source tree — a Playwright spec exercises a full user flow across many
 components at once, so component-level colocation doesn't apply.
 
 As of this writing (2026-11-18): 86 unit test files (colocated under `src/`,
-plus the root-level exceptions above and `dance-schedule-parsers/`) and 9 e2e
-spec files (`app.spec.ts`, `caller-schedule.spec.ts`, `content-sets.spec.ts`,
-`dance-schedule.spec.ts`, `midwinter-2027.spec.ts`, `now-line.spec.ts`,
-`room-schedule.spec.ts`, `slider-hint.spec.ts`,
-`stale-chunk-reload.spec.ts`). `midwinter-2027.spec.ts` is the one exception
+plus the root-level exceptions above and `dance-schedule-parsers/`) and 11 e2e
+spec files: 9 desktop-Chrome specs (`app.spec.ts`, `caller-schedule.spec.ts`,
+`content-sets.spec.ts`, `dance-schedule.spec.ts`, `midwinter-2027.spec.ts`,
+`now-line.spec.ts`, `room-schedule.spec.ts`, `slider-hint.spec.ts`,
+`stale-chunk-reload.spec.ts`) and 2 under `e2e/mobile/` (`layout-sweep.spec.ts`,
+`schedule-controls.spec.ts`), which run only as the two Android projects —
+see "Android coverage" below. `midwinter-2027.spec.ts` is the one exception
 to asserting against the `automated-testing` fixture: it tests a real event's
 data, for features that fixture can't express (phases, cuers, featured staff).
 Run
@@ -119,6 +121,58 @@ here as the codebase grows.
 
 None of these are urgent — call them out here so a gap is a known, named
 tradeoff instead of a surprise.
+
+## Android coverage
+
+The app is mostly hand-checked on iPhones, so Android gets its own automated
+coverage, plus a short manual pass before each event.
+
+**Automated, every run and in CI.** `playwright.config.ts` runs the specs in
+`e2e/mobile/` as two Android projects — a Pixel 7 (412px wide) and a Galaxy
+S24 (360px, the common budget-Android width, narrower than any current
+iPhone) — each Chromium with an Android user agent, the same engine as Chrome
+on Android. Those specs are written against whatever phone the project
+emulates, never a fixed size:
+
+- `layout-sweep.spec.ts` opens every page of the live event's set, and every
+  day of each schedule, in portrait and landscape, and fails if the page
+  scrolls sideways or a button, select, slider, heading or image is cut off at
+  the screen edge (the schedule grids scroll sideways inside their own panel
+  by design and are exempt).
+- `schedule-controls.spec.ts` checks the pop-ups and overlays fit the screen:
+  "Show more staff" and its checklist, the page menu's schedule group, the
+  level slider's first-launch hint, the rotate banner and the zoomable venue
+  map.
+
+Measure "too wide" against the phone's real width (`page.viewportSize()`),
+never `window.innerWidth`: under mobile emulation, as on a real phone, Chrome
+widens the layout to fit overflowing content, so `innerWidth` grew from 280 to
+556px in a deliberately broken test and could never show a problem.
+(`document.documentElement.clientWidth`, which older specs use, stays true.)
+
+Run one device alone with `pnpm test:e2e --project=android-galaxy-s24`.
+
+**Manual, before each event (about 5 minutes).** What Playwright can't fake.
+In the Android emulator (or a real Android phone), with the event's build:
+
+1. **Chrome, portrait.** Open the Dance, Room and Staff Schedules. Text is in
+   Android's Roboto, a little wider than Apple's font — look for labels that
+   wrap or are cut off: slider ticks, room headers, "Show more staff", card
+   names.
+2. **Scroll a schedule down and back up.** Chrome's address bar slides away
+   and back; the sticky room headers and the grid shouldn't jump or leave a gap.
+3. **System back gesture.** With the page menu open, swipe back: it should
+   close the menu or go back a page, not leave the menu stuck open. Same with
+   the "Show more staff" checklist and the image lightbox open.
+4. **Rotate to landscape and back** on a schedule page: the rotate banner, the
+   filter row and the grid all re-lay out.
+5. **Android's font size** (Settings › Display › Font size, set to the largest):
+   reopen a schedule; nothing should overlap or run off the screen.
+6. **Install it** (Chrome menu › Add to home screen / Install app), open the
+   installed app, turn on airplane mode, and open a schedule and the Venue map.
+7. **Samsung Internet**, if installed: one pass of step 1.
+
+Note anything off in `docs/known-issues.md`.
 
 ## Hand-calculating the dance-schedule hour-summary totals
 

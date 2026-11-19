@@ -403,6 +403,13 @@ coverage/organization notes. Below is just guidance on how to write tests.
   jsdom mock.
 - Playwright tests live in `e2e/`, run against `pnpm preview` (production build —
   the dev server doesn't register the service worker the same way).
+- `e2e/mobile/` runs only as the Android projects (Pixel 7 and a 360px Galaxy
+  S24) and must not hard-code a viewport: write it against whatever phone the
+  project emulates. Measure "too wide" with `page.viewportSize()`, never
+  `window.innerWidth`, which mobile emulation stretches to fit overflowing
+  content. A UI change that affects phone layout should keep it passing — see
+  `docs/testing.md`'s "Android coverage", which also has the manual pre-event
+  Android checklist.
 
 ## Before finishing a task
 
