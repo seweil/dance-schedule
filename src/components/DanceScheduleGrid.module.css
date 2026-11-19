@@ -312,9 +312,14 @@
   padding: var(--space-sm);
   font-weight: bold;
   text-align: center;
-  white-space: nowrap;
+  /* Up to two lines, then "…" — one line cut long room names off at the part
+     that tells them apart ("Conference Ro…" for two different rooms). The
+     full name is still the header's title (StickyScrollGrid.tsx). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
   border-bottom: 1px solid var(--color-border);
   border-left: 1px solid var(--color-border);
 }

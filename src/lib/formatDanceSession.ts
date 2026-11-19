@@ -1,5 +1,6 @@
 import { formatLevel } from './levelCodes'
 import { DEFAULT_EVENT_TYPE } from './recognizedSessionKeywords'
+import { formatRoomName } from './roomNames'
 import type { DanceSession } from '../types/danceSchedule'
 
 // Session date/time values are wall-clock values from the spreadsheet, not real
@@ -97,6 +98,12 @@ export function formatSessionGca(session: DanceSession): string {
   return session.kind === 'structured' ? (session.gca ?? '') : ''
 }
 
+// The room(s) exactly as parsed — for the raw schedule table and markdown dump.
 export function formatSessionRoom(session: DanceSession): string {
   return session.location.kind === 'roomless' ? '—' : session.location.rooms.join(', ')
+}
+
+// The room(s) as a session card shows them, with formatRoomName's abbreviations.
+export function formatSessionRoomLabel(session: DanceSession): string {
+  return session.location.kind === 'roomless' ? '—' : session.location.rooms.map(formatRoomName).join(', ')
 }

@@ -238,6 +238,12 @@ decision. It's defined once, in `levelCodes.ts`'s `LEVEL_LABELS`; tests read
 it through `formatLevel('MSX')` rather than repeating the text, so a future
 rename is a one-line change. Earlier mentions of "MS Ext" in this doc are
 historical.
+**Room names (same day):** column headers in every dance-schedule grid wrap to
+two lines before cutting off with "…" (`.roomHeader`), since one line made
+"Conference Room 1" and "Conference Room 3/4" both read "Conference Ro…". And
+"Conference" displays as "Conf" in headers and card room lines
+(`roomNames.ts`'s `formatRoomName`, the one place for such abbreviations). The
+data, raw schedule table and markdown dump keep the full names.
 
 ### Page UI as built (2026-11-18)
 **Decision:** how each decided feature landed:

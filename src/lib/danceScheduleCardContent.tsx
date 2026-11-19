@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { formatSessionCallers, formatSessionEventTypePrefix, formatSessionRoom } from './formatDanceSession'
+import { formatSessionCallers, formatSessionEventTypePrefix, formatSessionRoomLabel } from './formatDanceSession'
 import type { DanceSession } from '../types/danceSchedule'
 import { StaffGlyph } from '../components/StaffGlyph'
 
@@ -76,7 +76,7 @@ export function detailsWithRoomContent(session: DanceSession): ReactNode {
   ) : (
     <>
       {formatSessionEventTypePrefix(session)}
-      <strong>{formatSessionRoom(session)}</strong>
+      <strong>{formatSessionRoomLabel(session)}</strong>
     </>
   )
 }

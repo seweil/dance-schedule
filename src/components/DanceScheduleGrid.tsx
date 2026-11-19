@@ -14,6 +14,7 @@ import {
 } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import { isRegistrationSession } from '../lib/recognizedSessionKeywords'
+import { formatRoomName } from '../lib/roomNames'
 import { StickyScrollGrid } from './StickyScrollGrid'
 import styles from './DanceScheduleGrid.module.css'
 
@@ -97,7 +98,7 @@ export function DanceScheduleGrid({
 
   return (
     <StickyScrollGrid
-      columns={visibleRooms.map((room) => ({ key: room, title: room, label: room }))}
+      columns={visibleRooms.map((room) => ({ key: room, title: room, label: formatRoomName(room) }))}
       gridTemplateColumns={gridTemplateColumns}
       totalRows={totalRows}
       emptyCells={emptyCells}

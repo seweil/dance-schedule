@@ -11,7 +11,7 @@ import {
   formatSessionCuers,
   formatSessionGca,
   formatSessionLevels,
-  formatSessionRoom,
+  formatSessionRoomLabel,
   formatSessionTimeRange,
 } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
@@ -72,7 +72,7 @@ function SessionCard({
   // that the time range next to it is ALSO omitted for the same reason (see
   // showTimeRange below) — nothing useful is left for that placeholder to
   // accompany.
-  const room = isRoomless ? '' : formatSessionRoom(session)
+  const room = isRoomless ? '' : formatSessionRoomLabel(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
   const cuers = isRoomless ? '' : formatSessionCuers(session)
