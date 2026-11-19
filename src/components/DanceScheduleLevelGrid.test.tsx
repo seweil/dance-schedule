@@ -189,7 +189,7 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
   })
 
-  it('shows a square session\'s cuer on its own line, regardless of showGca', () => {
+  it("gives a square session's caller and cuer equal billing, marked ■ and ●, regardless of showGca", () => {
     const withCuer: DanceSession = { ...STRUCTURED_SESSION, cuers: ['Judy Russell'] }
     render(
       <DanceScheduleLevelGrid
@@ -198,8 +198,16 @@ describe('DanceScheduleLevelGrid', () => {
         onShowAllLevels={() => {}}
       />,
     )
-    expect(screen.getByText('Cuer: Judy Russell')).toBeInTheDocument()
     expect(screen.getByText('Ted Lizotte').tagName).toBe('STRONG')
+    expect(screen.getByText('Judy Russell').tagName).toBe('STRONG')
+    expect(screen.getByRole('img', { name: 'Caller' })).toHaveTextContent('■')
+    expect(screen.getByRole('img', { name: 'Cuer' })).toHaveTextContent('●')
+    expect(screen.queryByText(/Cuer:/)).not.toBeInTheDocument()
+  })
+
+  it('marks no glyph on a caller-only session', () => {
+    render(<DanceScheduleLevelGrid layout={makeLayout()} showGca={false} onShowAllLevels={() => {}} />)
+    expect(screen.queryByRole('img', { name: 'Caller' })).not.toBeInTheDocument()
   })
 
   it('bolds the cuer of a round session with no caller, with no "Cuer:" line or dangling separator', () => {

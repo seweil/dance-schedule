@@ -394,6 +394,14 @@
   pointer-events: none;
 }
 
+/* The ■ (caller) / ● (cuer) before each name on a card that has both — see
+   danceScheduleCardContent.tsx's hasCallerAndCuer. Slightly smaller than the
+   text, so the solid shapes don't outweigh the names they mark. */
+.staffGlyph {
+  font-size: 0.8em;
+  margin-right: 0.3em;
+}
+
 /* Above the header cells (.roomHeader, z-index 2), under the corner (3). */
 .headerColumnDivider {
   z-index: 2;

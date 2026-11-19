@@ -71,13 +71,18 @@ test('the Dance Schedule gets a phase slider and phase columns, with each teach 
   await expect(page.getByText('Challenge -')).toBeVisible()
 })
 
-test('a round session bolds its cuer, and a square session shows its cuer on its own line', async ({
-  page,
-}) => {
+// A name line marked with the ■ (caller) or ● (cuer) glyph.
+function markedName(page: Page, role: 'Caller' | 'Cuer', name: string) {
+  return page.locator('p', { has: page.getByRole('img', { name: role }) }).filter({ hasText: name })
+}
+
+test('a round session bolds its cuer; a square session gives caller and cuer equal billing', async ({ page }) => {
   await page.goto(`${SET}/room-schedule`)
   await selectSaturday(page)
   await expect(page.locator('strong', { hasText: 'Pam & Jeff Johnson' }).first()).toBeVisible()
-  await expect(page.getByText('Cuer: Judy Russell').first()).toBeVisible()
+  await expect(markedName(page, 'Cuer', 'Judy Russell').first()).toBeVisible()
+  await expect(markedName(page, 'Cuer', 'Judy Russell').first().locator('strong')).toHaveText('Judy Russell')
+  await expect(page.getByText(/Cuer:/)).toHaveCount(0)
 })
 
 test('the Caller Schedule shows only the featured staff, cuers included', async ({ page }) => {
@@ -90,8 +95,8 @@ test('the Caller Schedule shows only the featured staff, cuers included', async 
   ])
   // A Ted Lizotte session cued by Pam & Jeff lands in both columns, each naming
   // the other.
-  await expect(page.getByText('Cuer: Pam & Jeff Johnson').first()).toBeVisible()
-  await expect(page.getByText('Caller: Ted Lizotte').first()).toBeVisible()
+  await expect(markedName(page, 'Cuer', 'Pam & Jeff Johnson').first()).toBeVisible()
+  await expect(markedName(page, 'Caller', 'Ted Lizotte').first()).toBeVisible()
 })
 
 test('the Staff Schedule drops a room activity that starts during a staff session, instead of covering it', async ({

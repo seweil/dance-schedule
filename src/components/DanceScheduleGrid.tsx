@@ -5,7 +5,7 @@ import {
   type DanceSessionPlacement,
 } from '../lib/computeDanceScheduleLayout'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
-import { detailsContent } from '../lib/danceScheduleCardContent'
+import { cuerLineContent, detailsContent } from '../lib/danceScheduleCardContent'
 import {
   formatSessionCuers,
   formatSessionGca,
@@ -58,7 +58,7 @@ function SessionCard({
         {levels && <p className={styles.levels}>{levels}</p>}
         <p className={styles.details}>{detailsContent(session)}</p>
         {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
-        {cuers && <p className={styles.gca}>Cuer: {cuers}</p>}
+        {cuers && <p className={styles.details}>{cuerLineContent(session)}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   CALLER_COLUMN_WIDTH,
   type DanceCallerSessionPlacement,
@@ -14,6 +14,7 @@ import {
 import { colorForSession } from '../lib/levelColors'
 import { isRegistrationSession } from '../lib/recognizedSessionKeywords'
 import type { DanceSession } from '../types/danceSchedule'
+import { StaffGlyph } from './StaffGlyph'
 import { StickyScrollGrid } from './StickyScrollGrid'
 // Reused as-is — every dance-schedule grid shares the exact same visual language
 // (card, levels/details/gca lines, sticky headers, mobile scroll behavior); only
@@ -28,14 +29,26 @@ const TIME_COLUMN_WIDTH = '4.375rem'
 // featured cuer's card names the caller, and a caller's card names the cuer (the
 // same secondary line the room/level grids show). See featuredStaff in
 // computeDanceScheduleCallerLayout.ts.
-function partnerLine(session: DanceSession, column: string | undefined): string {
+// Marked with the same ■/● glyph as the room/level grids' equal-billing names
+// (danceScheduleCardContent.tsx's hasCallerAndCuer).
+function partnerLine(session: DanceSession, column: string | undefined): ReactNode {
   if (session.kind !== 'structured' || column === undefined) {
-    return ''
+    return null
   }
   if (session.cuers?.includes(column)) {
-    return session.callers.length > 0 ? `Caller: ${session.callers.join(' & ')}` : ''
+    return session.callers.length > 0 ? (
+      <>
+        <StaffGlyph role="caller" />
+        {session.callers.join(' & ')}
+      </>
+    ) : null
   }
-  return session.cuers?.length ? `Cuer: ${session.cuers.join(' & ')}` : ''
+  return session.cuers?.length ? (
+    <>
+      <StaffGlyph role="cuer" />
+      {session.cuers.join(' & ')}
+    </>
+  ) : null
 }
 
 function SessionCard({
@@ -124,7 +137,7 @@ function SessionCard({
     <div className={cardClassName} style={style}>
       {levels && <p className={styles.levels}>{levels}</p>}
       <p className={styles.details}>{detailsWithRoomContent(session)}</p>
-      {partner && <p className={styles.gca}>{partner}</p>}
+      {partner && <p className={styles.details}>{partner}</p>}
       {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
     </div>
   )

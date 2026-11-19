@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { formatSessionCallers, formatSessionEventTypePrefix, formatSessionRoom } from './formatDanceSession'
 import type { DanceSession } from '../types/danceSchedule'
+import { StaffGlyph } from '../components/StaffGlyph'
 
 // Shared by every dance-schedule grid's session card (room-columns and
 // level-columns) — the "details" line (event type + caller(s), or a freeform
@@ -39,11 +40,32 @@ export function detailsContent(session: DanceSession, levelPrefix?: string): Rea
   return (
     <>
       {prefix(session, levelPrefix, callers)}
+      {callers && hasCallerAndCuer(session) && <StaffGlyph role="caller" />}
       {callers && <strong>{callers}</strong>}
     </>
   )
 }
 
+// A square dance with rounds between tips names both a caller and a cuer. The
+// two get equal billing there — both bold, a ■ before the caller and a ● before
+// the cuer (squares vs. circles) — instead of the cuer as a small secondary line.
+// Never shown for a caller-only or cuer-only session, which needs no telling apart.
+export function hasCallerAndCuer(session: DanceSession): boolean {
+  return session.kind === 'structured' && session.callers.length > 0 && (session.cuers?.length ?? 0) > 0
+}
+
+// The cuer's own line on such a card — the counterpart of detailsContent's caller.
+export function cuerLineContent(session: DanceSession): ReactNode {
+  if (session.kind !== 'structured' || !hasCallerAndCuer(session)) {
+    return null
+  }
+  return (
+    <>
+      <StaffGlyph role="cuer" />
+      <strong>{(session.cuers ?? []).join(' & ')}</strong>
+    </>
+  )
+}
 // The caller-columns grid's counterpart of detailsContent — caller is already
 // implied by the column there, so room (not caller) is the bold primary fact. No
 // levelPrefix concept: unlike a combined level slot, a caller column is never

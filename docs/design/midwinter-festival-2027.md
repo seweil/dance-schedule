@@ -117,6 +117,13 @@ separate, distinctly-triggered field"). Data model: a new optional
 caller-columns derivation) changes meaning.
 **Why:** Direct product decision; reuses an existing, already-understood
 presentation instead of inventing one.
+**Superseded in presentation (same day):** caller and cuer now get equal
+billing — both bold, ■ before the caller and ● before the cuer (squares vs.
+circles), the cuer on its own line directly under the caller
+(`danceScheduleCardContent.tsx`'s `hasCallerAndCuer`, `StaffGlyph.tsx`).
+The Staff Schedule's partner line uses the same glyphs instead of
+"Caller:"/"Cuer:". Only on a session with both — a caller-only or cuer-only
+card (every square-only event) is unchanged. The data model above stands.
 
 ### MS and MS Extended are distinct levels (2026-11-18)
 **Decision:** a new level code for "MainStream – Extended Application",

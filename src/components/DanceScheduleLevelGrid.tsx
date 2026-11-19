@@ -6,7 +6,7 @@ import {
 } from '../lib/computeDanceScheduleLevelLayout'
 import { computeColumnDividers } from '../lib/computeColumnDividers'
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
-import { detailsContent } from '../lib/danceScheduleCardContent'
+import { cuerLineContent, detailsContent } from '../lib/danceScheduleCardContent'
 import {
   formatSessionCuers,
   formatSessionGca,
@@ -104,9 +104,10 @@ function SessionCard({
     <div className={cardClassName} style={style}>
       <div className={isRoomless ? styles.roomlessCardContent : undefined}>
         <p className={styles.details}>{detailsContent(session, levelPrefix)}</p>
+        {/* Right under the caller, ahead of the room — the two names are a pair. */}
+        {cuers && <p className={styles.details}>{cuerLineContent(session)}</p>}
         {room && <p className={styles.details}>{room}</p>}
         {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
-        {cuers && <p className={styles.gca}>Cuer: {cuers}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>
