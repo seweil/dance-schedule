@@ -48,9 +48,26 @@ export function DanceScheduleCallersPage() {
   )
 
   const layout = useMemo(
-    () => computeDanceScheduleCallerLayout(dateSessions, visibleSessions, contentConfig.danceSchedule?.featuredStaff),
+    () =>
+      computeDanceScheduleCallerLayout(
+        dateSessions,
+        visibleSessions,
+        contentConfig.danceSchedule?.featuredStaff,
+      ),
     [dateSessions, visibleSessions],
   )
+  const featuredStaff = contentConfig.danceSchedule?.featuredStaff
+  const hasAnythingThisDay = useMemo(
+    () =>
+      computeDanceScheduleCallerLayout(dateSessions, dateSessions, featuredStaff).placements
+        .length > 0,
+    [dateSessions, featuredStaff],
+  )
+  const emptyDayMessage = hasAnythingThisDay
+    ? undefined
+    : featuredStaff
+      ? 'None of the featured staff are scheduled this day.'
+      : 'No caller sessions this day.'
 
   return (
     <>
@@ -71,7 +88,12 @@ export function DanceScheduleCallersPage() {
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
       />
-      <DanceScheduleCallerGrid layout={layout} showGca={showGca} onShowAllLevels={showAllLevels} />
+      <DanceScheduleCallerGrid
+        layout={layout}
+        showGca={showGca}
+        onShowAllLevels={showAllLevels}
+        emptyDayMessage={emptyDayMessage}
+      />
     </>
   )
 }

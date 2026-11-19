@@ -35,7 +35,9 @@ test('opens on Friday, past the one-session Thursday, which names its one level 
   await expect(page.getByRole('slider')).toHaveCount(0)
 })
 
-test('the level slider shows MS Ext and folds Challenge into the Advanced stop', async ({ page }) => {
+test('the level slider shows MS Ext and folds Challenge into the Advanced stop', async ({
+  page,
+}) => {
   await page.goto(`${SET}/dance-schedule`)
   await selectSaturday(page)
   await expect(page.getByRole('button', { name: 'MS Ext' })).toBeVisible()
@@ -69,7 +71,9 @@ test('the Dance Schedule gets a phase slider and phase columns, with each teach 
   await expect(page.getByText('Challenge -')).toBeVisible()
 })
 
-test('a round session bolds its cuer, and a square session shows its cuer on its own line', async ({ page }) => {
+test('a round session bolds its cuer, and a square session shows its cuer on its own line', async ({
+  page,
+}) => {
   await page.goto(`${SET}/room-schedule`)
   await selectSaturday(page)
   await expect(page.locator('strong', { hasText: 'Pam & Jeff Johnson' }).first()).toBeVisible()
@@ -79,14 +83,18 @@ test('a round session bolds its cuer, and a square session shows its cuer on its
 test('the Caller Schedule shows only the featured staff, cuers included', async ({ page }) => {
   await page.goto(`${SET}/caller-schedule`)
   await selectSaturday(page)
-  await expect(columnHeaders(page)).toHaveText(['Ted Lizotte', 'Pam & Jeff Johnson', 'Trevor DeWitt'])
+  await expect(columnHeaders(page)).toHaveText([
+    'Ted Lizotte',
+    'Pam & Jeff Johnson',
+    'Trevor DeWitt',
+  ])
   // A Ted Lizotte session cued by Pam & Jeff lands in both columns, each naming
   // the other.
   await expect(page.getByText('Cuer: Pam & Jeff Johnson').first()).toBeVisible()
   await expect(page.getByText('Caller: Ted Lizotte').first()).toBeVisible()
 })
 
-test("the Staff Schedule drops a room activity that starts during a staff session, instead of covering it", async ({
+test('the Staff Schedule drops a room activity that starts during a staff session, instead of covering it', async ({
   page,
 }) => {
   await page.goto(`${SET}/caller-schedule`)
@@ -97,6 +105,15 @@ test("the Staff Schedule drops a room activity that starts during a staff sessio
   await expect(page.getByText('ORDTA Mtg')).toHaveCount(0)
   await expect(page.getByText('Showcase Practice')).toHaveCount(1)
   await expect(page.getByText('Showcase of Rounds')).toBeVisible()
+})
+
+test('the Staff Schedule says so on a day with no featured staff, instead of blaming the filters', async ({
+  page,
+}) => {
+  await page.goto(`${SET}/caller-schedule`)
+  await page.getByLabel('Date').selectOption({ index: 0 })
+  await expect(page.getByText('None of the featured staff are scheduled this day.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Show all levels' })).toHaveCount(0)
 })
 
 test('the staff page is "Staff Schedule" at an event with round dancing, "Caller Schedule" at a square-only one', async ({
@@ -118,14 +135,19 @@ test('the venue page names both off-site hotels, reachable from the nav', async 
   await expect(page.getByText('Comfort Suites, 100 Opal Ct NE')).toBeVisible()
 })
 
-test("an organizer's email link carries no app diagnostics; the app's own help link does", async ({ page }) => {
+test("an organizer's email link carries no app diagnostics; the app's own help link does", async ({
+  page,
+}) => {
   await page.goto(`${SET}/contacts`)
   await expect(page.getByRole('link', { name: 'davison.brooke.77@gmail.com' })).toHaveAttribute(
     'href',
     'mailto:davison.brooke.77@gmail.com',
   )
   await page.goto(`${SET}/help`)
-  await expect(page.getByRole('link', { name: 'Email us' })).toHaveAttribute('href', /^mailto:help@sqdance\.app\?body=/)
+  await expect(page.getByRole('link', { name: 'Email us' })).toHaveAttribute(
+    'href',
+    /^mailto:help@sqdance\.app\?body=/,
+  )
 })
 
 test('the venue map still loads offline after the SW takes control', async ({ page, context }) => {
@@ -140,7 +162,9 @@ test('the venue map still loads offline after the SW takes control', async ({ pa
   const map = page.getByRole('img', { name: 'Linn County Fairgrounds layout' })
   await expect(map).toBeVisible()
   // A broken image is still "visible"; naturalWidth is 0 unless it actually loaded.
-  await expect.poll(() => map.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+  await expect
+    .poll(() => map.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0)
   await context.setOffline(false)
 })
 

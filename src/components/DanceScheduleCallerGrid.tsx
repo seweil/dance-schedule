@@ -48,7 +48,8 @@ function SessionCard({
   // The person whose column this card is in; undefined for a floating card.
   column: string | undefined
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, floatKind } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, floatKind } =
+    placement
   const isFloating = floatKind !== null
   const isBusy = floatKind === 'busy'
   const backgroundColor = isFloating ? undefined : colorForSession(session)
@@ -156,12 +157,21 @@ export function DanceScheduleCallerGrid({
   layout,
   showGca,
   onShowAllLevels,
+  emptyDayMessage,
 }: {
   layout: DanceScheduleCallerLayout
   showGca: boolean
   onShowAllLevels: () => void
+  // Set when the selected day has nothing for this page even unfiltered (e.g.
+  // MidWinter2027's Thursday, with no featured staff) — shown in place of the
+  // "widen the level range" hint, which would point at a filter that can't help.
+  emptyDayMessage?: string
 }) {
   const { visibleCallers, columnWidthsRem, totalRows, timeMarks, placements } = layout
+
+  if (emptyDayMessage !== undefined) {
+    return <p className={styles.empty}>{emptyDayMessage}</p>
+  }
 
   if (placements.length === 0) {
     return (
