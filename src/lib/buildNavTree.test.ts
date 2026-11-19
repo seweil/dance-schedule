@@ -29,6 +29,21 @@ describe('buildNavTree', () => {
     ])
   })
 
+  it('replaces the filename-derived label for an href in labelOverrides, keeping its href and order', () => {
+    const items = buildNavTree(
+      [
+        { path: '14 caller-schedule', element: createElement('div') },
+        { path: '2 installation', element: createElement('div') },
+      ],
+      { '/caller-schedule': 'Staff Schedule' },
+    )
+
+    expect(items.map(({ label, href }) => ({ label, href }))).toEqual([
+      { label: 'Installation', href: '/installation' },
+      { label: 'Staff Schedule', href: '/caller-schedule' },
+    ])
+  })
+
   it('strips a leading "<digits> " order prefix from the label and href', () => {
     const [item] = buildNavTree([{ path: '2 installation', element: createElement('div') }])
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BASE_LEVEL_ORDER,
   LEVEL_ORDER,
   getLevelSlots,
   getPresentLevelIndexRange,
   isSessionInLevelRange,
   labelSlotsByPresence,
+  usesOptionalLevels,
 } from './levelOrder'
 import type { DanceSession, LevelCode, StructuredSession } from '../types/danceSchedule'
 
@@ -27,15 +29,15 @@ const COMBINED_SLOTS = getLevelSlots(true, false)
 const C3B_PLUS_SLOTS = getLevelSlots(false, true)
 const FULL_RANGE: [number, number] = [0, BASE_SLOTS.length - 1]
 
-describe('LEVEL_ORDER', () => {
+describe('BASE_LEVEL_ORDER', () => {
   it('reflects the real skill progression, not LEVEL_CODES\'s declared order', () => {
-    expect(LEVEL_ORDER).toEqual(['SSD', 'MS', 'Plus', 'A1', 'A2', 'C1', 'C2', 'C3A', 'C3B', 'C4'])
+    expect(LEVEL_ORDER).toEqual(['SSD', 'MS', 'MSX', 'Plus', 'A1', 'A2', 'C1', 'C2', 'C3A', 'C3B', 'C4'])
   })
 })
 
 describe('getLevelSlots', () => {
   it('returns one slot per level, unchanged, when combining nothing', () => {
-    expect(BASE_SLOTS).toEqual(LEVEL_ORDER.map((level) => ({ label: level, levels: [level] })))
+    expect(BASE_SLOTS).toEqual(BASE_LEVEL_ORDER.map((level) => ({ label: level, levels: [level] })))
   })
 
   it('merges A1 and A2 into a single slot in their place when combining', () => {
@@ -50,7 +52,7 @@ describe('getLevelSlots', () => {
       { label: 'C3B', levels: ['C3B'] },
       { label: 'C4', levels: ['C4'] },
     ])
-    expect(COMBINED_SLOTS).toHaveLength(LEVEL_ORDER.length - 1)
+    expect(COMBINED_SLOTS).toHaveLength(BASE_LEVEL_ORDER.length - 1)
   })
 
   it('merges C3B and C4 into a single "C3B+" slot in their place when combining', () => {
@@ -65,7 +67,7 @@ describe('getLevelSlots', () => {
       { label: 'C3A', levels: ['C3A'] },
       { label: 'C3B+', levels: ['C3B', 'C4'] },
     ])
-    expect(C3B_PLUS_SLOTS).toHaveLength(LEVEL_ORDER.length - 1)
+    expect(C3B_PLUS_SLOTS).toHaveLength(BASE_LEVEL_ORDER.length - 1)
   })
 
   it('applies both merges together when both flags are on', () => {
@@ -85,35 +87,35 @@ describe('getLevelSlots', () => {
 describe('isSessionInLevelRange', () => {
   it('is visible when its single level is inside the range', () => {
     const session = makeStructured(['Plus'])
-    const minIndex = LEVEL_ORDER.indexOf('MS')
-    const maxIndex = LEVEL_ORDER.indexOf('A1')
+    const minIndex = BASE_LEVEL_ORDER.indexOf('MS')
+    const maxIndex = BASE_LEVEL_ORDER.indexOf('A1')
     expect(isSessionInLevelRange(session, minIndex, maxIndex, BASE_SLOTS)).toBe(true)
   })
 
   it('is hidden when its single level is outside the range', () => {
     const session = makeStructured(['C4'])
-    const minIndex = LEVEL_ORDER.indexOf('SSD')
-    const maxIndex = LEVEL_ORDER.indexOf('Plus')
+    const minIndex = BASE_LEVEL_ORDER.indexOf('SSD')
+    const maxIndex = BASE_LEVEL_ORDER.indexOf('Plus')
     expect(isSessionInLevelRange(session, minIndex, maxIndex, BASE_SLOTS)).toBe(false)
   })
 
   it('treats range boundaries as inclusive', () => {
     const session = makeStructured(['Plus'])
-    const index = LEVEL_ORDER.indexOf('Plus')
+    const index = BASE_LEVEL_ORDER.indexOf('Plus')
     expect(isSessionInLevelRange(session, index, index, BASE_SLOTS)).toBe(true)
   })
 
   it('is visible if ANY of its multiple levels is in range', () => {
     const session = makeStructured(['SSD', 'C4'])
-    const minIndex = LEVEL_ORDER.indexOf('SSD')
-    const maxIndex = LEVEL_ORDER.indexOf('MS')
+    const minIndex = BASE_LEVEL_ORDER.indexOf('SSD')
+    const maxIndex = BASE_LEVEL_ORDER.indexOf('MS')
     expect(isSessionInLevelRange(session, minIndex, maxIndex, BASE_SLOTS)).toBe(true)
   })
 
   it('is hidden only if ALL of its multiple levels are outside range', () => {
     const session = makeStructured(['C3A', 'C4'])
-    const minIndex = LEVEL_ORDER.indexOf('SSD')
-    const maxIndex = LEVEL_ORDER.indexOf('Plus')
+    const minIndex = BASE_LEVEL_ORDER.indexOf('SSD')
+    const maxIndex = BASE_LEVEL_ORDER.indexOf('Plus')
     expect(isSessionInLevelRange(session, minIndex, maxIndex, BASE_SLOTS)).toBe(false)
   })
 
@@ -135,7 +137,7 @@ describe('isSessionInLevelRange', () => {
   })
 
   it('is visible for any level when the range spans the full scale', () => {
-    for (const level of LEVEL_ORDER) {
+    for (const level of BASE_LEVEL_ORDER) {
       expect(isSessionInLevelRange(makeStructured([level]), ...FULL_RANGE, BASE_SLOTS)).toBe(true)
     }
   })
@@ -196,7 +198,7 @@ const FREEFORM_SESSION: DanceSession = {
 
 describe('getPresentLevelIndexRange', () => {
   it('returns a single-index range for one ordered level', () => {
-    const plusIndex = LEVEL_ORDER.indexOf('Plus')
+    const plusIndex = BASE_LEVEL_ORDER.indexOf('Plus')
     expect(getPresentLevelIndexRange([makeStructured(['Plus'])], BASE_SLOTS)).toEqual({
       minIndex: plusIndex,
       maxIndex: plusIndex,
@@ -206,14 +208,14 @@ describe('getPresentLevelIndexRange', () => {
   it('spans the min and max slot index across multiple sessions', () => {
     const sessions = [makeStructured(['C1']), makeStructured(['A2']), makeStructured(['C3A'])]
     expect(getPresentLevelIndexRange(sessions, BASE_SLOTS)).toEqual({
-      minIndex: LEVEL_ORDER.indexOf('A2'),
-      maxIndex: LEVEL_ORDER.indexOf('C3A'),
+      minIndex: BASE_LEVEL_ORDER.indexOf('A2'),
+      maxIndex: BASE_LEVEL_ORDER.indexOf('C3A'),
     })
   })
 
   it('ignores unordered levels (Intro/Various) and freeform sessions when computing the span', () => {
     const sessions = [makeStructured(['C1']), makeStructured(['Various']), FREEFORM_SESSION]
-    const c1Index = LEVEL_ORDER.indexOf('C1')
+    const c1Index = BASE_LEVEL_ORDER.indexOf('C1')
     expect(getPresentLevelIndexRange(sessions, BASE_SLOTS)).toEqual({ minIndex: c1Index, maxIndex: c1Index })
   })
 
@@ -226,7 +228,7 @@ describe('getPresentLevelIndexRange', () => {
     expect(getPresentLevelIndexRange([], BASE_SLOTS)).toEqual({ minIndex: 0, maxIndex: BASE_SLOTS.length - 1 })
   })
 
-  it('resolves a merged slot (e.g. A1/A2) from either of its member levels, not a raw LEVEL_ORDER index', () => {
+  it('resolves a merged slot (e.g. A1/A2) from either of its member levels, not a raw BASE_LEVEL_ORDER index', () => {
     const a1a2Index = COMBINED_SLOTS.findIndex((slot) => slot.label === 'A1/A2')
     expect(getPresentLevelIndexRange([makeStructured(['A2'])], COMBINED_SLOTS)).toEqual({
       minIndex: a1a2Index,
@@ -291,5 +293,42 @@ describe('labelSlotsByPresence', () => {
     const relabeled = labelSlotsByPresence(COMBINED_SLOTS, [freeform])
     const a1a2Slot = relabeled.find((slot) => slot.levels.includes('A2'))
     expect(a1a2Slot).toMatchObject({ label: 'A1/A2' })
+  })
+})
+
+describe('combineAdvancedC1', () => {
+  it('folds C1 into the combined A1/A2 slot', () => {
+    const slots = getLevelSlots(true, false, { combineAdvancedC1: true })
+    expect(slots.map((slot) => slot.label)).toEqual(['SSD', 'MS', 'Plus', 'A1/A2/C1', 'C2', 'C3A', 'C3B', 'C4'])
+    expect(slots[3]!.levels).toEqual(['A1', 'A2', 'C1'])
+  })
+
+  it('folds C1 into A2 alone when A1/A2 aren\'t combined', () => {
+    const labels = getLevelSlots(false, false, { combineAdvancedC1: true }).map((slot) => slot.label)
+    expect(labels).toEqual(['SSD', 'MS', 'Plus', 'A1', 'A2/C1', 'C2', 'C3A', 'C3B', 'C4'])
+  })
+
+  it('labels the three-level merge by just the levels present', () => {
+    const slots = getLevelSlots(true, false, { combineAdvancedC1: true })
+    const relabeled = labelSlotsByPresence(slots, [makeStructured(['A2']), makeStructured(['C1'])])
+    expect(relabeled[3]).toMatchObject({ label: 'A2/C1', levels: ['A1', 'A2', 'C1'] })
+  })
+})
+
+describe('optional levels (MSX)', () => {
+  it('leaves MSX off the slider by default, so other events keep their slots', () => {
+    expect(getLevelSlots(false, false).map((slot) => slot.label)).toEqual([...BASE_LEVEL_ORDER])
+    expect(BASE_LEVEL_ORDER).not.toContain('MSX')
+  })
+
+  it('puts MSX between MS and Plus when included', () => {
+    const slots = getLevelSlots(false, false, { includeOptionalLevels: true })
+    expect(slots.slice(0, 4).map((slot) => slot.label)).toEqual(['SSD', 'MS', 'MS Ext', 'Plus'])
+    expect(slots[2]!.levels).toEqual(['MSX'])
+  })
+
+  it('reports whether any session uses an optional level', () => {
+    expect(usesOptionalLevels([makeStructured(['MS']), makeStructured(['Plus'])])).toBe(false)
+    expect(usesOptionalLevels([makeStructured(['MS']), makeStructured(['MSX'])])).toBe(true)
   })
 })

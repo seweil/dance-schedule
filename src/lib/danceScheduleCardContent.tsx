@@ -14,24 +14,32 @@ import type { DanceSession } from '../types/danceSchedule'
 // whenever the slot isn't combined — the level is already implied by the column
 // there, same as it always was.
 
-function prefix(session: DanceSession, levelPrefix?: string): string {
+// Drops the trailing " - " separator when nothing bold follows it — a session that
+// names nobody ("Teach Ph 5" before its cuer is known, say) reads "Teach Ph 5", not
+// "Teach Ph 5 - ".
+function prefix(session: DanceSession, levelPrefix: string | undefined, followedBy: string): string {
   const levelPart = levelPrefix ? `${levelPrefix} - ` : ''
-  return `${levelPart}${formatSessionEventTypePrefix(session)}`
+  const text = `${levelPart}${formatSessionEventTypePrefix(session)}`
+  return followedBy ? text : text.replace(/ - $/, '')
 }
 
 export function detailsPlainText(session: DanceSession, levelPrefix?: string): string {
-  return session.kind === 'freeform'
-    ? session.description
-    : `${prefix(session, levelPrefix)}${formatSessionCallers(session)}`
+  if (session.kind === 'freeform') {
+    return session.description
+  }
+  const callers = formatSessionCallers(session)
+  return `${prefix(session, levelPrefix, callers)}${callers}`
 }
 
 export function detailsContent(session: DanceSession, levelPrefix?: string): ReactNode {
-  return session.kind === 'freeform' ? (
-    session.description
-  ) : (
+  if (session.kind === 'freeform') {
+    return session.description
+  }
+  const callers = formatSessionCallers(session)
+  return (
     <>
-      {prefix(session, levelPrefix)}
-      <strong>{formatSessionCallers(session)}</strong>
+      {prefix(session, levelPrefix, callers)}
+      {callers && <strong>{callers}</strong>}
     </>
   )
 }

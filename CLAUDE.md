@@ -48,6 +48,13 @@ Note: Vite's dev server does not register the service worker the same way produc
 does. Always verify PWA behavior (offline mode, install prompt, update flow) against
 `pnpm build && pnpm preview`, not `pnpm dev`.
 
+Run `pnpm test:e2e` as a bare command (extra Playwright args like
+`--reporter=dot` or a spec path are fine) — no pipe, `&&`/`;` chain, or `>`
+redirect. `.claude/settings.json`'s sandbox `excludedCommands` only matches it
+standalone; otherwise it stays sandboxed and Chromium dies at launch
+(`bootstrap_check_in ... MachPortRendezvousServer: Permission denied`), failing
+every test at `browserType.launch` for no app-related reason.
+
 `pnpm install` activates a Husky pre-commit hook (`.husky/pre-commit`) that runs
 `pnpm typecheck && pnpm lint && pnpm test` before every commit — it aborts the
 commit if any of them fail. This only runs locally; it isn't a substitute for
@@ -133,7 +140,10 @@ src/
   types/          # shared TypeScript types
 dance-schedule-parsers/   # pluggable dance-schedule input formats (Node-side, build
                           # time): types.ts (the DanceScheduleParser interface),
-                          # roomGrid.ts (the original xlsx grid), index.ts (registry
+                          # roomGrid.ts (the original xlsx grid), pdfProgramGrid.ts
+                          # (a one-page PDF with programs as column groups — reads
+                          # gridlines + text via pdfjs-dist, pinned exactly; layout
+                          # rules in src/lib/parseProgramGridPdf.ts), index.ts (registry
                           # + loadDanceScheduleData, the one loader every build path
                           # uses). See docs/design/dance-schedule.md "Pluggable parsers";
                           # docs/adding-a-dance-schedule-parser.md is the step-by-step
@@ -223,7 +233,9 @@ picks up the `.md` extension.
   the zoom/lightbox behavior entirely and out of the page's shared image gallery
   (`ImageGallery.tsx`), so it never becomes a next/prev stop for the page's other,
   real photos either (`ZoomableImage.tsx`'s `NO_ZOOM_TOKEN`).
-- **Email links**: every rendered `mailto:` link (e.g.
+- **Email links**: every rendered `mailto:` link to the app's own
+  `@sqdance.app` address (links to anyone else, e.g. an event's organizers,
+  are left plain — see `docs/design/mailto-diagnostics.md`) (e.g.
   `[Email us](mailto:help@sqdance.app)`) automatically gets a build + client
   diagnostics block folded into its body — build hash/time, current page URL,
   online/installed status, user agent — via `src/lib/mailtoDiagnostics.ts`,
@@ -287,7 +299,9 @@ The short version:
   (`src/pages/10 event-schedule.tsx`, `12 dance-schedule.tsx`,
   `13 room-schedule.tsx`, `14 caller-schedule.tsx` — nav labels "Event
   Schedule", "Dance Schedule", "Room Schedule", "Caller Schedule"
-  respectively) are reserved for those auto-generated pages. A content page
+  respectively — the last becomes "Staff Schedule", same route, when the
+  schedule has round dancing or clogging; see `src/lib/staffScheduleLabel.ts`)
+  are reserved for those auto-generated pages. A content page
   should use a prefix below `10` (any
   number in that range — nothing about which specific single-digit number
   goes with which page is fixed) so it sorts before all of them; a future

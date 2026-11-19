@@ -91,7 +91,9 @@ needed.
   and 14 are reserved for the automatically-generated "Event Schedule" (see
   step 3), "Dance Schedule", "Room Schedule", and "Caller Schedule" (step 4)
   pages respectively. Those four pages appear in your nav automatically; you
-  don't create them. Below 10, any number works for any page — there's no
+  don't create them. ("Caller Schedule" is called "Staff Schedule" instead
+  when your schedule has round dancing or clogging as well as square
+  dancing; that's automatic too.) Below 10, any number works for any page — there's no
   fixed assignment of, say, "2" to any particular page; use whatever order
   makes sense for your event.
 
@@ -105,8 +107,8 @@ Dates, location, and anything else you want visitors to see first.
 
 ## Step 2: Feature flags and manifest info (`config.yaml`)
 
-`content/<your-event-name>/config.yaml` is optional — if you skip it, both
-flags below default to `true` already. It has two independent sections:
+`content/<your-event-name>/config.yaml` is optional — if you skip it, the
+first two flags below default to `true` already and the third to `false`. It has two independent sections:
 
 ```yaml
 features:
@@ -121,6 +123,11 @@ features:
   # enough distinct C3B-only and C4-only sessions to be worth splitting.
   # (Also defaults to true.)
   combineC3BC4: true
+  # Folds C1 into the Advanced stop too ("A2/C1", or "A1/A2/C1"), for an
+  # event with only a session or two of Challenge that doesn't justify a stop
+  # of its own. Defaults to false — unlike the two above, so leave it out
+  # unless your event is like that.
+  combineAdvancedC1: false
 
 manifest:
   # What shows up as the installed app's name/home-screen label, and (name
@@ -173,21 +180,57 @@ danceSchedule:
     - Drummond Ballroom
 ```
 
+### Featured staff only on the Caller Schedule (`danceSchedule.featuredStaff`)
+
+Also optional. By default the Caller Schedule page has a column for every
+caller in the schedule. At an event with many callers but a few featured
+ones, list just those — callers and cuers alike, spelled exactly as in the
+schedule. The page then shows only their columns, in this order, and leaves
+out sessions none of them is part of. A cuer's column shows each session
+they cue, naming its caller. The build fails if a name isn't anywhere in the
+schedule, so a typo can't silently drop someone's column.
+
+```yaml
+danceSchedule:
+  featuredStaff: [Ted Lizotte, Pam & Jeff Johnson, Trevor DeWitt]
+```
+
 A room not scheduled on a particular day is simply skipped that day — the
 list is one event-wide setting, not one per day.
 
 ### Dance-schedule input format (`danceSchedule.format`)
 
 Also optional, and you can ignore it for now. It says which format your
-dance schedule is written in. There's only one so far, `room-grid`: the
-`dance-schedule.xlsx` grid described in Step 4. It's the default, so you
-never need to write it out. Other formats are planned for organizers who keep
-their schedule differently. Each one will be listed here, along with the file
-name it reads from `data/`.
+dance schedule is written in:
+
+- **`room-grid`** (the default, so you never need to write it out): the
+  `dance-schedule.xlsx` grid described in Step 4.
+- **`pdf-program-grid`**: a one-page PDF schedule, `data/dance-schedule.pdf`,
+  laid out like the 2027 Oregon Mid-Winter Festival's: programs (MS, Plus,
+  Advanced, Round Dance, Clogging, ...) as column groups, each with its room
+  in the row under its name and Event / Caller / Cuer columns, and one row
+  per Day + Times. Use the organizer's PDF exactly as published; don't edit
+  it. Co-callers are separated by `/`. A Round Dance event like `Ph 3-5`
+  sets its phases. A teach is for the dancers one phase below it, so
+  `Teach Ph 4` is filtered as phase 3. Likewise an intro to a square-dance
+  level is for the level below it, so `Intro to Plus` is filtered as MS and
+  MS Extended, whatever column it's printed in. Anyone a program's cells never
+  name can be credited with `programStaff`. A person printed under two names
+  can be merged into one with `staffAliases`. Both are shown in the example
+  below. The full rules are in `docs/design/midwinter-festival-2027.md`.
 
 ```yaml
 danceSchedule:
   format: room-grid   # the default — the same as leaving this line out
+```
+
+```yaml
+danceSchedule:
+  format: pdf-program-grid
+  programStaff:              # optional, keyed by program name as printed
+    Clogging: [Trevor DeWitt]
+  staffAliases:              # optional, each other spelling → the name to show
+    Mike Kious: Michael Kious
 ```
 
 A misspelled format name fails the build, with a message listing the valid

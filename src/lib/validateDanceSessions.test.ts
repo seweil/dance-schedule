@@ -12,7 +12,14 @@ function dance(
   source: string,
   start: string,
   end: string,
-  overrides: { callers?: string[]; location?: SessionLocation; gca?: string; levels?: string[]; day?: string } = {},
+  overrides: {
+    callers?: string[]
+    cuers?: string[]
+    location?: SessionLocation
+    gca?: string
+    levels?: string[]
+    day?: string
+  } = {},
 ): SourcedDanceSession {
   const day = overrides.day ?? '2026-07-02'
   const session: DanceSessionData = {
@@ -25,6 +32,7 @@ function dance(
     eventType: 'Dancing',
     callers: overrides.callers ?? ['Vic Ceder'],
     gca: overrides.gca,
+    ...(overrides.cuers ? { cuers: overrides.cuers } : {}),
   }
   return { session, source }
 }
@@ -100,6 +108,30 @@ describe('validateDanceSessions', () => {
         dance('B', '00:30', '01:30', { location: located('Ballroom East'), day: '2026-07-03' }),
       ])
       expect(errors).toEqual(['B: caller "Vic Ceder" is already booked by A'])
+    })
+  })
+
+  describe('cuer double-booking', () => {
+    it('flags the same cuer in two rooms at once', () => {
+      const errors = validateDanceSessions([
+        dance('A', '19:30', '20:30', { callers: ['Ted Lizotte'], cuers: ['Pam & Jeff Johnson'], location: located('Hall A') }),
+        dance('B', '19:30', '20:30', { callers: [], cuers: ['Pam & Jeff Johnson'], location: located('Room 3/4') }),
+      ])
+      expect(errors).toEqual(['B: cuer "Pam & Jeff Johnson" is already booked by A'])
+    })
+
+    it('flags someone calling in one room while cueing in another', () => {
+      const errors = validateDanceSessions([
+        dance('A', '19:30', '20:30', { callers: ['Ted Lizotte'], location: located('Hall A') }),
+        dance('B', '19:30', '20:30', { callers: ['Craig Abercrombie'], cuers: ['Ted Lizotte'], location: located('Hall C') }),
+      ])
+      expect(errors).toEqual(['B: cuer "Ted Lizotte" is already booked by A'])
+    })
+
+    it('accepts one session naming the same person as both caller and cuer', () => {
+      expect(
+        validateDanceSessions([dance('A', '12:00', '13:00', { callers: ['Ted Lizotte'], cuers: ['Ted Lizotte'] })]),
+      ).toEqual([])
     })
   })
 

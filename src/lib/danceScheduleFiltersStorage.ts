@@ -6,6 +6,8 @@ export interface StoredDanceScheduleFilters {
   selectedDateISO?: string
   minLevelIndex?: number
   maxLevelIndex?: number
+  minPhaseIndex?: number
+  maxPhaseIndex?: number
   showGca?: boolean
 }
 
@@ -30,23 +32,40 @@ export function resolveStoredDate(stored: StoredDanceScheduleFilters, dates: Dat
 // Falls back to the full range whenever the stored indices are missing, not
 // integers, out of bounds for the CURRENT slot count (e.g. combineA1A2 toggled
 // between visits, changing how many slots there are), or inverted.
+function resolveStoredRange(
+  min: number | undefined,
+  max: number | undefined,
+  count: number,
+): { min: number; max: number } {
+  if (
+    typeof min === 'number' &&
+    typeof max === 'number' &&
+    Number.isInteger(min) &&
+    Number.isInteger(max) &&
+    min >= 0 &&
+    max < count &&
+    min <= max
+  ) {
+    return { min, max }
+  }
+  return { min: 0, max: count - 1 }
+}
+
 export function resolveStoredLevelRange(
   stored: StoredDanceScheduleFilters,
   slotCount: number,
 ): { minLevelIndex: number; maxLevelIndex: number } {
-  const { minLevelIndex, maxLevelIndex } = stored
-  if (
-    typeof minLevelIndex === 'number' &&
-    typeof maxLevelIndex === 'number' &&
-    Number.isInteger(minLevelIndex) &&
-    Number.isInteger(maxLevelIndex) &&
-    minLevelIndex >= 0 &&
-    maxLevelIndex < slotCount &&
-    minLevelIndex <= maxLevelIndex
-  ) {
-    return { minLevelIndex, maxLevelIndex }
-  }
-  return { minLevelIndex: 0, maxLevelIndex: slotCount - 1 }
+  const { min, max } = resolveStoredRange(stored.minLevelIndex, stored.maxLevelIndex, slotCount)
+  return { minLevelIndex: min, maxLevelIndex: max }
+}
+
+// The phase slider's counterpart, against the fixed phase scale (phaseOrder.ts).
+export function resolveStoredPhaseRange(
+  stored: StoredDanceScheduleFilters,
+  phaseCount: number,
+): { minPhaseIndex: number; maxPhaseIndex: number } {
+  const { min, max } = resolveStoredRange(stored.minPhaseIndex, stored.maxPhaseIndex, phaseCount)
+  return { minPhaseIndex: min, maxPhaseIndex: max }
 }
 
 export function resolveStoredShowGca(stored: StoredDanceScheduleFilters): boolean {

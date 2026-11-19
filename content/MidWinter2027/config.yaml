@@ -1,0 +1,30 @@
+# Per-content-set config for the "MidWinter2027" event — the 2027 Oregon
+# Mid-Winter Festival. See docs/design/content-config.md and
+# docs/design/midwinter-festival-2027.md.
+
+features:
+  combineA1A2: true
+  combineC3BC4: true
+  # The one Challenge session (C1) shares the Advanced slot rather than getting
+  # a slider stop and column of its own.
+  combineAdvancedC1: true
+
+danceSchedule:
+  # The organizer's published PDF is the only schedule source (no original
+  # spreadsheet exists) — see docs/design/midwinter-festival-2027.md.
+  format: pdf-program-grid
+  # Featured clogging instructor, named on the festival site but nowhere in the
+  # PDF's Clogging column.
+  programStaff:
+    Clogging: [Trevor DeWitt]
+  # The festival site's featured staff — the only columns on the Caller
+  # Schedule page, in this order.
+  featuredStaff: [Ted Lizotte, Pam & Jeff Johnson, Trevor DeWitt]
+  # The PDF prints him both ways; the organizer confirmed it's one person.
+  staffAliases:
+    Mike Kious: Michael Kious
+
+manifest:
+  name: Oregon Mid-Winter Festival 2027
+  shortName: MWF 2027
+  description: Schedule, room assignments, callers, and cuers for the 2027 Oregon Mid-Winter Festival, a square dance, round dance, and clogging festival in Albany, Oregon, Jan 29-31, 2027.

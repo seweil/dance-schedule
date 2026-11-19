@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
+import { NAV_LABEL_OVERRIDES } from '../lib/navLabelOverrides'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { TextSizeControl } from './TextSizeControl'
 import styles from './Nav.module.css'
@@ -14,7 +15,7 @@ import styles from './Nav.module.css'
 // there's nothing page-specific about this component, so one shared instance
 // above all page content is the right shape for it.
 export function Nav() {
-  const items = buildNavTree(routes)
+  const items = buildNavTree(routes, NAV_LABEL_OVERRIDES)
   const listRef = useRef<HTMLUListElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)

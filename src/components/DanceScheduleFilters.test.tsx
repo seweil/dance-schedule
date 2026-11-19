@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { TextSizeProvider } from './TextSizeProvider'
 import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
-import { LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
+import { BASE_LEVEL_ORDER, getLevelSlots } from '../lib/levelOrder'
 
 afterEach(() => {
   Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true })
@@ -117,7 +117,7 @@ describe('DanceScheduleFilters', () => {
 
   it('renders one labeled, clickable tick per level, each with a visible mark above the label', () => {
     renderFilters()
-    for (const level of LEVEL_ORDER) {
+    for (const level of BASE_LEVEL_ORDER) {
       const tick = screen.getByRole('button', { name: level })
       expect(tick).toBeInTheDocument()
       // The mark is decorative (aria-hidden) — doesn't affect the button's
@@ -141,21 +141,21 @@ describe('DanceScheduleFilters', () => {
   it('shows a ghost marker on the track only while hovering its tick, and only that one', () => {
     stubHoverCapable()
     renderFilters()
-    // BASE_SLOTS is uncombined (one slot per LEVEL_ORDER entry), so ghost marker
-    // order matches LEVEL_ORDER order — same index the tick loop above renders in.
+    // BASE_SLOTS is uncombined (one slot per BASE_LEVEL_ORDER entry), so ghost marker
+    // order matches BASE_LEVEL_ORDER order — same index the tick loop above renders in.
     const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
-    expect(ghosts).toHaveLength(LEVEL_ORDER.length)
+    expect(ghosts).toHaveLength(BASE_LEVEL_ORDER.length)
     for (const ghost of ghosts) {
       expect(ghost).toHaveAttribute('data-active', 'false')
     }
 
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'C1' }))
-    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'true')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'true')
     // Every other marker stays inactive — hovering one tick doesn't light up others.
-    expect(ghosts[LEVEL_ORDER.indexOf('SSD')]).toHaveAttribute('data-active', 'false')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('SSD')]).toHaveAttribute('data-active', 'false')
 
     fireEvent.mouseLeave(screen.getByRole('button', { name: 'C1' }))
-    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'false')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'false')
   })
 
   it('shows the nearest ghost marker while hovering the track itself, not just a tick label', () => {
@@ -178,10 +178,10 @@ describe('DanceScheduleFilters', () => {
     // usableWidth = 196 - 2*8 = 180; index 5 ("C1") sits at fraction 5/9 of
     // the full 10-slot range -> relativeX = 8 + (5/9)*180 = 108.
     fireEvent.mouseMove(track, { clientX: 108 })
-    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'true')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'true')
 
     fireEvent.mouseLeave(track)
-    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'false')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-active', 'false')
   })
 
   it("shapes the ghost marker to match whichever thumb moveNearestThumb says would actually move", () => {
@@ -192,12 +192,12 @@ describe('DanceScheduleFilters', () => {
     // Interior, equidistant from both (0 and 2) — moveNearestThumb's own
     // documented tie-break goes to min.
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'MS' }))
-    expect(ghosts[LEVEL_ORDER.indexOf('MS')]).toHaveAttribute('data-thumb', 'min')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('MS')]).toHaveAttribute('data-thumb', 'min')
     fireEvent.mouseLeave(screen.getByRole('button', { name: 'MS' }))
 
     // Outside the current range (5 >= max of 2) — moves max, not min.
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'C1' }))
-    expect(ghosts[LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-thumb', 'max')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('C1')]).toHaveAttribute('data-thumb', 'max')
   })
 
   it('shows no ghost marker for the tick already at the current min/max — clicking it is a no-op', () => {
@@ -206,17 +206,17 @@ describe('DanceScheduleFilters', () => {
     const ghosts = document.querySelectorAll('[class*="ghostThumb"]')
 
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'SSD' }))
-    expect(ghosts[LEVEL_ORDER.indexOf('SSD')]).toHaveAttribute('data-active', 'false')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('SSD')]).toHaveAttribute('data-active', 'false')
     fireEvent.mouseLeave(screen.getByRole('button', { name: 'SSD' }))
 
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'Plus' }))
-    expect(ghosts[LEVEL_ORDER.indexOf('Plus')]).toHaveAttribute('data-active', 'false')
+    expect(ghosts[BASE_LEVEL_ORDER.indexOf('Plus')]).toHaveAttribute('data-active', 'false')
   })
 
   it('clicking a tick above the current range extends the max thumb to it', () => {
     const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: 2 })
     fireEvent.click(screen.getByRole('button', { name: 'C1' }))
-    expect(onLevelRangeChange).toHaveBeenCalledWith(0, LEVEL_ORDER.indexOf('C1'))
+    expect(onLevelRangeChange).toHaveBeenCalledWith(0, BASE_LEVEL_ORDER.indexOf('C1'))
   })
 
   it('clicking a tick below the current range moves the min thumb to it', () => {
@@ -231,7 +231,7 @@ describe('DanceScheduleFilters', () => {
     const { onLevelRangeChange } = renderFilters({ minLevelIndex: 0, maxLevelIndex: maxIndex })
     // 'A2' is closer to min (0) than to max (the last index).
     fireEvent.click(screen.getByRole('button', { name: 'A2' }))
-    expect(onLevelRangeChange).toHaveBeenCalledWith(LEVEL_ORDER.indexOf('A2'), maxIndex)
+    expect(onLevelRangeChange).toHaveBeenCalledWith(BASE_LEVEL_ORDER.indexOf('A2'), maxIndex)
   })
 
   describe('with A1/A2 combined', () => {
@@ -267,7 +267,7 @@ describe('DanceScheduleFilters', () => {
       expect(tick).not.toHaveTextContent('A1/A2')
     })
 
-    it('clicking the combined tick sets the range using its slot index, not a raw LEVEL_ORDER index', () => {
+    it('clicking the combined tick sets the range using its slot index, not a raw BASE_LEVEL_ORDER index', () => {
       const maxIndex = COMBINED_SLOTS.length - 1
       const { onLevelRangeChange } = renderFilters({
         slots: COMBINED_SLOTS,
@@ -291,7 +291,7 @@ describe('DanceScheduleFilters', () => {
       expect(screen.getAllByRole('button', { name: /./ })).toHaveLength(C3B_COMBINED_SLOTS.length)
     })
 
-    it('clicking the combined tick extends the range to its slot index, not a raw LEVEL_ORDER index', () => {
+    it('clicking the combined tick extends the range to its slot index, not a raw BASE_LEVEL_ORDER index', () => {
       const c3bIndex = C3B_COMBINED_SLOTS.findIndex((slot) => slot.label === 'C3B+')
       const { onLevelRangeChange } = renderFilters({
         slots: C3B_COMBINED_SLOTS,
@@ -314,6 +314,39 @@ describe('DanceScheduleFilters', () => {
   it('omits the GCA checkbox entirely when the selected date has no GCA sessions', () => {
     renderFilters({ hasGcaOnSelectedDate: false })
     expect(screen.queryByRole('checkbox', { name: /gca callers/i })).not.toBeInTheDocument()
+  })
+
+  describe('phase slider', () => {
+    const PHASE_LABELS = ['Ph 1', 'Ph 2', 'Ph 3', 'Ph 4', 'Ph 5', 'Ph 6']
+
+    it('is omitted without phase props', () => {
+      renderFilters()
+      expect(screen.queryByRole('slider', { name: 'Minimum phase' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Ph 3' })).not.toBeInTheDocument()
+    })
+
+    it("renders its own thumbs and ticks for the day's present phases, separate from the level slider", () => {
+      const onPhaseRangeChange = vi.fn()
+      const { onLevelRangeChange } = renderFilters({
+        phases: {
+          labels: PHASE_LABELS,
+          minPhaseIndex: 2,
+          maxPhaseIndex: 3,
+          onPhaseRangeChange,
+          minPresentPhaseIndex: 1,
+          maxPresentPhaseIndex: 4,
+        },
+      })
+      expect(screen.getByRole('slider', { name: 'Minimum phase' })).toHaveAttribute('aria-valuenow', '2')
+      expect(screen.getByRole('slider', { name: 'Maximum phase' })).toHaveAttribute('aria-valuenow', '3')
+      expect(screen.queryByRole('button', { name: 'Ph 1' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Ph 2' })).toHaveAttribute('data-in-range', 'false')
+      expect(screen.getByRole('button', { name: 'Ph 3' })).toHaveAttribute('data-in-range', 'true')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ph 5' }))
+      expect(onPhaseRangeChange).toHaveBeenCalledWith(2, 4)
+      expect(onLevelRangeChange).not.toHaveBeenCalled()
+    })
   })
 
   describe('level-slider onboarding hint', () => {
@@ -471,16 +504,16 @@ describe('DanceScheduleFilters', () => {
     it('marks ticks inside the selected range as in-range, and ticks outside it as not', () => {
       renderFilters({ minLevelIndex: 2, maxLevelIndex: 5 })
 
-      expect(screen.getByRole('button', { name: LEVEL_ORDER[1]! })).toHaveAttribute('data-in-range', 'false')
-      expect(screen.getByRole('button', { name: LEVEL_ORDER[2]! })).toHaveAttribute('data-in-range', 'true')
-      expect(screen.getByRole('button', { name: LEVEL_ORDER[5]! })).toHaveAttribute('data-in-range', 'true')
-      expect(screen.getByRole('button', { name: LEVEL_ORDER[6]! })).toHaveAttribute('data-in-range', 'false')
+      expect(screen.getByRole('button', { name: BASE_LEVEL_ORDER[1]! })).toHaveAttribute('data-in-range', 'false')
+      expect(screen.getByRole('button', { name: BASE_LEVEL_ORDER[2]! })).toHaveAttribute('data-in-range', 'true')
+      expect(screen.getByRole('button', { name: BASE_LEVEL_ORDER[5]! })).toHaveAttribute('data-in-range', 'true')
+      expect(screen.getByRole('button', { name: BASE_LEVEL_ORDER[6]! })).toHaveAttribute('data-in-range', 'false')
     })
 
     it('marks every present tick in-range when the selection spans the full present range', () => {
       renderFilters()
 
-      for (const level of LEVEL_ORDER) {
+      for (const level of BASE_LEVEL_ORDER) {
         expect(screen.getByRole('button', { name: level })).toHaveAttribute('data-in-range', 'true')
       }
     })

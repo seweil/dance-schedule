@@ -3,12 +3,19 @@ import fs from 'node:fs/promises'
 import type { Plugin } from 'vite'
 import { buildDanceSchedule } from './src/lib/buildDanceSchedule'
 import { formatDanceScheduleMarkdown } from './src/lib/formatDanceScheduleMarkdown'
+import { validateFeaturedStaffConfig } from './src/lib/computeDanceScheduleCallerLayout'
 import { validateRoomOrderConfig } from './src/lib/deriveRoomOrder'
+import { staffScheduleLabel } from './src/lib/staffScheduleLabel'
 import { loadContentConfigData } from './vite-plugin-content-config'
 import { loadDanceScheduleData, resolveDanceScheduleSource } from './dance-schedule-parsers'
 
 export const DANCE_SCHEDULE_VIRTUAL_MODULE_ID = 'virtual:dance-schedule'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + DANCE_SCHEDULE_VIRTUAL_MODULE_ID
+// A few facts derived from the sessions, for code in the main bundle (the nav) that
+// mustn't pull in the whole session list just to read them — see
+// src/types/virtual-dance-schedule-meta.d.ts.
+export const DANCE_SCHEDULE_META_VIRTUAL_MODULE_ID = 'virtual:dance-schedule-meta'
+const RESOLVED_META_VIRTUAL_MODULE_ID = '\0' + DANCE_SCHEDULE_META_VIRTUAL_MODULE_ID
 const DANCE_SCHEDULE_DUMP_FILE_NAME = 'dance-schedule-dump.md'
 const CONTENT_CONFIG_FILE_NAME = 'config.yaml'
 
@@ -55,8 +62,20 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
       if (id === DANCE_SCHEDULE_VIRTUAL_MODULE_ID) {
         return RESOLVED_VIRTUAL_MODULE_ID
       }
+      if (id === DANCE_SCHEDULE_META_VIRTUAL_MODULE_ID) {
+        return RESOLVED_META_VIRTUAL_MODULE_ID
+      }
     },
     async load(id) {
+      if (id === RESOLVED_META_VIRTUAL_MODULE_ID) {
+        // Parsed again rather than shared with the load below: the two modules load
+        // independently, in either order, and a parse is cheap next to a build.
+        danceScheduleFile = resolveDanceScheduleSource(contentDir).sourceFile
+        this.addWatchFile(danceScheduleFile)
+        this.addWatchFile(contentConfigFile)
+        const sessions = await loadDanceScheduleData(contentDir)
+        return `export default ${JSON.stringify({ staffScheduleLabel: staffScheduleLabel(sessions) })}`
+      }
       if (id === RESOLVED_VIRTUAL_MODULE_ID) {
         // Re-resolved on every load: an edited danceSchedule.format can point at a
         // different source file than the one resolved at startup.
@@ -72,11 +91,12 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
         // comment for why this can't live inside contentConfigPlugin itself.
         const contentConfig = loadContentConfigData(contentConfigFile)
         validateRoomOrderConfig(builtSessions, contentConfig.danceSchedule?.roomOrder, contentConfigFile)
+        validateFeaturedStaffConfig(builtSessions, contentConfig.danceSchedule?.featuredStaff, contentConfigFile)
 
         // Debug output: a normalized, human-readable dump of how the spreadsheet was
         // interpreted, regenerated on every parse so it's always in sync — committed
         // to the repo so a spreadsheet change shows up as a reviewable diff.
-        const markdown = formatDanceScheduleMarkdown(builtSessions)
+        const markdown = formatDanceScheduleMarkdown(builtSessions, path.basename(danceScheduleFile))
         await fs.writeFile(danceScheduleDumpFile, markdown + '\n')
 
         return `export default ${JSON.stringify(sessions)}`
@@ -98,9 +118,11 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
               // reported by load() on the reload below
             }
           }
-          const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID)
-          if (mod) {
-            server.moduleGraph.invalidateModule(mod)
+          for (const moduleId of [RESOLVED_VIRTUAL_MODULE_ID, RESOLVED_META_VIRTUAL_MODULE_ID]) {
+            const mod = server.moduleGraph.getModuleById(moduleId)
+            if (mod) {
+              server.moduleGraph.invalidateModule(mod)
+            }
           }
           server.ws.send({ type: 'full-reload' })
         }

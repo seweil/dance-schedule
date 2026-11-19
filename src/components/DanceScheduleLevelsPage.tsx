@@ -31,6 +31,8 @@ export function DanceScheduleLevelsPage() {
     setLevelRange,
     minPresentLevelIndex,
     maxPresentLevelIndex,
+    phaseSlider,
+    showAllLevels,
     showGca,
     setShowGca,
     hasGcaOnSelectedDate,
@@ -39,11 +41,23 @@ export function DanceScheduleLevelsPage() {
     sessions,
     contentConfig.features.combineA1A2,
     contentConfig.features.combineC3BC4,
+    contentConfig.features.combineAdvancedC1,
   )
 
+  // Phase columns only on a day with phased round dancing — the same days the
+  // phase slider shows.
+  const minPhaseIndex = phaseSlider?.minPhaseIndex
+  const maxPhaseIndex = phaseSlider?.maxPhaseIndex
   const layout = useMemo(
-    () => computeDanceScheduleLevelLayout(visibleSessions, slots, minLevelIndex, maxLevelIndex),
-    [visibleSessions, slots, minLevelIndex, maxLevelIndex],
+    () =>
+      computeDanceScheduleLevelLayout(
+        visibleSessions,
+        slots,
+        minLevelIndex,
+        maxLevelIndex,
+        minPhaseIndex === undefined || maxPhaseIndex === undefined ? undefined : { minPhaseIndex, maxPhaseIndex },
+      ),
+    [visibleSessions, slots, minLevelIndex, maxLevelIndex, minPhaseIndex, maxPhaseIndex],
   )
 
   return (
@@ -60,15 +74,12 @@ export function DanceScheduleLevelsPage() {
         onLevelRangeChange={setLevelRange}
         minPresentLevelIndex={minPresentLevelIndex}
         maxPresentLevelIndex={maxPresentLevelIndex}
+        phases={phaseSlider}
         showGca={showGca}
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
       />
-      <DanceScheduleLevelGrid
-        layout={layout}
-        showGca={showGca}
-        onShowAllLevels={() => setLevelRange(minPresentLevelIndex, maxPresentLevelIndex)}
-      />
+      <DanceScheduleLevelGrid layout={layout} showGca={showGca} onShowAllLevels={showAllLevels} />
     </>
   )
 }

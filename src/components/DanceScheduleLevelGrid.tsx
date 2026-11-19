@@ -7,6 +7,7 @@ import {
 import { computeEmptyGridCells } from '../lib/computeEmptyGridCells'
 import { detailsContent } from '../lib/danceScheduleCardContent'
 import {
+  formatSessionCuers,
   formatSessionGca,
   formatSessionLevels,
   formatSessionRoom,
@@ -73,6 +74,7 @@ function SessionCard({
   const room = isRoomless ? '' : formatSessionRoom(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isRoomless && showGca && !!gca
+  const cuers = isRoomless ? '' : formatSessionCuers(session)
 
   // A combined slot (e.g. "A1/A2") doesn't tell you which of its merged levels this
   // particular card actually is — every session landing here collapses to the same
@@ -103,6 +105,7 @@ function SessionCard({
         <p className={styles.details}>{detailsContent(session, levelPrefix)}</p>
         {room && <p className={styles.details}>{room}</p>}
         {showTimeRange && <p className={styles.gca}>{formatSessionTimeRange(session)}</p>}
+        {cuers && <p className={styles.gca}>Cuer: {cuers}</p>}
         {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
       </div>
     </div>

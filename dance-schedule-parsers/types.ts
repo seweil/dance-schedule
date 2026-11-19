@@ -27,6 +27,8 @@ export interface DanceScheduleParser {
   description: string
   // Reads and parses the source file. The parser owns its own file I/O, since
   // formats differ in how they're read (xlsx, csv, ...). Throws only if the file
-  // can't be read at all; content problems go in `errors`.
-  parse(sourceFile: string): Promise<DanceScheduleParseResult>
+  // can't be read at all; content problems go in `errors`. `configFile` is the
+  // content set's config.yaml, for a format with its own `danceSchedule.*`
+  // settings (e.g. pdf-program-grid's `programStaff`); most formats ignore it.
+  parse(sourceFile: string, configFile: string): Promise<DanceScheduleParseResult>
 }

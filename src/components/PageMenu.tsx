@@ -2,6 +2,7 @@ import { useId } from 'react'
 import { NavLink } from 'react-router-dom'
 import routes from '~react-pages'
 import { buildNavTree } from '../lib/buildNavTree'
+import { NAV_LABEL_OVERRIDES } from '../lib/navLabelOverrides'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useFirstLaunchHint } from '../hooks/useFirstLaunchHint'
 import { usePinnedMediaQuery } from '../hooks/usePinnedMediaQuery'
@@ -23,7 +24,7 @@ import styles from './PageMenu.module.css'
 // unmounts this instance outright — the next page's PageMenu always starts closed,
 // the same end result the old pathname-watching effect produced, just for free.
 export function PageMenu() {
-  const items = buildNavTree(routes)
+  const items = buildNavTree(routes, NAV_LABEL_OVERRIDES)
   const { isOpen, setIsOpen, toggle, rootRef, toggleRef } = useDismissableMenu<
     HTMLElement,
     HTMLButtonElement

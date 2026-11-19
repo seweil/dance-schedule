@@ -70,13 +70,18 @@ export function validateDanceSessions(sessions: SourcedDanceSession[]): string[]
         }
       }
 
-      // Headline callers only, not `gca` — a GCA credit is a subordinate role, not
-      // a second place someone is simultaneously calling from. De-duplicated so a
-      // session naming the same co-caller twice doesn't conflict with itself.
-      for (const caller of new Set(session.callers)) {
-        const conflict = checkAndRecord(callerBookings, caller, booking)
+      // Headline callers and cuers, not `gca` — a GCA credit is a subordinate role,
+      // not a second place someone is simultaneously calling from, while a cuer is
+      // really in that room. One shared map, so the same person can't call in one
+      // room while cueing in another. De-duplicated so a session naming the same
+      // person twice doesn't conflict with itself.
+      const staff = new Map<string, string>()
+      for (const caller of session.callers) staff.set(caller, 'caller')
+      for (const cuer of session.cuers ?? []) if (!staff.has(cuer)) staff.set(cuer, 'cuer')
+      for (const [name, role] of staff) {
+        const conflict = checkAndRecord(callerBookings, name, booking)
         if (conflict) {
-          errors.push(`${source}: caller ${JSON.stringify(caller)} is already booked by ${conflict.source}`)
+          errors.push(`${source}: ${role} ${JSON.stringify(name)} is already booked by ${conflict.source}`)
         }
       }
     }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatSessionCallerDetails,
   formatSessionCallers,
+  formatSessionCuers,
   formatSessionEventTypePrefix,
   formatSessionGca,
   formatSessionLevels,
@@ -47,6 +48,10 @@ describe('formatSessionLevels', () => {
   it('is empty for a freeform session', () => {
     expect(formatSessionLevels(FREEFORM)).toBe('')
   })
+
+  it('shows MSX by its label, "MS Ext"', () => {
+    expect(formatSessionLevels(makeStructured({ levels: ['MS', 'MSX'] }))).toBe('MS, MS Ext')
+  })
 })
 
 describe('formatSessionCallerDetails', () => {
@@ -89,6 +94,22 @@ describe('formatSessionCallers', () => {
   it('is empty for a freeform session', () => {
     expect(formatSessionCallers(FREEFORM)).toBe('')
   })
+
+  it('falls back to the cuers for a session with no caller (round dancing)', () => {
+    expect(formatSessionCallers(makeStructured({ callers: [], cuers: ['Pam & Jeff Johnson'] }))).toBe('Pam & Jeff Johnson')
+  })
+})
+
+describe('formatSessionCuers', () => {
+  it("lists a square session's cuers for its secondary line", () => {
+    expect(formatSessionCuers(makeStructured({ cuers: ['Judy Russell'] }))).toBe('Judy Russell')
+  })
+
+  it('is empty when the cuers are already the primary names, or there are none', () => {
+    expect(formatSessionCuers(makeStructured({ callers: [], cuers: ['Pam & Jeff Johnson'] }))).toBe('')
+    expect(formatSessionCuers(makeStructured())).toBe('')
+    expect(formatSessionCuers(FREEFORM)).toBe('')
+  })
 })
 
 describe('formatSessionGca', () => {
@@ -120,5 +141,32 @@ describe('formatSessionRoom', () => {
 
   it('renders an em dash for a roomless session', () => {
     expect(formatSessionRoom(makeStructured({ location: { kind: 'roomless' } }))).toBe('—')
+  })
+
+  describe('round dancing and clogging', () => {
+    it.each([
+      [[3, 4, 5], 'Rounds Ph 3-5'],
+      [[3], 'Rounds Ph 3'],
+      [[2, 4], 'Rounds Ph 2, 4'],
+      [[], 'Rounds'],
+    ])('formats round-dance phases %j as %j', (phases, expected) => {
+      expect(formatSessionLevels(makeStructured({ levels: [], danceForm: 'round', phases }))).toBe(expected)
+    })
+
+    it('formats a clogging session as Clogging', () => {
+      expect(formatSessionLevels(makeStructured({ levels: [], danceForm: 'clogging' }))).toBe('Clogging')
+    })
+
+    it('appends the cuer to a square dance\'s caller details', () => {
+      expect(formatSessionCallerDetails(makeStructured({ cuers: ['Pam & Jeff Johnson'] }))).toBe(
+        'Dancing - Ted Lizotte (cuer: Pam & Jeff Johnson)',
+      )
+    })
+
+    it('drops the empty caller part for a session with only a cuer', () => {
+      expect(
+        formatSessionCallerDetails(makeStructured({ eventType: 'Teach', callers: [], cuers: ['Pam & Jeff Johnson'] })),
+      ).toBe('Teach (cuer: Pam & Jeff Johnson)')
+    })
   })
 })

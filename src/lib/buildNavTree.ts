@@ -78,7 +78,13 @@ export function normalizeRoutes(routes: RouteObject[]): RouteObject[] {
   })
 }
 
-export function buildNavTree(routes: RouteObject[]): NavItem[] {
+// `labelOverrides` (href → label) replaces the filename-derived label for a page
+// whose label depends on the event's data rather than its filename — see
+// navLabelOverrides.ts.
+export function buildNavTree(
+  routes: RouteObject[],
+  labelOverrides: Readonly<Record<string, string>> = {},
+): NavItem[] {
   return routes
     .map((route, index) => {
       const segment = route.path ?? ''
@@ -91,7 +97,7 @@ export function buildNavTree(routes: RouteObject[]): NavItem[] {
         // Home always leads the menu, ahead of any order prefix on other pages.
         sortKey: isRoot ? -1 : (order ?? Number.POSITIVE_INFINITY),
         index,
-        label: isRoot ? 'Home' : titleCase(slug),
+        label: labelOverrides[href] ?? (isRoot ? 'Home' : titleCase(slug)),
         href,
         emphasized: href === EMPHASIZED_HREF,
       }

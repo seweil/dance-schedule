@@ -2,6 +2,7 @@ import path from 'node:path'
 import type { DanceSessionData } from '../src/types/danceSchedule'
 import { validateDanceSessions } from '../src/lib/validateDanceSessions'
 import { loadDanceScheduleFormat } from '../vite-plugin-content-config'
+import { pdfProgramGridParser } from './pdfProgramGrid'
 import { roomGridParser } from './roomGrid'
 import type { DanceScheduleParser } from './types'
 
@@ -9,7 +10,7 @@ export type { DanceScheduleParser, DanceScheduleParseResult } from './types'
 
 // Every available input format, keyed by its `danceSchedule.format` value.
 export const DANCE_SCHEDULE_PARSERS: ReadonlyMap<string, DanceScheduleParser> = new Map(
-  [roomGridParser].map((parser) => [parser.format, parser]),
+  [roomGridParser, pdfProgramGridParser].map((parser) => [parser.format, parser]),
 )
 
 // Used when a content set's config.yaml doesn't set danceSchedule.format —
@@ -56,7 +57,7 @@ export async function loadDanceScheduleData(
   parsers: ReadonlyMap<string, DanceScheduleParser> = DANCE_SCHEDULE_PARSERS,
 ): Promise<DanceSessionData[]> {
   const { parser, sourceFile } = resolveDanceScheduleSource(contentDir, parsers)
-  const { sessions, errors: parseErrors } = await parser.parse(sourceFile)
+  const { sessions, errors: parseErrors } = await parser.parse(sourceFile, path.join(contentDir, 'config.yaml'))
 
   // Data-model rules, enforced once here for every format. A cell/row that failed
   // to parse never made it into `sessions`, so it can't cause a knock-on conflict.

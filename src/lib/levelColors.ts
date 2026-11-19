@@ -1,5 +1,5 @@
 import { LEVEL_ORDER, isOrderedLevel } from './levelOrder'
-import type { DanceSession, LevelCode } from '../types/danceSchedule'
+import type { DanceForm, DanceSession, LevelCode } from '../types/danceSchedule'
 
 // Approximated from the reference paper schedule's own legend (scratch/Dance
 // Schedule.pdf) — SSD/MS share one color, as do A1/A2. Intro and Various aren't in
@@ -9,6 +9,9 @@ import type { DanceSession, LevelCode } from '../types/danceSchedule'
 const LEVEL_COLORS: Record<LevelCode, string> = {
   SSD: '#c8e6c9',
   MS: '#c8e6c9',
+  // A shade darker than MS, so the two programs stay tellable apart at an event
+  // that has both.
+  MSX: '#a5d6a7',
   Intro: '#c8e6c9',
   Various: '#c8e6c9',
   Plus: '#bbdefb',
@@ -23,6 +26,14 @@ const LEVEL_COLORS: Record<LevelCode, string> = {
 
 // Freeform/roomless sessions (e.g. a lunch break) have no level at all.
 export const NEUTRAL_CARD_COLOR = '#eeeeee'
+
+// Round dancing and clogging have no square-dance level, so each gets one color of
+// its own, distinct from every level's — round dancing isn't split by phase, which
+// the card's "Rounds Ph 3-5" line already states.
+const DANCE_FORM_COLORS: Record<DanceForm, string> = {
+  round: '#b2ebf2',
+  clogging: '#ffe0b2',
+}
 
 function lowestLevel(levels: LevelCode[]): LevelCode {
   const ordered = levels.filter(isOrderedLevel)
@@ -45,10 +56,15 @@ function lowestLevel(levels: LevelCode[]): LevelCode {
  *   "A2 : Intro to C1 - ...") rather than the bare `Intro` tag, so the normal
  *   per-level lookup already colors those correctly; the bare `Intro` tag itself
  *   (introducing square dancing with no lower rung to defer to) floors to SSD/MS.
+ * - A round-dance or clogging session gets its dance form's own color (see
+ *   DANCE_FORM_COLORS).
  * - A freeform or roomless session (no level at all) gets a neutral gray.
  */
 export function colorForSession(session: DanceSession): string {
-  if (session.kind !== 'structured') {
+  if (session.kind === 'structured' && session.danceForm) {
+    return DANCE_FORM_COLORS[session.danceForm]
+  }
+  if (session.kind !== 'structured' || session.levels.length === 0) {
     return NEUTRAL_CARD_COLOR
   }
 

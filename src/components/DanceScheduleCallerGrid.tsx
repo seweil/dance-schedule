@@ -13,6 +13,7 @@ import {
 } from '../lib/formatDanceSession'
 import { colorForSession } from '../lib/levelColors'
 import { isRegistrationSession } from '../lib/recognizedSessionKeywords'
+import type { DanceSession } from '../types/danceSchedule'
 import { StickyScrollGrid } from './StickyScrollGrid'
 // Reused as-is — every dance-schedule grid shares the exact same visual language
 // (card, levels/details/gca lines, sticky headers, mobile scroll behavior); only
@@ -23,12 +24,29 @@ import styles from './DanceScheduleGrid.module.css'
 // for why. 4.375rem is the same physical width px 70 always was, unscaled.
 const TIME_COLUMN_WIDTH = '4.375rem'
 
+// The other half of a session's staff, for a card in one person's column: a
+// featured cuer's card names the caller, and a caller's card names the cuer (the
+// same secondary line the room/level grids show). See featuredStaff in
+// computeDanceScheduleCallerLayout.ts.
+function partnerLine(session: DanceSession, column: string | undefined): string {
+  if (session.kind !== 'structured' || column === undefined) {
+    return ''
+  }
+  if (session.cuers?.includes(column)) {
+    return session.callers.length > 0 ? `Caller: ${session.callers.join(' & ')}` : ''
+  }
+  return session.cuers?.length ? `Cuer: ${session.cuers.join(' & ')}` : ''
+}
+
 function SessionCard({
   placement,
   showGca,
+  column,
 }: {
   placement: DanceCallerSessionPlacement
   showGca: boolean
+  // The person whose column this card is in; undefined for a floating card.
+  column: string | undefined
 }) {
   const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, floatKind } = placement
   const isFloating = floatKind !== null
@@ -59,6 +77,7 @@ function SessionCard({
   const levels = formatSessionLevels(session)
   const gca = formatSessionGca(session)
   const showGcaLine = !isFloating && showGca && !!gca
+  const partner = partnerLine(session, column)
 
   // See DanceScheduleLevelGrid.tsx's identical rule — a visible divider between two
   // lane-split cards sharing one column (or, for a floating card, sharing the
@@ -104,6 +123,7 @@ function SessionCard({
     <div className={cardClassName} style={style}>
       {levels && <p className={styles.levels}>{levels}</p>}
       <p className={styles.details}>{detailsWithRoomContent(session)}</p>
+      {partner && <p className={styles.gca}>{partner}</p>}
       {showGcaLine && <p className={styles.gca}>GCA: {gca}</p>}
     </div>
   )
@@ -176,7 +196,12 @@ export function DanceScheduleCallerGrid({
       {placements.map((placement, index) => (
         // Placements have no stable id of their own (a co-taught session
         // produces one per caller) — index is stable per render.
-        <SessionCard key={index} placement={placement} showGca={showGca} />
+        <SessionCard
+          key={index}
+          placement={placement}
+          showGca={showGca}
+          column={placement.floatKind === null ? visibleCallers[placement.columnStart] : undefined}
+        />
       ))}
     </StickyScrollGrid>
   )

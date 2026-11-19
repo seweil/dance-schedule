@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import danceSessionsData from 'virtual:dance-schedule'
+import danceScheduleMeta from 'virtual:dance-schedule-meta'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
 import { computeDanceScheduleCallerLayout } from '../lib/computeDanceScheduleCallerLayout'
@@ -32,6 +33,8 @@ export function DanceScheduleCallersPage() {
     setLevelRange,
     minPresentLevelIndex,
     maxPresentLevelIndex,
+    phaseSlider,
+    showAllLevels,
     showGca,
     setShowGca,
     hasGcaOnSelectedDate,
@@ -41,16 +44,17 @@ export function DanceScheduleCallersPage() {
     sessions,
     contentConfig.features.combineA1A2,
     contentConfig.features.combineC3BC4,
+    contentConfig.features.combineAdvancedC1,
   )
 
   const layout = useMemo(
-    () => computeDanceScheduleCallerLayout(dateSessions, visibleSessions),
+    () => computeDanceScheduleCallerLayout(dateSessions, visibleSessions, contentConfig.danceSchedule?.featuredStaff),
     [dateSessions, visibleSessions],
   )
 
   return (
     <>
-      <PageHeader title="Caller Schedule" />
+      <PageHeader title={danceScheduleMeta.staffScheduleLabel} />
       <RotateDeviceBanner />
       <DanceScheduleFilters
         dates={dates}
@@ -62,15 +66,12 @@ export function DanceScheduleCallersPage() {
         onLevelRangeChange={setLevelRange}
         minPresentLevelIndex={minPresentLevelIndex}
         maxPresentLevelIndex={maxPresentLevelIndex}
+        phases={phaseSlider}
         showGca={showGca}
         onShowGcaChange={setShowGca}
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
       />
-      <DanceScheduleCallerGrid
-        layout={layout}
-        showGca={showGca}
-        onShowAllLevels={() => setLevelRange(minPresentLevelIndex, maxPresentLevelIndex)}
-      />
+      <DanceScheduleCallerGrid layout={layout} showGca={showGca} onShowAllLevels={showAllLevels} />
     </>
   )
 }

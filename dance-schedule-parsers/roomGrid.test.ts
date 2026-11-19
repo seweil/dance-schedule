@@ -8,7 +8,7 @@ import { roomGridParser } from './roomGrid'
 describe('roomGridParser', () => {
   it('parses the automated-testing sample event with no errors', async () => {
     const sourceFile = path.resolve('content/automated-testing/data', roomGridParser.sourceFileName)
-    const { sessions, errors } = await roomGridParser.parse(sourceFile)
+    const { sessions, errors } = await roomGridParser.parse(sourceFile, 'content/automated-testing/config.yaml')
     expect(errors).toEqual([])
     expect(sessions.length).toBeGreaterThan(0)
     expect(sessions.every(({ source }) => source.startsWith('Sheet "'))).toBe(true)

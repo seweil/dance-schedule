@@ -188,6 +188,42 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
   })
 
+  it('shows a square session\'s cuer on its own line, regardless of showGca', () => {
+    const withCuer: DanceSession = { ...STRUCTURED_SESSION, cuers: ['Judy Russell'] }
+    render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({ placements: [placement({ session: withCuer })] })}
+        showGca={false}
+        onShowAllLevels={() => {}}
+      />,
+    )
+    expect(screen.getByText('Cuer: Judy Russell')).toBeInTheDocument()
+    expect(screen.getByText('Ted Lizotte').tagName).toBe('STRONG')
+  })
+
+  it('bolds the cuer of a round session with no caller, with no "Cuer:" line or dangling separator', () => {
+    const teach: DanceSession = {
+      ...STRUCTURED_SESSION,
+      levels: [],
+      danceForm: 'round',
+      phases: [4],
+      eventType: 'Teach Ph 5',
+      callers: [],
+      cuers: ['Pam & Jeff Johnson'],
+      gca: undefined,
+    }
+    render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({ placements: [placement({ session: teach })] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
+    expect(screen.getByText('Pam & Jeff Johnson').tagName).toBe('STRONG')
+    expect(screen.getByText('Pam & Jeff Johnson').parentElement).toHaveTextContent(/^Teach Ph 5 - Pam & Jeff Johnson$/)
+    expect(screen.queryByText(/Cuer:/)).not.toBeInTheDocument()
+  })
+
   it('hides the GCA line (but keeps the session) when showGca is false', () => {
     render(
       <DanceScheduleLevelGrid layout={makeLayout()} showGca={false} onShowAllLevels={() => {}} />,

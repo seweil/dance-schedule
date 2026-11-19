@@ -21,3 +21,13 @@ const LEVEL_ALIASES: Record<string, LevelCode> = {
 export function normalizeLevelCode(raw: string): string {
   return LEVEL_ALIASES[raw] ?? raw
 }
+
+// How a level reads on the page, where it differs from its code — slider ticks,
+// column headers, card level lines.
+const LEVEL_LABELS: Partial<Record<LevelCode, string>> = {
+  MSX: 'MS Ext',
+}
+
+export function formatLevel(level: LevelCode): string {
+  return LEVEL_LABELS[level] ?? level
+}

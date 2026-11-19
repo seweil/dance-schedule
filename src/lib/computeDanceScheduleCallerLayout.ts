@@ -134,19 +134,57 @@ function firstNameOf(name: string): string {
 // structured session (floatKind !== null — an all-headliners or caller-free-time
 // placeholder) contributes nothing here either, for the same reason: its
 // placeholder name must never appear in visibleCallers.
-function deriveCallerOrder(dateSessions: DanceSession[]): string[] {
+function deriveCallerOrder(dateSessions: DanceSession[], featuredStaff: readonly string[] | undefined): string[] {
   const callers = new Set<string>()
   for (const session of dateSessions) {
     if (!isEligibleCallerSession(session) || structuredFloatKind(session) !== null) {
       continue
     }
-    for (const caller of session.callers) {
+    for (const caller of staffOf(session, featuredStaff)) {
       callers.add(caller)
     }
+  }
+  if (featuredStaff) {
+    return featuredStaff.filter((name) => callers.has(name))
   }
   return Array.from(callers).sort(
     (a, b) => firstNameOf(a).localeCompare(firstNameOf(b)) || a.localeCompare(b),
   )
+}
+
+// Who gets a column for an ordinary session: its callers, or — at an event with a
+// featuredStaff list (config.yaml `danceSchedule.featuredStaff`) — just the
+// featured ones among its callers AND cuers, since a featured cuer gets a column
+// too. See docs/design/midwinter-festival-2027.md's "Staff view shows only
+// featured callers and cuers".
+function staffOf(session: StructuredSession, featuredStaff: readonly string[] | undefined): string[] {
+  if (!featuredStaff) {
+    return session.callers
+  }
+  return [...new Set([...session.callers, ...(session.cuers ?? [])])].filter((name) => featuredStaff.includes(name))
+}
+
+// Build-time check (vite-plugin-dance-schedule.ts) that every featured name is
+// really someone in the schedule, so a typo fails the build instead of silently
+// dropping that person's column.
+export function validateFeaturedStaffConfig(
+  sessions: readonly DanceSession[],
+  featuredStaff: readonly string[] | undefined,
+  configFile: string,
+): void {
+  if (!featuredStaff) {
+    return
+  }
+  const named = new Set(
+    sessions.flatMap((session) => (session.kind === 'structured' ? [...session.callers, ...(session.cuers ?? [])] : [])),
+  )
+  const missing = featuredStaff.filter((name) => !named.has(name))
+  if (missing.length > 0) {
+    throw new Error(
+      `${configFile}'s "danceSchedule.featuredStaff" names ${missing.map((name) => JSON.stringify(name)).join(', ')}, ` +
+        "who isn't a caller or cuer anywhere in the dance schedule",
+    )
+  }
 }
 
 // One entry per (session, caller) pair — a co-taught session always produces one
@@ -175,6 +213,7 @@ function buildRawEntries(
   visibleCallers: string[],
   rowStartFor: (time: Date) => number,
   rowSpanFor: (start: Date, end: Date) => number,
+  featuredStaff: readonly string[] | undefined,
 ): RawEntry[] {
   const entries: RawEntry[] = []
 
@@ -193,7 +232,7 @@ function buildRawEntries(
       continue
     }
 
-    for (const caller of new Set(session.callers)) {
+    for (const caller of new Set(staffOf(session, featuredStaff))) {
       const slotIndex = visibleCallers.indexOf(caller)
       if (slotIndex === -1) {
         // Shouldn't happen given this function's documented input contract (every
@@ -410,8 +449,17 @@ function computeColumnWidthsRem(entries: RawEntry[], visibleCallerCount: number)
 export function computeDanceScheduleCallerLayout(
   dateSessions: DanceSession[],
   visibleSessions: DanceSession[],
+  featuredStaff?: readonly string[],
 ): DanceScheduleCallerLayout {
-  const eligibleVisible = visibleSessions.filter(isEligibleForCallerPage)
+  // With a featuredStaff list, an ordinary session with nobody featured in it
+  // isn't on this page at all — not a column, and not floating either.
+  const eligibleVisible = visibleSessions.filter(
+    (session) =>
+      isEligibleForCallerPage(session) &&
+      (session.kind === 'freeform' ||
+        structuredFloatKind(session) !== null ||
+        staffOf(session, featuredStaff).length > 0),
+  )
 
   const timeAxis = computeDanceScheduleTimeAxis(eligibleVisible)
   if (!timeAxis) {
@@ -419,7 +467,7 @@ export function computeDanceScheduleCallerLayout(
   }
   const { rowStartFor, rowSpanFor } = timeAxis
 
-  const callerOrder = deriveCallerOrder(dateSessions)
+  const callerOrder = deriveCallerOrder(dateSessions, featuredStaff)
 
   // A caller still needs at least one session under the CURRENT date/level filter
   // to show a column at all — an eligible caller (see deriveCallerOrder) with
@@ -430,14 +478,14 @@ export function computeDanceScheduleCallerLayout(
     if (session.kind !== 'structured' || structuredFloatKind(session) !== null) {
       continue
     }
-    for (const caller of session.callers) {
+    for (const caller of staffOf(session, featuredStaff)) {
       visibleCallerSet.add(caller)
     }
   }
 
   const visibleCallers = callerOrder.filter((caller) => visibleCallerSet.has(caller))
 
-  const rawEntries = buildRawEntries(eligibleVisible, visibleCallers, rowStartFor, rowSpanFor)
+  const rawEntries = buildRawEntries(eligibleVisible, visibleCallers, rowStartFor, rowSpanFor, featuredStaff)
   clipFreeFloatingEntries(rawEntries)
   assignLanesPerSlot(rawEntries)
 

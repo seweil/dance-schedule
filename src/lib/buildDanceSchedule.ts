@@ -19,6 +19,9 @@ function toDanceSession(data: DanceSessionData): DanceSession {
     eventType: data.eventType,
     callers: data.callers,
     gca: data.gca,
+    cuers: data.cuers,
+    danceForm: data.danceForm,
+    phases: data.phases,
   }
 }
 

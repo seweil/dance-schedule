@@ -2,7 +2,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { loadContentConfigData, loadDanceScheduleFormat } from './vite-plugin-content-config'
+import {
+  loadContentConfigData,
+  loadDanceScheduleFormat,
+  loadDanceScheduleProgramStaff,
+  loadDanceScheduleStaffAliases,
+} from './vite-plugin-content-config'
 
 const OVERRIDE_ENV_VARS = ['COMBINE_A1A2', 'COMBINE_C3BC4', 'DANCE_SCHEDULE_ROOM_ORDER'] as const
 
@@ -41,17 +46,17 @@ function writeConfig(contents: string): void {
 describe('loadContentConfigData', () => {
   describe('features.combineA1A2 / features.combineC3BC4 (config.yaml-driven)', () => {
     it('defaults both to true when config.yaml is missing', () => {
-      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: true, combineC3BC4: true })
+      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: true, combineC3BC4: true, combineAdvancedC1: false })
     })
 
     it('defaults both to true when the features section is missing', () => {
       writeConfig('testFixture: true\n')
-      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: true, combineC3BC4: true })
+      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: true, combineC3BC4: true, combineAdvancedC1: false })
     })
 
     it('reads explicit false values', () => {
       writeConfig('features:\n  combineA1A2: false\n  combineC3BC4: false\n')
-      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: false, combineC3BC4: false })
+      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: false, combineC3BC4: false, combineAdvancedC1: false })
     })
 
     it('throws on malformed YAML', () => {
@@ -67,6 +72,13 @@ describe('loadContentConfigData', () => {
     it('throws when combineC3BC4 is present but not a boolean', () => {
       writeConfig('features:\n  combineC3BC4: yes-please\n')
       expect(() => loadContentConfigData(configFile)).toThrow(/"features\.combineC3BC4" must be a boolean/)
+    })
+
+    it('reads combineAdvancedC1, which defaults to false', () => {
+      writeConfig('features:\n  combineAdvancedC1: true\n')
+      expect(loadContentConfigData(configFile).features.combineAdvancedC1).toBe(true)
+      writeConfig('features:\n  combineAdvancedC1: maybe\n')
+      expect(() => loadContentConfigData(configFile)).toThrow(/"features\.combineAdvancedC1" must be a boolean/)
     })
 
     it('throws when combineA1A2 is present but explicitly blank (YAML null), not just absent', () => {
@@ -108,6 +120,21 @@ describe('loadContentConfigData', () => {
       expect(() => loadContentConfigData(configFile)).toThrow(/"danceSchedule\.roomOrder" must be/)
     })
 
+    it('reads featuredStaff alongside roomOrder, trimmed', () => {
+      writeConfig('danceSchedule:\n  roomOrder: spreadsheet\n  featuredStaff: [" Ted Lizotte ", Pam & Jeff Johnson]\n')
+      expect(loadContentConfigData(configFile).danceSchedule).toEqual({
+        roomOrder: 'spreadsheet',
+        featuredStaff: ['Ted Lizotte', 'Pam & Jeff Johnson'],
+      })
+    })
+
+    it.each([['Ted Lizotte'], ['[]'], ['[Ted Lizotte, 42]']])('throws when featuredStaff is %s', (value) => {
+      writeConfig(`danceSchedule:\n  featuredStaff: ${value}\n`)
+      expect(() => loadContentConfigData(configFile)).toThrow(
+        /"danceSchedule\.featuredStaff" must be a non-empty list of names/,
+      )
+    })
+
     it('throws when roomOrder is an array containing a non-string', () => {
       writeConfig('danceSchedule:\n  roomOrder: [Room A, 42]\n')
       expect(() => loadContentConfigData(configFile)).toThrow(/"danceSchedule\.roomOrder" must be/)
@@ -146,7 +173,7 @@ describe('loadContentConfigData', () => {
     it('overrides combineC3BC4 independently of combineA1A2', () => {
       writeConfig('features:\n  combineA1A2: true\n  combineC3BC4: true\n')
       process.env.COMBINE_C3BC4 = 'false'
-      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: true, combineC3BC4: false })
+      expect(loadContentConfigData(configFile).features).toEqual({ combineA1A2: true, combineC3BC4: false, combineAdvancedC1: false })
     })
 
     it('applies even when config.yaml is entirely missing', () => {
@@ -236,5 +263,50 @@ describe('loadDanceScheduleFormat', () => {
   it('leaves loadContentConfigData unaffected (build-time only)', () => {
     writeConfig('danceSchedule:\n  format: room-grid\n')
     expect(loadContentConfigData(configFile).danceSchedule).toBeUndefined()
+  })
+})
+
+describe('loadDanceScheduleProgramStaff', () => {
+  it('is empty when config.yaml or the key is missing', () => {
+    expect(loadDanceScheduleProgramStaff(configFile)).toEqual({})
+    writeConfig('danceSchedule:\n  format: pdf-program-grid\n')
+    expect(loadDanceScheduleProgramStaff(configFile)).toEqual({})
+  })
+
+  it('reads names per program, trimmed', () => {
+    writeConfig('danceSchedule:\n  programStaff:\n    Clogging: [" Trevor DeWitt "]\n')
+    expect(loadDanceScheduleProgramStaff(configFile)).toEqual({ Clogging: ['Trevor DeWitt'] })
+  })
+
+  it.each([['Trevor DeWitt'], ['[42]'], ['[""]']])('rejects a value that isn\'t a list of names: %s', (value) => {
+    writeConfig(`danceSchedule:\n  programStaff:\n    Clogging: ${value}\n`)
+    expect(() => loadDanceScheduleProgramStaff(configFile)).toThrow(
+      /"danceSchedule.programStaff.Clogging" must be a list of names/,
+    )
+  })
+
+  it('rejects a programStaff that isn\'t a mapping', () => {
+    writeConfig('danceSchedule:\n  programStaff: Trevor DeWitt\n')
+    expect(() => loadDanceScheduleProgramStaff(configFile)).toThrow(/"danceSchedule.programStaff" must be a mapping/)
+  })
+})
+
+describe('loadDanceScheduleStaffAliases', () => {
+  it('is empty when config.yaml or the key is missing', () => {
+    expect(loadDanceScheduleStaffAliases(configFile)).toEqual({})
+    writeConfig('danceSchedule:\n  format: pdf-program-grid\n')
+    expect(loadDanceScheduleStaffAliases(configFile)).toEqual({})
+  })
+
+  it('reads each alias and its name, trimmed', () => {
+    writeConfig('danceSchedule:\n  staffAliases:\n    Mike Kious: " Michael Kious "\n')
+    expect(loadDanceScheduleStaffAliases(configFile)).toEqual({ 'Mike Kious': 'Michael Kious' })
+  })
+
+  it.each([['[Michael Kious]'], ['42'], ['""']])('rejects a name that isn\'t a string: %s', (value) => {
+    writeConfig(`danceSchedule:\n  staffAliases:\n    Mike Kious: ${value}\n`)
+    expect(() => loadDanceScheduleStaffAliases(configFile)).toThrow(
+      /"danceSchedule.staffAliases.Mike Kious" must be a name/,
+    )
   })
 })
