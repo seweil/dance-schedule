@@ -61,8 +61,15 @@ export function StaffPickerToggle({
   )
 }
 
+// `overlay` (a phone in portrait): instead of opening inline below the filters —
+// where the level and phase sliders would sit between it and its button — the
+// panel floats directly under the button, covering the sliders. It's rendered
+// next to the button for that (DanceScheduleCallersPage.tsx) and positioned
+// against the whole filter row (.overlay).
 export function StaffPickerPanel({
   isOpen,
+  onClose,
+  overlay,
   panelId,
   panelRef,
   callers,
@@ -71,6 +78,8 @@ export function StaffPickerPanel({
   onChange,
 }: {
   isOpen: boolean
+  onClose: () => void
+  overlay: boolean
   panelId: string
   panelRef: RefObject<HTMLDivElement | null>
   callers: readonly string[]
@@ -89,7 +98,10 @@ export function StaffPickerPanel({
   }
 
   return (
-    <div id={panelId} ref={panelRef} className={styles.panel}>
+    <div id={panelId} ref={panelRef} className={overlay ? `${styles.panel} ${styles.overlay}` : styles.panel}>
+      <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>
+        ✕
+      </button>
       <StaffSection legend="Callers" names={callers} selected={selected} onToggle={togglePick} />
       <StaffSection legend="Cuers" names={cuers} selected={selected} onToggle={togglePick} />
       {shownToday.length > 0 && (

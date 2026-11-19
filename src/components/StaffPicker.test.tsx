@@ -24,7 +24,7 @@ function Harness({
   selected?: string[]
   onChange?: (names: string[]) => void
 }) {
-  const { isOpen, toggle, rootRef, toggleRef, portalRef } = useDismissableMenu<
+  const { isOpen, setIsOpen, toggle, rootRef, toggleRef, portalRef } = useDismissableMenu<
     HTMLSpanElement,
     HTMLButtonElement,
     HTMLDivElement
@@ -44,6 +44,8 @@ function Harness({
       <p>Elsewhere on the page</p>
       <StaffPickerPanel
         isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        overlay={false}
         panelId="staff-panel"
         panelRef={portalRef}
         callers={callers}
@@ -114,6 +116,15 @@ describe('StaffPicker', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('group', { name: 'Callers' })).not.toBeInTheDocument()
     expect(toggleButton()).toHaveFocus()
+  })
+
+  it('closes with its ✕ button', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(toggleButton())
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('group', { name: 'Callers' })).not.toBeInTheDocument()
+    expect(toggleButton()).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('renders nothing when nobody else is on the day', () => {

@@ -19,14 +19,52 @@
 /* Centered under the filter row, like the filters themselves
    (DanceScheduleFilters.module.css's .filters). */
 .panel {
+  position: relative;
   margin: 0 auto var(--space-md);
   max-width: 40rem;
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-border);
+  /* Darker than the grid's hairline --color-border, so the panel reads as its
+     own box rather than more of the page around it. */
+  border: 1px solid rgb(0 0 0 / 55%);
   border-radius: 6px;
+  background: #fff;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+/* A phone in portrait (StaffPicker.tsx's `overlay`): floats under the button,
+   over the sliders, instead of pushing the page down. It's rendered right after
+   the button inside .extraControl, with no positioned ancestor until .filters
+   (DanceScheduleFilters.module.css), so: left/right 0 span the whole filter
+   row, and with top left as auto it stays at its static position — the line
+   just below the button. Above the slider's onboarding hint balloon (z-index
+   21/22, HintBalloon.module.css). */
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  margin: var(--space-sm) 0 0;
+  max-width: none;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
+}
+
+/* Upper-right corner, over the panel's own padding. */
+.close {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
 }
 
 .section {

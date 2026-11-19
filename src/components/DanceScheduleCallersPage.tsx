@@ -7,6 +7,8 @@ import { computeDanceScheduleCallerLayout, listPickableStaff } from '../lib/comp
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useExtraStaff } from '../hooks/useExtraStaff'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { PHONE_MAX_WIDTH_PX } from '../lib/breakpoints'
 import { DanceScheduleCallerGrid } from './DanceScheduleCallerGrid'
 import { DanceScheduleFilters } from './DanceScheduleFilters'
 import { PageHeader } from './PageHeader'
@@ -21,6 +23,12 @@ import { StaffPickerPanel, StaffPickerToggle } from './StaffPicker'
 const sessions = buildDanceSchedule(danceSessionsData)
 
 const featuredStaff = contentConfig.danceSchedule?.featuredStaff
+
+// The filter layout with the sliders on their own lines below the date row
+// (DanceScheduleFilters.module.css): a phone held upright. Not
+// PORTRAIT_PHONE_QUERY, which also requires a touch screen — this is about
+// layout, so a narrow desktop window gets the same treatment.
+const PORTRAIT_PHONE_LAYOUT_QUERY = `(orientation: portrait) and (max-width: ${PHONE_MAX_WIDTH_PX}px)`
 
 // The caller-columns counterpart of DanceSchedulePage/DanceScheduleLevelsPage — same
 // date/level-range/GCA selectors (useDanceScheduleFilters, shared state/localStorage
@@ -60,17 +68,36 @@ export function DanceScheduleCallersPage() {
   // so their shared open state lives here.
   const {
     isOpen: staffPickerOpen,
+    setIsOpen: setStaffPickerOpen,
     toggle: toggleStaffPicker,
     rootRef: staffPickerRootRef,
     toggleRef: staffPickerToggleRef,
     portalRef: staffPickerPanelRef,
   } = useDismissableMenu<HTMLSpanElement, HTMLButtonElement, HTMLDivElement>()
   const staffPickerPanelId = useId()
+  const isPortraitPhone = useMediaQuery(PORTRAIT_PHONE_LAYOUT_QUERY)
 
   const pickable = useMemo(
     () => (featuredStaff ? listPickableStaff(dateSessions, featuredStaff) : undefined),
     [dateSessions],
   )
+  // On a phone in portrait the sliders sit between the button and where the panel
+  // would open inline, so there it floats under the button instead (StaffPicker's
+  // `overlay`) — rendered next to the button rather than after the filters.
+  const staffPickerPanel = (overlay: boolean) =>
+    pickable && (
+      <StaffPickerPanel
+        isOpen={staffPickerOpen}
+        onClose={() => setStaffPickerOpen(false)}
+        overlay={overlay}
+        panelId={staffPickerPanelId}
+        panelRef={staffPickerPanelRef}
+        callers={pickable.callers}
+        cuers={pickable.cuers}
+        selected={extraStaff}
+        onChange={setExtraStaff}
+      />
+    )
   const staffGroups = useMemo(
     () =>
       featuredStaff && pickable
@@ -117,30 +144,23 @@ export function DanceScheduleCallersPage() {
         hasGcaOnSelectedDate={hasGcaOnSelectedDate}
         extraControl={
           pickable && (
-            <StaffPickerToggle
-              isOpen={staffPickerOpen}
-              onToggle={toggleStaffPicker}
-              panelId={staffPickerPanelId}
-              rootRef={staffPickerRootRef}
-              toggleRef={staffPickerToggleRef}
-              callers={pickable.callers}
-              cuers={pickable.cuers}
-              selected={extraStaff}
-            />
+            <>
+              <StaffPickerToggle
+                isOpen={staffPickerOpen}
+                onToggle={toggleStaffPicker}
+                panelId={staffPickerPanelId}
+                rootRef={staffPickerRootRef}
+                toggleRef={staffPickerToggleRef}
+                callers={pickable.callers}
+                cuers={pickable.cuers}
+                selected={extraStaff}
+              />
+              {isPortraitPhone && staffPickerPanel(true)}
+            </>
           )
         }
       />
-      {pickable && (
-        <StaffPickerPanel
-          isOpen={staffPickerOpen}
-          panelId={staffPickerPanelId}
-          panelRef={staffPickerPanelRef}
-          callers={pickable.callers}
-          cuers={pickable.cuers}
-          selected={extraStaff}
-          onChange={setExtraStaff}
-        />
-      )}
+      {!isPortraitPhone && staffPickerPanel(false)}
       <DanceScheduleCallerGrid
         layout={layout}
         showGca={showGca}

@@ -11,7 +11,11 @@
    row-gap (the space BETWEEN wrapped lines specifically — a flex container's
    gap only inserts this when there's actually more than one line, so this
    has no effect at all on a wide screen where everything fits on one line). */
+/* position: relative — the containing block for the Staff Schedule's
+   "Show more staff" panel when it floats over the sliders on a phone in
+   portrait (StaffPicker.module.css's .overlay). */
 .filters {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;

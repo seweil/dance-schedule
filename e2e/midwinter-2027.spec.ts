@@ -179,6 +179,21 @@ test.describe('phone portrait', () => {
     await page.locator('[class*="bodyWrapper"]').evaluate((el) => (el.scrollLeft = el.scrollWidth))
     await expect.poll(offCenter).toBeLessThan(16)
   })
+
+  test('"Show more staff" opens directly under its button, over the sliders', async ({ page }) => {
+    await page.goto(`${SET}/caller-schedule`)
+    await selectSaturday(page)
+    const button = page.getByRole('button', { name: /Show more staff/ })
+    await button.click()
+    const panel = page.getByRole('group', { name: 'Callers' }).locator('..')
+    const buttonBox = (await button.boundingBox())!
+    const panelBox = (await panel.boundingBox())!
+    const sliderBox = (await page.getByRole('slider', { name: 'Minimum level' }).boundingBox())!
+    expect(panelBox.y - (buttonBox.y + buttonBox.height)).toBeLessThan(16)
+    expect(panelBox.y + panelBox.height).toBeGreaterThan(sliderBox.y)
+    await page.getByRole('button', { name: 'Close' }).click()
+    await expect(page.getByRole('group', { name: 'Callers' })).toBeHidden()
+  })
 })
 
 test('the staff page is "Staff Schedule" at an event with round dancing, "Caller Schedule" at a square-only one', async ({
