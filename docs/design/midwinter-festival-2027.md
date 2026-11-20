@@ -430,6 +430,13 @@ own color: Willamette Event Center Halls C (Plus, north end) and A
 Holiday Inn Express (Advanced), and Comfort Suites (Clogging).
 **Why:** the site's plan is rotated (east at the bottom), its color key is
 from an earlier year, and it leaves out the hotels, where two programs are.
+**Look (2026-11-19):** each festival building is filled with its program's
+color from the schedule grids (`src/lib/levelColors.ts`), so a card's color
+leads to its building; the base map is a quiet cool gray; the one accent is
+the festival's red diamond (its "Diamond Cir-Q-L8" playing-card theme), used
+only for orientation: the north arrow and the main entrance. Avenir Next
+(rendered on a Mac, which has it), street names in gray italic, no all-caps
+labels. If a level's color changes in `levelColors.ts`, change it here too.
 **Conference Center:** from the Expo Center's own floor plan
 (`scratch/willamette_conference_center_floor_plan.pdf`): Rooms 1–4 in a row,
 a glass hall along one side, "To hotels" past Room 4 and "To lobby" past
