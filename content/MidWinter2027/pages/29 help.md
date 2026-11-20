@@ -2,9 +2,10 @@
 
 ## Installation
 
-Dance Schedule works right in your browser — no app store needed. Adding it
-to your home screen lets it open like any other app, and keeps the schedule
-available even when you don't have a signal or Wi-Fi.
+This app works right in your browser — no app store needed. Adding it
+to your home screen (it's labeled **MWF 2027** there) lets it open like any
+other app, and keeps the schedule available even when you don't have a
+signal or Wi-Fi.
 
 ### On iPhone
 
@@ -54,7 +55,7 @@ away, and is remembered the next time you open it.
 
 ## Troubleshooting
 
-Dance Schedule remembers your selected date, level filters, 
+The app remembers your selected date, level filters,
 and text size so they're there the next time you open it. If something
 looks stuck or out of date, [clear saved settings](/clear-storage) to reset
 everything back to its defaults.
