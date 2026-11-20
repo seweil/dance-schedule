@@ -34,8 +34,6 @@
       <path d="M700 58 V630 Q700 690 760 690 H978" stroke="#b9b6ad" stroke-width="40" fill="none"/>
       <path d="M700 58 V630 Q700 690 760 690 H978" stroke="#ffffff" stroke-width="36" fill="none"/>
 
-      <!-- Tree line between the hotels and the fairgrounds -->
-      <line x1="50" y1="415" x2="684" y2="415" stroke="#8fae7a" stroke-width="10" stroke-dasharray="2 14" stroke-linecap="round"/>
 
       <!-- Comfort Suites: Clogging -->
       <rect x="110" y="232" width="240" height="126" rx="4" fill="#c9b0ec" stroke="#555" stroke-width="2"/>
@@ -73,9 +71,10 @@
       </g>
 
       <!-- Enlarged inset of the Conference Center -->
-      <g stroke="#999" stroke-width="2" stroke-dasharray="6 6" fill="none">
-        <line x1="668" y1="440" x2="760" y2="182"/>
-        <line x1="668" y1="576" x2="760" y2="602"/>
+      <!-- Guides from the small building's corners to the inset frame's left corners -->
+      <g stroke="#444" stroke-width="3" stroke-dasharray="10 6" fill="none">
+        <line x1="668" y1="440" x2="738" y2="92"/>
+        <line x1="668" y1="576" x2="738" y2="652"/>
       </g>
       <!-- Drop shadow, so the inset reads as lying on top of the map -->
       <filter id="insetShadow" x="-20%" y="-20%" width="140%" height="140%">
