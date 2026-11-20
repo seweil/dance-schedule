@@ -3,7 +3,10 @@ import danceSessionsData from 'virtual:dance-schedule'
 import danceScheduleMeta from 'virtual:dance-schedule-meta'
 import contentConfig from 'virtual:content-config'
 import { buildDanceSchedule } from '../lib/buildDanceSchedule'
-import { computeDanceScheduleCallerLayout, listPickableStaff } from '../lib/computeDanceScheduleCallerLayout'
+import {
+  computeDanceScheduleCallerLayout,
+  listPickableStaff,
+} from '../lib/computeDanceScheduleCallerLayout'
 import { useDanceScheduleFilters } from '../hooks/useDanceScheduleFilters'
 import { useDismissableMenu } from '../hooks/useDismissableMenu'
 import { useExtraStaff } from '../hooks/useExtraStaff'
@@ -116,14 +119,20 @@ export function DanceScheduleCallersPage() {
     [dateSessions, visibleSessions, staffGroups],
   )
   const hasAnythingThisDay = useMemo(
-    () => computeDanceScheduleCallerLayout(dateSessions, dateSessions, staffGroups).placements.length > 0,
+    () =>
+      computeDanceScheduleCallerLayout(dateSessions, dateSessions, staffGroups).placements.length >
+      0,
     [dateSessions, staffGroups],
   )
-  const emptyDayMessage = hasAnythingThisDay
-    ? undefined
-    : featuredStaff
-      ? 'None of the featured staff are scheduled this day.'
-      : 'No caller sessions this day.'
+  const emptyDayMessage = hasAnythingThisDay ? undefined : featuredStaff ? (
+    <>
+      None of the <em>featured</em> staff are scheduled this day.
+    </>
+  ) : (
+    'No caller sessions this day.'
+  )
+  const hasPickableStaff =
+    pickable !== undefined && pickable.callers.length + pickable.cuers.length > 0
 
   return (
     <>
@@ -146,8 +155,7 @@ export function DanceScheduleCallersPage() {
         extraControl={
           // Nothing at all on a day with nobody to pick — not even an empty
           // wrapper, which would still take a slot (and a gap) in the filter row.
-          pickable &&
-          pickable.callers.length + pickable.cuers.length > 0 && (
+          hasPickableStaff && (
             <>
               <StaffPickerToggle
                 isOpen={staffPickerOpen}
@@ -170,6 +178,7 @@ export function DanceScheduleCallersPage() {
         showGca={showGca}
         onShowAllLevels={showAllLevels}
         emptyDayMessage={emptyDayMessage}
+        onShowMoreStaff={hasPickableStaff ? () => setStaffPickerOpen(true) : undefined}
       />
     </>
   )

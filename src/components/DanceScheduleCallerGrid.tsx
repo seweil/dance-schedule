@@ -172,6 +172,7 @@ export function DanceScheduleCallerGrid({
   showGca,
   onShowAllLevels,
   emptyDayMessage,
+  onShowMoreStaff,
 }: {
   layout: DanceScheduleCallerLayout
   showGca: boolean
@@ -179,18 +180,33 @@ export function DanceScheduleCallerGrid({
   // Set when the selected day has nothing for this page even unfiltered (e.g.
   // MidWinter2027's Thursday, with no featured staff) — shown in place of the
   // "widen the level range" hint, which would point at a filter that can't help.
-  emptyDayMessage?: string
+  emptyDayMessage?: ReactNode
+  // Set when there's anyone to add with "Show more staff" this day: opens that
+  // checklist, offered as a way out of either empty state below.
+  onShowMoreStaff?: () => void
 }) {
   const { visibleCallers, columnWidthsRem, totalRows, timeMarks, placements } = layout
 
+  const showMoreStaffLink = onShowMoreStaff && (
+    <button type="button" className={styles.emptyLink} onClick={onShowMoreStaff}>
+      Show more staff
+    </button>
+  )
+
   if (emptyDayMessage !== undefined) {
-    return <p className={styles.empty}>{emptyDayMessage}</p>
+    return (
+      <p className={styles.empty}>
+        {emptyDayMessage}
+        {showMoreStaffLink && <> {showMoreStaffLink}</>}
+      </p>
+    )
   }
 
   if (placements.length === 0) {
     return (
       <p className={styles.empty}>
-        No sessions match the current filters. Try widening the level range above, or{' '}
+        No sessions match the current filters. Try widening the level range above,{' '}
+        {showMoreStaffLink && <>{showMoreStaffLink}, </>}or{' '}
         <button type="button" className={styles.emptyLink} onClick={onShowAllLevels}>
           Show all levels
         </button>

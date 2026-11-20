@@ -112,6 +112,47 @@ describe('DanceScheduleCallerGrid', () => {
     expect(onShowAllLevels).toHaveBeenCalledOnce()
   })
 
+  it('offers "Show more staff" in the filtered-empty state only when there is anyone to add', () => {
+    const onShowMoreStaff = vi.fn()
+    const { rerender } = render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /show more staff/i })).not.toBeInTheDocument()
+
+    rerender(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={() => {}}
+        onShowMoreStaff={onShowMoreStaff}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /show more staff/i }))
+    expect(onShowMoreStaff).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: /show all levels/i })).toBeInTheDocument()
+  })
+
+  it('follows an empty-day message with "Show more staff", and no "Show all levels"', () => {
+    const onShowMoreStaff = vi.fn()
+    render(
+      <DanceScheduleCallerGrid
+        layout={makeLayout({ placements: [] })}
+        showGca
+        onShowAllLevels={() => {}}
+        emptyDayMessage="Nobody here."
+        onShowMoreStaff={onShowMoreStaff}
+      />,
+    )
+    expect(screen.getByText(/nobody here\./i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /show all levels/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /show more staff/i }))
+    expect(onShowMoreStaff).toHaveBeenCalledOnce()
+  })
+
   it('renders a header per visible caller', () => {
     render(
       <DanceScheduleCallerGrid
@@ -400,7 +441,10 @@ describe('DanceScheduleCallerGrid', () => {
     })
 
     it('keeps the time range for a floating Registration session, since it can overlap real caller sessions', () => {
-      const registrationSession: DanceSession = { ...LUNCH_BREAK_SESSION, description: 'Registration' }
+      const registrationSession: DanceSession = {
+        ...LUNCH_BREAK_SESSION,
+        description: 'Registration',
+      }
       render(
         <DanceScheduleCallerGrid
           layout={makeLayout({

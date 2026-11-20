@@ -83,12 +83,16 @@ function markedName(page: Page, role: 'Caller' | 'Cuer', name: string) {
   return page.locator('p', { has: page.getByRole('img', { name: role }) }).filter({ hasText: name })
 }
 
-test('a round session bolds its cuer; a square session gives caller and cuer equal billing', async ({ page }) => {
+test('a round session bolds its cuer; a square session gives caller and cuer equal billing', async ({
+  page,
+}) => {
   await page.goto(`${SET}/room-schedule`)
   await selectSaturday(page)
   await expect(page.locator('strong', { hasText: 'Pam & Jeff Johnson' }).first()).toBeVisible()
   await expect(markedName(page, 'Cuer', 'Judy Russell').first()).toBeVisible()
-  await expect(markedName(page, 'Cuer', 'Judy Russell').first().locator('strong')).toHaveText('Judy Russell')
+  await expect(markedName(page, 'Cuer', 'Judy Russell').first().locator('strong')).toHaveText(
+    'Judy Russell',
+  )
   await expect(page.getByText(/Cuer:/)).toHaveCount(0)
 })
 
@@ -112,10 +116,22 @@ test('"Show more staff" adds a picked caller and cuer after the featured staff, 
   await page.goto(`${SET}/caller-schedule`)
   await selectSaturday(page)
   await page.getByText('Show more staff').click()
-  await page.getByRole('group', { name: 'Callers' }).getByRole('checkbox', { name: 'Randy Dibble' }).check()
-  await page.getByRole('group', { name: 'Cuers' }).getByRole('checkbox', { name: 'Judy Russell' }).check()
+  await page
+    .getByRole('group', { name: 'Callers' })
+    .getByRole('checkbox', { name: 'Randy Dibble' })
+    .check()
+  await page
+    .getByRole('group', { name: 'Cuers' })
+    .getByRole('checkbox', { name: 'Judy Russell' })
+    .check()
 
-  const featuredThenPicked = ['Ted Lizotte', 'Pam & Jeff Johnson', 'Trevor DeWitt', 'Randy Dibble', 'Judy Russell']
+  const featuredThenPicked = [
+    'Ted Lizotte',
+    'Pam & Jeff Johnson',
+    'Trevor DeWitt',
+    'Randy Dibble',
+    'Judy Russell',
+  ]
   await expect(columnHeaders(page)).toHaveText(featuredThenPicked)
   await expect(page.getByText('Show more staff (2)')).toBeVisible()
   // A divider before the picked callers, and another before the picked cuers.
@@ -132,7 +148,11 @@ test('"Show more staff" adds a picked caller and cuer after the featured staff, 
 
   await page.getByText('Show more staff (2)').click()
   await page.getByRole('button', { name: 'Featured staff only' }).click()
-  await expect(columnHeaders(page)).toHaveText(['Ted Lizotte', 'Pam & Jeff Johnson', 'Trevor DeWitt'])
+  await expect(columnHeaders(page)).toHaveText([
+    'Ted Lizotte',
+    'Pam & Jeff Johnson',
+    'Trevor DeWitt',
+  ])
 })
 
 test('the Staff Schedule drops a room activity that starts during a staff session, instead of covering it', async ({
@@ -153,8 +173,14 @@ test('the Staff Schedule says so on a day with no featured staff, instead of bla
 }) => {
   await page.goto(`${SET}/caller-schedule`)
   await page.getByLabel('Date').selectOption({ index: 0 })
-  await expect(page.getByText('None of the featured staff are scheduled this day.')).toBeVisible()
+  const message = page.getByText('None of the featured staff are scheduled this day.')
+  await expect(message).toBeVisible()
+  await expect(message.locator('em')).toHaveText('featured')
   await expect(page.getByRole('button', { name: 'Show all levels' })).toHaveCount(0)
+
+  // Its "Show more staff" link opens the same checklist as the filter row's button.
+  await message.getByRole('button', { name: 'Show more staff' }).click()
+  await expect(page.getByRole('group', { name: 'Callers' })).toBeVisible()
 })
 
 test.describe('phone portrait', () => {
@@ -243,8 +269,13 @@ test.describe('tablet held upright', () => {
     const button = page.getByRole('button', { name: /Show more staff/ })
     await button.click()
     const buttonBox = (await button.boundingBox())!
-    const panelBox = (await page.getByRole('group', { name: 'Callers' }).locator('..').boundingBox())!
-    const phaseSliderBox = (await page.getByRole('slider', { name: 'Minimum phase' }).boundingBox())!
+    const panelBox = (await page
+      .getByRole('group', { name: 'Callers' })
+      .locator('..')
+      .boundingBox())!
+    const phaseSliderBox = (await page
+      .getByRole('slider', { name: 'Minimum phase' })
+      .boundingBox())!
     // The phase slider wraps below the button at this width; the panel opens
     // between them, covering it, rather than below it.
     expect(phaseSliderBox.y).toBeGreaterThan(buttonBox.y + buttonBox.height)
@@ -257,7 +288,9 @@ test.describe('phone, venue map', () => {
   const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices['iPhone 13']
   test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch })
 
-  test('the venue map opens in a lightbox that zooms to several times the screen width', async ({ page }) => {
+  test('the venue map opens in a lightbox that zooms to several times the screen width', async ({
+    page,
+  }) => {
     await page.goto(`${SET}/venue`)
     await page.getByRole('img', { name: 'Linn County Fairgrounds layout' }).click()
     const dialog = page.getByRole('dialog')
@@ -270,7 +303,9 @@ test.describe('phone, venue map', () => {
       await zoomIn.click()
     }
     const map = dialog.getByRole('img', { name: 'Linn County Fairgrounds layout' })
-    await expect.poll(async () => (await map.boundingBox())!.width).toBeGreaterThan(viewport.width * 4)
+    await expect
+      .poll(async () => (await map.boundingBox())!.width)
+      .toBeGreaterThan(viewport.width * 4)
   })
 })
 
