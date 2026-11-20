@@ -49,6 +49,7 @@ function placement(
     columnSpan: 1,
     lane: 0,
     laneCount: 1,
+    floating: false,
     ...overrides,
   }
 }
@@ -247,7 +248,7 @@ describe('DanceScheduleLevelGrid', () => {
         layout={makeLayout({
           visibleSlots: [],
           placements: [
-            placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnSpan: 1 }),
+            placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, columnSpan: 1, floating: true }),
           ],
         })}
         showGca
@@ -268,7 +269,7 @@ describe('DanceScheduleLevelGrid', () => {
         layout={makeLayout({
           visibleSlots: [],
           placements: [
-            placement({ session: registrationSession, rowStart: 1, rowSpan: 6, columnSpan: 1 }),
+            placement({ session: registrationSession, rowStart: 1, rowSpan: 6, columnSpan: 1, floating: true }),
           ],
         })}
         showGca
@@ -328,12 +329,33 @@ describe('DanceScheduleLevelGrid', () => {
     expect(card).toHaveStyle({ backgroundColor: colorForSession(STRUCTURED_SESSION) })
   })
 
+  it('shows a floating room session as a neutral card that still names its room', () => {
+    const picture: DanceSession = {
+      kind: 'freeform',
+      date: new Date('2027-01-29T00:00:00.000Z'),
+      startTime: new Date('2027-01-29T18:30:00.000Z'),
+      endTime: new Date('2027-01-29T19:00:00.000Z'),
+      location: { kind: 'located', rooms: ['Hall A'] },
+      description: 'Committee Picture',
+    }
+    const { container } = render(
+      <DanceScheduleLevelGrid
+        layout={makeLayout({ placements: [placement({ session: picture, floating: true })] })}
+        showGca
+        onShowAllLevels={() => {}}
+      />,
+    )
+    expect(container.querySelector('.roomlessCard')).toHaveTextContent('Committee Picture')
+    expect(container.querySelector('.roomlessCard')).toHaveTextContent('Hall A')
+    expect(container.querySelector('.card')).not.toBeInTheDocument()
+  })
+
   it('does not color a roomless card by level (keeps the neutral CSS-module background)', () => {
     const { container } = render(
       <DanceScheduleLevelGrid
         layout={makeLayout({
           visibleSlots: [],
-          placements: [placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6 })],
+          placements: [placement({ session: ROOMLESS_SESSION, rowStart: 1, rowSpan: 6, floating: true })],
         })}
         showGca
         onShowAllLevels={() => {}}

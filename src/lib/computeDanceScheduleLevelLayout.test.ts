@@ -93,6 +93,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         columnSpan: 1,
         lane: 0,
         laneCount: 1,
+        floating: false,
       },
     ])
   })
@@ -221,6 +222,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         columnSpan: 1,
         lane: 0,
         laneCount: 1,
+        floating: false,
       },
     ])
   })
@@ -251,6 +253,7 @@ describe('computeDanceScheduleLevelLayout', () => {
         columnSpan: 1,
         lane: 0,
         laneCount: 1,
+        floating: false,
       },
     ])
   })
@@ -285,8 +288,9 @@ describe('computeDanceScheduleLevelLayout', () => {
     const countryWestern: DanceSession = {
       kind: 'freeform',
       date: new Date('2026-07-02T00:00:00.000Z'),
-      startTime: new Date('2026-07-02T21:00:00.000Z'),
-      endTime: new Date('2026-07-02T22:00:00.000Z'),
+      // Overlaps A1, so it goes to Other rather than floating itself.
+      startTime: new Date('2026-07-02T15:30:00.000Z'),
+      endTime: new Date('2026-07-02T16:30:00.000Z'),
       location: { kind: 'located', rooms: ['Drummond Ballroom'] },
       description: 'Country Western Dance',
     }
@@ -332,12 +336,45 @@ describe('computeDanceScheduleLevelLayout', () => {
         levels: ['Intro'],
       },
     )
-    const plus = makeSession('2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z', 'Salon A-C', { levels: ['Plus'] })
+    // Overlaps it — with nothing beside it, it would float (next test).
+    const plus = makeSession('2026-07-02T13:30:00.000Z', '2026-07-02T14:30:00.000Z', 'Hall B', { levels: ['Plus'] })
     const layout = computeDanceScheduleLevelLayout([session, plus], SLOTS, 0, 2)
 
     // Plus (0) + Other (1) — SSD and MS are empty.
     expect(layout.visibleSlots.map((s) => s.label)).toEqual(['Plus', 'Other'])
-    expect(layout.placements.find((p) => p.session === session)).toMatchObject({ columnStart: 1, columnSpan: 1 })
+    expect(layout.placements.find((p) => p.session === session)).toMatchObject({
+      columnStart: 1,
+      columnSpan: 1,
+      floating: false,
+    })
+  })
+
+  it('floats a no-level room session across every column when nothing overlaps it, with no Other column', () => {
+    // MidWinter2027's "Committee Picture" between the afternoon and evening dances:
+    // in Other, off-screen on a phone, its rows looked empty.
+    const ms = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Room 1', { levels: ['MS'] })
+    const plus = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Hall C', { levels: ['Plus'] })
+    const picture = makeSession('2026-07-02T14:00:00.000Z', '2026-07-02T14:30:00.000Z', 'Hall A', { levels: [] })
+    const layout = computeDanceScheduleLevelLayout([ms, plus, picture], SLOTS, 0, 2)
+
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['MS', 'Plus'])
+    expect(layout.placements.find((p) => p.session === picture)).toMatchObject({
+      columnStart: 0,
+      columnSpan: 2,
+      floating: true,
+    })
+    expect(layout.placements.find((p) => p.session === ms)).toMatchObject({ floating: false })
+  })
+
+  it('keeps Other for the overlapped no-level session while a non-overlapped one floats', () => {
+    const plus = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Hall C', { levels: ['Plus'] })
+    const clogging = makeSession('2026-07-02T13:00:00.000Z', '2026-07-02T14:00:00.000Z', 'Suites', { levels: [] })
+    const ceremony = makeSession('2026-07-02T15:00:00.000Z', '2026-07-02T15:30:00.000Z', 'Hall A', { levels: [] })
+    const layout = computeDanceScheduleLevelLayout([plus, clogging, ceremony], SLOTS, 0, 2)
+
+    expect(layout.visibleSlots.map((s) => s.label)).toEqual(['Plus', 'Other'])
+    expect(layout.placements.find((p) => p.session === clogging)).toMatchObject({ columnStart: 1, floating: false })
+    expect(layout.placements.find((p) => p.session === ceremony)).toMatchObject({ columnSpan: 2, floating: true })
   })
 
   it('gives a freeform session with a real room its own Other column too (not roomless, no ordered level)', () => {
@@ -571,7 +608,8 @@ describe('computeDanceScheduleLevelLayout', () => {
 
     it('drops phases outside the range and sends a round session with no phase to Other', () => {
       const phase2to3 = round([2, 3])
-      const noPhase = round([], '2026-07-02T14:00:00.000Z', '2026-07-02T15:00:00.000Z')
+      // Overlaps phase2to3, so it goes to Other rather than floating.
+      const noPhase = round([], '2026-07-02T13:30:00.000Z', '2026-07-02T14:30:00.000Z')
       const layout = computeDanceScheduleLevelLayout([phase2to3, noPhase], SLOTS, PLUS_INDEX, PLUS_INDEX, {
         minPhaseIndex: 2,
         maxPhaseIndex: 3,

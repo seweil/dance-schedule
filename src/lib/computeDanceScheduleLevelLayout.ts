@@ -58,15 +58,47 @@ const OTHER_LEVEL_SLOT: LevelSlot = { label: 'Other', levels: [] }
 // empty column. Computed from the same `visibleSessions`/level-range inputs
 // buildRawEntries itself uses, so the two can't disagree about which sessions land
 // in "Other."
-function needsOtherColumn(visibleSessions: DanceSession[], shownPhases: readonly number[]): boolean {
-  return visibleSessions.some((session) => {
-    const orderedLevels = session.kind === 'structured' ? session.levels.filter(isOrderedLevel) : []
-    return (
-      orderedLevels.length === 0 &&
-      inRangePhaseColumns(session, shownPhases).length === 0 &&
-      session.location.kind !== 'roomless'
+function needsOtherColumn(
+  visibleSessions: DanceSession[],
+  shownPhases: readonly number[],
+  floating: ReadonlySet<DanceSession>,
+): boolean {
+  return visibleSessions.some((session) => isOtherColumnSession(session, shownPhases) && !floating.has(session))
+}
+
+// A real room, but no ordered level or shown phase to put it under.
+function isOtherColumnSession(session: DanceSession, shownPhases: readonly number[]): boolean {
+  const orderedLevels = session.kind === 'structured' ? session.levels.filter(isOrderedLevel) : []
+  return (
+    orderedLevels.length === 0 &&
+    inRangePhaseColumns(session, shownPhases).length === 0 &&
+    session.location.kind !== 'roomless'
+  )
+}
+
+// The Other-column sessions that float across every column instead: those that
+// nothing else overlaps in time (e.g. MidWinter2027's "Committee Picture" and
+// "Ceremonies & 1st tip", between the afternoon and evening dances). With nothing
+// beside one, the paint-under problem OTHER_LEVEL_SLOT's comment describes can't
+// happen, and in Other, off-screen to the right on a phone, it left those rows
+// looking empty. Only when some level or phase column exists for it to span:
+// a day of nothing but Other sessions keeps them in Other.
+function floatingRoomSessions(visibleSessions: DanceSession[], shownPhases: readonly number[]): Set<DanceSession> {
+  const floating = new Set<DanceSession>()
+  const hasRealColumn = visibleSessions.some(
+    (session) => !isOtherColumnSession(session, shownPhases) && session.location.kind !== 'roomless',
+  )
+  if (!hasRealColumn) {
+    return floating
+  }
+  for (const session of visibleSessions) {
+    if (!isOtherColumnSession(session, shownPhases)) continue
+    const overlapped = visibleSessions.some(
+      (other) => other !== session && other.startTime < session.endTime && session.startTime < other.endTime,
     )
-  })
+    if (!overlapped) floating.add(session)
+  }
+  return floating
 }
 
 // The phase columns actually shown: each 0-based phase index within the phase
@@ -148,6 +180,9 @@ export interface DanceLevelSessionPlacement {
   lane: number
   // How many lanes this placement's column is split into for its own row range.
   laneCount: number
+  // Spans every column, undyed: a roomless session, or a room session with no
+  // level that nothing overlaps (floatingRoomSessions).
+  floating: boolean
 }
 
 export interface DanceScheduleLevelLayout {
@@ -202,6 +237,7 @@ function buildRawEntries(
   maxLevelIndex: number,
   shownLevels: readonly number[],
   shownPhases: readonly number[],
+  floating: ReadonlySet<DanceSession>,
   rowStartFor: (time: Date) => number,
   rowSpanFor: (start: Date, end: Date) => number,
 ): RawEntry[] {
@@ -229,7 +265,8 @@ function buildRawEntries(
       // (and phase) slice (see computeDanceScheduleLevelLayout below), at this fixed
       // index regardless of the day's actual content — same "columns aren't
       // data-derived" property every other slot already has.
-      const slotIndex = session.location.kind === 'roomless' ? null : levelColumnCount + phaseColumnCount
+      const slotIndex =
+        session.location.kind === 'roomless' || floating.has(session) ? null : levelColumnCount + phaseColumnCount
       entries.push({ session, rowStart, rowSpan, slotIndex, lane: 0, laneCount: 1 })
       continue
     }
@@ -302,6 +339,7 @@ function mergeIntoPlacements(
         columnSpan: Math.max(1, visibleSlotCount),
         lane: 0,
         laneCount: 1,
+        floating: true,
       })
       continue
     }
@@ -327,6 +365,7 @@ function mergeIntoPlacements(
         columnSpan: indices.length,
         lane: 0,
         laneCount: 1,
+        floating: false,
       })
     } else {
       for (const entry of sessionEntries) {
@@ -338,6 +377,7 @@ function mergeIntoPlacements(
           columnSpan: 1,
           lane: entry.lane,
           laneCount: entry.laneCount,
+          floating: false,
         })
       }
     }
@@ -358,7 +398,8 @@ function mergeIntoPlacements(
  * A session with a real room but no ordered level (freeform, or structured with only
  * Intro/Various tags) gets its own dedicated "Other" column, appended after
  * every ordered-level column, but ONLY on a day that actually has one (see
- * needsOtherColumn/OTHER_LEVEL_SLOT), like every other column. A genuinely roomless session
+ * needsOtherColumn/OTHER_LEVEL_SLOT), like every other column — unless nothing
+ * overlaps it, when it floats like a roomless one (floatingRoomSessions). A genuinely roomless session
  * (no location at all) instead floats across every visible column, mirroring
  * roomless-session treatment in the room-columns view. A multi-level session (e.g.
  * "C1, C2") gets one spanning placement when its slots are contiguous and conflict-
@@ -393,7 +434,8 @@ export function computeDanceScheduleLevelLayout(
   const shownLevels = shownLevelIndices(visibleSessions, slots, minLevelIndex, maxLevelIndex, shownPhases)
   const orderedSlots = shownLevels.map((index) => slots[index]!)
   const phaseSlots: LevelSlot[] = shownPhases.map((index) => ({ label: PHASE_LABELS[index]!, levels: [] }))
-  const hasOther = needsOtherColumn(visibleSessions, shownPhases)
+  const floating = floatingRoomSessions(visibleSessions, shownPhases)
+  const hasOther = needsOtherColumn(visibleSessions, shownPhases, floating)
   const visibleSlots = hasOther
     ? [...orderedSlots, ...phaseSlots, OTHER_LEVEL_SLOT]
     : [...orderedSlots, ...phaseSlots]
@@ -410,6 +452,7 @@ export function computeDanceScheduleLevelLayout(
     maxLevelIndex,
     shownLevels,
     shownPhases,
+    floating,
     rowStartFor,
     rowSpanFor,
   )

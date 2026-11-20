@@ -36,11 +36,12 @@ function SessionCard({
   showGca: boolean
   slots: readonly LevelSlot[]
 }) {
-  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount } = placement
+  const { session, rowStart, rowSpan, columnStart, columnSpan, lane, laneCount, floating } = placement
   const isRoomless = session.location.kind === 'roomless'
-  // Roomless cards keep their own neutral/centered treatment from the CSS module —
-  // only room cards are colored by level.
-  const backgroundColor = isRoomless ? undefined : colorForSession(session)
+  // Floating cards (roomless, or a level-less room session nothing overlaps) keep
+  // their own neutral/centered treatment from the CSS module — only cards in a
+  // level column are colored by level. A floating card with a room still shows it.
+  const backgroundColor = floating ? undefined : colorForSession(session)
   const style: CSSProperties = {
     // bodyGrid has no header row of its own to offset past — layout.rowStart is
     // already 1-based for the axis's first row (see computeDanceScheduleTimeAxis.ts
@@ -74,8 +75,8 @@ function SessionCard({
   // accompany.
   const room = isRoomless ? '' : formatSessionRoomLabel(session)
   const gca = formatSessionGca(session)
-  const showGcaLine = !isRoomless && showGca && !!gca
-  const cuers = isRoomless ? '' : formatSessionCuers(session)
+  const showGcaLine = !floating && showGca && !!gca
+  const cuers = floating ? '' : formatSessionCuers(session)
 
   // A combined slot (e.g. "A1/A2") doesn't tell you which of its merged levels this
   // particular card actually is — every session landing here collapses to the same
@@ -83,7 +84,7 @@ function SessionCard({
   // the only place left to recover that is the session's own `levels`. Shown as a
   // plain-text prefix, exactly like a non-"Dancing" event type is. A non-combined
   // slot never needs this — the level is already the column itself.
-  const slot = !isRoomless ? slots[columnStart] : undefined
+  const slot = !floating ? slots[columnStart] : undefined
   const levelPrefix = slot && slot.levels.length > 1 ? formatSessionLevels(session) : undefined
 
   // A visible divider between two lane-split events sharing one column (usually
@@ -95,14 +96,14 @@ function SessionCard({
   // one. Only lane > 0 gets it — lane 0's own left edge is the column's natural
   // boundary, not a seam between two events.
   const laneDividerClass = lane > 0 ? ` ${styles.laneDivider}` : ''
-  const cardClassName = isRoomless ? `${styles.roomlessCard}${laneDividerClass}` : `${styles.card}${laneDividerClass}`
-  // Most roomless cards omit their time range — see isRegistrationSession's own
+  const cardClassName = floating ? `${styles.roomlessCard}${laneDividerClass}` : `${styles.card}${laneDividerClass}`
+  // Most floating cards omit their time range — see isRegistrationSession's own
   // comment for why Registration is the one exception that keeps it.
-  const showTimeRange = isRoomless && isRegistrationSession(session)
+  const showTimeRange = floating && isRegistrationSession(session)
 
   return (
     <div className={cardClassName} style={style}>
-      <div className={isRoomless ? styles.roomlessCardContent : undefined}>
+      <div className={floating ? styles.roomlessCardContent : undefined}>
         <p className={styles.details}>{detailsContent(session, levelPrefix)}</p>
         {/* Right under the caller, ahead of the room — the two names are a pair. */}
         {cuers && <p className={styles.details}>{cuerLineContent(session)}</p>}

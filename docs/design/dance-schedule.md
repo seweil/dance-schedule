@@ -769,7 +769,20 @@ needed to stop floating. Once assigned `"Other"`'s fixed slot index, such a
 session flows through the exact same per-slot pipeline as any real level
 (lane assignment for concurrent overlaps, column-width growth, the
 axis-stretch text-fit estimate) with no special-casing needed beyond
-computing that one index. A contiguous multi-level session (today only ever
+computing that one index.
+
+**Exception: a real-room, no-level session that nothing overlaps floats
+again** (`floatingRoomSessions`), as long as some level or phase column
+exists for it to span. With no other card in its row range, the
+paint-under problem above can't happen, and in "Other" (the last column,
+off-screen to the right on a phone) it left those rows looking empty —
+MidWinter2027's "Committee Picture" and "Ceremonies & 1st tip" between
+the afternoon and evening dances. Its card keeps the neutral floating look
+but still names its room, like the Staff Schedule's busy floating cards.
+"Other" now only exists for a no-level session that does overlap
+something.
+
+A contiguous multi-level session (today only ever
 `A1, A2` or `C1, C2`) gets one spanning placement across its columns, same
 as a contiguous multi-room session — reusing the same `isContiguous` check,
 just applied to (`minLevelIndex`-relative) slot indices instead of room
