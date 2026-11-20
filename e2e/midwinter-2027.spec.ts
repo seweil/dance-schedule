@@ -78,7 +78,7 @@ test('the Dance Schedule gets a phase slider and phase columns, with each teach 
   await expect(page.getByText('Challenge -')).toBeVisible()
 })
 
-// A name line marked with the ■ (caller) or ● (cuer) glyph.
+// A name line marked with the □ (caller) or ○ (cuer) glyph.
 function markedName(page: Page, role: 'Caller' | 'Cuer', name: string) {
   return page.locator('p', { has: page.getByRole('img', { name: role }) }).filter({ hasText: name })
 }

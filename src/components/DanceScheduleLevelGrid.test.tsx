@@ -190,7 +190,7 @@ describe('DanceScheduleLevelGrid', () => {
     expect(screen.getByText('GCA: Tim Stephens')).toBeInTheDocument()
   })
 
-  it("gives a square session's caller and cuer equal billing, marked ■ and ●, regardless of showGca", () => {
+  it("gives a square session's caller and cuer equal billing, marked □ and ○, regardless of showGca", () => {
     const withCuer: DanceSession = { ...STRUCTURED_SESSION, cuers: ['Judy Russell'] }
     render(
       <DanceScheduleLevelGrid
@@ -201,8 +201,8 @@ describe('DanceScheduleLevelGrid', () => {
     )
     expect(screen.getByText('Ted Lizotte').tagName).toBe('STRONG')
     expect(screen.getByText('Judy Russell').tagName).toBe('STRONG')
-    expect(screen.getByRole('img', { name: 'Caller' })).toHaveTextContent('■')
-    expect(screen.getByRole('img', { name: 'Cuer' })).toHaveTextContent('●')
+    expect(screen.getByRole('img', { name: 'Caller' })).toHaveTextContent('□')
+    expect(screen.getByRole('img', { name: 'Cuer' })).toHaveTextContent('○')
     expect(screen.queryByText(/Cuer:/)).not.toBeInTheDocument()
   })
 

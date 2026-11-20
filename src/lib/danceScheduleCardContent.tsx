@@ -47,7 +47,7 @@ export function detailsContent(session: DanceSession, levelPrefix?: string): Rea
 }
 
 // A square dance with rounds between tips names both a caller and a cuer. The
-// two get equal billing there — both bold, a ■ before the caller and a ● before
+// two get equal billing there — both bold, a □ before the caller and a ○ before
 // the cuer (squares vs. circles) — instead of the cuer as a small secondary line.
 // Never shown for a caller-only or cuer-only session, which needs no telling apart.
 export function hasCallerAndCuer(session: DanceSession): boolean {

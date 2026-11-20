@@ -150,6 +150,8 @@ circles), the cuer on its own line directly under the caller
 The Staff Schedule's partner line uses the same glyphs instead of
 "Caller:"/"Cuer:". Only on a session with both — a caller-only or cuer-only
 card (every square-only event) is unchanged. The data model above stands.
+**Glyphs opened (2026-11-20):** □/○ instead of the solid ■/●, which read
+as generic list bullets.
 
 ### MS and MS Extended are distinct levels (2026-11-18)
 **Decision:** a new level code for "MainStream – Extended Application",

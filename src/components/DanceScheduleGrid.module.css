@@ -399,9 +399,10 @@
   pointer-events: none;
 }
 
-/* The ■ (caller) / ● (cuer) before each name on a card that has both — see
+/* The □ (caller) / ○ (cuer) before each name on a card that has both — see
    danceScheduleCardContent.tsx's hasCallerAndCuer. Slightly smaller than the
-   text, so the solid shapes don't outweigh the names they mark. */
+   text, so the shapes don't outweigh the names they mark. Open, not
+   solid (■/●), so they don't read as list bullets. */
 .staffGlyph {
   font-size: 0.8em;
   margin-right: 0.3em;

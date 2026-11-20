@@ -30,7 +30,7 @@ const TIME_COLUMN_WIDTH = '4.375rem'
 // featured cuer's card names the caller, and a caller's card names the cuer (the
 // same secondary line the room/level grids show). See featuredStaff in
 // computeDanceScheduleCallerLayout.ts.
-// Marked with the same ■/● glyph as the room/level grids' equal-billing names
+// Marked with the same □/○ glyph as the room/level grids' equal-billing names
 // (danceScheduleCardContent.tsx's hasCallerAndCuer).
 function partnerLine(session: DanceSession, column: string | undefined): ReactNode {
   if (session.kind !== 'structured' || column === undefined) {
