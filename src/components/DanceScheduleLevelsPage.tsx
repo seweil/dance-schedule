@@ -42,6 +42,7 @@ export function DanceScheduleLevelsPage() {
     contentConfig.features.combineA1A2,
     contentConfig.features.combineC3BC4,
     contentConfig.features.combineAdvancedC1,
+    contentConfig.danceSchedule?.defaultDay,
   )
 
   // Phase columns only on a day with phased round dancing — the same days the

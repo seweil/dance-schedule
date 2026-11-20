@@ -101,7 +101,8 @@ false" item). Malformed, or either `features.combineA1A2`/
 session), defaults to **false** instead: folding C1 into Advanced is right
 only for an event with almost no Challenge, so it's opt-in. The same
 section also carries `danceSchedule.featuredStaff` to the client (the Caller
-Schedule's columns) — see `docs/design/midwinter-festival-2027.md`.
+Schedule's columns) and `danceSchedule.defaultDay` (the weekday the schedule
+opens on before the event) — see `docs/design/midwinter-festival-2027.md`.
 
 ### `content/automated-testing/config.yaml` and `content/test/config.yaml` both combine both pairs — the *uncombined* case is unit-test-only
 **Why:** Every real content set (including `automated-testing`, which despite

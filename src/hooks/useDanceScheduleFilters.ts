@@ -22,6 +22,7 @@ import {
 } from '../lib/levelOrder'
 import type { PhaseSliderProps } from '../components/DanceScheduleFilters'
 import type { DanceSession } from '../types/danceSchedule'
+import type { Weekday } from '../types/contentConfig'
 
 export interface UseDanceScheduleFiltersResult {
   dates: Date[]
@@ -83,6 +84,7 @@ export function useDanceScheduleFilters(
   combineA1A2: boolean,
   combineC3BC4: boolean,
   combineAdvancedC1 = false,
+  defaultDay?: Weekday,
 ): UseDanceScheduleFiltersResult {
   const groups = useMemo(() => groupDanceSessionsByDate(sessions), [sessions])
   const dates = useMemo(() => groups.map((group) => group.date), [groups])
@@ -109,7 +111,7 @@ export function useDanceScheduleFilters(
   const [initialStoredFilters] = useState(() => loadStoredDanceScheduleFilters())
 
   const [selectedDate, setSelectedDateState] = useState<Date>(() =>
-    resolveStoredDate(initialStoredFilters, dates, pickDefaultDanceScheduleDate(groups, slots)),
+    resolveStoredDate(initialStoredFilters, dates, pickDefaultDanceScheduleDate(groups, slots, defaultDay)),
   )
 
   // Wraps the raw setter (rather than tracking in an effect keyed on

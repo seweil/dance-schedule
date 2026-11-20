@@ -35,6 +35,7 @@ export function DanceSchedulePage() {
     contentConfig.features.combineA1A2,
     contentConfig.features.combineC3BC4,
     contentConfig.features.combineAdvancedC1,
+    contentConfig.danceSchedule?.defaultDay,
   )
 
   // `sessions` (every date), not the hook's per-date `dateSessions` — room order is

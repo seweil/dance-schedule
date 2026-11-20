@@ -135,6 +135,16 @@ describe('loadContentConfigData', () => {
       )
     })
 
+    it('reads defaultDay case-insensitively, as the capitalized weekday', () => {
+      writeConfig('danceSchedule:\n  defaultDay: " friday "\n')
+      expect(loadContentConfigData(configFile).danceSchedule).toEqual({ defaultDay: 'Friday' })
+    })
+
+    it.each([['Fri'], ['2027-01-29'], ['[Friday]']])('throws when defaultDay is %s', (value) => {
+      writeConfig(`danceSchedule:\n  defaultDay: ${value}\n`)
+      expect(() => loadContentConfigData(configFile)).toThrow(/"danceSchedule\.defaultDay" must be a weekday name/)
+    })
+
     it('throws when roomOrder is an array containing a non-string', () => {
       writeConfig('danceSchedule:\n  roomOrder: [Room A, 42]\n')
       expect(() => loadContentConfigData(configFile)).toThrow(/"danceSchedule\.roomOrder" must be/)

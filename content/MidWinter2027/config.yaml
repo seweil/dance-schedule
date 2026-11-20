@@ -20,6 +20,9 @@ danceSchedule:
   # The festival site's featured staff — the only columns on the Caller
   # Schedule page, in this order.
   featuredStaff: [Ted Lizotte, Pam & Jeff Johnson, Trevor DeWitt]
+  # Open on Friday before the festival: Thursday is only the one pre-event
+  # dance, and has none of the featured staff.
+  defaultDay: Friday
   # The PDF prints him both ways; the organizer confirmed it's one person.
   staffAliases:
     Mike Kious: Michael Kious

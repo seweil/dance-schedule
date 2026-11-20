@@ -204,6 +204,22 @@ danceSchedule:
 A room not scheduled on a particular day is simply skipped that day — the
 list is one event-wide setting, not one per day.
 
+### Which day the schedule opens on (`danceSchedule.defaultDay`)
+
+Also optional. During the event, the schedule pages open on today. Before
+it, they open on the first day with more than one level scheduled. If that
+day is a quiet warm-up day you'd rather skip, name the day to open on
+instead, as a weekday:
+
+```yaml
+danceSchedule:
+  defaultDay: Friday
+```
+
+The build fails if no day of the schedule falls on that weekday, or more
+than one does. A dancer who has already picked a day keeps their pick, and
+during the event the schedule still opens on today.
+
 ### Dance-schedule input format (`danceSchedule.format`)
 
 Also optional, and you can ignore it for now. It says which format your

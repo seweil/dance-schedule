@@ -2,11 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
 import { parse } from 'yaml'
-import type {
-  ContentConfigData,
-  ContentFeatures,
-  DanceScheduleConfig,
-  DanceScheduleRoomOrder,
+import {
+  WEEKDAYS,
+  type ContentConfigData,
+  type ContentFeatures,
+  type DanceScheduleConfig,
+  type DanceScheduleRoomOrder,
+  type Weekday,
 } from './src/types/contentConfig'
 
 export const CONTENT_CONFIG_VIRTUAL_MODULE_ID = 'virtual:content-config'
@@ -95,6 +97,24 @@ function readFeaturedStaff(configFile: string, danceSchedule: Record<string, unk
     )
   }
   return value.map((name: string) => name.trim())
+}
+
+// Shape-only, like the two above — whether the schedule has exactly one date on
+// that weekday is a build-time cross-check in vite-plugin-dance-schedule.ts.
+// Case-insensitive, normalized to the capitalized name.
+function readDefaultDay(configFile: string, danceSchedule: Record<string, unknown>): Weekday | undefined {
+  const value = danceSchedule.defaultDay
+  if (value === undefined) {
+    return undefined
+  }
+  const day =
+    typeof value === 'string' ? WEEKDAYS.find((weekday) => weekday.toLowerCase() === value.trim().toLowerCase()) : undefined
+  if (day === undefined) {
+    throw new Error(
+      `${configFile}'s "danceSchedule.defaultDay" must be a weekday name such as "Friday", got ${JSON.stringify(value)}`,
+    )
+  }
+  return day
 }
 
 const COMBINE_A1A2_ENV_VAR = 'COMBINE_A1A2'
@@ -232,6 +252,7 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
   let combineAdvancedC1 = false
   let roomOrder: DanceScheduleRoomOrder | undefined
   let featuredStaff: string[] | undefined
+  let defaultDay: Weekday | undefined
 
   if (fs.existsSync(configFile)) {
     const raw = fs.readFileSync(configFile, 'utf-8')
@@ -255,6 +276,7 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
     )
     roomOrder = readRoomOrder(configFile, danceSchedule)
     featuredStaff = readFeaturedStaff(configFile, danceSchedule)
+    defaultDay = readDefaultDay(configFile, danceSchedule)
   }
 
   // Applied last, after the file-or-default values are fully resolved, so an
@@ -267,6 +289,7 @@ export function loadContentConfigData(configFile: string): ContentConfigData {
   const danceSchedule: DanceScheduleConfig = {
     ...(roomOrder === undefined ? {} : { roomOrder }),
     ...(featuredStaff === undefined ? {} : { featuredStaff }),
+    ...(defaultDay === undefined ? {} : { defaultDay }),
   }
   return {
     features: { combineA1A2, combineC3BC4, combineAdvancedC1 },

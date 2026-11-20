@@ -29,7 +29,15 @@ export interface DanceScheduleConfig {
   // Each must appear in the schedule (checked at build time). See
   // docs/design/midwinter-festival-2027.md.
   featuredStaff?: readonly string[]
+  // `danceSchedule.defaultDay` — a weekday name ("Friday") the dance schedule opens
+  // on when today isn't an event day, overriding the first-multi-level-day rule
+  // (src/lib/pickDefaultDanceScheduleDate.ts). Must name exactly one of the
+  // schedule's dates (checked at build time).
+  defaultDay?: Weekday
 }
+
+export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+export type Weekday = (typeof WEEKDAYS)[number]
 
 export interface ContentConfigData {
   features: ContentFeatures

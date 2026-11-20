@@ -168,6 +168,14 @@ test('the Staff Schedule drops a room activity that starts during a staff sessio
   await expect(page.getByText('Showcase of Rounds')).toBeVisible()
 })
 
+test('before the festival, the schedule opens on its configured defaultDay (Friday), not Thursday', async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date(2027, 0, 10, 12) })
+  await page.goto(`${SET}/caller-schedule`)
+  await expect(page.getByLabel('Date').locator('option:checked')).toHaveText(/Fri/)
+})
+
 test('the Staff Schedule says so on a day with no featured staff, instead of blaming the filters', async ({
   page,
 }) => {

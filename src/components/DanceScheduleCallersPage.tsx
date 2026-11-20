@@ -66,6 +66,7 @@ export function DanceScheduleCallersPage() {
     contentConfig.features.combineA1A2,
     contentConfig.features.combineC3BC4,
     contentConfig.features.combineAdvancedC1,
+    contentConfig.danceSchedule?.defaultDay,
   )
   const { extraStaff, setExtraStaff } = useExtraStaff()
   // The "Show more staff" button and its panel are placed apart (StaffPicker.tsx),

@@ -5,6 +5,7 @@ import { buildDanceSchedule } from './src/lib/buildDanceSchedule'
 import { formatDanceScheduleMarkdown } from './src/lib/formatDanceScheduleMarkdown'
 import { validateFeaturedStaffConfig } from './src/lib/computeDanceScheduleCallerLayout'
 import { validateRoomOrderConfig } from './src/lib/deriveRoomOrder'
+import { validateDefaultDayConfig } from './src/lib/pickDefaultDanceScheduleDate'
 import { staffScheduleLabel } from './src/lib/staffScheduleLabel'
 import { loadContentConfigData } from './vite-plugin-content-config'
 import { loadDanceScheduleData, resolveDanceScheduleSource } from './dance-schedule-parsers'
@@ -92,6 +93,11 @@ export function danceSchedulePlugin(options: DanceSchedulePluginOptions): Plugin
         const contentConfig = loadContentConfigData(contentConfigFile)
         validateRoomOrderConfig(builtSessions, contentConfig.danceSchedule?.roomOrder, contentConfigFile)
         validateFeaturedStaffConfig(builtSessions, contentConfig.danceSchedule?.featuredStaff, contentConfigFile)
+        validateDefaultDayConfig(
+          builtSessions.map((session) => session.date),
+          contentConfig.danceSchedule?.defaultDay,
+          contentConfigFile,
+        )
 
         // Debug output: a normalized, human-readable dump of how the spreadsheet was
         // interpreted, regenerated on every parse so it's always in sync — committed

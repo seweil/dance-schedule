@@ -443,6 +443,17 @@ this day". A stored date still wins over both.
 page open on a lone, unmovable slider stop and no phase slider, which read as
 "very broken" rather than "a quiet day."
 
+### Configured `defaultDay` beats the level rule (2026-11-19)
+**Decision:** `danceSchedule.defaultDay: Friday` in config.yaml. With no
+stored date, the schedule opens on today if that's an event date, then on
+the configured weekday, then on the first multi-level date (the rule above).
+The build fails unless the weekday matches exactly one schedule date.
+**Why:** Thursday's one dance now parses as MS+, which counts as two levels,
+so the level rule picked Thursday again: a near-empty day, and the Staff
+Schedule's "no featured staff" message. A weekday name is easier for an
+organizer to write than a date and can't be misread. Today still wins so
+that someone at the festival on Thursday sees Thursday.
+
 ## Open questions
 
 - Two sliders and either-range matching — revisit after hands-on testing
