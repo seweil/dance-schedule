@@ -3,6 +3,7 @@ import Lightbox from 'yet-another-react-lightbox'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/styles.css'
 import { ImageGalleryContext, type GalleryImage } from '../hooks/useImageGallery'
+import styles from './ImageGallery.module.css'
 
 // Lets a page's ZoomableImage instances share one Lightbox, so its prev/next
 // arrows step through every image on the current page instead of each image
@@ -45,6 +46,13 @@ export function ImageGalleryProvider({ children }: { children: ReactNode }) {
         // the heavily upscaled blur a larger value reaches (4 allowed ~14x).
         plugins={[Zoom]}
         zoom={{ maxZoomPixelRatio: 2, scrollToZoom: true }}
+        // More ways out than the close button alone (reported live: stuck in the
+        // viewer on a phone with no visible close button). A swipe up or down, or a
+        // tap on the dark backdrop around the image, closes it too. The swipes only
+        // apply when not zoomed in, since a drag then pans; the close button is
+        // still visible then (ImageGallery.module.css).
+        controller={{ closeOnPullDown: true, closeOnPullUp: true, closeOnBackdropClick: true }}
+        className={styles.lightbox}
       />
     </ImageGalleryContext.Provider>
   )

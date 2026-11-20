@@ -96,4 +96,31 @@ test('the venue map opens in a lightbox that zooms in', async ({ page }) => {
   await expect(zoomIn).toBeEnabled()
   await zoomIn.click()
   await expect(page.getByRole('button', { name: 'Zoom out' })).toBeEnabled()
+
+  // Zoomed in, the map covers the screen, and the close button still works.
+  await page.getByRole('button', { name: 'Close' }).click()
+  await expect(zoomIn).toBeHidden()
+})
+
+test('the image viewer closes on a swipe down or a tap on the backdrop, not just its close button', async ({
+  page,
+}) => {
+  await page.goto(`${SET}/venue`)
+  const map = page.getByRole('img', { name: 'Linn County Fairgrounds layout' })
+  const close = page.getByRole('button', { name: 'Close' })
+
+  await map.click()
+  await expect(close).toBeVisible()
+  // The map is square, so on an upright phone there's backdrop below it.
+  const viewport = page.viewportSize()!
+  await page.mouse.click(viewport.width / 2, viewport.height - 20)
+  await expect(close).toBeHidden()
+
+  await map.click()
+  await expect(close).toBeVisible()
+  await page.mouse.move(viewport.width / 2, viewport.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(viewport.width / 2, viewport.height / 2 + 200, { steps: 10 })
+  await page.mouse.up()
+  await expect(close).toBeHidden()
 })
