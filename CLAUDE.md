@@ -256,6 +256,10 @@ picks up the `.md` extension.
   desktop Chrome specifically (Chrome silently drops the whole body past
   ~400 characters when handing the link off to Mail.app) — every other
   platform tested handles the full block fine, so it's kept unshortened.
+- **Off-site links**: every rendered link to another site (`http(s)://` or
+  `//...`) automatically opens in a new tab (`target="_blank"`,
+  `rel="noopener noreferrer"`), via the same `MdxA` override in `App.tsx` —
+  content authors write a plain markdown link.
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
   routes `vite-plugin-pages` generates — title = Title-cased filename (after
   stripping the order prefix), order = the numeric prefix (see Naming above), Home

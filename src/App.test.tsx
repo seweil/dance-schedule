@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { App } from './App'
+import { MemoryRouter } from 'react-router-dom'
+import { App, MdxA } from './App'
 import { resetLaunchCountGuardForTests } from './hooks/useAppLaunchCount'
 
 describe('App', () => {
@@ -61,5 +62,31 @@ describe('App', () => {
     fireEvent.click(contentLink, { button: 0 })
     expect(await screen.findByRole('heading', { name: /^installation$/i })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/installation')
+  })
+})
+
+describe('MdxA', () => {
+  it.each(['https://midwinterfestival.org/2027/', 'http://example.com', '//example.com/x'])(
+    'opens an off-site link (%s) in a new tab',
+    (href) => {
+      render(<MdxA href={href}>Off site</MdxA>)
+      const link = screen.getByRole('link', { name: 'Off site' })
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    },
+  )
+
+  it.each(['mailto:help@sqdance.app', '#section'])('leaves %s in the same tab', (href) => {
+    render(<MdxA href={href}>Here</MdxA>)
+    expect(screen.getByRole('link', { name: 'Here' })).not.toHaveAttribute('target')
+  })
+
+  it('leaves an in-app path in the same tab', () => {
+    render(
+      <MemoryRouter>
+        <MdxA href="/help">Help</MdxA>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Help' })).not.toHaveAttribute('target')
   })
 })

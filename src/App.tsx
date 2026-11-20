@@ -50,8 +50,11 @@ function MdxH1({ children }: { children?: ReactNode }) {
 // click — someone opening their mail client doesn't necessarily go on to
 // actually send anything, so this is a "reached for help" signal, not a
 // substitute for knowing whether the email itself arrived. See
-// docs/ops.md's custom-events table.
-function MdxA({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement>) {
+// docs/ops.md's custom-events table. A link that leaves the site (http(s):// or
+// protocol-relative "//...") opens in a new tab, so the schedule stays open
+// behind it — and, installed as an app, in the browser rather than replacing
+// the app's own window.
+export function MdxA({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement>) {
   if (href?.startsWith('/') && !href.startsWith('//')) {
     return (
       <Link to={href} {...rest}>
@@ -66,6 +69,13 @@ function MdxA({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAnchorElemen
         onClick={() => trackEvent('mailto_link_clicked', { address: mailtoAddress(href) })}
         {...rest}
       >
+        {children}
+      </a>
+    )
+  }
+  if (href && /^(https?:)?\/\//i.test(href)) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" {...rest}>
         {children}
       </a>
     )
