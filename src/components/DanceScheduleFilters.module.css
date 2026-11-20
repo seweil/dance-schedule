@@ -310,6 +310,24 @@
   }
 }
 
+/* A portrait phone always stacks the date row and each slider on lines of their
+   own, so the filters are pure vertical cost above the grid: the most-used
+   screen should reach the schedule sooner. .levelField's top: -11px only lines
+   a slider up with the date row beside it, which never happens here; stacked,
+   it just left an 11px hole under each slider. The 0.75rem row-gap keeps the
+   room above the first slider about what it was (1.5rem less that 11px), and
+   halves the space between the two sliders. */
+@media (orientation: portrait) and (max-width: 480px) {
+  .filters {
+    row-gap: 0.75rem;
+    margin-bottom: var(--space-sm);
+  }
+
+  .levelField {
+    top: 0;
+  }
+}
+
 .sliderRoot {
   position: relative;
   display: flex;

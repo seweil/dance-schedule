@@ -124,6 +124,13 @@ narrow width, confirmed live, so the extra trim only applies to the one
 combination that actually needs it. Single consumer — kept as a plain
 literal, not folded into the shared token above.
 
+A third use, at every text size: a portrait phone this narrow always stacks
+the date row and each slider on their own lines, so the `.module.css` also
+tightens `.filters`'s row-gap and bottom margin there and drops
+`.levelField`'s `top: -11px` (an alignment that only matters beside the date
+row). That moved the grid up 32px on a Pixel 7, with the room above the
+first slider unchanged.
+
 ### `PageHeader.module.css` reduces the menu-to-content margin below `max-height: 500px`
 **Why:** Direct product decision: when vertical space is genuinely tight,
 the fixed `margin-bottom` between the title/menu row and the page's own
