@@ -31,16 +31,11 @@
       <text x="960" y="43" text-anchor="end" font-size="20" font-weight="bold" fill="#666" letter-spacing="2">KNOX BUTTE RD</text>
       <path d="M465 58 V195" stroke="#b9b6ad" stroke-width="34" fill="none"/>
       <path d="M465 58 V195" stroke="#ffffff" stroke-width="30" fill="none"/>
-      <text transform="translate(471, 128) rotate(90)" text-anchor="middle" font-size="15" font-weight="bold" fill="#666" letter-spacing="1">OPAL CT</text>
       <path d="M700 58 V630 Q700 690 760 690 H978" stroke="#b9b6ad" stroke-width="40" fill="none"/>
       <path d="M700 58 V630 Q700 690 760 690 H978" stroke="#ffffff" stroke-width="36" fill="none"/>
 
       <!-- Tree line between the hotels and the fairgrounds -->
       <line x1="50" y1="415" x2="684" y2="415" stroke="#8fae7a" stroke-width="10" stroke-dasharray="2 14" stroke-linecap="round"/>
-
-      <!-- Cascade Grill -->
-      <rect x="320" y="72" width="115" height="66" fill="#ffffff" stroke="#555" stroke-width="2"/>
-      <text x="377" y="111" text-anchor="middle" font-size="16" fill="#444">Cascade Grill</text>
 
       <!-- Comfort Suites: Clogging -->
       <rect x="110" y="232" width="240" height="126" rx="4" fill="#c9b0ec" stroke="#555" stroke-width="2"/>
@@ -55,7 +50,8 @@
       <text x="546" y="296" text-anchor="middle" font-size="17" fill="#222">A1 · A2 · C1</text>
 
       <!-- Willamette Event Center: Halls C (north), B, A (south) -->
-      <text x="596" y="496" text-anchor="end" font-size="19" font-weight="bold" fill="#222" letter-spacing="1">WILLAMETTE EVENT CENTER</text>
+      <text x="596" y="472" text-anchor="end" font-size="19" font-weight="bold" fill="#222" letter-spacing="1">WILLAMETTE</text>
+      <text x="596" y="495" text-anchor="end" font-size="19" font-weight="bold" fill="#222" letter-spacing="1">EVENT CENTER</text>
       <rect x="425" y="505" width="177" height="84" fill="#f7d35c" stroke="#555" stroke-width="2"/>
       <text x="513" y="541" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Hall C</text>
       <text x="513" y="567" text-anchor="middle" font-size="20" fill="#222">Plus</text>
@@ -81,7 +77,12 @@
         <line x1="668" y1="440" x2="760" y2="182"/>
         <line x1="668" y1="576" x2="760" y2="602"/>
       </g>
-      <rect x="738" y="92" width="228" height="560" rx="8" fill="#ffffff" stroke="#999" stroke-width="2"/>
+      <!-- Drop shadow, so the inset reads as lying on top of the map -->
+      <filter id="insetShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="7"/>
+      </filter>
+      <rect x="745" y="103" width="228" height="560" rx="8" fill="#000" opacity="0.5" filter="url(#insetShadow)"/>
+      <rect x="738" y="92" width="228" height="560" rx="8" fill="#ffffff" stroke="#777" stroke-width="2"/>
       <text x="852" y="124" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Conference Center</text>
       <text x="950" y="166" text-anchor="end" font-size="15" fill="#555">▲ To hotels</text>
       <g stroke="#555" stroke-width="2">
@@ -90,11 +91,11 @@
         <rect x="760" y="497" width="145" height="105" fill="#a8dca0"/>
         <rect x="905" y="182" width="45" height="420" fill="#ece9e2"/>
       </g>
-      <text x="832" y="276" text-anchor="middle" font-size="17" fill="#333">Rooms 3 &amp; 4</text>
-      <text x="832" y="306" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Rounds</text>
-      <text x="832" y="450" text-anchor="middle" font-size="17" fill="#333">Room 2</text>
-      <text x="832" y="540" text-anchor="middle" font-size="17" fill="#333">Room 1</text>
-      <text x="832" y="568" text-anchor="middle" font-size="20" font-weight="bold" fill="#222">Relaxed MS</text>
+      <text x="832" y="278" text-anchor="middle" font-size="20" font-weight="bold" fill="#222">Rooms 3 &amp; 4</text>
+      <text x="832" y="306" text-anchor="middle" font-size="20" fill="#222">Rounds</text>
+      <text x="832" y="451" text-anchor="middle" font-size="20" font-weight="bold" fill="#222">Room 2</text>
+      <text x="832" y="542" text-anchor="middle" font-size="20" font-weight="bold" fill="#222">Room 1</text>
+      <text x="832" y="570" text-anchor="middle" font-size="20" fill="#222">Relaxed MS</text>
       <text transform="translate(933, 392) rotate(90)" text-anchor="middle" font-size="15" fill="#555" letter-spacing="2">GLASS HALL</text>
       <text x="832" y="630" text-anchor="middle" font-size="15" fill="#555">▼ To Willamette lobby</text>
 
