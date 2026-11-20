@@ -28,7 +28,7 @@ Both hotels are next door to the Expo Center, on Opal Court.
 
 ## Fairgrounds layout
 
-![Linn County Fairgrounds layout](./assets/venue-layout.jpg)
+![Linn County Fairgrounds layout](./assets/venue-layout.jpg "large")
 
 The map's color key comes from the festival website and may be from an
 earlier year. This year Advanced is at the Holiday Inn Express, not on the
@@ -36,14 +36,14 @@ fairgrounds. Go by the table above.
 
 ## The buildings
 
-![Expo Center entrance](./assets/venue-entrance.jpg "medium")
+![Expo Center entrance](./assets/venue-entrance.jpg "small")
 
 Expo Center entrance
 
-![Willamette Event Center](./assets/venue-willamette.jpg "medium")
+![Willamette Event Center](./assets/venue-willamette.jpg "small")
 
 Willamette Event Center — Mainstream, Plus, and vendors
 
-![Conference Center](./assets/venue-conference.jpg "medium")
+![Conference Center](./assets/venue-conference.jpg "small")
 
 Conference Center — Relaxed Mainstream and round dancing
