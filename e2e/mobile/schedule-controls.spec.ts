@@ -124,3 +124,15 @@ test('the image viewer closes on a swipe down or a tap on the backdrop, not just
   await page.mouse.up()
   await expect(close).toBeHidden()
 })
+
+test('the image viewer closes when the app goes to the background', async ({ page }) => {
+  await page.goto(`${SET}/venue`)
+  await page.getByRole('img', { name: 'Linn County Fairgrounds layout' }).click()
+  const close = page.getByRole('button', { name: 'Close' })
+  await expect(close).toBeVisible()
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  await expect(close).toBeHidden()
+})

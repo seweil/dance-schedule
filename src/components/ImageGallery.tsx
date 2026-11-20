@@ -3,6 +3,7 @@ import Lightbox from 'yet-another-react-lightbox'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 import 'yet-another-react-lightbox/styles.css'
 import { ImageGalleryContext, type GalleryImage } from '../hooks/useImageGallery'
+import { useLightboxGuards } from '../hooks/useLightboxGuards'
 import styles from './ImageGallery.module.css'
 
 // Lets a page's ZoomableImage instances share one Lightbox, so its prev/next
@@ -28,7 +29,10 @@ export function ImageGalleryProvider({ children }: { children: ReactNode }) {
     setOpenId(id)
   }, [])
 
+  const close = useCallback(() => setOpenId(null), [])
+
   const index = images.findIndex((image) => image.id === openId)
+  useLightboxGuards(index !== -1, close)
 
   return (
     <ImageGalleryContext.Provider value={{ register, unregister, openAt }}>
@@ -36,7 +40,7 @@ export function ImageGalleryProvider({ children }: { children: ReactNode }) {
       <Lightbox
         open={index !== -1}
         index={Math.max(index, 0)}
-        close={() => setOpenId(null)}
+        close={close}
         slides={images.map(({ src, alt }) => ({ src, alt }))}
         // Pinch, double-tap and scroll-wheel zoom, plus zoom buttons, for every
         // image — a venue map is the motivating case. maxZoomPixelRatio is how far
