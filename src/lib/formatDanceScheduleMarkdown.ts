@@ -109,6 +109,10 @@ export function formatDanceScheduleMarkdown(
       ` this content set's \`${sourceFileName}\` — do not hand-edit._`,
     formatHourSummaryTable('Hours by level', summary.dates, summary.levels),
     formatHourSummaryTable('Hours by caller', summary.dates, summary.callers),
+    // Only at an event with round dancing — otherwise an empty table every time.
+    ...(summary.cuers.columns.length > 0
+      ? [formatHourSummaryTable('Hours by cuer', summary.dates, summary.cuers)]
+      : []),
     ...groups.map(formatSection),
   ].join('\n\n')
 }

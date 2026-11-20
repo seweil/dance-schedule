@@ -176,7 +176,8 @@ Note anything off in `docs/known-issues.md`.
 
 ## Hand-calculating the dance-schedule hour-summary totals
 
-The "Hours by level" and "Hours by caller" cross-tabs (`computeDanceScheduleHourSummary.ts`)
+The "Hours by level", "Hours by caller", and (at an event with round dancing
+only) "Hours by cuer" cross-tabs (`computeDanceScheduleHourSummary.ts`)
 render on the raw debug page (`/<content-set>/debug/dance-schedule`) and in each
 content set's committed `data/dance-schedule-dump.md`. If you're writing or
 checking a test assertion against these — most directly
@@ -207,15 +208,25 @@ outputs:
    the caller's/level's **own total across every day**, not any single day's
    total. A filtered-out caller's hours aren't dropped, though — they're
    rolled into one trailing `"Other"` column (omitted only when there's
-   nothing to roll up), so the caller table's own day/grand totals always
-   equal the level table's, never running lower.
-5. **Displayed values are rounded** to at most 2 decimal places with trailing
+   nothing to roll up), so the caller table's own day/grand totals equal the
+   level table's, never running lower — except at an event with round
+   dancing or clogging (below), whose cuer-led or caller-less sessions count
+   toward levels only.
+5. **A round-dance or clogging session has no square-dance level**, so the
+   level table tallies it under a `Rounds` or `Clogging` column instead. The
+   cuer table credits each cuer the same way the caller table credits a
+   caller (split across distinct cuers, no hour floor), for every session
+   naming them — a round session they run, or a square session they cue
+   rounds between tips of. So a cuer's hours can overlap a caller's for the
+   same session; the cuer table's totals aren't meant to match the others.
+6. **Displayed values are rounded** to at most 2 decimal places with trailing
    zeros dropped (`formatHours()`) — a `1/3` split reads as `0.33`, a whole
    number as `4`, not `4.00`.
 
 Column *order* isn't a totals question but trips people up alongside it:
 level columns follow `LEVEL_ORDER`'s real skill progression with
-`Intro`/`Various` trailing (not alphabetical, not spreadsheet order); caller
+`Intro`/`Various`, then `Rounds`/`Clogging`, trailing (not alphabetical, not
+spreadsheet order); cuer columns sort by descending total hours; caller
 columns sort by descending total hours (ties broken alphabetically), with a
 headline-callers-first / GCA-showcase-only-callers-last split
 (`groupBoundary`) — a caller whose *only* credited hours come from

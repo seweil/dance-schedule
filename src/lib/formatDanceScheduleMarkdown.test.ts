@@ -201,6 +201,14 @@ describe('formatDanceScheduleMarkdown', () => {
       expect(markdown).toContain('| Total | 4 | 4 |')
     })
 
+    it('adds an "Hours by cuer" summary after the caller one only when some session names a cuer', () => {
+      expect(formatDanceScheduleMarkdown([longSession])).not.toContain('## Hours by cuer')
+
+      const markdown = formatDanceScheduleMarkdown([{ ...longSession, cuers: ['Judy Russell'] }])
+      expect(markdown.indexOf('## Hours by caller')).toBeLessThan(markdown.indexOf('## Hours by cuer'))
+      expect(markdown).toContain('| Date | Judy Russell | Total |')
+    })
+
     it('rolls a caller at or under the 3-hour threshold into an "Other" column instead of dropping their hours', () => {
       const threeHourSession: DanceSession = {
         ...longSession,

@@ -34,6 +34,34 @@ describe('computeDanceScheduleHourSummary', () => {
       dates: [],
       levels: { columns: [], totalByDate: [], grandTotal: 0 },
       callers: { columns: [], totalByDate: [], grandTotal: 0 },
+      cuers: { columns: [], totalByDate: [], grandTotal: 0 },
+    })
+  })
+
+  it('tallies round-dance and clogging sessions under their dance form, after every level', () => {
+    const summary = computeDanceScheduleHourSummary([
+      makeSession({ levels: ['Intro'] }),
+      makeSession({ levels: [], danceForm: 'clogging', callers: [] }),
+      makeSession({ levels: [], danceForm: 'round', phases: [3, 4, 5], callers: [], cuers: ['Judy Russell'] }),
+      makeSession({ levels: ['MS'] }),
+    ])
+    expect(summary.levels.columns.map((column) => column.label)).toEqual(['MS', 'Intro', 'Rounds', 'Clogging'])
+    expect(summary.levels.grandTotal).toBe(4)
+  })
+
+  it("credits each cuer with the sessions they cue — a round session they run or a square session's rounds", () => {
+    const summary = computeDanceScheduleHourSummary([
+      makeSession({ cuers: ['Judy Russell'] }),
+      makeSession({ levels: [], danceForm: 'round', callers: [], cuers: ['Judy Russell', 'Pam & Jeff Johnson'] }),
+      makeLongSession(),
+    ])
+    expect(summary.cuers).toEqual({
+      columns: [
+        { label: 'Judy Russell', hoursByDate: [1.5], total: 1.5 },
+        { label: 'Pam & Jeff Johnson', hoursByDate: [0.5], total: 0.5 },
+      ],
+      totalByDate: [2],
+      grandTotal: 2,
     })
   })
 

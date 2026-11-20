@@ -8,7 +8,11 @@ import type { DanceSession } from '../types/danceSchedule'
 // order, rather than LEVEL_CODES' own declared order. "Advanced" isn't in this list —
 // it isn't a real LevelCode at all, normalized to A2 at parse time.
 const UNORDERED_LEVELS = ['Intro', 'Various'] as const
-const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEVELS]
+// A round-dance or clogging session has no square-dance level (`levels: []`), so
+// it's tallied under its dance form instead — one column each, after every level.
+const ROUNDS_LABEL = 'Rounds'
+const CLOGGING_LABEL = 'Clogging'
+const LEVEL_DISPLAY_ORDER: readonly string[] = [...LEVEL_ORDER, ...UNORDERED_LEVELS, ROUNDS_LABEL, CLOGGING_LABEL]
 
 // A caller only appears in the caller table at all once their OWN total (summed
 // across every day) exceeds this many hours — per direct product decision, a
@@ -62,6 +66,11 @@ export interface DanceScheduleHourSummary {
   // column, but their hours still land in a trailing "Other" column (see
   // buildTable) rather than vanishing from the table's totals.
   callers: DanceScheduleHourSummaryTable
+  // Every session naming a cuer — a round-dance session they run, or a square
+  // session they cue rounds between tips of — sorted by descending total hours like
+  // `callers`, but with no hours floor (an event has only a handful of cuers).
+  // Empty for an event with no round dancing.
+  cuers: DanceScheduleHourSummaryTable
 }
 
 function sessionHours(session: DanceSession): number {
@@ -146,6 +155,7 @@ export function computeDanceScheduleHourSummary(sessions: DanceSession[]): Dance
 
   const levelTotals = new Map<string, number[]>()
   const callerTotals = new Map<string, number[]>()
+  const cuerTotals = new Map<string, number[]>()
   // Per caller name, whether at least one of their credited sessions is NOT a GCA
   // showcase slot — see GCA_CALLER_SHOWCASE_EVENT_TYPE and `groupBoundary`. A
   // caller who both headlines and does a showcase slot still counts as headline;
@@ -165,7 +175,13 @@ export function computeDanceScheduleHourSummary(sessions: DanceSession[]): Dance
       }
       const hours = sessionHours(session)
 
-      const levels = new Set(session.levels)
+      const levels = new Set<string>(
+        session.danceForm === 'round'
+          ? [ROUNDS_LABEL]
+          : session.danceForm === 'clogging'
+            ? [CLOGGING_LABEL]
+            : session.levels,
+      )
       const levelShare = hours / levels.size
       for (const level of levels) {
         addShare(levelTotals, level, dateIndex, levelShare)
@@ -177,6 +193,12 @@ export function computeDanceScheduleHourSummary(sessions: DanceSession[]): Dance
       for (const caller of callers) {
         addShare(callerTotals, caller, dateIndex, callerShare)
         callerHasHeadlineHours.set(caller, (callerHasHeadlineHours.get(caller) ?? false) || !isShowcase)
+      }
+
+      const cuers = new Set(session.cuers ?? [])
+      const cuerShare = hours / cuers.size
+      for (const cuer of cuers) {
+        addShare(cuerTotals, cuer, dateIndex, cuerShare)
       }
     }
   })
@@ -232,9 +254,17 @@ export function computeDanceScheduleHourSummary(sessions: DanceSession[]): Dance
         ]
       : callers.columns
 
+  const cuers = buildTable(
+    cuerTotals,
+    dates.length,
+    (a, b) => b.total - a.total || a.label.localeCompare(b.label),
+    0,
+  )
+
   return {
     dates,
     levels,
+    cuers: { columns: cuers.columns, totalByDate: cuers.totalByDate, grandTotal: cuers.grandTotal },
     callers: {
       columns: callerColumns,
       totalByDate: callers.totalByDate,

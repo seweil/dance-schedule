@@ -32,8 +32,8 @@ function compareSessions(a: DanceSession, b: DanceSession): number {
   return timeDiff !== 0 ? timeDiff : formatSessionRoom(a).localeCompare(formatSessionRoom(b))
 }
 
-// Mirrors formatSessionCallerDetails, but as JSX so the headline caller (not
-// GCA, which gets its own column) can be bolded — matching the real display
+// Mirrors formatSessionCallerDetails, but as JSX so the headline caller and cuer
+// (not GCA, which gets its own column) can be bolded — matching the real display
 // page's session cards (danceScheduleCardContent.tsx). Otherwise stays an
 // unfiltered, faithful echo of the parsed data (e.g. "Dancing" isn't
 // suppressed the way the real cards do), matching this table's existing role
@@ -42,9 +42,24 @@ function detailsContent(session: DanceSession): ReactNode {
   if (session.kind === 'freeform') {
     return `(freeform) ${session.description}`
   }
+  const cuers = session.cuers ?? []
   return (
     <>
-      {session.eventType} - <strong>{session.callers.join(' & ')}</strong>
+      {/* A round-dance session has a cuer but no caller — "Teach (cuer: ...)", not
+          "Teach -  (cuer: ...)", same as formatSessionCallerDetails. */}
+      {session.callers.length > 0 || cuers.length === 0 ? (
+        <>
+          {session.eventType} - <strong>{session.callers.join(' & ')}</strong>
+        </>
+      ) : (
+        session.eventType
+      )}
+      {cuers.length > 0 && (
+        <>
+          {' '}
+          (cuer: <strong>{cuers.join(' & ')}</strong>)
+        </>
+      )}
     </>
   )
 }
@@ -138,6 +153,10 @@ export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }
     <>
       <HourSummaryTable caption="Hours by level" dates={summary.dates} table={summary.levels} />
       <HourSummaryTable caption="Hours by caller" dates={summary.dates} table={summary.callers} />
+      {/* Only at an event with round dancing — otherwise an empty table every time. */}
+      {summary.cuers.columns.length > 0 && (
+        <HourSummaryTable caption="Hours by cuer" dates={summary.dates} table={summary.cuers} />
+      )}
       {groupDanceSessionsByDate(sessions).map((group) => (
         <section key={group.date.toISOString()}>
           <h2>{dateFormatter.format(group.date)}</h2>

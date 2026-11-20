@@ -106,6 +106,31 @@ describe('RawDanceScheduleTable', () => {
     expect(screen.getByText('Tim Stephens').tagName).not.toBe('STRONG')
   })
 
+  it("bolds a square session's cuer after its caller, and a round session's cuer alone", () => {
+    render(
+      <RawDanceScheduleTable
+        sessions={[
+          makeSession({ cuers: ['Judy Russell'] }),
+          makeSession({
+            startTime: new Date('2026-07-02T14:00:00.000Z'),
+            endTime: new Date('2026-07-02T15:00:00.000Z'),
+            levels: [],
+            danceForm: 'round',
+            phases: [3, 4, 5],
+            eventType: 'Teach',
+            callers: [],
+            cuers: ['Pam & Jeff Johnson'],
+          }),
+        ]}
+      />,
+    )
+    const rows = screen.getAllByRole('row').filter((row) => within(row).queryByText(/cuer:/))
+    expect(rows[0]).toHaveTextContent('Dancing - Vic Ceder (cuer: Judy Russell)')
+    expect(within(rows[0]!).getByText('Judy Russell').tagName).toBe('STRONG')
+    expect(rows[1]).toHaveTextContent('Rounds Ph 3-5')
+    expect(rows[1]).toHaveTextContent(/Teach \(cuer: Pam & Jeff Johnson\)/)
+  })
+
   it("colors a structured session's Level(s) cell using the shared level palette", () => {
     const session = makeSession({ levels: ['C1', 'C2'] })
     render(<RawDanceScheduleTable sessions={[session]} />)
@@ -203,6 +228,13 @@ describe('RawDanceScheduleTable', () => {
 
       const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
       expect(headings).toEqual(['Hours by level', 'Hours by caller', 'Thursday, July 2, 2026'])
+    })
+
+    it('adds an "Hours by cuer" summary only when some session names a cuer', () => {
+      render(<RawDanceScheduleTable sessions={[makeSession({ cuers: ['Judy Russell'] })]} />)
+
+      const headings = screen.getAllByRole('heading').map((heading) => heading.textContent)
+      expect(headings).toEqual(['Hours by level', 'Hours by caller', 'Hours by cuer', 'Thursday, July 2, 2026'])
     })
 
     it('splits a multi-level session\'s hour evenly across a "Hours by level" row each', () => {
