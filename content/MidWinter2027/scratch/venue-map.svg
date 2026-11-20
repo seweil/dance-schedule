@@ -94,10 +94,10 @@
       <path d="M678 844 L694 863 L678 882 L662 863 Z" fill="#e3261d" stroke="#ffffff" stroke-width="2.5"/>
       <text x="704" y="857" font-size="20" font-weight="600" fill="#1f2933">Main</text>
       <text x="704" y="881" font-size="20" font-weight="600" fill="#1f2933">entrance</text>
-      <text x="840" y="1060" text-anchor="middle" font-size="21" font-style="italic" fill="#6b7682">Parking</text>
+      <text x="840" y="1045" text-anchor="middle" font-size="21" font-style="italic" fill="#6b7682">Parking</text>
 
       <!-- North arrow: a red diamond, its north half solid -->
-      <g transform="translate(880, 1150)">
+      <g transform="translate(900, 1180)">
         <path d="M0 -44 L18 0 L0 44 L-18 0 Z" fill="#ffffff" stroke="#e3261d" stroke-width="2.5"/>
         <path d="M0 -44 L18 0 L-18 0 Z" fill="#e3261d"/>
         <text x="0" y="-54" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2933">N</text>
