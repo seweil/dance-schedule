@@ -340,3 +340,12 @@ test('the phase slider is absent at an event with no round dancing', async ({ pa
   await expect(page.getByRole('slider', { name: 'Minimum level' })).toBeVisible()
   await expect(page.getByRole('slider', { name: 'Minimum phase' })).toHaveCount(0)
 })
+
+test("Dining's category list jumps to each category", async ({ page }) => {
+  await page.goto(`${SET}/dining`)
+  const heading = page.getByRole('heading', { level: 2, name: 'Mexican' })
+  await expect(heading).not.toBeInViewport()
+  await page.getByRole('link', { name: 'Mexican' }).click()
+  await expect(heading).toBeInViewport()
+  await expect(page).toHaveURL(/\/dining#mexican$/)
+})

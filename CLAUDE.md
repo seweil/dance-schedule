@@ -260,6 +260,10 @@ picks up the `.md` extension.
   `//...`) automatically opens in a new tab (`target="_blank"`,
   `rel="noopener noreferrer"`), via the same `MdxA` override in `App.tsx` —
   content authors write a plain markdown link.
+- **Section links**: every `## Heading` gets an id from its text
+  (`src/lib/headingId.ts`: "Breakfast & Brunch" → `breakfast-brunch`), via an
+  `MdxH2` override in `App.tsx`, so a page can link to its own sections with
+  a plain `[Mexican](#mexican)` (e.g. MidWinter2027's Dining page).
 - **Nav menu**: `src/lib/buildNavTree.ts` derives a flat menu straight from the
   routes `vite-plugin-pages` generates — title = Title-cased filename (after
   stripping the order prefix), order = the numeric prefix (see Naming above), Home

@@ -1,7 +1,9 @@
 # Dining
 
-American, Asian, Barbecue, Breakfast/Brunch, Burgers, Italian, and Mexican
-(listed in alphabetical order)
+[American](#american), [Asian](#asian), [Barbecue](#barbecue),
+[Breakfast & Brunch](#breakfast-brunch), [Burgers](#burgers),
+[Italian](#italian), and [Mexican](#mexican), each listed in alphabetical
+order
 
 ## American
 
@@ -13,7 +15,7 @@ American, Asian, Barbecue, Breakfast/Brunch, Burgers, Italian, and Mexican
 
 Family-friendly American dining.\
 1525 Geary St. SE, Albany OR 97322\
-[541-928-9595](tel:+15419289595) [Facebook](http://www.facebook.com/ApplebeesAlbanyOR)
+[541-928-9595](tel:+15419289595) · [Facebook](http://www.facebook.com/ApplebeesAlbanyOR)
 
 ---
 
@@ -23,7 +25,7 @@ Family-friendly American dining.\
 
 Fresh seafood and steaks, pasta dishes, burgers, and sandwiches. Also a private banquet room.\
 110 Opal Ct SE, Albany, OR 97322\
-[541-926-3388](tel:+15419263388) [Website](https://cascade-grill.com/)
+[541-926-3388](tel:+15419263388) · [Website](https://cascade-grill.com/)
 
 ---
 
@@ -33,7 +35,7 @@ Fresh seafood and steaks, pasta dishes, burgers, and sandwiches. Also a private 
 
 Family-friendly spot with breakfast, lunch & dinner; open 24 hours\
 3435 Spicer Dr. SE, Albany OR 97321\
-[541-791-2091](tel:+15417912091) [Website](http://locations.dennys.com/OR/ALBANY/247835)
+[541-791-2091](tel:+15417912091) · [Website](http://locations.dennys.com/OR/ALBANY/247835)
 
 ---
 
@@ -43,7 +45,7 @@ Family-friendly spot with breakfast, lunch & dinner; open 24 hours\
 
 Deli, sandwiches, salads and espresso, plus a full lunch and dinner menu\
 222 Washington St. SW, Albany OR\
-[541-926-8183](tel:+15419268183) [Website](http://loafersstation.com)
+[541-926-8183](tel:+15419268183) · [Website](http://loafersstation.com)
 
 ---
 
@@ -53,7 +55,7 @@ Deli, sandwiches, salads and espresso, plus a full lunch and dinner menu\
 
 Classic diner-style food served 24 hours a day. Banquet room for up to 80.\
 901 Pacific Blvd. SE Albany OR\
-[541-926-5755](tel:+15419265755) [Facebook](http://www.facebook.com/PopsBrandingIron)
+[541-926-5755](tel:+15419265755) · [Facebook](http://www.facebook.com/PopsBrandingIron)
 
 ---
 
@@ -63,7 +65,7 @@ Classic diner-style food served 24 hours a day. Banquet room for up to 80.\
 
 Steaks, seafood, and salad bar.\
 2148 Santiam Hwy. SE Albany OR\
-[541-926-6591](tel:+15419266591) [Website](http://www.sizzler.com)
+[541-926-6591](tel:+15419266591) · [Website](http://www.sizzler.com)
 
 ---
 
@@ -95,7 +97,7 @@ Bar and restaurant with lunch, dinner and happy hour\
 
 Chinese food with take-out and delivery available.\
 1121 Pacific Blvd., Albany OR 97321\
-[541-928-6688](tel:+15419286688) [Facebook](https://www.facebook.com/AB-Chinese-Albany-385444008242928)
+[541-928-6688](tel:+15419286688) · [Facebook](https://www.facebook.com/AB-Chinese-Albany-385444008242928)
 
 ---
 
@@ -105,7 +107,7 @@ Chinese food with take-out and delivery available.\
 
 All you can eat Asian buffet & grill with sushi.\
 2732 Pacific Blvd, Albany, OR\
-[541-981-2276](tel:+15419812276) [Website](https://dinghowbuffet.com/)
+[541-981-2276](tel:+15419812276) · [Website](https://dinghowbuffet.com/)
 
 ---
 
@@ -115,7 +117,7 @@ All you can eat Asian buffet & grill with sushi.\
 
 Authentic Thai food with dine-in, take-out and delivery\
 2025 Santiam Hwy. SE\
-[541-926-0707](tel:+15419260707) [Website](http://www.thehouseofnoodle.com)
+[541-926-0707](tel:+15419260707) · [Website](http://www.thehouseofnoodle.com)
 
 ---
 
@@ -125,7 +127,7 @@ Authentic Thai food with dine-in, take-out and delivery\
 
 Sushi\
 2826 Santiam Hwy. SE, Albany, OR\
-[541-497-2622](tel:+15414972622) [Website](https://kaiyosushi.square.site/)
+[541-497-2622](tel:+15414972622) · [Website](https://kaiyosushi.square.site/)
 
 ---
 
@@ -135,7 +137,7 @@ Sushi\
 
 Japanese dishes and fresh sushi in North Albany\
 641 NW Hickory Albany OR\
-[541-497-6013](tel:+15414976013) [Website](http://www.momijialbany.com)
+[541-497-6013](tel:+15414976013) · [Website](http://www.momijialbany.com)
 
 ---
 
@@ -165,7 +167,7 @@ Thai and wonderful noodle dishes.\
 
 Yakisoba, teriyaki and Japanese food\
 300 2nd Ave. SW Albany OR\
-[541-926-5138](tel:+15419265138) [Facebook Page](https://www.facebook.com/TokiTeriyaki)
+[541-926-5138](tel:+15419265138) · [Facebook Page](https://www.facebook.com/TokiTeriyaki)
 
 ---
 
@@ -175,7 +177,7 @@ Yakisoba, teriyaki and Japanese food\
 
 Chinese & American food; dine-in and take-out\
 1644 Pacific Blvd SE Albany OR\
-[541-928-2197](tel:+15419282197) [Facebook](http://www.facebook.com/YummyHouseAlbany)
+[541-928-2197](tel:+15419282197) · [Facebook](http://www.facebook.com/YummyHouseAlbany)
 
 ## Barbecue
 
@@ -187,7 +189,7 @@ Chinese & American food; dine-in and take-out\
 
 BBQ\
 744 Old Salem Rd. NE, Albany, OR\
-[541-704-7333](tel:+15417047333) [Website](https://www.bbqoregon.com)
+[541-704-7333](tel:+15417047333) · [Website](https://www.bbqoregon.com)
 
 ## Breakfast & Brunch
 
@@ -199,7 +201,7 @@ BBQ\
 
 Upscale cafe and bakery serving brunch and lunch. Full bar, fresh baked goods, espresso.\
 222 1st Ave. W, Suite 4\
-[541-791-7845](tel:+15417917845) [Website](https://www.brickandmortarcafe.com)
+[541-791-7845](tel:+15417917845) · [Website](https://www.brickandmortarcafe.com)
 
 ---
 
@@ -209,7 +211,7 @@ Upscale cafe and bakery serving brunch and lunch. Full bar, fresh baked goods, e
 
 Family-friendly dining; serves breakfast, lunch & dinner. Banquet room capacity of 25-50.\
 2802 Santiam Hwy. SE, Albany OR 97322\
-[541-928-4227](tel:+15419284227) [Website](http://eatatelmers.com)
+[541-928-4227](tel:+15419284227) · [Website](http://eatatelmers.com)
 
 ---
 
@@ -219,7 +221,7 @@ Family-friendly dining; serves breakfast, lunch & dinner. Banquet room capacity 
 
 Old-fashioned diner; breakfast, burgers and more\
 2165 Pacific Blvd SE Albany OR\
-[541-926-6717](tel:+15419266717) [Website](https://www.rogers-restaurant.com)
+[541-926-6717](tel:+15419266717) · [Website](https://www.rogers-restaurant.com)
 
 ## Burgers
 
@@ -231,7 +233,7 @@ Old-fashioned diner; breakfast, burgers and more\
 
 Delicious burgers, fries, and shakes.\
 3060 Pacific Boulevard Se, Albany, OR 97321\
-[541-926-6810](tel:+15419266810) [Website](https://www.bk.com/menu)
+[541-926-6810](tel:+15419266810) · [Website](https://www.bk.com/menu)
 
 ---
 
@@ -241,7 +243,7 @@ Delicious burgers, fries, and shakes.\
 
 Northwest burger chain featuring local ingredients\
 2310 Santiam Hwy SE, Albany, OR 97322\
-[541-926-0669](tel:+15419260669) [Website](https://www.burgerville.com)
+[541-926-0669](tel:+15419260669) · [Website](https://www.burgerville.com)
 
 ---
 
@@ -261,7 +263,7 @@ A piece of Albany's history since 1952. Burgers, fries, and shakes.\
 
 Family-friendly with gourmet burgers and brews\
 1845 14th Ave. SE Albany OR\
-[541-812-2550](tel:+15418122550) [Website](https://www.redrobin.com/locations/or/albany/albany-183)
+[541-812-2550](tel:+15418122550) · [Website](https://www.redrobin.com/locations/or/albany/albany-183)
 
 ## Italian
 
@@ -273,7 +275,7 @@ Family-friendly with gourmet burgers and brews\
 
 Italian restaurant in the Heritage Mall Plaza near shopping, with private banquet room available. Pastas, entrees, salads and more.\
 Heritage Plaza - 1825 14th Ave SE, Albany, OR\
-[541-704-1100](tel:+15417041100) [Website](http://bit.ly/CarinosAlbany)
+[541-704-1100](tel:+15417041100) · [Website](http://bit.ly/CarinosAlbany)
 
 ---
 
@@ -283,7 +285,7 @@ Heritage Plaza - 1825 14th Ave SE, Albany, OR\
 
 Pizza, calzone, and Italian specialties\
 2212 Santiam Hwy. Albany OR\
-[541-917-9000](tel:+15419179000) [Website](http://www.pizzamorealbany.com)
+[541-917-9000](tel:+15419179000) · [Website](http://www.pizzamorealbany.com)
 
 ## Mexican
 
@@ -295,7 +297,7 @@ Pizza, calzone, and Italian specialties\
 
 Family-friendly Mexican restaurant\
 1727 Hill St. SE\
-[541-928-6141](tel:+15419286141) [Facebook Page](https://www.facebook.com/LaRocaMexicanRestaurant)
+[541-928-6141](tel:+15419286141) · [Facebook Page](https://www.facebook.com/LaRocaMexicanRestaurant)
 
 ---
 
@@ -305,7 +307,7 @@ Family-friendly Mexican restaurant\
 
 Family-friendly Mexican restaurant\
 2133 Santiam Hwy. Albany OR\
-[541-928-4820](tel:+15419284820) [Facebook](https://www.facebook.com/losdosamigosalbany)
+[541-928-4820](tel:+15419284820) · [Facebook](https://www.facebook.com/losdosamigosalbany)
 
 ---
 
@@ -315,7 +317,7 @@ Family-friendly Mexican restaurant\
 
 Family-friendly Mexican restaurant in North Albany\
 637 NW Hickory\
-[541-981-2379](tel:+15419812379) [Website](https://mexicolindorestaurantloungeor.com)
+[541-981-2379](tel:+15419812379) · [Website](https://mexicolindorestaurantloungeor.com)
 
 ---
 
@@ -325,7 +327,7 @@ Family-friendly Mexican restaurant in North Albany\
 
 Mexican food with drive-through and dine-in; open 24 hours\
 1720 Pacific Blvd. SW Albany OR\
-[541-791-3198](tel:+15417913198) [Facebook](http://www.facebook.com/pages/Rigobertos/143528689035218)
+[541-791-3198](tel:+15417913198) · [Facebook](http://www.facebook.com/pages/Rigobertos/143528689035218)
 
 ---
 
@@ -335,4 +337,4 @@ Mexican food with drive-through and dine-in; open 24 hours\
 
 Family-friendly Mexican restaurant located inside Two Rivers Market\
 250 Broadalbin SW, Albany OR\
-[541-812-1311](tel:+15418121311) [Website](http://www.alonzotaqueria.com)
+[541-812-1311](tel:+15418121311) · [Website](http://www.alonzotaqueria.com)

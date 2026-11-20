@@ -1,4 +1,4 @@
-import { Suspense, type AnchorHTMLAttributes, type ReactNode } from 'react'
+import { Suspense, type AnchorHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, useLocation, useRoutes, type RouteObject } from 'react-router-dom'
 import { MDXProvider } from '@mdx-js/react'
 import routes from '~react-pages'
@@ -23,6 +23,7 @@ import { useNudgeScrollOnOrientationChange } from './hooks/useNudgeScrollOnOrien
 import { useResetRotateBannerOnLandscape } from './hooks/useResetRotateBannerOnLandscape'
 import { normalizeRoutes } from './lib/buildNavTree'
 import { mailtoAddress, withDiagnostics } from './lib/mailtoDiagnostics'
+import { headingId } from './lib/headingId'
 import { trackEvent } from './lib/rum'
 
 // A content page's markdown `# Title` compiles to a plain `<h1>` — this override
@@ -30,6 +31,17 @@ import { trackEvent } from './lib/rum'
 // does, so its mobile kebab toggle shares a row with the title here as well.
 function MdxH1({ children }: { children?: ReactNode }) {
   return <PageHeader title={children} />
+}
+
+// A `## Heading` gets an id from its text (headingId), so a content page can link
+// to its own sections with a plain `[Mexican](#mexican)`.
+export function MdxH2({ children, ...rest }: HTMLAttributes<HTMLHeadingElement>) {
+  const id = typeof children === 'string' ? headingId(children) : undefined
+  return (
+    <h2 id={id} {...rest}>
+      {children}
+    </h2>
+  )
 }
 
 // Content authors write markdown links as absolute paths (e.g. "/event-schedule")
@@ -87,7 +99,7 @@ export function MdxA({ href, children, ...rest }: AnchorHTMLAttributes<HTMLAncho
   )
 }
 
-const mdxComponents = { img: ZoomableImage, h1: MdxH1, a: MdxA }
+const mdxComponents = { img: ZoomableImage, h1: MdxH1, h2: MdxH2, a: MdxA }
 
 // Registered routes must match the clean hrefs buildNavTree computes for the nav
 // (order prefixes like "2 " are stripped from the URL, not just the label).

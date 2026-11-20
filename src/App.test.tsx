@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { App, MdxA } from './App'
+import { App, MdxA, MdxH2 } from './App'
+import { headingId } from './lib/headingId'
 import { resetLaunchCountGuardForTests } from './hooks/useAppLaunchCount'
 
 describe('App', () => {
@@ -88,5 +89,17 @@ describe('MdxA', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('link', { name: 'Help' })).not.toHaveAttribute('target')
+  })
+})
+
+describe('MdxH2', () => {
+  it.each([
+    ['Mexican', 'mexican'],
+    ['Breakfast & Brunch', 'breakfast-brunch'],
+    ['Where each program dances', 'where-each-program-dances'],
+  ])('gives "%s" the id %s, for in-page links', (text, id) => {
+    expect(headingId(text)).toBe(id)
+    render(<MdxH2>{text}</MdxH2>)
+    expect(screen.getByRole('heading', { level: 2, name: text })).toHaveAttribute('id', id)
   })
 })
