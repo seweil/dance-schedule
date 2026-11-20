@@ -37,5 +37,3 @@ Meet them on the [Featured Staff](/featured-staff) page.
 Festival website: [midwinterfestival.org](https://midwinterfestival.org/2027/)
 
 App by Steve Weil [@seweil](https://www.instagram.com/seweil/)
-
-For event or app feedback (or assistance) [Email us](mailto:help@sqdance.app).
