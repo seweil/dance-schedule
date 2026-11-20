@@ -430,9 +430,14 @@ own color: Willamette Event Center Halls C (Plus, north end) and A
 Holiday Inn Express (Advanced), and Comfort Suites (Clogging).
 **Why:** the site's plan is rotated (east at the bottom), its color key is
 from an earlier year, and it leaves out the hotels, where two programs are.
-**Inferred, to confirm on site:** the Conference Center as the annex on the
-Willamette's east side (from the old plan's annex there, and the photo's low
-glass front), and Hall C/A at its north/south ends (the room names). The
+**Conference Center:** from the Expo Center's own floor plan
+(`scratch/willamette_conference_center_floor_plan.pdf`): Rooms 1–4 in a row,
+a glass hall along one side, "To hotels" past Room 4 and "To lobby" past
+Room 1. So it's the Willamette's northeast corner (the old plan's red block),
+Room 4 at the north end, glass hall on the east, drawn again as an enlarged
+inset with Room 1 (Relaxed MS) and Rooms 3 & 4 (Rounds).
+**Inferred, to confirm on site:** Hall C/A at the Willamette's north/south
+ends (the room names, and the old plan's three halls in a north–south row). The
 other fairgrounds buildings are drawn but unlabeled, since nothing is in
 them and their names weren't confirmable. Re-render after editing the SVG:
 `node -e "require('sharp')('content/MidWinter2027/scratch/venue-map.svg',{density:144}).png({compressionLevel:9,palette:true}).toFile('content/MidWinter2027/pages/assets/venue-map.png')"`.
