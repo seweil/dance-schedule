@@ -198,8 +198,8 @@ BBQ\
 **Brick & Mortar Cafe**
 
 Upscale cafe and bakery serving brunch and lunch. Full bar, fresh baked goods, espresso.\
-222 1st Ave. Suite 4\
-[541-905-1605](tel:+15419051605) [Website](https://www.brickandmortarcafe.com)
+222 1st Ave. W, Suite 4\
+[541-791-7845](tel:+15417917845) [Website](https://www.brickandmortarcafe.com)
 
 ---
 
@@ -209,7 +209,7 @@ Upscale cafe and bakery serving brunch and lunch. Full bar, fresh baked goods, e
 
 Family-friendly dining; serves breakfast, lunch & dinner. Banquet room capacity of 25-50.\
 2802 Santiam Hwy. SE, Albany OR 97322\
-[541-905-1605](tel:+15419051605) [Website](http://eatatelmers.com)
+[541-928-4227](tel:+15419284227) [Website](http://eatatelmers.com)
 
 ---
 
