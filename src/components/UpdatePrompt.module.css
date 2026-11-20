@@ -1,9 +1,25 @@
+/* A floating toast at the bottom of the screen, not a banner at the top. At the
+   top, an installed iPhone app blurs it: iOS's "Liquid Glass" fades the page
+   out under the status bar, well past env(safe-area-inset-top), and neither
+   safe-area padding nor an opaque status bar (index.html) kept it clear. The
+   bottom has no such effect. It sits above the home-indicator inset and above
+   ScrollToTopButton (32px tall, --space-sm from the bottom) so the two never
+   overlap, and below the image lightbox. */
 .banner {
+  position: fixed;
+  left: var(--space-sm);
+  right: var(--space-sm);
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-sm) + 32px + var(--space-sm));
+  z-index: 20;
+  max-width: 28rem;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-md);
   padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
   background: var(--color-accent);
   color: #fff;
 }

@@ -3,12 +3,20 @@
 Bugs and flakes found in passing, not yet worth fixing inline. Not
 architectural decisions (see `docs/design/` for those) — just a running list.
 
-## UpdatePrompt.tsx banner still renders blurred on iOS, second fix attempt also unconfirmed
+## UpdatePrompt.tsx banner rendered blurred on iOS: third attempt moves it to the bottom
 
-**Found:** reported live on an installed iOS standalone PWA; still open as of
-2026-09-21.
+**Found:** reported live on an installed iOS standalone PWA; reported again
+2026-11-19 ("faded at the top as if scrolled too far up").
 
-Two fix attempts so far, neither confirmed working on-device:
+- **Attempt 3** (2026-11-19): stop fighting the top edge. The prompt is now a
+  fixed toast at the bottom of the screen, above the home-indicator inset
+  and ScrollToTopButton (`UpdatePrompt.module.css`), where iOS paints no
+  scroll-edge blur. The app's own CSS has no `backdrop-filter`/`blur(` (ruled
+  out, per (b) below), so the fade was OS chrome. Unconfirmed on a device
+  until the next real update shows the toast; the two meta tags from
+  attempt 2 stay, harmless.
+
+The two earlier attempts, neither confirmed working on-device:
 
 - **Attempt 1** (`2b63b0c`, 2026-09-18): diagnosed as content rendering under
   the status bar with no safe-area padding; added
