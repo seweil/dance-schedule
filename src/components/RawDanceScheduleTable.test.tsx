@@ -36,7 +36,14 @@ describe('RawDanceScheduleTable', () => {
 
   it('renders the GCA column when present', () => {
     render(<RawDanceScheduleTable sessions={[makeSession({ gca: 'Tim Stephens' })]} />)
+    expect(screen.getByRole('columnheader', { name: 'GCA' })).toBeInTheDocument()
     expect(screen.getByText('Tim Stephens')).toBeInTheDocument()
+  })
+
+  it('leaves the GCA column off a day where no session names one', () => {
+    render(<RawDanceScheduleTable sessions={[makeSession()]} />)
+    expect(screen.getByRole('columnheader', { name: 'Details' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'GCA' })).not.toBeInTheDocument()
   })
 
   it('renders multiple co-primary callers joined by "&"', () => {

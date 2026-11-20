@@ -67,14 +67,17 @@ function formatHourSummaryTable(heading: string, dates: Date[], table: DanceSche
   ].join('\n')
 }
 
+// The GCA column is left off a day where no session names one.
 function formatSection(group: { date: Date; sessions: DanceSession[] }): string {
+  const showGca = group.sessions.some((session) => formatSessionGca(session) !== '')
+  const headings = ['Time', 'Room', 'Level(s)', 'Details', ...(showGca ? ['GCA'] : [])]
   const rows = group.sessions.map((session) =>
     [
       formatSessionTimeRange(session),
       formatSessionRoom(session),
       formatSessionLevels(session),
       formatDetails(session),
-      formatSessionGca(session),
+      ...(showGca ? [formatSessionGca(session)] : []),
     ]
       .map(escapeCell)
       .join(' | '),
@@ -83,8 +86,8 @@ function formatSection(group: { date: Date; sessions: DanceSession[] }): string 
   return [
     `## ${dateFormatter.format(group.date)}`,
     '',
-    '| Time | Room | Level(s) | Details | GCA |',
-    '| --- | --- | --- | --- | --- |',
+    `| ${headings.join(' | ')} |`,
+    `| ${headings.map(() => '---').join(' | ')} |`,
     ...rows.map((row) => `| ${row} |`),
   ].join('\n')
 }

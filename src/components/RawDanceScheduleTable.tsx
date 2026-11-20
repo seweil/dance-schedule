@@ -157,48 +157,52 @@ export function RawDanceScheduleTable({ sessions }: { sessions: DanceSession[] }
       {summary.cuers.columns.length > 0 && (
         <HourSummaryTable caption="Hours by cuer" dates={summary.dates} table={summary.cuers} />
       )}
-      {groupDanceSessionsByDate(sessions).map((group) => (
-        <section key={group.date.toISOString()}>
-          <h2>{dateFormatter.format(group.date)}</h2>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Room</th>
-                <th>Level(s)</th>
-                <th>Details</th>
-                <th>GCA</th>
-              </tr>
-            </thead>
-            <tbody>
-              {buildDateRows(group.sessions).map(({ session, shadeTimeCell, isBlockStart }) => (
-                <tr
-                  key={`${formatSessionRoom(session)}-${session.startTime.toISOString()}`}
-                  className={isBlockStart ? styles.timeBlockStart : undefined}
-                  // A freeform row (e.g. a lunch break) has no level of its own to
-                  // color-code, so the whole row gets the same neutral shade
-                  // colorForSession would give its (nonexistent) Level(s) cell —
-                  // matching how the real grids shade a freeform/roomless card.
-                  style={session.kind === 'freeform' ? { backgroundColor: NEUTRAL_CARD_COLOR } : undefined}
-                >
-                  {/* Skipped on a freeform row — its own neutral shading above takes
-                      precedence over the alternating block shade, since a cell's own
-                      background always paints over its row's. */}
-                  <td className={session.kind !== 'freeform' && shadeTimeCell ? styles.timeBlockShaded : undefined}>
-                    {formatSessionTimeRange(session)}
-                  </td>
-                  <td>{formatSessionRoom(session)}</td>
-                  <td style={session.kind === 'structured' ? { backgroundColor: colorForSession(session) } : undefined}>
-                    {formatSessionLevels(session)}
-                  </td>
-                  <td>{detailsContent(session)}</td>
-                  <td>{formatSessionGca(session)}</td>
+      {groupDanceSessionsByDate(sessions).map((group) => {
+        // The GCA column is left off a day where no session names one.
+        const showGca = group.sessions.some((session) => formatSessionGca(session) !== '')
+        return (
+          <section key={group.date.toISOString()}>
+            <h2>{dateFormatter.format(group.date)}</h2>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Room</th>
+                  <th>Level(s)</th>
+                  <th>Details</th>
+                  {showGca && <th>GCA</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ))}
+              </thead>
+              <tbody>
+                {buildDateRows(group.sessions).map(({ session, shadeTimeCell, isBlockStart }) => (
+                  <tr
+                    key={`${formatSessionRoom(session)}-${session.startTime.toISOString()}`}
+                    className={isBlockStart ? styles.timeBlockStart : undefined}
+                    // A freeform row (e.g. a lunch break) has no level of its own to
+                    // color-code, so the whole row gets the same neutral shade
+                    // colorForSession would give its (nonexistent) Level(s) cell —
+                    // matching how the real grids shade a freeform/roomless card.
+                    style={session.kind === 'freeform' ? { backgroundColor: NEUTRAL_CARD_COLOR } : undefined}
+                  >
+                    {/* Skipped on a freeform row — its own neutral shading above takes
+                        precedence over the alternating block shade, since a cell's own
+                        background always paints over its row's. */}
+                    <td className={session.kind !== 'freeform' && shadeTimeCell ? styles.timeBlockShaded : undefined}>
+                      {formatSessionTimeRange(session)}
+                    </td>
+                    <td>{formatSessionRoom(session)}</td>
+                    <td style={session.kind === 'structured' ? { backgroundColor: colorForSession(session) } : undefined}>
+                      {formatSessionLevels(session)}
+                    </td>
+                    <td>{detailsContent(session)}</td>
+                    {showGca && <td>{formatSessionGca(session)}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )
+      })}
     </>
   )
 }
