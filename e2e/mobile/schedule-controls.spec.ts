@@ -91,7 +91,7 @@ test('the rotate banner shows on a schedule in portrait, and can be closed', asy
 
 test('the venue map opens in a lightbox that zooms in', async ({ page }) => {
   await page.goto(`${SET}/venue`)
-  await page.getByRole('img', { name: 'Linn County Fairgrounds layout' }).click()
+  await page.getByRole('img', { name: 'Venue map' }).click()
   const zoomIn = page.getByRole('button', { name: 'Zoom in' })
   await expect(zoomIn).toBeEnabled()
   await zoomIn.click()
@@ -106,12 +106,13 @@ test('the image viewer closes on a swipe down or a tap on the backdrop, not just
   page,
 }) => {
   await page.goto(`${SET}/venue`)
-  const map = page.getByRole('img', { name: 'Linn County Fairgrounds layout' })
+  const map = page.getByRole('img', { name: 'Venue map' })
   const close = page.getByRole('button', { name: 'Close' })
 
   await map.click()
   await expect(close).toBeVisible()
-  // The map is square, so on an upright phone there's backdrop below it.
+  // The map is taller than wide but still shorter than an upright phone's
+  // screen, so there's backdrop below it.
   const viewport = page.viewportSize()!
   await page.mouse.click(viewport.width / 2, viewport.height - 20)
   await expect(close).toBeHidden()
@@ -127,7 +128,7 @@ test('the image viewer closes on a swipe down or a tap on the backdrop, not just
 
 test('the image viewer closes when the app goes to the background', async ({ page }) => {
   await page.goto(`${SET}/venue`)
-  await page.getByRole('img', { name: 'Linn County Fairgrounds layout' }).click()
+  await page.getByRole('img', { name: 'Venue map' }).click()
   const close = page.getByRole('button', { name: 'Close' })
   await expect(close).toBeVisible()
   await page.evaluate(() => {

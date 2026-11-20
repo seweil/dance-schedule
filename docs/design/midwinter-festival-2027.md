@@ -409,15 +409,33 @@ direct product decision, same day). So there's no Lodging page (hotel
 rates, booking, RV parks), and Clothing Resale keeps only the at-event
 details (drop-off times, the youth outfit), not the pre-submission
 deadlines.
-**Left out:** restaurant logos, the chair's photo, and the site's
+**Left out:** the chair's photo, and the site's
 "Information" page's history of each dance form. That last one is
 background reading, not something a dancer needs at the event.
 **Source discrepancies found:** the Youth page gives Julia Buchheit's email
 as buchheitfarmkm@gmail.com and the Contacts page as Jbuchheit19@gmail.com
 (pages here use the Contacts one for her, the Youth one for Karyn);
-Elmer's phone is listed as Brick & Mortar Cafe's number, so it's omitted;
-the fairgrounds map's key marks a hall "Advanced and new dancers", though
-Advanced is at the Holiday Inn this year (the Venue page says so).
+Elmer's phone is listed as Brick & Mortar Cafe's number (both corrected
+from directory listings, 2026-11-19); the fairgrounds map's key marks a
+hall "Advanced and new dancers", though Advanced is at the Holiday Inn this
+year (superseded by our own map, below).
+
+### Our own venue map, north-up, with the hotels (2026-11-19)
+**Decision:** the Venue page's map is drawn here (`scratch/venue-map.svg`,
+rendered to `pages/assets/venue-map.png` with sharp at density 144), not the
+festival site's fairgrounds plan. North is up, outlines are traced from an
+aerial view, and each festival building is labeled with its program in its
+own color: Willamette Event Center Halls C (Plus, north end) and A
+(Mainstream Ext, south end), the Conference Center (Relaxed MS, Rounds),
+Holiday Inn Express (Advanced), and Comfort Suites (Clogging).
+**Why:** the site's plan is rotated (east at the bottom), its color key is
+from an earlier year, and it leaves out the hotels, where two programs are.
+**Inferred, to confirm on site:** the Conference Center as the annex on the
+Willamette's east side (from the old plan's annex there, and the photo's low
+glass front), and Hall C/A at its north/south ends (the room names). The
+other fairgrounds buildings are drawn but unlabeled, since nothing is in
+them and their names weren't confirmable. Re-render after editing the SVG:
+`node -e "require('sharp')('content/MidWinter2027/scratch/venue-map.svg',{density:144}).png({compressionLevel:9,palette:true}).toFile('content/MidWinter2027/pages/assets/venue-map.png')"`.
 
 ### Staff view label follows the schedule's dance forms (2026-11-18)
 **Decision:** the staff-columns page is "Caller Schedule" when the schedule

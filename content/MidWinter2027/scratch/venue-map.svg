@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1330" viewBox="0 0 1000 1330" font-family="Helvetica, Arial, sans-serif">
+  <!-- Source for pages/assets/venue-map.png (render: see docs/design/midwinter-festival-2027.md).
+       North-up, traced by hand from an aerial view; positions are approximate.
+       Map content is drawn in the aerial's own coordinates, offset by translate(11, 80). -->
+  <rect width="1000" height="1330" fill="#ffffff"/>
+  <text x="500" y="44" text-anchor="middle" font-size="34" font-weight="bold" fill="#222">Linn County Fair &amp; Expo Center</text>
+  <text x="500" y="72" text-anchor="middle" font-size="20" fill="#555">and the two hotels next door</text>
+
+  <g transform="translate(11, 80)">
+    <clipPath id="mapClip"><rect x="0" y="0" width="978" height="1240"/></clipPath>
+    <g clip-path="url(#mapClip)">
+      <!-- Ground -->
+      <rect x="0" y="0" width="978" height="1240" fill="#eef0e6"/>
+      <!-- Fairgrounds pavement -->
+      <rect x="50" y="425" width="640" height="815" fill="#e3e1db"/>
+      <!-- Hotel parking, and Cascade Grill's lot -->
+      <path d="M60 195 H475 V95 H660 L682 118 V405 H60 Z" fill="#e3e1db"/>
+      <rect x="130" y="62" width="320" height="128" fill="#e3e1db"/>
+      <!-- Main parking, east -->
+      <rect x="705" y="720" width="273" height="370" fill="#e3e1db"/>
+      <g stroke="#c9c6be" stroke-width="2">
+        <line x1="725" y1="770" x2="960" y2="770"/>
+        <line x1="725" y1="830" x2="960" y2="830"/>
+        <line x1="725" y1="890" x2="960" y2="890"/>
+        <line x1="725" y1="950" x2="960" y2="950"/>
+        <line x1="725" y1="1010" x2="960" y2="1010"/>
+      </g>
+
+      <!-- Roads -->
+      <rect x="0" y="12" width="978" height="46" fill="#ffffff" stroke="#b9b6ad" stroke-width="2"/>
+      <text x="960" y="43" text-anchor="end" font-size="20" font-weight="bold" fill="#666" letter-spacing="2">KNOX BUTTE RD</text>
+      <path d="M465 58 V195" stroke="#b9b6ad" stroke-width="34" fill="none"/>
+      <path d="M465 58 V195" stroke="#ffffff" stroke-width="30" fill="none"/>
+      <text transform="translate(471, 128) rotate(90)" text-anchor="middle" font-size="15" font-weight="bold" fill="#666" letter-spacing="1">OPAL CT</text>
+      <path d="M700 58 V630 Q700 690 760 690 H978" stroke="#b9b6ad" stroke-width="40" fill="none"/>
+      <path d="M700 58 V630 Q700 690 760 690 H978" stroke="#ffffff" stroke-width="36" fill="none"/>
+
+      <!-- Tree line between the hotels and the fairgrounds -->
+      <line x1="50" y1="415" x2="684" y2="415" stroke="#8fae7a" stroke-width="10" stroke-dasharray="2 14" stroke-linecap="round"/>
+
+      <!-- Cascade Grill -->
+      <rect x="320" y="72" width="115" height="66" fill="#ffffff" stroke="#555" stroke-width="2"/>
+      <text x="377" y="111" text-anchor="middle" font-size="16" fill="#444">Cascade Grill</text>
+
+      <!-- Comfort Suites: Clogging -->
+      <rect x="110" y="232" width="240" height="126" rx="4" fill="#c9b0ec" stroke="#555" stroke-width="2"/>
+      <text x="230" y="282" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Comfort Suites</text>
+      <text x="230" y="314" text-anchor="middle" font-size="22" fill="#222">Clogging</text>
+
+      <!-- Holiday Inn Express: Advanced -->
+      <rect x="485" y="145" width="122" height="205" rx="4" fill="#f2958f" stroke="#555" stroke-width="2"/>
+      <text x="546" y="208" text-anchor="middle" font-size="20" font-weight="bold" fill="#222">Holiday Inn</text>
+      <text x="546" y="232" text-anchor="middle" font-size="20" font-weight="bold" fill="#222">Express</text>
+      <text x="546" y="272" text-anchor="middle" font-size="20" fill="#222">Advanced</text>
+      <text x="546" y="296" text-anchor="middle" font-size="17" fill="#222">A1 · A2 · C1</text>
+
+      <!-- Willamette Event Center: Halls C (north), B, A (south) -->
+      <text x="514" y="446" text-anchor="middle" font-size="19" font-weight="bold" fill="#222" letter-spacing="1">WILLAMETTE EVENT CENTER</text>
+      <rect x="425" y="455" width="177" height="100" fill="#f7d35c" stroke="#555" stroke-width="2"/>
+      <text x="513" y="498" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Hall C</text>
+      <text x="513" y="526" text-anchor="middle" font-size="20" fill="#222">Plus</text>
+      <rect x="425" y="555" width="177" height="100" fill="#f3efe4" stroke="#555" stroke-width="2"/>
+      <text x="513" y="612" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Hall B</text>
+      <rect x="425" y="655" width="177" height="103" fill="#f5a845" stroke="#555" stroke-width="2"/>
+      <text x="513" y="699" text-anchor="middle" font-size="22" font-weight="bold" fill="#222">Hall A</text>
+      <text x="513" y="727" text-anchor="middle" font-size="20" fill="#222">Mainstream Ext</text>
+
+      <!-- Conference Center, on the Willamette's east side -->
+      <rect x="602" y="470" width="62" height="288" fill="#93bdf2" stroke="#555" stroke-width="2"/>
+      <text transform="translate(628, 614) rotate(-90)" text-anchor="middle" font-size="19" font-weight="bold" fill="#222">Conference Center</text>
+      <text transform="translate(652, 614) rotate(-90)" text-anchor="middle" font-size="16" fill="#222">Relaxed MS · Rounds</text>
+
+      <!-- Lawn with its circular path -->
+      <circle cx="505" cy="863" r="100" fill="#d9d6ce"/>
+      <circle cx="505" cy="863" r="84" fill="#cfe3bd"/>
+      <line x1="505" y1="765" x2="505" y2="961" stroke="#d9d6ce" stroke-width="8"/>
+
+      <!-- Other fairgrounds buildings (not used by the festival) -->
+      <g fill="#f3efe4" stroke="#555" stroke-width="2">
+        <rect x="175" y="712" width="190" height="90"/>
+        <rect x="165" y="918" width="200" height="274"/>
+        <rect x="425" y="968" width="175" height="254"/>
+      </g>
+      <rect x="182" y="806" width="152" height="106" fill="#cfe3bd"/>
+
+      <!-- Main entrance plaza -->
+      <rect x="612" y="772" width="78" height="186" fill="#d9d6ce"/>
+      <text x="720" y="862" font-size="18" font-weight="bold" fill="#222">◀ Main</text>
+      <text x="720" y="884" font-size="18" font-weight="bold" fill="#222">entrance</text>
+      <text x="840" y="1060" text-anchor="middle" font-size="22" font-weight="bold" fill="#777">Parking</text>
+
+      <!-- North arrow -->
+      <g transform="translate(880, 1150)">
+        <path d="M0 -42 L16 8 L0 0 L-16 8 Z" fill="#333"/>
+        <text x="0" y="36" text-anchor="middle" font-size="22" font-weight="bold" fill="#333">N</text>
+      </g>
+    </g>
+    <rect x="0" y="0" width="978" height="1240" fill="none" stroke="#999" stroke-width="2"/>
+  </g>
+</svg>

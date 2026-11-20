@@ -26,13 +26,12 @@ Both hotels are next door to the Expo Center, on Opal Court.
 - **Clogging:** Comfort Suites, 100 Opal Ct NE, Albany
   ([map](https://www.google.com/maps/search/?api=1&query=Comfort+Suites+100+Opal+Ct+NE+Albany+OR))
 
-## Fairgrounds layout
+## Venue map
 
-![Linn County Fairgrounds layout](./assets/venue-layout.jpg "large")
+![Venue map](./assets/venue-map.png "large")
 
-The map's color key comes from the festival website and may be from an
-earlier year. This year Advanced is at the Holiday Inn Express, not on the
-fairgrounds. Go by the table above.
+North is up: Knox Butte Rd runs along the top, and the hotels are just
+north of the fairgrounds.
 
 ## The buildings
 

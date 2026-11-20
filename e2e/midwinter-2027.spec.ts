@@ -300,7 +300,7 @@ test.describe('phone, venue map', () => {
     page,
   }) => {
     await page.goto(`${SET}/venue`)
-    await page.getByRole('img', { name: 'Linn County Fairgrounds layout' }).click()
+    await page.getByRole('img', { name: 'Venue map' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
     // "Zoom in" stays disabled until the image loads (the zoom plugin needs its
@@ -310,7 +310,7 @@ test.describe('phone, venue map', () => {
     for (let i = 0; i < 3 && (await zoomIn.isEnabled()); i++) {
       await zoomIn.click()
     }
-    const map = dialog.getByRole('img', { name: 'Linn County Fairgrounds layout' })
+    const map = dialog.getByRole('img', { name: 'Venue map' })
     await expect
       .poll(async () => (await map.boundingBox())!.width)
       .toBeGreaterThan(viewport.width * 4)
@@ -326,7 +326,7 @@ test('the venue map still loads offline after the SW takes control', async ({ pa
 
   await context.setOffline(true)
   await page.goto(`${SET}/venue`)
-  const map = page.getByRole('img', { name: 'Linn County Fairgrounds layout' })
+  const map = page.getByRole('img', { name: 'Venue map' })
   await expect(map).toBeVisible()
   // A broken image is still "visible"; naturalWidth is 0 unless it actually loaded.
   await expect
