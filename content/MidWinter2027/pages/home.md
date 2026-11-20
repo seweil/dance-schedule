@@ -2,9 +2,13 @@
 
 Diamond Cir-Q-L8 and Roll to Mid-Winter! January 29–31, 2027, at the Linn
 County Fair & Expo Center in Albany, Oregon — square dancing, round dancing,
-and clogging.
+and clogging. This website has the detailed dance schedule and can be
+installed like an app on your phone.
 
 ### Here's the [full dance schedule](/dance-schedule)
+
+Add to your home screen for quick access, even when you don't have WiFi or
+cell service. See [Help](/help) for instructions.
 
 ---
 
