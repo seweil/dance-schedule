@@ -1,5 +1,7 @@
 # Oregon Mid-Winter Festival 2027
 
+![Mid-Winter Festival 2027 logo: two playing cards, a pair of dice, and three poker chips](./assets/logo.png "small no-zoom")
+
 Diamond Cir-Q-L8 and Roll to Mid-Winter! January 29–31, 2027, at the Linn
 County Fair & Expo Center in Albany, Oregon — square dancing, round dancing,
 and clogging. This website has the detailed dance schedule and can be
