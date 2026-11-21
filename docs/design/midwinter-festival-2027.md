@@ -402,6 +402,11 @@ Venue, Dining, Things to Do, Youth, Clothing Resale, Contacts, plus
 the shared Help page. Numbered 20–29 so they sort after the schedule pages,
 as MotivateToSeattle's do. The festival logo, flattened onto white and
 squared, is the set's `icon.png`; originals are in `scratch/site-images/`.
+**Icon cropped tight (2026-11-21):** the first `icon.png` kept the logo's own
+~12% blank margin, and line art that thin read as a near-empty white tile at
+home-screen size. It's now trimmed to the artwork with a 5% margin. Not done
+by the build for every set: MotivateToSeattle's icon is full-bleed, and
+trimming it would cut a strip off the top.
 **Off-site rooms:** answered on the Venue page, not in the grids: a
 program → room → building table, and the two hotels' addresses with map
 links. A grid card already names its room ("Holiday Inn"), and an address
