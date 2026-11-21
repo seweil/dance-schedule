@@ -21,7 +21,7 @@
    to be legible; it has to already be comfortably readable at whatever size
    it declares for itself. */
 .dialog {
-  background: #fff;
+  background: var(--color-bg);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
   padding: var(--space-md);

@@ -208,7 +208,7 @@
 .levelField[data-hint-visible='true'] .ticks,
 .levelField[data-hint-visible='true'] .sliderRoot {
   z-index: 22;
-  background: #fff;
+  background: var(--color-bg);
 }
 
 .label {
@@ -407,7 +407,7 @@
   z-index: 21;
   border: 2px dashed var(--color-accent);
   border-radius: 999px;
-  box-shadow: 0 0 0 9999px rgb(0 0 0 / 50%);
+  box-shadow: 0 0 0 9999px var(--color-backdrop);
   pointer-events: none;
 }
 
@@ -626,7 +626,7 @@
    out-of-range level still visibly marks its position on the track. */
 .tick[data-in-range='false'] {
   font-weight: 400;
-  color: #888;
+  color: var(--color-text-muted);
 }
 
 /* var(--color-text), not --color-border (#ddd) — the latter reads as barely

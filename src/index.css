@@ -4,6 +4,9 @@
    margin, so it can be cancelled with a plain negative margin elsewhere without the
    margin-collapsing edge cases a body margin can introduce. */
 body {
+  /* Explicit, not the browser's default white, so the surfaces that must match
+     it exactly (see --color-bg) share one value. */
+  background: var(--color-bg);
   margin: 0;
   padding: 0 var(--space-sm);
   /* Unlike padding-bottom below, no max() with a minimum — env() resolving to 0
@@ -52,9 +55,35 @@ body {
   /* Prevents iOS Safari from auto-bumping font size on rotation. */
   -webkit-text-size-adjust: 100%;
 
+  /* Every color a component repeats lives here, named by its role rather than
+     its value, so a component asks for "the page background" or "text on the
+     accent" instead of #fff. A one-off color specific to one component (a
+     schedule card's busy shade, the events page's notice) stays a literal in that
+     component's own CSS module. */
   --color-text: #1a1a1a;
+  --color-text-muted: #888;
   --color-accent: #2454ff;
+  /* Text, borders and outlines drawn on top of an --color-accent fill. */
+  --color-on-accent: #fff;
+  --color-on-accent-hover: rgb(255 255 255 / 15%);
+  /* The page's own background, and every opaque surface that has to match it
+     exactly: sticky grid headers covering cards scrolled beneath them, menus and
+     panels, and "cut" borders that read as a gap. */
+  --color-bg: #fff;
+  /* Hover, and other light shades over --color-bg. */
+  --color-surface-subtle: #f5f5f5;
+  /* A toggle whose menu is open. */
+  --color-surface-pressed: #e6e6e6;
   --color-border: #ddd;
+  /* A form-like control's outline (the menu toggle, the staff picker panel). */
+  --color-control-border: rgb(0 0 0 / 55%);
+  /* An empty grid cell's faint edge — translucent so it never reads as a real
+     border over a card's color. */
+  --color-gridline: rgb(0 0 0 / 5%);
+  /* Dims the rest of the page behind a hint balloon's target. */
+  --color-backdrop: rgb(0 0 0 / 50%);
+  --shadow-raised: 0 2px 8px rgb(0 0 0 / 25%);
+  --shadow-menu: 0 2px 8px rgb(0 0 0 / 15%);
   --space-sm: 0.5rem;
   --space-md: 1rem;
 }

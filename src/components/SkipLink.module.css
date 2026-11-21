@@ -8,7 +8,7 @@
   left: var(--space-sm);
   z-index: 1000;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   padding: var(--space-sm) var(--space-md);
   border-radius: 4px;
   text-decoration: none;

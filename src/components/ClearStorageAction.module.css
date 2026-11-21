@@ -7,7 +7,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font: inherit;
   padding: var(--space-sm) var(--space-md);
   cursor: pointer;

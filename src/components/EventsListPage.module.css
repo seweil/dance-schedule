@@ -30,7 +30,7 @@
 /* Muted/smaller than the link it follows — an aside, not a second thing to
    read with equal weight — same treatment as .testSectionLabel below. */
 .dateRange {
-  color: #888;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
@@ -46,7 +46,7 @@
 /* Low-emphasis, same treatment as BuildInfo's own muted text. */
 .testSectionLabel {
   margin: 0 0 var(--space-sm);
-  color: #888;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 

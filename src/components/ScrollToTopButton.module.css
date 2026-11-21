@@ -21,9 +21,9 @@
      value where it is supported. */
   background: #4966cc;
   background: color-mix(in srgb, var(--color-accent) 60%, gray 40%);
-  color: #fff;
+  color: var(--color-on-accent);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+  box-shadow: var(--shadow-raised);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

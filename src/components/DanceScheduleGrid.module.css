@@ -188,7 +188,7 @@
      to keep this on a stable compositing layer, avoiding a brief flash of
      scrolled-past body content showing through a sticky header during fast
      scrolling — a known artifact on mobile browsers, not just a hypothetical. */
-  background: #fff;
+  background: var(--color-bg);
   will-change: transform;
 }
 
@@ -292,7 +292,7 @@
   top: 0;
   left: 0;
   z-index: 3;
-  background: #fff;
+  background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
 }
@@ -308,7 +308,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #fff;
+  background: var(--color-bg);
   padding: var(--space-sm);
   font-weight: bold;
   text-align: center;
@@ -342,7 +342,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  background: #fff;
+  background: var(--color-bg);
   padding: 0 var(--space-sm);
   border-radius: 6px;
   font-size: 0.75rem;
@@ -377,11 +377,11 @@
    against the live DOM, and by temporarily swapping in an opaque color to
    confirm placement, then reverting. */
 .emptyCellTop {
-  border-top: 1px solid rgb(0 0 0 / 5%);
+  border-top: 1px solid var(--color-gridline);
 }
 
 .emptyCellLeft {
-  border-left: 1px solid rgb(0 0 0 / 5%);
+  border-left: 1px solid var(--color-gridline);
 }
 
 /* The line between groups of columns (levels | phases | Other) — see
@@ -438,7 +438,7 @@
    reads as a clean gap against any level color, unlike a fixed gray/dark border
    color which could low-contrast against a similarly-toned card. */
 .laneDivider {
-  border-left: 2px solid #fff;
+  border-left: 2px solid var(--color-bg);
 }
 
 .card {
@@ -677,10 +677,10 @@
   padding: 1px var(--badge-padding-x);
   border-radius: 999px;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
-  box-shadow: 0 0 0 1px #fff;
+  box-shadow: 0 0 0 1px var(--color-bg);
 }
